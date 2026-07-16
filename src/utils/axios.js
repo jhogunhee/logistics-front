@@ -24,6 +24,10 @@ instance.interceptors.response.use(
         if (error.response?.status === 401) {
             window.location.href = '/login';
         }
+        // 서버 에러 응답({ message })을 e.message로 노출 → 화면에서 토스트에 그대로 사용
+        if (error.response?.data?.message) {
+            error.message = error.response.data.message;
+        }
         return Promise.reject(error);
     }
 );
