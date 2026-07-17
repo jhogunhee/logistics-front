@@ -1,13 +1,17 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { flushSync } from 'react-dom';
+import { useEffect, useRef, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
-import { MapPin, Plus, Save } from 'lucide-react';
+import { Download, MapPin, Plus, Save, Trash2, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';
+import * as XLSX from 'xlsx';
 
 import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
-import { locApi, LOC_TYPE_META } from '@/api/locApi';
+import { locApi, LOC_TYPE_META, ZONE_CODES } from '@/api/locApi';
 import { TEMP_ZONE_META } from '@/api/skuApi';
+import { codeApi, toSearchOptions } from '@/api/codeApi';
+
+// ISO 일시("2026-07-16T14:03:21...") → "2026-07-16 14:03"
+const formatDateTime = (v) => (v ? v.replace('T', ' ').slice(0, 16) : '');
 
 const ZONE_OPTIONS = [
     { value: '', label: '전체' },
@@ -15,12 +19,6 @@ const ZONE_OPTIONS = [
     { value: 'DRY', label: 'DRY (상온존)' },
     { value: 'CHL', label: 'CHL (냉장존)' },
     { value: 'FRZ', label: 'FRZ (냉동존)' },
-];
-
-const LOC_TYPE_OPTIONS = [
-    { value: '', label: '전체' },
-    { value: 'STAGE', label: '스테이징' },
-    { value: 'STORAGE', label: '보관' },
 ];
 
 const TempZoneBadge = ({ value }) => {
@@ -46,86 +44,233 @@ const LocTypeBadge = ({ value }) => {
 export default function LocMaster() {
     const [rowData, setRowData] = useState([]);
     const [cond, setCond] = useState({ locCd: '', zoneCd: '', locType: '' });
-    const gridRef = useRef(null);
+    const [locTypeOptions, setLocTypeOptions] = useState([{ value: '', label: '전체' }]);
+    const [tempZoneCodes, setTempZoneCodes] = useState([]); // 공통코드(TEMP_ZONE)의 코드값 목록
+    const [locTypeCodes, setLocTypeCodes] = useState([]); // 공통코드(LOC_TYPE)의 코드값 목록
+    const [rowCount, setRowCount] = useState(0); // 행추가분은 rowData 상태에 없으므로 건수는 그리드 기준으로 센다
+    const [saveConfirm, setSaveConfirm] = useState(null); // 저장 확인 모달에 넘길 대상 행들 (null이면 닫힘)
+    const gridRef = useRef(null); // 그리드 api 호출용 (applyTransaction 등)
+    const fileInputRef = useRef(null); // 엑셀 업로드 파일 선택창
 
-    const fetchList = useCallback(async () => {
+    // 삭제(D) 표시된 행은 편집을 막는다
+    const notDeleted = (p) => p.data._status !== 'D';
+
+    const STATUS_META = {
+        C: { label: '신규', cls: 'text-blue-500' },
+        U: { label: '수정', cls: 'text-amber-500' },
+        D: { label: '삭제', cls: 'text-red-500' },
+    };
+
+    // 온도대/유형 편집기 목록은 공통코드 상태를 직접 참조한다
+    const columnDefs = [
+        {
+            headerName: 'No.', width: 60, editable: false,
+            valueGetter: (p) => p.node.rowIndex + 1,
+            cellClass: 'text-slate-400',
+        },
+        {
+            // 코드는 업무 식별자라 수정 불가 — 신규(C) 행에서만 입력받는다
+            field: 'locCd', headerName: '로케이션 코드', width: 170,
+            editable: (p) => p.data._status === 'C',
+        },
+        {
+            field: 'zoneCd', headerName: '존', width: 140, editable: notDeleted,
+            cellEditor: 'agSelectCellEditor',
+            cellEditorParams: { values: ZONE_CODES },
+        },
+        {
+            field: 'tempZone', headerName: '온도대', width: 130, editable: notDeleted,
+            cellEditor: 'agSelectCellEditor',
+            cellEditorParams: { values: tempZoneCodes },
+            cellRenderer: (p) => <TempZoneBadge value={p.value} />,
+        },
+        {
+            field: 'locType', headerName: '유형', width: 120, editable: notDeleted,
+            cellEditor: 'agSelectCellEditor',
+            cellEditorParams: { values: locTypeCodes },
+            cellRenderer: (p) => <LocTypeBadge value={p.value} />,
+        },
+        {
+            field: 'pickPrty', headerName: '피킹 우선순위', width: 130, editable: notDeleted,
+            cellClass: 'ag-right-aligned-cell',
+            headerTooltip: 'FEFO 동순위(같은 유통기한) 간 할당 순서. 낮을수록 먼저',
+        },
+        {
+            field: '_status', headerName: '상태', width: 70,
+            cellRenderer: (p) => {
+                const meta = STATUS_META[p.value];
+                return meta
+                    ? <span className={`text-[11px] font-bold ${meta.cls}`}>{meta.label}</span>
+                    : null;
+            },
+        },
+        { field: 'createdBy', headerName: '등록자', width: 90, editable: false },
+        {
+            field: 'createdAt', headerName: '등록시간', width: 150, editable: false,
+            valueFormatter: (p) => formatDateTime(p.value),
+        },
+        { field: 'updatedBy', headerName: '수정자', width: 90, editable: false },
+        {
+            field: 'updatedAt', headerName: '수정시간', width: 150, editable: false,
+            valueFormatter: (p) => formatDateTime(p.value),
+        },
+    ];
+
+    const fetchList = async () => {
         const data = await locApi.list(cond);
         setRowData(data);
-    }, [cond]);
+    };
 
-    // 최초 1회 조회 (이후엔 조회 버튼으로 재조회)
+    // 최초 1회 조회 (이후엔 조회 버튼으로 재조회) + 온도대/유형 공통코드 조회
     useEffect(() => {
         let ignore = false;
         locApi.list().then(data => { if (!ignore) setRowData(data); });
+        codeApi.list('TEMP_ZONE').then(codes => {
+            if (!ignore) setTempZoneCodes(codes.map(c => c.codeCd));
+        });
+        codeApi.list('LOC_TYPE').then(codes => {
+            if (!ignore) {
+                setLocTypeOptions(toSearchOptions(codes));
+                setLocTypeCodes(codes.map(c => c.codeCd));
+            }
+        });
         return () => { ignore = true; };
     }, []);
 
     // 셀 수정 시 행 상태를 U(수정)로 표시 (신규 C는 유지)
-    const onCellValueChanged = useCallback((params) => {
+    const onCellValueChanged = (params) => {
+        if (params.column.getColId() === '_status') return; // 상태 컬럼 자체의 변경(삭제 표시 등)은 무시
         if (params.data._status !== 'C') {
             params.node.setDataValue('_status', 'U');
         }
-    }, []);
-
-    const columnDefs = useMemo(() => [
-        { field: 'locCd', headerName: '로케이션 코드', width: 170, editable: (p) => p.data._status === 'C' },
-        {
-            field: 'zoneCd', headerName: '존', width: 140, editable: true,
-            cellEditor: 'agSelectCellEditor',
-            cellEditorParams: { values: ['RCV-STAGE', 'DRY', 'CHL', 'FRZ'] },
-        },
-        {
-            field: 'tempZone', headerName: '온도대', width: 130, editable: true,
-            cellEditor: 'agSelectCellEditor',
-            cellEditorParams: { values: ['DRY', 'CHL', 'FRZ'] },
-            cellRenderer: (p) => <TempZoneBadge value={p.value} />,
-        },
-        {
-            field: 'locType', headerName: '유형', width: 120, editable: true,
-            cellEditor: 'agSelectCellEditor',
-            cellEditorParams: { values: ['STAGE', 'STORAGE'] },
-            cellRenderer: (p) => <LocTypeBadge value={p.value} />,
-        },
-        {
-            field: 'pickPrty', headerName: '피킹 우선순위', width: 130, editable: true,
-            cellClass: 'ag-right-aligned-cell',
-            headerTooltip: 'FEFO 동순위(같은 유통기한) 간 할당 순서. 낮을수록 먼저',
-        },
-        { field: '', headerName: '', flex: 1, sortable: false, filter: false },
-        {
-            field: '_status', headerName: '상태', width: 70,
-            cellRenderer: (p) => p.value
-                ? <span className={`text-[11px] font-bold ${p.value === 'C' ? 'text-blue-500' : 'text-amber-500'}`}>
-                    {p.value === 'C' ? '신규' : '수정'}
-                  </span>
-                : null,
-        },
-    ], []);
+    };
 
     // ── 행 추가 ──────────────────────────────────────────────
+    // applyTransaction은 동기라 추가된 행 노드를 바로 돌려주므로 곧장 편집을 시작할 수 있다
     const handleAddRow = () => {
-        flushSync(() => {
-            setRowData(prev => [
-                ...prev,
-                { locCd: '', zoneCd: 'DRY', tempZone: 'DRY', locType: 'STORAGE', pickPrty: 0, _status: 'C' },
-            ]);
+        const api = gridRef.current.api;
+        const res = api.applyTransaction({
+            add: [{ locCd: '', zoneCd: 'DRY', tempZone: 'DRY', locType: 'STORAGE', pickPrty: 0, _status: 'C' }],
         });
-        const api = gridRef.current?.api;
-        if (api) {
-            const lastIndex = api.getDisplayedRowCount() - 1;
-            api.ensureIndexVisible(lastIndex, 'bottom');
-            api.startEditingCell({ rowIndex: lastIndex, colKey: 'locCd' });
+        const rowIndex = res.add[0].rowIndex;
+        api.ensureIndexVisible(rowIndex, 'bottom');
+        api.startEditingCell({ rowIndex, colKey: 'locCd' });
+    };
+
+    // ── 삭제 ────────────────────────────────────────────────
+    // 신규(C) 행은 그리드에서 바로 제거, 기존 행은 D로 표시해 저장 시 서버에 반영한다 (재조회하면 원복)
+    const handleDeleteRows = () => {
+        const api = gridRef.current.api;
+        const selected = api.getSelectedNodes();
+        if (selected.length === 0) {
+            toast('삭제할 행을 선택하세요.');
+            return;
         }
+        const newRows = selected.filter(n => n.data._status === 'C').map(n => n.data);
+        if (newRows.length > 0) {
+            api.applyTransaction({ remove: newRows });
+        }
+        const marked = selected.filter(n => n.data._status !== 'C');
+        marked.forEach(n => n.setDataValue('_status', 'D'));
+        api.deselectAll();
+
+        const parts = [];
+        if (newRows.length > 0) parts.push(`신규 ${newRows.length}건은 바로 제거했습니다`);
+        if (marked.length > 0) parts.push(`기존 ${marked.length}건은 저장 시 삭제됩니다`);
+        toast(parts.join(', '));
+    };
+
+    // ── 엑셀 양식 다운로드 ───────────────────────────────────
+    // 업로드가 읽는 헤더 그대로 예시 행을 담아 내려준다 (예시 행은 업로드 후 그리드에서 지우면 됨).
+    // 두 번째 시트에 코드표를 넣어 입력 가능한 값을 안내한다 (업로드는 첫 시트만 읽음).
+    const handleTemplateDownload = () => {
+        const sheet = XLSX.utils.json_to_sheet([
+            { '로케이션 코드': 'DRY-C-01-01 (예시)', '존': 'DRY', '온도대': 'DRY', '유형': 'STORAGE', '피킹 우선순위': 5 },
+            { '로케이션 코드': 'CHL-B-02-01 (예시)', '존': 'CHL', '온도대': 'CHL', '유형': 'STORAGE', '피킹 우선순위': 4 },
+            { '로케이션 코드': 'RCV-STAGE-2 (예시)', '존': 'RCV-STAGE', '온도대': 'DRY', '유형': 'STAGE', '피킹 우선순위': 0 },
+        ]);
+        sheet['!cols'] = [{ wch: 22 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 12 }]; // 열 너비
+
+        const codeSheet = XLSX.utils.json_to_sheet([
+            ...ZONE_CODES.map(cd => ({ '구분': '존', '코드': cd, '이름': '' })),
+            ...Object.entries(TEMP_ZONE_META).map(([cd, meta]) => ({ '구분': '온도대', '코드': cd, '이름': meta.label })),
+            ...Object.entries(LOC_TYPE_META).map(([cd, meta]) => ({ '구분': '유형', '코드': cd, '이름': meta.label })),
+        ]);
+        codeSheet['!cols'] = [{ wch: 8 }, { wch: 12 }, { wch: 10 }];
+
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, sheet, '로케이션');
+        XLSX.utils.book_append_sheet(workbook, codeSheet, '코드표');
+        XLSX.writeFile(workbook, 'loc_upload_template.xlsx');
+    };
+
+    // ── 엑셀 업로드 ─────────────────────────────────────────
+    // 첫 시트의 [로케이션 코드 | 존 | 온도대 | 유형 | 피킹 우선순위] 컬럼을 읽어 신규(C) 행으로 추가한다.
+    // 온도대/유형은 코드(DRY/STORAGE)와 이름(상온/보관) 모두 허용.
+    const handleExcelUpload = async (e) => {
+        const file = e.target.files[0];
+        e.target.value = ''; // 같은 파일을 다시 선택해도 change 이벤트가 오도록 초기화
+        if (!file) return;
+
+        const workbook = XLSX.read(await file.arrayBuffer());
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const raw = XLSX.utils.sheet_to_json(sheet, { defval: null });
+
+        const tempNameToCode = Object.fromEntries(
+            Object.entries(TEMP_ZONE_META).map(([cd, meta]) => [meta.label, cd])
+        );
+        const typeNameToCode = Object.fromEntries(
+            Object.entries(LOC_TYPE_META).map(([cd, meta]) => [meta.label, cd])
+        );
+        const rows = [];
+        const badLines = [];
+        raw.forEach((r, i) => {
+            const locCd = String(r['로케이션 코드'] ?? '').trim();
+            const zoneCd = String(r['존'] ?? '').trim().toUpperCase();
+            const tempRaw = String(r['온도대'] ?? '').trim();
+            const typeRaw = String(r['유형'] ?? '').trim();
+            const tempZone = tempZoneCodes.includes(tempRaw.toUpperCase())
+                ? tempRaw.toUpperCase()
+                : tempNameToCode[tempRaw];
+            const locType = locTypeCodes.includes(typeRaw.toUpperCase())
+                ? typeRaw.toUpperCase()
+                : typeNameToCode[typeRaw];
+            if (!locCd || !ZONE_CODES.includes(zoneCd) || !tempZone || !locType) {
+                badLines.push(i + 2); // 엑셀 행 번호 (헤더 1행 + 1-base)
+                return;
+            }
+            const prty = r['피킹 우선순위'];
+            rows.push({
+                locCd, zoneCd, tempZone, locType,
+                pickPrty: (prty == null || prty === '') ? 0 : Number(prty),
+                _status: 'C',
+            });
+        });
+
+        if (badLines.length > 0) {
+            toast.error(`코드/존/온도대/유형이 잘못된 행이 있습니다 (엑셀 ${badLines.join(', ')}행)`);
+            return;
+        }
+        if (rows.length === 0) {
+            toast('추가할 데이터가 없습니다.');
+            return;
+        }
+        gridRef.current.api.applyTransaction({ add: rows });
+        toast.success(`${rows.length}건을 신규 행으로 추가했습니다. 저장 버튼으로 반영하세요.`);
     };
 
     // ── 저장 ────────────────────────────────────────────────
-    const handleSave = async () => {
-        const dirty = rowData.filter(r => r._status);
+    const handleSave = () => {
+        // 행추가분은 rowData 상태에 없으므로 그리드에서 전체 행을 수집한다
+        const rows = [];
+        gridRef.current.api.forEachNode(node => rows.push(node.data));
+        const dirty = rows.filter(r => r._status);
         if (dirty.length === 0) {
             toast('변경된 내용이 없습니다.');
             return;
         }
-        for (const r of dirty) {
+        // 검증 (삭제 행은 id만 쓰므로 검증 대상 아님)
+        for (const r of dirty.filter(r => r._status !== 'D')) {
             if (!r.locCd.trim()) {
                 toast.error('로케이션 코드는 필수입니다.');
                 return;
@@ -134,9 +279,22 @@ export default function LocMaster() {
                 toast.error(`보관 로케이션은 존과 온도대가 일치해야 합니다: ${r.locCd}`);
                 return;
             }
+            if (r.pickPrty !== '' && r.pickPrty != null && !(Number(r.pickPrty) >= 0)) {
+                toast.error(`피킹 우선순위는 0 이상 숫자여야 합니다: ${r.locCd}`);
+                return;
+            }
         }
+        setSaveConfirm(dirty); // 가운데 확인 모달을 띄운다
+    };
+
+    const doSave = async (dirty) => {
         try {
-            await locApi.saveAll(dirty);
+            // 빈 우선순위는 0으로 정규화해서 전송
+            const payload = dirty.map(r => ({
+                ...r,
+                pickPrty: (r.pickPrty == null || r.pickPrty === '') ? 0 : Number(r.pickPrty),
+            }));
+            await locApi.saveAll(payload);
             toast.success(`${dirty.length}건 저장했습니다.`);
             fetchList();
         } catch (e) {
@@ -177,7 +335,7 @@ export default function LocMaster() {
                     <DropdownSelect
                         value={cond.locType}
                         onChange={(v) => setCond(prev => ({ ...prev, locType: v }))}
-                        options={LOC_TYPE_OPTIONS}
+                        options={locTypeOptions}
                         placeholder="전체"
                     />
                 </SearchItem>
@@ -185,8 +343,30 @@ export default function LocMaster() {
 
             {/* 그리드 툴바 */}
             <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-500 font-medium">{rowData.length}건</span>
+                <span className="text-xs text-slate-500 font-medium">{rowCount}건</span>
                 <div className="flex gap-2">
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".xlsx,.xls"
+                        className="hidden"
+                        onChange={handleExcelUpload}
+                    />
+                    <button
+                        onClick={handleTemplateDownload}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[12px] font-bold text-slate-600 hover:border-indigo-300 hover:text-indigo-600 transition-colors">
+                        <Download size={13} /> 엑셀 양식
+                    </button>
+                    <button
+                        onClick={() => fileInputRef.current.click()}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[12px] font-bold text-slate-600 hover:border-indigo-300 hover:text-indigo-600 transition-colors">
+                        <Upload size={13} /> 엑셀 업로드
+                    </button>
+                    <button
+                        onClick={handleDeleteRows}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[12px] font-bold text-slate-600 hover:border-red-300 hover:text-red-600 transition-colors">
+                        <Trash2 size={13} /> 삭제
+                    </button>
                     <button
                         onClick={handleAddRow}
                         className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[12px] font-bold text-slate-600 hover:border-indigo-300 hover:text-indigo-600 transition-colors">
@@ -200,14 +380,46 @@ export default function LocMaster() {
                 </div>
             </div>
 
+            {/* 저장 확인 모달 */}
+            {saveConfirm && (
+                <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 bg-black/20">
+                    <div className="bg-white rounded-2xl shadow-xl p-6 w-96 flex flex-col gap-4">
+                        <h3 className="text-lg font-bold text-slate-800">저장하시겠습니까?</h3>
+                        <p className="text-sm text-slate-500">
+                            신규 <b className="text-blue-500">{saveConfirm.filter(r => r._status === 'C').length}</b>건 ·
+                            수정 <b className="text-amber-500">{saveConfirm.filter(r => r._status === 'U').length}</b>건 ·
+                            삭제 <b className="text-red-500">{saveConfirm.filter(r => r._status === 'D').length}</b>건
+                        </p>
+                        <div className="flex gap-2 justify-end">
+                            <button
+                                onClick={() => setSaveConfirm(null)}
+                                className="px-4 py-2 text-sm font-bold rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50">
+                                취소
+                            </button>
+                            <button
+                                onClick={() => { doSave(saveConfirm); setSaveConfirm(null); }}
+                                className="px-4 py-2 text-sm font-bold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
+                                저장
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* 그리드 */}
             <div className="w-full" style={{ height: 480 }}>
                 <AgGridReact
                     ref={gridRef}
                     rowData={rowData}
                     columnDefs={columnDefs}
+                    rowSelection={{ mode: 'multiRow' }}
+                    rowClassRules={{
+                        'line-through': (p) => p.data._status === 'D',
+                        'opacity-40': (p) => p.data._status === 'D',
+                    }}
                     stopEditingWhenCellsLoseFocus={true}
                     onCellValueChanged={onCellValueChanged}
+                    onModelUpdated={(p) => setRowCount(p.api.getDisplayedRowCount())}
                 />
             </div>
         </div>

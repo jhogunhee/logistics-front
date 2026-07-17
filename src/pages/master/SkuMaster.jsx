@@ -9,6 +9,9 @@ import DropdownSelect from '@/components/common/DropdownSelect';
 import { skuApi, TEMP_ZONE_META } from '@/api/skuApi';
 import { codeApi, toSearchOptions } from '@/api/codeApi';
 
+// ISO 일시("2026-07-16T14:03:21...") → "2026-07-16 14:03"
+const formatDateTime = (v) => (v ? v.replace('T', ' ').slice(0, 16) : '');
+
 const TempZoneBadge = ({ value }) => {
     const meta = TEMP_ZONE_META[value];
     if (!meta) return null;
@@ -71,6 +74,16 @@ export default function SkuMaster() {
                     ? <span className={`text-[11px] font-bold ${meta.cls}`}>{meta.label}</span>
                     : null;
             },
+        },
+        { field: 'createdBy', headerName: '등록자', width: 90, editable: false },
+        {
+            field: 'createdAt', headerName: '등록시간', width: 150, editable: false,
+            valueFormatter: (p) => formatDateTime(p.value),
+        },
+        { field: 'updatedBy', headerName: '수정자', width: 90, editable: false },
+        {
+            field: 'updatedAt', headerName: '수정시간', width: 150, editable: false,
+            valueFormatter: (p) => formatDateTime(p.value),
         },
     ];
 
