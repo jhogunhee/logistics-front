@@ -1,0 +1,282 @@
+import { useEffect, useRef, useState } from 'react';
+import { AgGridReact } from 'ag-grid-react';
+import { ArrowRight, PackageOpen } from 'lucide-react';
+import toast from 'react-hot-toast';
+
+import SearchBar, { SearchItem } from '@/components/common/SearchBar';
+import DropdownSelect from '@/components/common/DropdownSelect';
+import { putawayApi } from '@/api/putawayApi';
+import { TEMP_ZONE_META } from '@/api/skuApi';
+
+const TempZoneBadge = ({ value }) => {
+    const meta = TEMP_ZONE_META[value];
+    if (!meta) return null;
+    return (
+        <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${meta.badge}`}>
+            {meta.label} {value}
+        </span>
+    );
+};
+
+const COLUMN_DEFS = [
+    { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
+    { field: 'ibNo', headerName: '입고번호', width: 170 },
+    { field: 'vndrNm', headerName: '벤더', width: 110 },
+    { field: 'skuCd', headerName: 'SKU 코드', width: 115 },
+    { field: 'skuNm', headerName: '상품명', flex: 1, minWidth: 200 },
+    {
+        field: 'tempZone', headerName: '온도대', width: 100,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+        cellRenderer: (p) => <TempZoneBadge value={p.value} />,
+    },
+    { field: 'lotNo', headerName: 'Lot번호', width: 130 },
+    { field: 'receiptDt', headerName: '입고일자', width: 110 },
+    {
+        field: 'expiryDt', headerName: '유통기한', width: 110,
+        headerTooltip: '이 Lot의 유통기한. FEFO 정렬(임박 순) 기준값',
+        cellRenderer: (p) => p.value ?? <span className="text-slate-400">미관리</span>,
+    },
+    {
+        field: 'pendingQty', headerName: '미적치', width: 100,
+        headerTooltip: 'RCV-STAGE에 남아있는, 아직 보관 로케이션으로 옮기지 않은 이 배치(Lot)의 수량',
+        cellClass: 'ag-right-aligned-cell text-amber-600 font-bold',
+    },
+];
+
+export default function Putaway() {
+    const [rowData, setRowData] = useState([]);
+    const [selected, setSelected] = useState(null);
+    const [cond, setCond] = useState({ ibNo: '', dateFrom: '', dateTo: '', skuCd: '', skuNm: '' });
+    const [candidateLocs, setCandidateLocs] = useState([]);
+    const [qty, setQty] = useState('');
+    const [targetLocId, setTargetLocId] = useState('');
+    const [confirmTarget, setConfirmTarget] = useState(null); // 적치 실행 확인 모달 대상
+    const gridRef = useRef(null);
+    const pendingSelectRef = useRef(null); // 재조회 후 같은 배치(라인+Lot)를 다시 선택하기 위한 키 (부분 적치 시 유지)
+
+    const fetchList = async (keepSelection = false) => {
+        if (keepSelection) {
+            pendingSelectRef.current = selected ? { ibLineId: selected.ibLineId, lotId: selected.lotId } : null;
+        } else {
+            setSelected(null);
+            setCandidateLocs([]);
+            setQty('');
+            setTargetLocId('');
+        }
+        const data = await putawayApi.lines(cond);
+        setRowData(data);
+    };
+
+    const onModelUpdated = (p) => {
+        if (pendingSelectRef.current == null) return;
+        const { ibLineId, lotId } = pendingSelectRef.current;
+        pendingSelectRef.current = null;
+        p.api.forEachNode(n => { if (n.data.ibLineId === ibLineId && n.data.lotId === lotId) n.setSelected(true); });
+    };
+
+    useEffect(() => {
+        let ignore = false;
+        putawayApi.lines().then(data => { if (!ignore) setRowData(data); });
+        return () => { ignore = true; };
+    }, []);
+
+    // 배치 선택 시 대상 로케이션 후보 조회 + 수량 기본값(전량)
+    const onSelectionChanged = async (e) => {
+        const node = e.api.getSelectedNodes()[0];
+        if (!node) {
+            setSelected(null);
+            setCandidateLocs([]);
+            setQty('');
+            setTargetLocId('');
+            return;
+        }
+        setSelected(node.data);
+        setQty(String(node.data.pendingQty));
+        const locs = await putawayApi.candidateLocs(node.data.ibLineId);
+        setCandidateLocs(locs);
+        setTargetLocId(locs.length > 0 ? locs[0].locId : '');
+    };
+
+    const handlePutawayClick = () => {
+        if (!selected) {
+            toast('적치할 배치를 선택하세요.');
+            return;
+        }
+        const n = Number(qty);
+        if (!(n > 0)) {
+            toast.error('적치수량은 1 이상이어야 합니다.');
+            return;
+        }
+        if (n > selected.pendingQty) {
+            toast.error('미적치 잔량을 초과했습니다.');
+            return;
+        }
+        if (!targetLocId) {
+            toast.error('대상 로케이션을 선택하세요.');
+            return;
+        }
+        setConfirmTarget({ ...selected, qty: n, targetLocId });
+    };
+
+    const doPutaway = async (target) => {
+        try {
+            await putawayApi.putaway(target.ibLineId, { lotId: target.lotId, qty: target.qty, targetLocId: Number(target.targetLocId) });
+            toast.success(`${target.skuCd} ${target.qty}개를 적치했습니다.`);
+            fetchList(target.qty < target.pendingQty); // 잔량이 남았으면 같은 배치 선택 유지
+        } catch (e) {
+            toast.error(e.message || '적치에 실패했습니다.');
+        }
+    };
+
+    const locOptions = candidateLocs.map(l => ({ value: l.locId, label: `${l.locCd} (${l.zoneCd})` }));
+    const targetLocLabel = (locId) => candidateLocs.find(l => l.locId === Number(locId))?.locCd ?? '';
+
+    return (
+        <div className="flex flex-col gap-4 h-full">
+            {/* 타이틀 */}
+            <div className="flex items-center gap-2">
+                <PackageOpen size={18} className="text-indigo-600" />
+                <h2 className="text-lg font-bold text-slate-800">적치</h2>
+                <span className="text-xs text-slate-400 mt-0.5">검수는 됐지만 아직 보관 로케이션으로 옮기지 않은 재고 — RCV-STAGE → 보관존 이동</span>
+            </div>
+
+            {/* 검색 조건 */}
+            <SearchBar label="검색" onSearch={() => fetchList()}>
+                <SearchItem label="입고번호">
+                    <input
+                        type="text"
+                        value={cond.ibNo}
+                        onChange={(e) => setCond(prev => ({ ...prev, ibNo: e.target.value }))}
+                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
+                        placeholder="IB-20260717-001"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                    />
+                </SearchItem>
+                <SearchItem label="입고일자" wide>
+                    <div className="flex items-center gap-2">
+                        <input
+                            type="date"
+                            value={cond.dateFrom}
+                            onChange={(e) => setCond(prev => ({ ...prev, dateFrom: e.target.value }))}
+                            className="flex-1 min-w-0 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                        />
+                        <span className="text-slate-400 shrink-0">~</span>
+                        <input
+                            type="date"
+                            value={cond.dateTo}
+                            onChange={(e) => setCond(prev => ({ ...prev, dateTo: e.target.value }))}
+                            className="flex-1 min-w-0 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                        />
+                    </div>
+                </SearchItem>
+                <SearchItem label="SKU 코드">
+                    <input
+                        type="text"
+                        value={cond.skuCd}
+                        onChange={(e) => setCond(prev => ({ ...prev, skuCd: e.target.value }))}
+                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
+                        placeholder="SKU-0001"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                    />
+                </SearchItem>
+                <SearchItem label="상품명">
+                    <input
+                        type="text"
+                        value={cond.skuNm}
+                        onChange={(e) => setCond(prev => ({ ...prev, skuNm: e.target.value }))}
+                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
+                        placeholder="상품명 일부"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                    />
+                </SearchItem>
+            </SearchBar>
+
+            <div className="flex-1 min-h-0 flex flex-col gap-3">
+                <span className="text-xs text-slate-500 font-medium">{rowData.length}건</span>
+                <div className="flex-1 min-h-0">
+                    <AgGridReact
+                        ref={gridRef}
+                        rowData={rowData}
+                        columnDefs={COLUMN_DEFS}
+                        rowHeight={34}
+                        headerHeight={38}
+                        rowSelection={{ mode: 'singleRow', checkboxes: false, enableClickSelection: true }}
+                        onSelectionChanged={onSelectionChanged}
+                        onModelUpdated={onModelUpdated}
+                    />
+                </div>
+
+                {/* 적치 실행 영역 */}
+                <div className="border border-slate-200 rounded-xl p-4 bg-white flex flex-col gap-3 shrink-0">
+                    {!selected ? (
+                        <span className="text-xs text-slate-400">위에서 적치할 배치를 선택하세요.</span>
+                    ) : (
+                        <>
+                            <div className="flex items-center gap-2 text-sm">
+                                <span className="font-bold text-slate-700">{selected.skuCd} {selected.skuNm}</span>
+                                <TempZoneBadge value={selected.tempZone} />
+                                <span className="text-xs text-slate-400">{selected.ibNo} · {selected.lotNo} · 미적치 {selected.pendingQty}개</span>
+                            </div>
+                            <div className="flex items-end gap-3">
+                                <div className="flex flex-col gap-1 w-32 shrink-0">
+                                    <label className="text-xs font-bold text-slate-500">적치수량</label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max={selected.pendingQty}
+                                        value={qty}
+                                        onChange={(e) => setQty(e.target.value)}
+                                        className="px-3 py-2 border border-slate-200 rounded-lg text-sm text-right focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                                    />
+                                </div>
+                                <div className="flex flex-col gap-1 flex-1 min-w-0">
+                                    <label className="text-xs font-bold text-slate-500">
+                                        대상 로케이션 <span className="text-slate-400 font-normal">(추천 순 — 온도대 일치 보관존)</span>
+                                    </label>
+                                    <DropdownSelect
+                                        value={targetLocId}
+                                        onChange={setTargetLocId}
+                                        options={locOptions}
+                                        placeholder="로케이션 선택"
+                                    />
+                                </div>
+                                <button
+                                    onClick={handlePutawayClick}
+                                    className="flex items-center gap-1 px-4 py-2 bg-indigo-600 rounded-lg text-sm font-bold text-white hover:bg-indigo-700 transition-colors shrink-0">
+                                    <ArrowRight size={14} /> 적치 실행
+                                </button>
+                            </div>
+                        </>
+                    )}
+                </div>
+            </div>
+
+            {/* 적치 확인 모달 */}
+            {confirmTarget && (
+                <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 bg-black/20">
+                    <div className="bg-white rounded-2xl shadow-xl p-6 w-96 flex flex-col gap-4">
+                        <h3 className="text-lg font-bold text-slate-800">적치하시겠습니까?</h3>
+                        <p className="text-sm text-slate-500">
+                            {confirmTarget.skuCd} {confirmTarget.skuNm} · <b className="text-emerald-600">{confirmTarget.qty}개</b>
+                        </p>
+                        <p className="text-xs text-slate-400">
+                            RCV-STAGE → {targetLocLabel(confirmTarget.targetLocId)}
+                        </p>
+                        <div className="flex gap-2 justify-end">
+                            <button
+                                onClick={() => setConfirmTarget(null)}
+                                className="px-4 py-2 text-sm font-bold rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50">
+                                취소
+                            </button>
+                            <button
+                                onClick={() => { doPutaway(confirmTarget); setConfirmTarget(null); }}
+                                className="px-4 py-2 text-sm font-bold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
+                                적치
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
