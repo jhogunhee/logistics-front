@@ -10,20 +10,20 @@ export default function SearchBar({ onSearch, label, children, required }) {
                 {required && <span className="text-red-500 font-black">*</span>}
             </span>
 
-            {/* 1. 검색 조건 영역 (3컬럼 그리드) */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-4 flex-1">
+            {/* 1. 검색 조건 영역 — 넓은 화면에선 4컬럼까지 한 줄에 배치해 줄바꿈(높이 증가)을 막는다 */}
+            <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-x-6 gap-y-2 flex-1">
                 {children}
             </div>
 
             {/* 2. 구분선 */}
-            <div className="h-10 w-px bg-slate-100 mx-2"></div>
+            <div className="h-8 w-px bg-slate-100 mx-2"></div>
 
-            {/* 3. 조회 버튼 영역 */}
+            {/* 3. 조회 버튼 영역 — 입력 요소와 같은 높이(py-2)로 맞춘다 */}
             <button
                 onClick={onSearch}
-                className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-md active:scale-95 shrink-0"
+                className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 transition-all shadow-md active:scale-95 shrink-0"
             >
-                <Search size={18} />
+                <Search size={15} />
                 <span>조회</span>
             </button>
         </div>

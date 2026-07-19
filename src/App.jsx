@@ -7,6 +7,11 @@ import Dashboard from "@/pages/dashboard/Dashboard.jsx";
 import Placeholder from "@/pages/common/Placeholder.jsx";
 import SkuMaster from "@/pages/master/SkuMaster.jsx";
 import LocMaster from "@/pages/master/LocMaster.jsx";
+import AsnList from "@/pages/inbound/AsnList.jsx";
+import Receiving from "@/pages/inbound/Receiving.jsx";
+import Putaway from "@/pages/inbound/Putaway.jsx";
+import StockStatus from "@/pages/stock/StockStatus.jsx";
+import InvHistory from "@/pages/stock/InvHistory.jsx";
 
 export default function App() {
     return (
@@ -26,12 +31,13 @@ export default function App() {
                         <Route path="/master/location" element={<LocMaster/>}/>
 
                         {/* 입고: 입고예정(ASN) → 검수/입고 → 마감 → 적치 */}
-                        <Route path="/inbound/asn" element={<Placeholder title="입고예정(ASN)"/>}/>
-                        <Route path="/inbound/putaway" element={<Placeholder title="적치"/>}/>
+                        <Route path="/inbound/asn" element={<AsnList/>}/>
+                        <Route path="/inbound/receiving" element={<Receiving/>}/>
+                        <Route path="/inbound/putaway" element={<Putaway/>}/>
 
                         {/* 재고 */}
-                        <Route path="/stock/status" element={<Placeholder title="현재고 조회"/>}/>
-                        <Route path="/stock/history" element={<Placeholder title="재고 이력(수불)"/>}/>
+                        <Route path="/stock/status" element={<StockStatus/>}/>
+                        <Route path="/stock/history" element={<InvHistory/>}/>
                         <Route path="/stock/move" element={<Placeholder title="재고 이동/조정"/>}/>
 
                         {/* 출고: 주문 → 할당 → 피킹 → 출고확정 */}

@@ -75,11 +75,12 @@ export default function Sidebar() {
 
                 <MenuGroup title="입고">
                     <MenuItem to="/inbound/asn" label="입고예정(ASN)" icon={Truck} />
+                    <MenuItem to="/inbound/receiving" label="입고검수" icon={ClipboardCheck} />
                     <MenuItem to="/inbound/putaway" label="적치" icon={PackageOpen} />
                 </MenuGroup>
 
                 <MenuGroup title="재고">
-                    <MenuItem to="/stock/history" label="재고 이력(수불)" icon={History} />
+                    <MenuItem to="/stock/history" label="재고 이력" icon={History} />
                     <MenuItem to="/stock/move" label="이동/조정" icon={ArrowLeftRight} />
                 </MenuGroup>
 

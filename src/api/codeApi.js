@@ -11,5 +11,5 @@ export const codeApi = {
 /** 코드 목록 → 검색 콤보 옵션 ('전체' 포함) */
 export const toSearchOptions = (codes) => [
     { value: '', label: '전체' },
-    ...codes.map(c => ({ value: c.codeCd, label: `${c.codeNm} (${c.codeCd})` })),
+    ...codes.map(c => ({ value: c.codeCd, label: c.codeNm })),
 ];

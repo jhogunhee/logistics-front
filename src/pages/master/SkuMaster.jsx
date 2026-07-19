@@ -9,8 +9,8 @@ import DropdownSelect from '@/components/common/DropdownSelect';
 import { skuApi, TEMP_ZONE_META } from '@/api/skuApi';
 import { codeApi, toSearchOptions } from '@/api/codeApi';
 
-// ISO 일시("2026-07-16T14:03:21...") → "2026-07-16 14:03"
-const formatDateTime = (v) => (v ? v.replace('T', ' ').slice(0, 16) : '');
+// ISO 일시("2026-07-16T14:03:21...") → "2026-07-16"
+const formatDate = (v) => (v ? v.replace('T', ' ').slice(0, 11) : '');
 
 const TempZoneBadge = ({ value }) => {
     const meta = TEMP_ZONE_META[value];
@@ -49,14 +49,15 @@ export default function SkuMaster() {
             cellClass: 'text-slate-400',
         },
         {
-            field: 'skuCd', headerName: 'SKU 코드', width: 150, editable: false,
+            field: 'skuCd', headerName: 'SKU 코드', width: 100, editable: false,
             cellRenderer: (p) => p.value || <span className="text-slate-400">(저장 시 채번)</span>,
         },
-        { field: 'skuNm', headerName: '상품명', minWidth: 400, editable: notDeleted },
+        { field: 'skuNm', headerName: '상품명', minWidth: 200, editable: notDeleted },
         {
-            field: 'tempZone', headerName: '온도대', width: 130, editable: notDeleted,
+            field: 'tempZone', headerName: '온도대', width: 100, editable: notDeleted,
             cellEditor: 'agSelectCellEditor',
             cellEditorParams: { values: tempZoneCodes },
+            cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
             cellRenderer: (p) => <TempZoneBadge value={p.value} />,
         },
         {
@@ -75,15 +76,15 @@ export default function SkuMaster() {
                     : null;
             },
         },
-        { field: 'createdBy', headerName: '등록자', width: 90, editable: false },
+        { field: 'createdBy', headerName: '등록자', width: 110, editable: false },
         {
-            field: 'createdAt', headerName: '등록시간', width: 150, editable: false,
-            valueFormatter: (p) => formatDateTime(p.value),
+            field: 'createdAt', headerName: '등록일자', width: 110, editable: false,
+            valueFormatter: (p) => formatDate(p.value),
         },
-        { field: 'updatedBy', headerName: '수정자', width: 90, editable: false },
+        { field: 'updatedBy', headerName: '수정자', width: 110, editable: false },
         {
-            field: 'updatedAt', headerName: '수정시간', width: 150, editable: false,
-            valueFormatter: (p) => formatDateTime(p.value),
+            field: 'updatedAt', headerName: '수정일자', width: 110, editable: false,
+            valueFormatter: (p) => formatDate(p.value),
         },
     ];
 
@@ -369,8 +370,8 @@ export default function SkuMaster() {
                 </div>
             )}
 
-            {/* 그리드 */}
-            <div className="w-full" style={{ height: 480 }}>
+            {/* 그리드 — 고정 높이 대신 남은 화면 공간을 채운다 */}
+            <div className="w-full flex-1 min-h-0">
                 <AgGridReact
                     ref={gridRef}
                     rowData={rowData}

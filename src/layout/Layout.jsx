@@ -4,7 +4,7 @@ import { LogOut } from "lucide-react";
 
 export default function Layout() {
     return (
-        <div className="flex min-h-screen w-full bg-slate-50">
+        <div className="flex h-screen overflow-hidden w-full bg-slate-50">
             <Sidebar />
             <main className="flex-1 min-w-0 flex flex-col">
                 {/* 상단바 (Breadcrumbs나 검색창을 넣기 좋음) */}
@@ -28,9 +28,9 @@ export default function Layout() {
                     </div>
                 </header>
 
-                {/* 실제 콘텐츠 영역 */}
-                <div className="p-8">
-                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 min-h-[calc(100vh-8rem)] p-6">
+                {/* 실제 콘텐츠 영역 — 창 스크롤 대신 카드 내부 스크롤을 쓴다 */}
+                <div className="p-8 flex-1 min-h-0">
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 h-full p-6 overflow-auto">
                         <Outlet />
                     </div>
                 </div>
