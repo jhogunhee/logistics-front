@@ -14,17 +14,12 @@ export const asnApi = {
         return api.get(`/inbound/asns/${ibOrderId}/lines`);
     },
 
-    /** ASN 등록. payload: { vndrNm, expctDt, lines: [{ skuId, expctQty }] }. 입고번호는 서버 채번 */
-    create(payload) {
-        return api.post('/inbound/asns', payload);
-    },
+    // 등록도 취소도 여기 없다. ASN의 생성/소멸은 OMS 입고주문이 주관한다
+    // — omsIbOrderApi의 convert() / cancelConvert() 참고.
+    // 창고가 예정을 스스로 만들거나 없애면 주문 상태와 어긋나기 때문이고,
+    // 서버도 같은 이유로 두 엔드포인트를 제거했다.
 
-    /** 취소. 검수 시작 전(SCHEDULED)만 가능 — 이후엔 서버가 409로 거부 */
-    cancel(ibOrderId) {
-        return api.post(`/inbound/asns/${ibOrderId}/cancel`);
-    },
-
-    /** 검수 저장 (증분). payload: { receiptDt(입고일자), lines: [{ ibLineId, inspectQty, mfgDt(제조일자, 관리 SKU만) }] }
+    /** 검수 저장 (증분). payload: { receiptDt(입고일자), lines: [{ ibLineId, inspectQty, mfgDt(제조일자, 관리 상품만) }] }
      *  Lot 채번(입고일 기반)과 유통기한 계산(제조일+shelfLifeDays)은 서버 담당. 검수수량은 RCV-STAGE 재고로 즉시 반영. */
     receive(ibOrderId, payload) {
         return api.post(`/inbound/asns/${ibOrderId}/receive`, payload);

@@ -115,8 +115,9 @@ export default function Sidebar() {
                 </MenuGroup>
 
                 <MenuGroup title="마스터">
-                    <MenuItem to="/master/sku" label="SKU 관리" icon={Barcode} />
+                    <MenuItem to="/master/prod" label="상품 관리" icon={Barcode} />
                     <MenuItem to="/master/location" label="로케이션 관리" icon={MapPin} />
+                    <MenuItem to="/master/vendor" label="벤더 관리" icon={Truck} />
                     <MenuItem to="/master/store" label="점포 관리" icon={Store} />
                     <MenuItem to="/master/putaway-strategy" label="적치 전략관리" icon={Settings2} />
                 </MenuGroup>

@@ -1,15 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import { Ban, Plus, Trash2, Truck, X } from 'lucide-react';
+import { Truck } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import { asnApi, ASN_STATUS_META, ASN_STATUS_OPTIONS } from '@/api/asnApi';
-import { skuApi, TEMP_ZONE_META } from '@/api/skuApi';
+import { TEMP_ZONE_META } from '@/api/prodApi';
 
-// 오늘 날짜 "YYYY-MM-DD" (입고 예정일 기본값)
+// 오늘 날짜 "YYYY-MM-DD" (검색 기본값)
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
 const StatusBadge = ({ value }) => {
@@ -53,8 +53,8 @@ const HEADER_COLUMN_DEFS = [
 
 const LINE_COLUMN_DEFS = [
     { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
-    { field: 'skuCd', headerName: 'SKU 코드', width: 140 },
-    { field: 'skuNm', headerName: '상품명', flex: 1, minWidth: 200 },
+    { field: 'prodCd', headerName: '상품 코드', width: 140 },
+    { field: 'prodNm', headerName: '상품명', flex: 1, minWidth: 200 },
     {
         field: 'tempZone', headerName: '온도대', width: 120,
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
@@ -71,17 +71,11 @@ const LINE_COLUMN_DEFS = [
     { field: 'ptwyQty', headerName: '적치완료', width: 100, cellClass: 'ag-right-aligned-cell' },
 ];
 
-const EMPTY_LINE = { skuId: '', expctQty: '' };
-
 export default function AsnList() {
     const [rowData, setRowData] = useState([]);
     const [lineRows, setLineRows] = useState([]);
     const [selectedAsn, setSelectedAsn] = useState(null);
     const [cond, setCond] = useState({ ibNo: '', status: '', dateFrom: todayStr(), dateTo: todayStr() });
-    const [skuOptions, setSkuOptions] = useState([]);
-    const [regOpen, setRegOpen] = useState(false);
-    const [regForm, setRegForm] = useState({ vndrNm: '', expctDt: todayStr(), lines: [{ ...EMPTY_LINE }] });
-    const [cancelTarget, setCancelTarget] = useState(null); // 취소 확인 모달 대상 (null이면 닫힘)
     const gridRef = useRef(null);
 
     const fetchList = async () => {
@@ -91,15 +85,10 @@ export default function AsnList() {
         setLineRows([]);
     };
 
-    // 최초 1회 조회(검색조건 기본값 = 오늘) + 등록 모달용 SKU 목록
+    // 최초 1회 조회 (검색조건 기본값 = 오늘)
     useEffect(() => {
         let ignore = false;
         asnApi.list(cond).then(data => { if (!ignore) setRowData(data); });
-        skuApi.list().then(skus => {
-            if (!ignore) {
-                setSkuOptions(skus.map(s => ({ value: s.skuId, label: `${s.skuCd} ${s.skuNm}` })));
-            }
-        });
         return () => { ignore = true; };
     }, []);
 
@@ -115,62 +104,9 @@ export default function AsnList() {
         setLineRows(await asnApi.lines(node.data.ibOrderId));
     };
 
-    // ── 취소 ────────────────────────────────────────────────
-    const handleCancelClick = () => {
-        if (!selectedAsn) {
-            toast('취소할 입고예정을 선택하세요.');
-            return;
-        }
-        if (selectedAsn.status !== 'SCHEDULED') {
-            toast.error('입고예정(SCHEDULED) 상태만 취소할 수 있습니다.');
-            return;
-        }
-        setCancelTarget(selectedAsn);
-    };
-
-    const doCancel = async (asn) => {
-        try {
-            await asnApi.cancel(asn.ibOrderId);
-            toast.success(`${asn.ibNo} 를 취소했습니다.`);
-            fetchList();
-        } catch (e) {
-            toast.error(e.message || '취소에 실패했습니다.');
-        }
-    };
-
-    // ── 등록 모달 ────────────────────────────────────────────
-    const openRegModal = () => {
-        setRegForm({ vndrNm: '', expctDt: todayStr(), lines: [{ ...EMPTY_LINE }] });
-        setRegOpen(true);
-    };
-
-    const setLine = (idx, patch) => {
-        setRegForm(prev => ({
-            ...prev,
-            lines: prev.lines.map((l, i) => (i === idx ? { ...l, ...patch } : l)),
-        }));
-    };
-
-    const handleRegister = async () => {
-        if (!regForm.vndrNm.trim()) { toast.error('벤더명은 필수입니다.'); return; }
-        if (!regForm.expctDt) { toast.error('입고 예정일은 필수입니다.'); return; }
-        for (const l of regForm.lines) {
-            if (!l.skuId) { toast.error('SKU를 선택하지 않은 라인이 있습니다.'); return; }
-            if (!(Number(l.expctQty) > 0)) { toast.error('예정수량은 1 이상이어야 합니다.'); return; }
-        }
-        try {
-            await asnApi.create({
-                vndrNm: regForm.vndrNm.trim(),
-                expctDt: regForm.expctDt,
-                lines: regForm.lines.map(l => ({ skuId: l.skuId, expctQty: Number(l.expctQty) })),
-            });
-            toast.success('입고예정을 등록했습니다.');
-            setRegOpen(false);
-            fetchList();
-        } catch (e) {
-            toast.error(e.message || '등록에 실패했습니다.');
-        }
-    };
+    // 등록도 취소도 이 화면엔 없다. 입고예정의 생성/소멸은 입고주문 관리 화면의
+    // ASN 변환 / 변환취소가 주관한다 — 여기서 예정만 없애면 주문 상태와 어긋나기 때문이다.
+    // 이 화면은 조회 전용이고, 실제 작업은 입고검수·적치 화면에서 이어진다.
 
     return (
         <div className="flex flex-col gap-4 h-full">
@@ -178,7 +114,9 @@ export default function AsnList() {
             <div className="flex items-center gap-2">
                 <Truck size={18} className="text-indigo-600" />
                 <h2 className="text-lg font-bold text-slate-800">입고예정(ASN)</h2>
-                <span className="text-xs text-slate-400 mt-0.5">등록 · 조회 · 취소 — 검수는 입고검수 화면에서</span>
+                <span className="text-xs text-slate-400 mt-0.5">
+                    조회 · 취소 — 등록은 입고주문 확정으로, 검수는 입고검수 화면에서
+                </span>
             </div>
 
             {/* 검색 조건 */}
@@ -225,18 +163,9 @@ export default function AsnList() {
                 <Panel defaultSize={60} minSize={20} className="flex flex-col gap-2 min-h-0">
                     <div className="flex items-center justify-between">
                         <span className="text-xs text-slate-500 font-medium">{rowData.length}건</span>
-                        <div className="flex gap-2">
-                            <button
-                                onClick={handleCancelClick}
-                                className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[12px] font-bold text-slate-600 hover:border-red-300 hover:text-red-600 transition-colors">
-                                <Ban size={13} /> 입고취소
-                            </button>
-                            <button
-                                onClick={openRegModal}
-                                className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 rounded-lg text-[12px] font-bold text-white hover:bg-indigo-700 transition-colors">
-                                <Plus size={13} /> ASN 등록
-                            </button>
-                        </div>
+                        <span className="text-[11px] text-slate-400">
+                            입고예정의 생성·취소는 OMS 입고주문 관리에서 합니다
+                        </span>
                     </div>
                     <div className="flex-1 min-h-0">
                         <AgGridReact
@@ -267,122 +196,6 @@ export default function AsnList() {
                     </div>
                 </Panel>
             </PanelGroup>
-
-            {/* 취소 확인 모달 */}
-            {cancelTarget && (
-                <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 bg-black/20">
-                    <div className="bg-white rounded-2xl shadow-xl p-6 w-96 flex flex-col gap-4">
-                        <h3 className="text-lg font-bold text-slate-800">입고예정을 취소하시겠습니까?</h3>
-                        <p className="text-sm text-slate-500">
-                            {cancelTarget.ibNo} · {cancelTarget.vndrNm} · 라인 {cancelTarget.lineCount}건
-                        </p>
-                        <div className="flex gap-2 justify-end">
-                            <button
-                                onClick={() => setCancelTarget(null)}
-                                className="px-4 py-2 text-sm font-bold rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50">
-                                닫기
-                            </button>
-                            <button
-                                onClick={() => { doCancel(cancelTarget); setCancelTarget(null); }}
-                                className="px-4 py-2 text-sm font-bold rounded-lg bg-red-600 text-white hover:bg-red-700">
-                                입고취소
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* 등록 모달 */}
-            {regOpen && (
-                <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 bg-black/20">
-                    <div className="bg-white rounded-2xl shadow-xl p-6 w-[560px] flex flex-col gap-4">
-                        <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-bold text-slate-800">ASN 등록</h3>
-                            <button onClick={() => setRegOpen(false)} className="text-slate-400 hover:text-slate-600">
-                                <X size={18} />
-                            </button>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="flex flex-col gap-1">
-                                <label className="text-xs font-bold text-slate-500">벤더명</label>
-                                <input
-                                    type="text"
-                                    value={regForm.vndrNm}
-                                    onChange={(e) => setRegForm(prev => ({ ...prev, vndrNm: e.target.value }))}
-                                    placeholder="서울식품"
-                                    className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
-                                />
-                            </div>
-                            <div className="flex flex-col gap-1">
-                                <label className="text-xs font-bold text-slate-500">입고 예정일</label>
-                                <input
-                                    type="date"
-                                    value={regForm.expctDt}
-                                    onChange={(e) => setRegForm(prev => ({ ...prev, expctDt: e.target.value }))}
-                                    className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="flex flex-col gap-2">
-                            <div className="flex items-center justify-between">
-                                <label className="text-xs font-bold text-slate-500">입고 라인</label>
-                                <button
-                                    onClick={() => setRegForm(prev => ({ ...prev, lines: [...prev.lines, { ...EMPTY_LINE }] }))}
-                                    className="flex items-center gap-1 text-[12px] font-bold text-indigo-600 hover:text-indigo-800">
-                                    <Plus size={12} /> 라인 추가
-                                </button>
-                            </div>
-                            <div className="flex flex-col gap-2 max-h-64 overflow-y-auto">
-                                {regForm.lines.map((line, idx) => (
-                                    <div key={idx} className="flex gap-2 items-center">
-                                        <div className="flex-1">
-                                            <DropdownSelect
-                                                value={line.skuId}
-                                                onChange={(v) => setLine(idx, { skuId: v })}
-                                                options={skuOptions}
-                                                placeholder="SKU 선택"
-                                            />
-                                        </div>
-                                        <input
-                                            type="number"
-                                            min="1"
-                                            value={line.expctQty}
-                                            onChange={(e) => setLine(idx, { expctQty: e.target.value })}
-                                            placeholder="수량"
-                                            className="w-24 px-3 py-2 border border-slate-200 rounded-lg text-sm text-right focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
-                                        />
-                                        <button
-                                            onClick={() => setRegForm(prev => ({
-                                                ...prev,
-                                                lines: prev.lines.length > 1
-                                                    ? prev.lines.filter((_, i) => i !== idx)
-                                                    : prev.lines,
-                                            }))}
-                                            className="text-slate-300 hover:text-red-500">
-                                            <Trash2 size={15} />
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="flex gap-2 justify-end pt-2">
-                            <button
-                                onClick={() => setRegOpen(false)}
-                                className="px-4 py-2 text-sm font-bold rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50">
-                                취소
-                            </button>
-                            <button
-                                onClick={handleRegister}
-                                className="px-4 py-2 text-sm font-bold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
-                                등록
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

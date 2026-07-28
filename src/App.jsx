@@ -5,8 +5,11 @@ import Layout from "./layout/Layout";
 import Login from "@/pages/auth/Login.jsx";
 import Dashboard from "@/pages/dashboard/Dashboard.jsx";
 import Placeholder from "@/pages/common/Placeholder.jsx";
-import SkuMaster from "@/pages/master/SkuMaster.jsx";
+import ProdMaster from "@/pages/master/ProdMaster.jsx";
 import LocMaster from "@/pages/master/LocMaster.jsx";
+import VendorMaster from "@/pages/master/VendorMaster.jsx";
+import InboundOrder from "@/pages/oms/InboundOrder.jsx";
+import InboundOrderList from "@/pages/oms/InboundOrderList.jsx";
 import AsnList from "@/pages/inbound/AsnList.jsx";
 import Receiving from "@/pages/inbound/Receiving.jsx";
 import Putaway from "@/pages/inbound/Putaway.jsx";
@@ -27,8 +30,8 @@ export default function App() {
                         <Route index element={<Dashboard/>}/>
 
                         {/* OMS: 주문 원장 (WMS 입고예정/출고주문의 발생지) */}
-                        <Route path="/oms/inbound-order" element={<Placeholder title="입고주문"/>}/>
-                        <Route path="/oms/inbound-orders" element={<Placeholder title="입고주문 관리"/>}/>
+                        <Route path="/oms/inbound-order" element={<InboundOrder/>}/>
+                        <Route path="/oms/inbound-orders" element={<InboundOrderList/>}/>
                         <Route path="/oms/outbound-order" element={<Placeholder title="출고주문"/>}/>
                         <Route path="/oms/outbound-orders" element={<Placeholder title="출고주문 관리"/>}/>
 
@@ -55,8 +58,9 @@ export default function App() {
                         <Route path="/outbound/shipping" element={<Placeholder title="출고확정"/>}/>
 
                         {/* 마스터 */}
-                        <Route path="/master/sku" element={<SkuMaster/>}/>
+                        <Route path="/master/prod" element={<ProdMaster/>}/>
                         <Route path="/master/location" element={<LocMaster/>}/>
+                        <Route path="/master/vendor" element={<VendorMaster/>}/>
                         <Route path="/master/store" element={<Placeholder title="점포 관리"/>}/>
                         <Route path="/master/putaway-strategy" element={<Placeholder title="적치 전략관리"/>}/>
                     </Route>
