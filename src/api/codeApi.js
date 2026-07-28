@@ -2,9 +2,9 @@
 import api from '@/utils/axios';
 
 export const codeApi = {
-    /** 그룹의 사용중(Y) 코드 목록. 응답: [{ codeCd, codeNm, sortOrd }] (sortOrd 순) */
-    list(groupCd) {
-        return api.get(`/master/codes/${groupCd}`);
+    /** 그룹의 사용중(Y) 코드 목록. 응답: [{ codeCd, codeNm, srtSeq }] (srtSeq 순) */
+    list(grpCd) {
+        return api.get(`/master/codes/${grpCd}`);
     },
 };
 

@@ -2,7 +2,7 @@
 import api from '@/utils/axios';
 
 export const locApi = {
-    /** 목록 조회. cond: { locCd, zoneCd, locType } — 빈 값 조건은 빼고 보낸다 */
+    /** 목록 조회. cond: { locCd, zonCd, locTyp } — 빈 값 조건은 빼고 보낸다 */
     list(cond = {}) {
         const params = Object.fromEntries(Object.entries(cond).filter(([, v]) => v));
         return api.get('/master/locs', { params });

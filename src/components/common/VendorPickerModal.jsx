@@ -36,7 +36,7 @@ export default function VendorPickerModal({ open, onClose, onSelect }) {
         return vendors.filter(v =>
             v.vndrCd.toLowerCase().includes(kw) ||
             v.vndrNm.toLowerCase().includes(kw) ||
-            (v.mgrNm ?? '').toLowerCase().includes(kw)
+            (v.picNm ?? '').toLowerCase().includes(kw)
         );
     }, [vendors, keyword]);
 
@@ -102,7 +102,7 @@ export default function VendorPickerModal({ open, onClose, onSelect }) {
                         >
                             <span className="w-28 shrink-0 text-sm font-medium text-slate-700">{v.vndrCd}</span>
                             <span className="flex-1 min-w-0 truncate text-sm text-slate-700">{v.vndrNm}</span>
-                            <span className="w-28 shrink-0 text-sm text-slate-500">{v.mgrNm ?? '-'}</span>
+                            <span className="w-28 shrink-0 text-sm text-slate-500">{v.picNm ?? '-'}</span>
                             <span className="w-36 shrink-0 text-sm text-slate-500">{v.telNo ?? '-'}</span>
                         </div>
                     ))}

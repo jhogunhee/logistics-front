@@ -2,7 +2,7 @@
 import api from '@/utils/axios';
 
 export const prodApi = {
-    /** 목록 조회. cond: { prodCd, prodNm, tempZone } — 빈 값 조건은 빼고 보낸다 */
+    /** 목록 조회. cond: { prodCd, prodNm, tmpZon } — 빈 값 조건은 빼고 보낸다 */
     list(cond = {}) {
         const params = Object.fromEntries(Object.entries(cond).filter(([, v]) => v));
         return api.get('/master/prods', { params });

@@ -39,7 +39,7 @@ const UseYnBadge = ({ value }) => {
 
 export default function VendorMaster() {
     const [rowData, setRowData] = useState([]);
-    const [cond, setCond] = useState({ vndrCd: '', vndrNm: '', useYn: '' });
+    const [cond, setCond] = useState({ vndrCd: '', vndrNm: '', usYn: '' });
     const [rowCount, setRowCount] = useState(0); // 행추가분은 rowData 상태에 없으므로 건수는 그리드 기준으로 센다
     const [saveConfirm, setSaveConfirm] = useState(null); // 저장 확인 모달 대상 행들 (null이면 닫힘)
     const gridRef = useRef(null);
@@ -58,10 +58,10 @@ export default function VendorMaster() {
             cellRenderer: (p) => p.value || <span className="text-slate-400">(저장 시 채번)</span>,
         },
         { field: 'vndrNm', headerName: '벤더명', minWidth: 180, flex: 1, editable: notDeleted },
-        { field: 'mgrNm', headerName: '담당자', width: 110, editable: notDeleted },
+        { field: 'picNm', headerName: '담당자', width: 110, editable: notDeleted },
         { field: 'telNo', headerName: '연락처', width: 140, editable: notDeleted },
         {
-            field: 'useYn', headerName: '사용여부', width: 100, editable: notDeleted,
+            field: 'usYn', headerName: '사용여부', width: 100, editable: notDeleted,
             cellEditor: 'agSelectCellEditor',
             cellEditorParams: { values: ['Y', 'N'] },
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
@@ -113,7 +113,7 @@ export default function VendorMaster() {
     const handleAddRow = () => {
         const api = gridRef.current.api;
         const res = api.applyTransaction({
-            add: [{ vndrCd: '', vndrNm: '', mgrNm: '', telNo: '', useYn: 'Y', _status: 'C' }],
+            add: [{ vndrCd: '', vndrNm: '', picNm: '', telNo: '', usYn: 'Y', _status: 'C' }],
         });
         const rowIndex = res.add[0].rowIndex;
         api.ensureIndexVisible(rowIndex, 'bottom');
@@ -157,7 +157,7 @@ export default function VendorMaster() {
                 toast.error('벤더명은 필수입니다.');
                 return;
             }
-            if (!['Y', 'N'].includes(r.useYn)) {
+            if (!['Y', 'N'].includes(r.usYn)) {
                 toast.error(`사용여부는 Y 또는 N이어야 합니다: ${r.vndrNm}`);
                 return;
             }
@@ -211,8 +211,8 @@ export default function VendorMaster() {
                 </SearchItem>
                 <SearchItem label="사용여부">
                     <DropdownSelect
-                        value={cond.useYn}
-                        onChange={(v) => setCond(prev => ({ ...prev, useYn: v }))}
+                        value={cond.usYn}
+                        onChange={(v) => setCond(prev => ({ ...prev, usYn: v }))}
                         options={USE_YN_OPTIONS}
                         placeholder="전체"
                     />

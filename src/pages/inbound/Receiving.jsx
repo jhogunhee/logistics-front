@@ -43,7 +43,7 @@ const HEADER_COLUMN_DEFS = [
         cellRenderer: (p) => <StatusBadge value={p.value} />,
     },
     { field: 'vndrNm', headerName: '벤더', flex: 1, minWidth: 110 },
-    { field: 'expctDt', headerName: '입고 예정일', width: 120 },
+    { field: 'expctDe', headerName: '입고 예정일', width: 120 },
     {
         headerName: '검수 진행', width: 100, cellClass: 'ag-right-aligned-cell',
         headerTooltip: '검수된 라인 / 전체 라인',
@@ -168,7 +168,7 @@ export default function Receiving() {
             cellRenderer: (p) => p.value == null ? <span className="text-slate-400">미관리</span> : p.value,
         },
         {
-            field: 'tempZone', headerName: '온도대', width: 100,
+            field: 'tmpZon', headerName: '온도대', width: 100,
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
             cellRenderer: (p) => <TempZoneBadge value={p.value} />,
         },

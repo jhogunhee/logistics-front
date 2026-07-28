@@ -11,7 +11,7 @@ import { TEMP_ZONE_META } from '@/api/prodApi';
 // 오늘 날짜 "YYYY-MM-DD" (입고 예정일 기본값)
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
-const EMPTY_FORM = () => ({ vendorId: '', expctDt: todayStr(), lines: [] });
+const EMPTY_FORM = () => ({ vendorId: '', expctDe: todayStr(), lines: [] });
 
 const inputCls = 'w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm ' +
     'focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400';
@@ -48,21 +48,21 @@ export default function InboundOrder() {
     const addLines = (prods) => {
         setForm(prev => ({
             ...prev,
-            lines: [...prev.lines, ...prods.map(s => ({ ...s, orderQty: '' }))],
+            lines: [...prev.lines, ...prods.map(s => ({ ...s, odrQty: '' }))],
         }));
     };
 
     const replaceLineProd = (idx, prod) => {
         setForm(prev => ({
             ...prev,
-            lines: prev.lines.map((l, i) => (i === idx ? { ...prod, orderQty: l.orderQty } : l)),
+            lines: prev.lines.map((l, i) => (i === idx ? { ...prod, odrQty: l.odrQty } : l)),
         }));
     };
 
-    const setQty = (idx, orderQty) => {
+    const setQty = (idx, odrQty) => {
         setForm(prev => ({
             ...prev,
-            lines: prev.lines.map((l, i) => (i === idx ? { ...l, orderQty } : l)),
+            lines: prev.lines.map((l, i) => (i === idx ? { ...l, odrQty } : l)),
         }));
     };
 
@@ -71,7 +71,7 @@ export default function InboundOrder() {
         lines: prev.lines.filter((_, i) => i !== idx),
     }));
 
-    const totalQty = form.lines.reduce((sum, l) => sum + (Number(l.orderQty) || 0), 0);
+    const totalQty = form.lines.reduce((sum, l) => sum + (Number(l.odrQty) || 0), 0);
 
     // 팝업에서 이미 담긴 상품을 비활성 처리하기 위한 목록.
     // 라인 교체 모드에선 그 라인 자신은 제외해야 "같은 상품 다시 고르기"가 막히지 않는다.
@@ -81,10 +81,10 @@ export default function InboundOrder() {
 
     const handleSave = async () => {
         if (!form.vendorId) { toast.error('벤더는 필수입니다.'); return; }
-        if (!form.expctDt) { toast.error('입고 예정일은 필수입니다.'); return; }
+        if (!form.expctDe) { toast.error('입고 예정일은 필수입니다.'); return; }
         if (form.lines.length === 0) { toast.error('발주 상품을 1건 이상 담아주세요.'); return; }
         for (const l of form.lines) {
-            if (!(Number(l.orderQty) > 0)) {
+            if (!(Number(l.odrQty) > 0)) {
                 toast.error(`${l.prodNm} 의 발주 수량을 입력하세요.`);
                 return;
             }
@@ -94,8 +94,8 @@ export default function InboundOrder() {
         try {
             await omsIbOrderApi.create({
                 vendorId: Number(form.vendorId),
-                expctDt: form.expctDt,
-                lines: form.lines.map(l => ({ prodId: l.prodId, orderQty: Number(l.orderQty) })),
+                expctDe: form.expctDe,
+                lines: form.lines.map(l => ({ prodId: l.prodId, odrQty: Number(l.odrQty) })),
             });
             toast.success('입고주문을 등록했습니다. 확정은 관리 화면에서 진행하세요.');
             navigate('/oms/inbound-orders');
@@ -148,8 +148,8 @@ export default function InboundOrder() {
                     <Field label="입고 예정일" required hint="확정 시 생성될 입고번호(IB-)의 채번 기준일">
                         <input
                             type="date"
-                            value={form.expctDt}
-                            onChange={(e) => setForm(prev => ({ ...prev, expctDt: e.target.value }))}
+                            value={form.expctDe}
+                            onChange={(e) => setForm(prev => ({ ...prev, expctDe: e.target.value }))}
                             className={inputCls}
                         />
                     </Field>
@@ -197,7 +197,7 @@ export default function InboundOrder() {
                         </div>
                     )}
                     {form.lines.map((line, idx) => {
-                        const tz = TEMP_ZONE_META[line.tempZone];
+                        const tz = TEMP_ZONE_META[line.tmpZon];
                         return (
                             <div key={line.prodId} className="flex items-center gap-3 px-4 py-2 hover:bg-slate-50/70">
                                 <span className="w-10 shrink-0 text-xs text-slate-400">{idx + 1}</span>
@@ -206,7 +206,7 @@ export default function InboundOrder() {
                                 <span className="w-28 shrink-0 flex justify-center">
                                     {tz && (
                                         <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${tz.badge}`}>
-                                            {tz.label} {line.tempZone}
+                                            {tz.label} {line.tmpZon}
                                         </span>
                                     )}
                                 </span>
@@ -218,7 +218,7 @@ export default function InboundOrder() {
                                 <input
                                     type="number"
                                     min="1"
-                                    value={line.orderQty}
+                                    value={line.odrQty}
                                     onChange={(e) => setQty(idx, e.target.value)}
                                     placeholder="수량"
                                     className="w-36 shrink-0 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-right focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"

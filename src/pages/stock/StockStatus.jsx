@@ -45,13 +45,13 @@ const COLUMN_DEFS = [
     { field: 'prodCd', headerName: '상품 코드', width: 115 },
     { field: 'prodNm', headerName: '상품명', flex: 1, minWidth: 180 },
     {
-        field: 'tempZone', headerName: '온도대', width: 100,
+        field: 'tmpZon', headerName: '온도대', width: 100,
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
         cellRenderer: (p) => <TempZoneBadge value={p.value} />,
     },
     { field: 'locCd', headerName: '로케이션', width: 130 },
     {
-        field: 'locType', headerName: '구분', width: 90,
+        field: 'locTyp', headerName: '구분', width: 90,
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
         cellRenderer: (p) => <LocTypeBadge value={p.value} />,
     },
@@ -67,7 +67,7 @@ const COLUMN_DEFS = [
         valueFormatter: (p) => num(p.value),
     },
     {
-        field: 'allocQty', headerName: '할당', width: 90,
+        field: 'alocQty', headerName: '할당', width: 90,
         headerTooltip: '출고 예약된 수량',
         cellClass: (p) => `ag-right-aligned-cell ${p.value > 0 ? 'text-amber-600 font-bold' : 'text-slate-300'}`,
         valueFormatter: (p) => num(p.value),
@@ -89,7 +89,7 @@ const StatTile = ({ label, value, accent }) => (
 
 export default function StockStatus() {
     const [rowData, setRowData] = useState([]);
-    const [cond, setCond] = useState({ prodCd: '', prodNm: '', locCd: '', lotNo: '', tempZone: '', locType: '' });
+    const [cond, setCond] = useState({ prodCd: '', prodNm: '', locCd: '', lotNo: '', tmpZon: '', locTyp: '' });
 
     const fetchList = async () => {
         const data = await invApi.list(cond);
@@ -107,7 +107,7 @@ export default function StockStatus() {
         const prodKinds = new Set(rowData.map(r => r.prodCd)).size;
         const onHand = rowData.reduce((s, r) => s + Number(r.onHandQty), 0);
         const avail = rowData.reduce((s, r) => s + Number(r.availableQty), 0);
-        const alloc = rowData.reduce((s, r) => s + Number(r.allocQty), 0);
+        const alloc = rowData.reduce((s, r) => s + Number(r.alocQty), 0);
         return { prodKinds, onHand, avail, alloc };
     }, [rowData]);
 
@@ -173,16 +173,16 @@ export default function StockStatus() {
                 </SearchItem>
                 <SearchItem label="온도대">
                     <DropdownSelect
-                        value={cond.tempZone}
-                        onChange={(v) => setCond(prev => ({ ...prev, tempZone: v }))}
+                        value={cond.tmpZon}
+                        onChange={(v) => setCond(prev => ({ ...prev, tmpZon: v }))}
                         options={TEMP_ZONE_OPTIONS}
                         placeholder="전체"
                     />
                 </SearchItem>
                 <SearchItem label="구분">
                     <DropdownSelect
-                        value={cond.locType}
-                        onChange={(v) => setCond(prev => ({ ...prev, locType: v }))}
+                        value={cond.locTyp}
+                        onChange={(v) => setCond(prev => ({ ...prev, locTyp: v }))}
                         options={LOC_TYPE_OPTIONS}
                         placeholder="전체"
                     />

@@ -23,14 +23,14 @@ const TEMP_ZONE_OPTIONS = [
  */
 export default function ProdPickerModal({ open, onClose, onSelect, multiple = false, excludeIds = [] }) {
     const [prods, setProds] = useState(null); // null = 아직 안 받아옴
-    const [cond, setCond] = useState({ prodCd: '', prodNm: '', tempZone: '' });
+    const [cond, setCond] = useState({ prodCd: '', prodNm: '', tmpZon: '' });
     const [checked, setChecked] = useState(new Set());
 
     // 열릴 때마다 선택 상태는 비우고, 목록은 한 번만 받아온다
     useEffect(() => {
         if (!open) return;
         setChecked(new Set());
-        setCond({ prodCd: '', prodNm: '', tempZone: '' });
+        setCond({ prodCd: '', prodNm: '', tmpZon: '' });
         if (prods !== null) return;
 
         let ignore = false;
@@ -47,7 +47,7 @@ export default function ProdPickerModal({ open, onClose, onSelect, multiple = fa
         return prods.filter(s =>
             (!cd || s.prodCd.toLowerCase().includes(cd)) &&
             (!nm || s.prodNm.toLowerCase().includes(nm)) &&
-            (!cond.tempZone || s.tempZone === cond.tempZone)
+            (!cond.tmpZon || s.tmpZon === cond.tmpZon)
         );
     }, [prods, cond]);
 
@@ -121,8 +121,8 @@ export default function ProdPickerModal({ open, onClose, onSelect, multiple = fa
                         <span className="text-xs font-bold text-slate-500 w-14 shrink-0">온도대</span>
                         <div className="flex-1 min-w-0">
                             <DropdownSelect
-                                value={cond.tempZone}
-                                onChange={(v) => setCond(prev => ({ ...prev, tempZone: v }))}
+                                value={cond.tmpZon}
+                                onChange={(v) => setCond(prev => ({ ...prev, tmpZon: v }))}
                                 options={TEMP_ZONE_OPTIONS}
                                 placeholder="전체"
                             />
@@ -151,7 +151,7 @@ export default function ProdPickerModal({ open, onClose, onSelect, multiple = fa
                         </div>
                     )}
                     {filtered.map(s => {
-                        const tz = TEMP_ZONE_META[s.tempZone];
+                        const tz = TEMP_ZONE_META[s.tmpZon];
                         const isExcluded = excluded.has(s.prodId);
                         const isChecked = checked.has(s.prodId);
                         return (
@@ -180,7 +180,7 @@ export default function ProdPickerModal({ open, onClose, onSelect, multiple = fa
                                 <span className="w-28 shrink-0 flex justify-center">
                                     {tz && (
                                         <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${tz.badge}`}>
-                                            {tz.label} {s.tempZone}
+                                            {tz.label} {s.tmpZon}
                                         </span>
                                     )}
                                 </span>

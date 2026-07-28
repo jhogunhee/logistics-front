@@ -35,7 +35,7 @@ const REF_DOC_TYPE_LABEL = { INBOUND: '입고', OUTBOUND: '출고' };
 const COLUMN_DEFS = [
     { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
     {
-            field: 'txType', headerName: '유형', width: 80,
+            field: 'txTyp', headerName: '유형', width: 80,
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
             cellRenderer: (p) => <TxTypeBadge value={p.value} />,
     },
@@ -44,12 +44,12 @@ const COLUMN_DEFS = [
     {
         field: 'locCd', headerName: '로케이션', width: 220,
         headerTooltip: 'MOVE(이동/적치)는 출발지 → 도착지로 표시',
-        valueGetter: (p) => (p.data.txType === 'MOVE' && p.data.fromLocCd && p.data.toLocCd)
+        valueGetter: (p) => (p.data.txTyp === 'MOVE' && p.data.fromLocCd && p.data.toLocCd)
             ? `${p.data.fromLocCd} → ${p.data.toLocCd}`
             : p.data.locCd,
     },
     {
-        field: 'tempZone', headerName: '온도대', width: 100,
+        field: 'tmpZon', headerName: '온도대', width: 100,
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
         cellRenderer: (p) => <TempZoneBadge value={p.value} />,
     },
@@ -62,8 +62,8 @@ const COLUMN_DEFS = [
     {
         headerName: 'Ref No.', width: 200,
         headerTooltip: '이 이력을 발생시킨 문서 (입고번호/출고번호)',
-        valueGetter: (p) => p.data.refDocNo
-            ? `${REF_DOC_TYPE_LABEL[p.data.refDocType] ?? p.data.refDocType} ${p.data.refDocNo}`
+        valueGetter: (p) => p.data.rfnDocNo
+            ? `${REF_DOC_TYPE_LABEL[p.data.rfnDocTyp] ?? p.data.rfnDocTyp} ${p.data.rfnDocNo}`
             : '',
     },
     {
@@ -75,7 +75,7 @@ const COLUMN_DEFS = [
 
 export default function InvHistory() {
     const [rowData, setRowData] = useState([]);
-    const [cond, setCond] = useState({ prodCd: '', prodNm: '', locCd: '', txType: '', refDocNo: '', dateFrom: '', dateTo: '' });
+    const [cond, setCond] = useState({ prodCd: '', prodNm: '', locCd: '', txTyp: '', rfnDocNo: '', dateFrom: '', dateTo: '' });
 
     const fetchList = async () => {
         const data = await invHistApi.list(cond);
@@ -131,8 +131,8 @@ export default function InvHistory() {
                 </SearchItem>
                 <SearchItem label="유형">
                     <DropdownSelect
-                        value={cond.txType}
-                        onChange={(v) => setCond(prev => ({ ...prev, txType: v }))}
+                        value={cond.txTyp}
+                        onChange={(v) => setCond(prev => ({ ...prev, txTyp: v }))}
                         options={TX_TYPE_OPTIONS}
                         placeholder="전체"
                     />
@@ -140,8 +140,8 @@ export default function InvHistory() {
                 <SearchItem label="Ref No.">
                     <input
                         type="text"
-                        value={cond.refDocNo}
-                        onChange={(e) => setCond(prev => ({ ...prev, refDocNo: e.target.value }))}
+                        value={cond.rfnDocNo}
+                        onChange={(e) => setCond(prev => ({ ...prev, rfnDocNo: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchList()}
                         placeholder="IB-20260717-001"
                         className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"

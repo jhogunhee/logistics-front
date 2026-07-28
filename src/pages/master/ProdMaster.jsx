@@ -24,7 +24,7 @@ const TempZoneBadge = ({ value }) => {
 
 export default function ProdMaster() {
     const [rowData, setRowData] = useState([]);
-    const [cond, setCond] = useState({ prodCd: '', prodNm: '', tempZone: '' });
+    const [cond, setCond] = useState({ prodCd: '', prodNm: '', tmpZon: '' });
     const [tempZoneOptions, setTempZoneOptions] = useState([{ value: '', label: '전체' }]);
     const [tempZoneCodes, setTempZoneCodes] = useState([]); // 공통코드(TEMP_ZONE)의 코드값 목록
     const [rowCount, setRowCount] = useState(0); // 행추가분은 rowData 상태에 없으므로 건수는 그리드 기준으로 센다
@@ -54,7 +54,7 @@ export default function ProdMaster() {
         },
         { field: 'prodNm', headerName: '상품명', minWidth: 200, editable: notDeleted },
         {
-            field: 'tempZone', headerName: '온도대', width: 100, editable: notDeleted,
+            field: 'tmpZon', headerName: '온도대', width: 100, editable: notDeleted,
             cellEditor: 'agSelectCellEditor',
             cellEditorParams: { values: tempZoneCodes },
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
@@ -119,7 +119,7 @@ export default function ProdMaster() {
     const handleAddRow = () => {
         const api = gridRef.current.api;
         const res = api.applyTransaction({
-            add: [{ prodCd: '', prodNm: '', tempZone: 'DRY', shelfLifeDays: null, _status: 'C' }],
+            add: [{ prodCd: '', prodNm: '', tmpZon: 'DRY', shelfLifeDays: null, _status: 'C' }],
         });
         const rowIndex = res.add[0].rowIndex;
         api.ensureIndexVisible(rowIndex, 'bottom');
@@ -195,16 +195,16 @@ export default function ProdMaster() {
         raw.forEach((r, i) => {
             const prodNm = String(r['상품명'] ?? '').trim();
             const tempRaw = String(r['온도대'] ?? '').trim();
-            const tempZone = tempZoneCodes.includes(tempRaw.toUpperCase())
+            const tmpZon = tempZoneCodes.includes(tempRaw.toUpperCase())
                 ? tempRaw.toUpperCase()
                 : nameToCode[tempRaw];
-            if (!prodNm || !tempZone) {
+            if (!prodNm || !tmpZon) {
                 badLines.push(i + 2); // 엑셀 행 번호 (헤더 1행 + 1-base)
                 return;
             }
             const shelf = r['유통기한(일)'];
             rows.push({
-                prodCd: '', prodNm, tempZone,
+                prodCd: '', prodNm, tmpZon,
                 shelfLifeDays: (shelf == null || shelf === '') ? null : Number(shelf),
                 _status: 'C',
             });
@@ -297,8 +297,8 @@ export default function ProdMaster() {
                 </SearchItem>
                 <SearchItem label="온도대">
                     <DropdownSelect
-                        value={cond.tempZone}
-                        onChange={(v) => setCond(prev => ({ ...prev, tempZone: v }))}
+                        value={cond.tmpZon}
+                        onChange={(v) => setCond(prev => ({ ...prev, tmpZon: v }))}
                         options={tempZoneOptions}
                         placeholder="전체"
                     />

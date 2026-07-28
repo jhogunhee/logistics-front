@@ -14,7 +14,7 @@ export const omsIbOrderApi = {
         return api.get(`/oms/inbound-orders/${omsIbOrderId}/lines`);
     },
 
-    /** 등록. payload: { vendorId, expctDt, lines: [{ prodId, orderQty }] }. 주문번호는 서버 채번(PO-).
+    /** 등록. payload: { vendorId, expctDe, lines: [{ prodId, odrQty }] }. 주문번호는 서버 채번(PO-).
      *  벤더는 이름이 아니라 마스터 ID로 보낸다 — 응답에는 vndrCd/vndrNm이 조인돼 내려온다. */
     create(payload) {
         return api.post('/oms/inbound-orders', payload);

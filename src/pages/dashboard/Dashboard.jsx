@@ -86,11 +86,11 @@ const RecentHistory = ({ items }) => {
     return (
         <div className="flex flex-col gap-2">
             {items.map(h => {
-                const meta = TX_TYPE_META[h.txType];
+                const meta = TX_TYPE_META[h.txTyp];
                 return (
                     <div key={h.invHistId} className="flex items-center gap-3 text-xs">
                         <span className={`shrink-0 px-2 py-0.5 rounded-full font-bold ${meta?.badge ?? 'bg-slate-100 text-slate-500'}`}>
-                            {meta?.label ?? h.txType}
+                            {meta?.label ?? h.txTyp}
                         </span>
                         <span className="font-medium text-slate-700 truncate flex-1 min-w-0">{h.prodCd} {h.prodNm}</span>
                         <span className="text-slate-400 shrink-0">
@@ -130,7 +130,7 @@ export default function Dashboard() {
         return () => { ignore = true; };
     }, []);
 
-    const todayAsnCount = asns.filter(a => a.expctDt === todayStr()).length;
+    const todayAsnCount = asns.filter(a => a.expctDe === todayStr()).length;
     const receivingCount = asns.filter(a => a.status === 'RECEIVING').length;
 
     return (

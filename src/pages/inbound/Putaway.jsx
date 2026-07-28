@@ -25,7 +25,7 @@ const COLUMN_DEFS = [
     { field: 'prodCd', headerName: '상품 코드', width: 115 },
     { field: 'prodNm', headerName: '상품명', flex: 1, minWidth: 200 },
     {
-        field: 'tempZone', headerName: '온도대', width: 100,
+        field: 'tmpZon', headerName: '온도대', width: 100,
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
         cellRenderer: (p) => <TempZoneBadge value={p.value} />,
     },
@@ -128,7 +128,7 @@ export default function Putaway() {
         }
     };
 
-    const locOptions = candidateLocs.map(l => ({ value: l.locId, label: `${l.locCd} (${l.zoneCd})` }));
+    const locOptions = candidateLocs.map(l => ({ value: l.locId, label: `${l.locCd} (${l.zonCd})` }));
     const targetLocLabel = (locId) => candidateLocs.find(l => l.locId === Number(locId))?.locCd ?? '';
 
     return (
@@ -214,7 +214,7 @@ export default function Putaway() {
                         <>
                             <div className="flex items-center gap-2 text-sm">
                                 <span className="font-bold text-slate-700">{selected.prodCd} {selected.prodNm}</span>
-                                <TempZoneBadge value={selected.tempZone} />
+                                <TempZoneBadge value={selected.tmpZon} />
                                 <span className="text-xs text-slate-400">{selected.ibNo} · {selected.lotNo} · 미적치 {selected.pendingQty}개</span>
                             </div>
                             <div className="flex items-end gap-3">

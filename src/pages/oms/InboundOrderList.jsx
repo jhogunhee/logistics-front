@@ -43,7 +43,7 @@ const HEADER_COLUMN_DEFS = [
         cellRenderer: (p) => <Badge meta={OMS_IB_STATUS_META[p.value]} />,
     },
     { field: 'vndrNm', headerName: '벤더', flex: 1, minWidth: 110 },
-    { field: 'expctDt', headerName: '입고 예정일', width: 120 },
+    { field: 'expctDe', headerName: '입고 예정일', width: 120 },
     { field: 'lineCount', headerName: '라인수', width: 80, cellClass: 'ag-right-aligned-cell' },
     { field: 'totalOrderQty', headerName: '발주수량', width: 100, cellClass: 'ag-right-aligned-cell' },
     {
@@ -64,11 +64,11 @@ const LINE_COLUMN_DEFS = [
     { field: 'prodCd', headerName: '상품 코드', width: 140 },
     { field: 'prodNm', headerName: '상품명', flex: 1, minWidth: 200 },
     {
-        field: 'tempZone', headerName: '온도대', width: 120,
+        field: 'tmpZon', headerName: '온도대', width: 120,
         cellStyle: centered,
         cellRenderer: (p) => <TempZoneBadge value={p.value} />,
     },
-    { field: 'orderQty', headerName: '발주수량', width: 110, cellClass: 'ag-right-aligned-cell' },
+    { field: 'odrQty', headerName: '발주수량', width: 110, cellClass: 'ag-right-aligned-cell' },
 ];
 
 export default function InboundOrderList() {

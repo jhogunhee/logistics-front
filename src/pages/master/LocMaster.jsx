@@ -43,7 +43,7 @@ const LocTypeBadge = ({ value }) => {
 
 export default function LocMaster() {
     const [rowData, setRowData] = useState([]);
-    const [cond, setCond] = useState({ locCd: '', zoneCd: '', locType: '' });
+    const [cond, setCond] = useState({ locCd: '', zonCd: '', locTyp: '' });
     const [locTypeOptions, setLocTypeOptions] = useState([{ value: '', label: '전체' }]);
     const [tempZoneCodes, setTempZoneCodes] = useState([]); // 공통코드(TEMP_ZONE)의 코드값 목록
     const [locTypeCodes, setLocTypeCodes] = useState([]); // 공통코드(LOC_TYPE)의 코드값 목록
@@ -74,26 +74,26 @@ export default function LocMaster() {
             editable: (p) => p.data._status === 'C',
         },
         {
-            field: 'zoneCd', headerName: '존', width: 110, editable: notDeleted,
+            field: 'zonCd', headerName: '존', width: 110, editable: notDeleted,
             cellEditor: 'agSelectCellEditor',
             cellEditorParams: { values: ZONE_CODES },
         },
         {
-            field: 'tempZone', headerName: '온도대', width: 100, editable: notDeleted,
+            field: 'tmpZon', headerName: '온도대', width: 100, editable: notDeleted,
             cellEditor: 'agSelectCellEditor',
             cellEditorParams: { values: tempZoneCodes },
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
             cellRenderer: (p) => <TempZoneBadge value={p.value} />,
         },
         {
-            field: 'locType', headerName: '유형', width: 100, editable: notDeleted,
+            field: 'locTyp', headerName: '유형', width: 100, editable: notDeleted,
             cellEditor: 'agSelectCellEditor',
             cellEditorParams: { values: locTypeCodes },
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
             cellRenderer: (p) => <LocTypeBadge value={p.value} />,
         },
         {
-            field: 'pickPrty', headerName: '피킹 우선순위', width: 120, editable: notDeleted,
+            field: 'pikngPrty', headerName: '피킹 우선순위', width: 120, editable: notDeleted,
             cellClass: 'ag-right-aligned-cell',
             headerTooltip: 'FEFO 동순위(같은 유통기한) 간 할당 순서. 낮을수록 먼저',
         },
@@ -152,7 +152,7 @@ export default function LocMaster() {
     const handleAddRow = () => {
         const api = gridRef.current.api;
         const res = api.applyTransaction({
-            add: [{ locCd: '', zoneCd: 'DRY', tempZone: 'DRY', locType: 'STORAGE', pickPrty: 0, _status: 'C' }],
+            add: [{ locCd: '', zonCd: 'DRY', tmpZon: 'DRY', locTyp: 'STORAGE', pikngPrty: 0, _status: 'C' }],
         });
         const rowIndex = res.add[0].rowIndex;
         api.ensureIndexVisible(rowIndex, 'bottom');
@@ -228,23 +228,23 @@ export default function LocMaster() {
         const badLines = [];
         raw.forEach((r, i) => {
             const locCd = String(r['로케이션 코드'] ?? '').trim();
-            const zoneCd = String(r['존'] ?? '').trim().toUpperCase();
+            const zonCd = String(r['존'] ?? '').trim().toUpperCase();
             const tempRaw = String(r['온도대'] ?? '').trim();
             const typeRaw = String(r['유형'] ?? '').trim();
-            const tempZone = tempZoneCodes.includes(tempRaw.toUpperCase())
+            const tmpZon = tempZoneCodes.includes(tempRaw.toUpperCase())
                 ? tempRaw.toUpperCase()
                 : tempNameToCode[tempRaw];
-            const locType = locTypeCodes.includes(typeRaw.toUpperCase())
+            const locTyp = locTypeCodes.includes(typeRaw.toUpperCase())
                 ? typeRaw.toUpperCase()
                 : typeNameToCode[typeRaw];
-            if (!locCd || !ZONE_CODES.includes(zoneCd) || !tempZone || !locType) {
+            if (!locCd || !ZONE_CODES.includes(zonCd) || !tmpZon || !locTyp) {
                 badLines.push(i + 2); // 엑셀 행 번호 (헤더 1행 + 1-base)
                 return;
             }
             const prty = r['피킹 우선순위'];
             rows.push({
-                locCd, zoneCd, tempZone, locType,
-                pickPrty: (prty == null || prty === '') ? 0 : Number(prty),
+                locCd, zonCd, tmpZon, locTyp,
+                pikngPrty: (prty == null || prty === '') ? 0 : Number(prty),
                 _status: 'C',
             });
         });
@@ -277,11 +277,11 @@ export default function LocMaster() {
                 toast.error('로케이션 코드는 필수입니다.');
                 return;
             }
-            if (r.locType === 'STORAGE' && r.zoneCd !== r.tempZone) {
+            if (r.locTyp === 'STORAGE' && r.zonCd !== r.tmpZon) {
                 toast.error(`보관 로케이션은 존과 온도대가 일치해야 합니다: ${r.locCd}`);
                 return;
             }
-            if (r.pickPrty !== '' && r.pickPrty != null && !(Number(r.pickPrty) >= 0)) {
+            if (r.pikngPrty !== '' && r.pikngPrty != null && !(Number(r.pikngPrty) >= 0)) {
                 toast.error(`피킹 우선순위는 0 이상 숫자여야 합니다: ${r.locCd}`);
                 return;
             }
@@ -294,7 +294,7 @@ export default function LocMaster() {
             // 빈 우선순위는 0으로 정규화해서 전송
             const payload = dirty.map(r => ({
                 ...r,
-                pickPrty: (r.pickPrty == null || r.pickPrty === '') ? 0 : Number(r.pickPrty),
+                pikngPrty: (r.pikngPrty == null || r.pikngPrty === '') ? 0 : Number(r.pikngPrty),
             }));
             await locApi.saveAll(payload);
             toast.success(`${dirty.length}건 저장했습니다.`);
@@ -327,16 +327,16 @@ export default function LocMaster() {
                 </SearchItem>
                 <SearchItem label="존">
                     <DropdownSelect
-                        value={cond.zoneCd}
-                        onChange={(v) => setCond(prev => ({ ...prev, zoneCd: v }))}
+                        value={cond.zonCd}
+                        onChange={(v) => setCond(prev => ({ ...prev, zonCd: v }))}
                         options={ZONE_OPTIONS}
                         placeholder="전체"
                     />
                 </SearchItem>
                 <SearchItem label="유형">
                     <DropdownSelect
-                        value={cond.locType}
-                        onChange={(v) => setCond(prev => ({ ...prev, locType: v }))}
+                        value={cond.locTyp}
+                        onChange={(v) => setCond(prev => ({ ...prev, locTyp: v }))}
                         options={locTypeOptions}
                         placeholder="전체"
                     />

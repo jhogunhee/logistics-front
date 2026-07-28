@@ -41,7 +41,7 @@ const HEADER_COLUMN_DEFS = [
         cellRenderer: (p) => <StatusBadge value={p.value} />,
     },
     { field: 'vndrNm', headerName: '벤더', flex: 1, minWidth: 110 },
-    { field: 'expctDt', headerName: '입고 예정일', width: 120 },
+    { field: 'expctDe', headerName: '입고 예정일', width: 120 },
     {
         headerName: '검수 진행', width: 100, cellClass: 'ag-right-aligned-cell',
         headerTooltip: '검수된 라인 / 전체 라인',
@@ -56,7 +56,7 @@ const LINE_COLUMN_DEFS = [
     { field: 'prodCd', headerName: '상품 코드', width: 140 },
     { field: 'prodNm', headerName: '상품명', flex: 1, minWidth: 200 },
     {
-        field: 'tempZone', headerName: '온도대', width: 120,
+        field: 'tmpZon', headerName: '온도대', width: 120,
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
         cellRenderer: (p) => <TempZoneBadge value={p.value} />,
     },
@@ -68,7 +68,7 @@ const LINE_COLUMN_DEFS = [
         valueGetter: (p) => p.data.expctQty - p.data.rcvdQty,
         cellClass: (p) => p.value < 0 ? 'ag-right-aligned-cell text-red-500 font-bold' : 'ag-right-aligned-cell',
     },
-    { field: 'ptwyQty', headerName: '적치완료', width: 100, cellClass: 'ag-right-aligned-cell' },
+    { field: 'ptawyQty', headerName: '적치완료', width: 100, cellClass: 'ag-right-aligned-cell' },
 ];
 
 export default function AsnList() {
