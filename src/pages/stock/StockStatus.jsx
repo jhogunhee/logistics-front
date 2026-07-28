@@ -5,7 +5,7 @@ import { Box } from 'lucide-react';
 import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import { invApi } from '@/api/invApi';
-import { TEMP_ZONE_META } from '@/api/skuApi';
+import { TEMP_ZONE_META } from '@/api/prodApi';
 import { LOC_TYPE_META } from '@/api/locApi';
 
 const num = (v) => (v == null ? '' : Number(v).toLocaleString());
@@ -42,8 +42,8 @@ const LocTypeBadge = ({ value }) => {
 
 const COLUMN_DEFS = [
     { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
-    { field: 'skuCd', headerName: 'SKU 코드', width: 115 },
-    { field: 'skuNm', headerName: '상품명', flex: 1, minWidth: 180 },
+    { field: 'prodCd', headerName: '상품 코드', width: 115 },
+    { field: 'prodNm', headerName: '상품명', flex: 1, minWidth: 180 },
     {
         field: 'tempZone', headerName: '온도대', width: 100,
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
@@ -89,7 +89,7 @@ const StatTile = ({ label, value, accent }) => (
 
 export default function StockStatus() {
     const [rowData, setRowData] = useState([]);
-    const [cond, setCond] = useState({ skuCd: '', skuNm: '', locCd: '', lotNo: '', tempZone: '', locType: '' });
+    const [cond, setCond] = useState({ prodCd: '', prodNm: '', locCd: '', lotNo: '', tempZone: '', locType: '' });
 
     const fetchList = async () => {
         const data = await invApi.list(cond);
@@ -104,11 +104,11 @@ export default function StockStatus() {
 
     // 요약 지표는 조회 결과에서 파생 (별도 API 없이 화면에서 집계)
     const summary = useMemo(() => {
-        const skuKinds = new Set(rowData.map(r => r.skuCd)).size;
+        const prodKinds = new Set(rowData.map(r => r.prodCd)).size;
         const onHand = rowData.reduce((s, r) => s + Number(r.onHandQty), 0);
         const avail = rowData.reduce((s, r) => s + Number(r.availableQty), 0);
         const alloc = rowData.reduce((s, r) => s + Number(r.allocQty), 0);
-        return { skuKinds, onHand, avail, alloc };
+        return { prodKinds, onHand, avail, alloc };
     }, [rowData]);
 
     return (
@@ -117,13 +117,13 @@ export default function StockStatus() {
             <div className="flex items-center gap-2">
                 <Box size={18} className="text-indigo-600" />
                 <h2 className="text-lg font-bold text-slate-800">현재고 조회</h2>
-                <span className="text-xs text-slate-400 mt-0.5">SKU + 로케이션 + Lot 단위 실시간 재고 · 가용 = 보유 − 할당</span>
+                <span className="text-xs text-slate-400 mt-0.5">상품 + 로케이션 + Lot 단위 실시간 재고 · 가용 = 보유 − 할당</span>
             </div>
 
             {/* 요약 지표 */}
             <div className="flex gap-3">
                 <StatTile label="재고 건수" value={num(rowData.length)} />
-                <StatTile label="SKU 종류" value={num(summary.skuKinds)} />
+                <StatTile label="상품 종류" value={num(summary.prodKinds)} />
                 <StatTile label="총 보유수량" value={num(summary.onHand)} />
                 <StatTile label="총 할당수량" value={num(summary.alloc)} accent="text-amber-600" />
                 <StatTile label="총 가용수량" value={num(summary.avail)} accent="text-emerald-600" />
@@ -131,21 +131,21 @@ export default function StockStatus() {
 
             {/* 검색 조건 */}
             <SearchBar label="검색" onSearch={fetchList}>
-                <SearchItem label="SKU 코드">
+                <SearchItem label="상품 코드">
                     <input
                         type="text"
-                        value={cond.skuCd}
-                        onChange={(e) => setCond(prev => ({ ...prev, skuCd: e.target.value }))}
+                        value={cond.prodCd}
+                        onChange={(e) => setCond(prev => ({ ...prev, prodCd: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="SKU-0001"
+                        placeholder="PROD-0001"
                         className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
                     />
                 </SearchItem>
                 <SearchItem label="상품명">
                     <input
                         type="text"
-                        value={cond.skuNm}
-                        onChange={(e) => setCond(prev => ({ ...prev, skuNm: e.target.value }))}
+                        value={cond.prodNm}
+                        onChange={(e) => setCond(prev => ({ ...prev, prodNm: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchList()}
                         placeholder="상품명 일부"
                         className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"

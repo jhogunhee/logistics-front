@@ -7,7 +7,7 @@ import * as XLSX from 'xlsx';
 import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import { locApi, LOC_TYPE_META, ZONE_CODES } from '@/api/locApi';
-import { TEMP_ZONE_META } from '@/api/skuApi';
+import { TEMP_ZONE_META } from '@/api/prodApi';
 import { codeApi, toSearchOptions } from '@/api/codeApi';
 
 // ISO 일시("2026-07-16T14:03:21...") → "2026-07-16"

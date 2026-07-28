@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 
 import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import { asnApi, ASN_STATUS_META } from '@/api/asnApi';
-import { TEMP_ZONE_META } from '@/api/skuApi';
+import { TEMP_ZONE_META } from '@/api/prodApi';
 
 // ISO 일시("2026-07-16T14:03:21...") → "2026-07-16 14:03"
 const formatDateTime = (v) => (v ? v.replace('T', ' ').slice(0, 16) : '');
@@ -109,7 +109,7 @@ export default function Receiving() {
         }
         setSelectedAsn(node.data);
         const lines = await asnApi.lines(node.data.ibOrderId);
-        // 입고일자는 전 라인, 제조일자는 유통기한 관리 SKU만 입력
+        // 입고일자는 전 라인, 제조일자는 유통기한 관리 상품만 입력
         // (둘 다 기본값 오늘 — 제조일자를 과거로 바꾸면 임박 Lot 시나리오 재현 가능)
         setLineRows(lines.map(l => ({
             ...l,
@@ -122,8 +122,8 @@ export default function Receiving() {
     // 라인 그리드: 작업 순서대로 [식별 → 잔량 → 입력 4개]를 앞에 두고, 참고용 누계는 뒤로 보낸다
     // (입력 컬럼이 가로 스크롤 없이 바로 보이게)
     const lineColumnDefs = [
-        { field: 'skuCd', headerName: 'SKU 코드', width: 115 },
-        { field: 'skuNm', headerName: '상품명', minWidth: 300 },
+        { field: 'prodCd', headerName: '상품 코드', width: 115 },
+        { field: 'prodNm', headerName: '상품명', minWidth: 300 },
         { field: 'expctQty', headerName: '예정', width: 70, cellClass: 'ag-right-aligned-cell' },
         {
             headerName: '잔량', width: 70,
@@ -191,19 +191,19 @@ export default function Receiving() {
         for (const r of targets) {
             const inspect = Number(r._inspectQty);
             if (!(inspect > 0)) {
-                toast.error(`검수수량은 1 이상이어야 합니다: ${r.skuCd}`);
+                toast.error(`검수수량은 1 이상이어야 합니다: ${r.prodCd}`);
                 return;
             }
             if (!String(r._receiptDt || '').trim()) {
-                toast.error(`입고일자를 입력하세요: ${r.skuCd}`);
+                toast.error(`입고일자를 입력하세요: ${r.prodCd}`);
                 return;
             }
             if (r.shelfLifeDays != null && !String(r._mfgDt || '').trim()) {
-                toast.error(`제조일자를 입력하세요: ${r.skuCd}`);
+                toast.error(`제조일자를 입력하세요: ${r.prodCd}`);
                 return;
             }
             if (r.shelfLifeDays != null && r._mfgDt > r._receiptDt) {
-                toast.error(`제조일자가 입고일자보다 미래일 수 없습니다: ${r.skuCd}`);
+                toast.error(`제조일자가 입고일자보다 미래일 수 없습니다: ${r.prodCd}`);
                 return;
             }
         }
@@ -379,7 +379,7 @@ export default function Receiving() {
                             </button>
                         </div>
                         <p className="text-xs text-slate-400">
-                            {receiptsModal.line.skuCd} · {receiptsModal.line.skuNm}
+                            {receiptsModal.line.prodCd} · {receiptsModal.line.prodNm}
                         </p>
                         <div className="flex flex-col gap-2 max-h-80 overflow-y-auto">
                             {receiptsModal.receipts.length === 0 && (

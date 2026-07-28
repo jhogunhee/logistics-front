@@ -3,7 +3,7 @@ import { Barcode, ClipboardCheck, History, PackageOpen, PackageSearch, Truck } f
 
 import { asnApi, ASN_STATUS_META } from '@/api/asnApi';
 import { putawayApi } from '@/api/putawayApi';
-import { skuApi } from '@/api/skuApi';
+import { prodApi } from '@/api/prodApi';
 import { invHistApi, TX_TYPE_META } from '@/api/invHistApi';
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
@@ -92,7 +92,7 @@ const RecentHistory = ({ items }) => {
                         <span className={`shrink-0 px-2 py-0.5 rounded-full font-bold ${meta?.badge ?? 'bg-slate-100 text-slate-500'}`}>
                             {meta?.label ?? h.txType}
                         </span>
-                        <span className="font-medium text-slate-700 truncate flex-1 min-w-0">{h.skuCd} {h.skuNm}</span>
+                        <span className="font-medium text-slate-700 truncate flex-1 min-w-0">{h.prodCd} {h.prodNm}</span>
                         <span className="text-slate-400 shrink-0">
                             {h.locCd}{h.pairedLocCd ? ` → ${h.pairedLocCd}` : ''}
                         </span>
@@ -110,7 +110,7 @@ const RecentHistory = ({ items }) => {
 export default function Dashboard() {
     const [asns, setAsns] = useState([]);
     const [putawayPending, setPutawayPending] = useState([]);
-    const [skuCount, setSkuCount] = useState(0);
+    const [prodCount, setProdCount] = useState(0);
     const [recentHist, setRecentHist] = useState([]);
 
     useEffect(() => {
@@ -118,13 +118,13 @@ export default function Dashboard() {
         Promise.all([
             asnApi.list(),
             putawayApi.lines(),
-            skuApi.list(),
+            prodApi.list(),
             invHistApi.list(),
-        ]).then(([asnData, putawayData, skuData, histData]) => {
+        ]).then(([asnData, putawayData, prodData, histData]) => {
             if (ignore) return;
             setAsns(asnData);
             setPutawayPending(putawayData);
-            setSkuCount(skuData.length);
+            setProdCount(prodData.length);
             setRecentHist(histData.slice(0, 8));
         });
         return () => { ignore = true; };
@@ -141,7 +141,7 @@ export default function Dashboard() {
                 <StatCard title="금일 입고예정" value={`${todayAsnCount}건`} icon={Truck} hint={todayStr()} />
                 <StatCard title="검수중" value={`${receivingCount}건`} icon={ClipboardCheck} hint="입고예정(ASN) 기준" />
                 <StatCard title="적치대기 배치" value={`${putawayPending.length}건`} icon={PackageOpen} hint="RCV-STAGE 미적치" />
-                <StatCard title="등록 SKU" value={`${skuCount}종`} icon={Barcode} hint="마스터 기준" />
+                <StatCard title="등록 상품" value={`${prodCount}종`} icon={Barcode} hint="마스터 기준" />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

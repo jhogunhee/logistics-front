@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import { putawayApi } from '@/api/putawayApi';
-import { TEMP_ZONE_META } from '@/api/skuApi';
+import { TEMP_ZONE_META } from '@/api/prodApi';
 
 const TempZoneBadge = ({ value }) => {
     const meta = TEMP_ZONE_META[value];
@@ -22,8 +22,8 @@ const COLUMN_DEFS = [
     { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
     { field: 'ibNo', headerName: '입고번호', width: 170 },
     { field: 'vndrNm', headerName: '벤더', width: 110 },
-    { field: 'skuCd', headerName: 'SKU 코드', width: 115 },
-    { field: 'skuNm', headerName: '상품명', flex: 1, minWidth: 200 },
+    { field: 'prodCd', headerName: '상품 코드', width: 115 },
+    { field: 'prodNm', headerName: '상품명', flex: 1, minWidth: 200 },
     {
         field: 'tempZone', headerName: '온도대', width: 100,
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
@@ -46,7 +46,7 @@ const COLUMN_DEFS = [
 export default function Putaway() {
     const [rowData, setRowData] = useState([]);
     const [selected, setSelected] = useState(null);
-    const [cond, setCond] = useState({ ibNo: '', dateFrom: '', dateTo: '', skuCd: '', skuNm: '' });
+    const [cond, setCond] = useState({ ibNo: '', dateFrom: '', dateTo: '', prodCd: '', prodNm: '' });
     const [candidateLocs, setCandidateLocs] = useState([]);
     const [qty, setQty] = useState('');
     const [targetLocId, setTargetLocId] = useState('');
@@ -121,7 +121,7 @@ export default function Putaway() {
     const doPutaway = async (target) => {
         try {
             await putawayApi.putaway(target.ibLineId, { lotId: target.lotId, qty: target.qty, targetLocId: Number(target.targetLocId) });
-            toast.success(`${target.skuCd} ${target.qty}개를 적치했습니다.`);
+            toast.success(`${target.prodCd} ${target.qty}개를 적치했습니다.`);
             fetchList(target.qty < target.pendingQty); // 잔량이 남았으면 같은 배치 선택 유지
         } catch (e) {
             toast.error(e.message || '적치에 실패했습니다.');
@@ -169,21 +169,21 @@ export default function Putaway() {
                         />
                     </div>
                 </SearchItem>
-                <SearchItem label="SKU 코드">
+                <SearchItem label="상품 코드">
                     <input
                         type="text"
-                        value={cond.skuCd}
-                        onChange={(e) => setCond(prev => ({ ...prev, skuCd: e.target.value }))}
+                        value={cond.prodCd}
+                        onChange={(e) => setCond(prev => ({ ...prev, prodCd: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="SKU-0001"
+                        placeholder="PROD-0001"
                         className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
                     />
                 </SearchItem>
                 <SearchItem label="상품명">
                     <input
                         type="text"
-                        value={cond.skuNm}
-                        onChange={(e) => setCond(prev => ({ ...prev, skuNm: e.target.value }))}
+                        value={cond.prodNm}
+                        onChange={(e) => setCond(prev => ({ ...prev, prodNm: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchList()}
                         placeholder="상품명 일부"
                         className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
@@ -213,7 +213,7 @@ export default function Putaway() {
                     ) : (
                         <>
                             <div className="flex items-center gap-2 text-sm">
-                                <span className="font-bold text-slate-700">{selected.skuCd} {selected.skuNm}</span>
+                                <span className="font-bold text-slate-700">{selected.prodCd} {selected.prodNm}</span>
                                 <TempZoneBadge value={selected.tempZone} />
                                 <span className="text-xs text-slate-400">{selected.ibNo} · {selected.lotNo} · 미적치 {selected.pendingQty}개</span>
                             </div>
@@ -257,7 +257,7 @@ export default function Putaway() {
                     <div className="bg-white rounded-2xl shadow-xl p-6 w-96 flex flex-col gap-4">
                         <h3 className="text-lg font-bold text-slate-800">적치하시겠습니까?</h3>
                         <p className="text-sm text-slate-500">
-                            {confirmTarget.skuCd} {confirmTarget.skuNm} · <b className="text-emerald-600">{confirmTarget.qty}개</b>
+                            {confirmTarget.prodCd} {confirmTarget.prodNm} · <b className="text-emerald-600">{confirmTarget.qty}개</b>
                         </p>
                         <p className="text-xs text-slate-400">
                             RCV-STAGE → {targetLocLabel(confirmTarget.targetLocId)}

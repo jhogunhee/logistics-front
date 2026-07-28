@@ -1,16 +1,16 @@
-// SKU 마스터 API (wms-backend 연동)
+// 상품 마스터 API (wms-backend 연동)
 import api from '@/utils/axios';
 
-export const skuApi = {
-    /** 목록 조회. cond: { skuCd, skuNm, tempZone } — 빈 값 조건은 빼고 보낸다 */
+export const prodApi = {
+    /** 목록 조회. cond: { prodCd, prodNm, tempZone } — 빈 값 조건은 빼고 보낸다 */
     list(cond = {}) {
         const params = Object.fromEntries(Object.entries(cond).filter(([, v]) => v));
-        return api.get('/master/skus', { params });
+        return api.get('/master/prods', { params });
     },
 
-    /** 신규(C)/수정(U) 행 일괄 저장. 신규 행의 SKU 코드는 서버가 채번한다 */
+    /** 신규(C)/수정(U) 행 일괄 저장. 신규 행의 상품 코드는 서버가 채번한다 */
     saveAll(rows) {
-        return api.post('/master/skus/bulk', rows);
+        return api.post('/master/prods/bulk', rows);
     },
 };
 

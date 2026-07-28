@@ -5,7 +5,7 @@ import { History } from 'lucide-react';
 import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import { invHistApi, TX_TYPE_META, TX_TYPE_OPTIONS } from '@/api/invHistApi';
-import { TEMP_ZONE_META } from '@/api/skuApi';
+import { TEMP_ZONE_META } from '@/api/prodApi';
 
 // ISO 일시("2026-07-16T14:03:21...") → "2026-07-16 14:03"
 const formatDateTime = (v) => (v ? v.replace('T', ' ').slice(0, 16) : '');
@@ -39,8 +39,8 @@ const COLUMN_DEFS = [
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
             cellRenderer: (p) => <TxTypeBadge value={p.value} />,
     },
-    { field: 'skuCd', headerName: 'SKU 코드', width: 115 },
-    { field: 'skuNm', headerName: '상품명', flex: 1, minWidth: 180 },
+    { field: 'prodCd', headerName: '상품 코드', width: 115 },
+    { field: 'prodNm', headerName: '상품명', flex: 1, minWidth: 180 },
     {
         field: 'locCd', headerName: '로케이션', width: 220,
         headerTooltip: 'MOVE(이동/적치)는 출발지 → 도착지로 표시',
@@ -75,7 +75,7 @@ const COLUMN_DEFS = [
 
 export default function InvHistory() {
     const [rowData, setRowData] = useState([]);
-    const [cond, setCond] = useState({ skuCd: '', skuNm: '', locCd: '', txType: '', refDocNo: '', dateFrom: '', dateTo: '' });
+    const [cond, setCond] = useState({ prodCd: '', prodNm: '', locCd: '', txType: '', refDocNo: '', dateFrom: '', dateTo: '' });
 
     const fetchList = async () => {
         const data = await invHistApi.list(cond);
@@ -99,21 +99,21 @@ export default function InvHistory() {
 
             {/* 검색 조건 */}
             <SearchBar label="검색" onSearch={fetchList}>
-                <SearchItem label="SKU 코드">
+                <SearchItem label="상품 코드">
                     <input
                         type="text"
-                        value={cond.skuCd}
-                        onChange={(e) => setCond(prev => ({ ...prev, skuCd: e.target.value }))}
+                        value={cond.prodCd}
+                        onChange={(e) => setCond(prev => ({ ...prev, prodCd: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="SKU-0001"
+                        placeholder="PROD-0001"
                         className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
                     />
                 </SearchItem>
                 <SearchItem label="상품명">
                     <input
                         type="text"
-                        value={cond.skuNm}
-                        onChange={(e) => setCond(prev => ({ ...prev, skuNm: e.target.value }))}
+                        value={cond.prodNm}
+                        onChange={(e) => setCond(prev => ({ ...prev, prodNm: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchList()}
                         placeholder="상품명 일부"
                         className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"

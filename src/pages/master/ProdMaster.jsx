@@ -6,7 +6,7 @@ import * as XLSX from 'xlsx';
 
 import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
-import { skuApi, TEMP_ZONE_META } from '@/api/skuApi';
+import { prodApi, TEMP_ZONE_META } from '@/api/prodApi';
 import { codeApi, toSearchOptions } from '@/api/codeApi';
 
 // ISO 일시("2026-07-16T14:03:21...") → "2026-07-16"
@@ -22,9 +22,9 @@ const TempZoneBadge = ({ value }) => {
     );
 };
 
-export default function SkuMaster() {
+export default function ProdMaster() {
     const [rowData, setRowData] = useState([]);
-    const [cond, setCond] = useState({ skuCd: '', skuNm: '', tempZone: '' });
+    const [cond, setCond] = useState({ prodCd: '', prodNm: '', tempZone: '' });
     const [tempZoneOptions, setTempZoneOptions] = useState([{ value: '', label: '전체' }]);
     const [tempZoneCodes, setTempZoneCodes] = useState([]); // 공통코드(TEMP_ZONE)의 코드값 목록
     const [rowCount, setRowCount] = useState(0); // 행추가분은 rowData 상태에 없으므로 건수는 그리드 기준으로 센다
@@ -49,10 +49,10 @@ export default function SkuMaster() {
             cellClass: 'text-slate-400',
         },
         {
-            field: 'skuCd', headerName: 'SKU 코드', width: 100, editable: false,
+            field: 'prodCd', headerName: '상품 코드', width: 100, editable: false,
             cellRenderer: (p) => p.value || <span className="text-slate-400">(저장 시 채번)</span>,
         },
-        { field: 'skuNm', headerName: '상품명', minWidth: 200, editable: notDeleted },
+        { field: 'prodNm', headerName: '상품명', minWidth: 200, editable: notDeleted },
         {
             field: 'tempZone', headerName: '온도대', width: 100, editable: notDeleted,
             cellEditor: 'agSelectCellEditor',
@@ -89,14 +89,14 @@ export default function SkuMaster() {
     ];
 
     const fetchList = async () => {
-        const data = await skuApi.list(cond);
+        const data = await prodApi.list(cond);
         setRowData(data);
     };
 
     // 최초 1회 조회 (이후엔 조회 버튼으로 재조회) + 온도대 공통코드 조회
     useEffect(() => {
         let ignore = false;
-        skuApi.list().then(data => { if (!ignore) setRowData(data); });
+        prodApi.list().then(data => { if (!ignore) setRowData(data); });
         codeApi.list('TEMP_ZONE').then(codes => {
             if (!ignore) {
                 setTempZoneOptions(toSearchOptions(codes));
@@ -119,11 +119,11 @@ export default function SkuMaster() {
     const handleAddRow = () => {
         const api = gridRef.current.api;
         const res = api.applyTransaction({
-            add: [{ skuCd: '', skuNm: '', tempZone: 'DRY', shelfLifeDays: null, _status: 'C' }],
+            add: [{ prodCd: '', prodNm: '', tempZone: 'DRY', shelfLifeDays: null, _status: 'C' }],
         });
         const rowIndex = res.add[0].rowIndex;
         api.ensureIndexVisible(rowIndex, 'bottom');
-        api.startEditingCell({ rowIndex, colKey: 'skuNm' });
+        api.startEditingCell({ rowIndex, colKey: 'prodNm' });
     };
 
     // ── 삭제 ────────────────────────────────────────────────
@@ -170,9 +170,9 @@ export default function SkuMaster() {
         codeSheet['!cols'] = [{ wch: 12 }, { wch: 8 }, { wch: 24 }];
 
         const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, sheet, 'SKU');
+        XLSX.utils.book_append_sheet(workbook, sheet, '상품');
         XLSX.utils.book_append_sheet(workbook, codeSheet, '온도대 코드');
-        XLSX.writeFile(workbook, 'sku_upload_template.xlsx');
+        XLSX.writeFile(workbook, 'prod_upload_template.xlsx');
     };
 
     // ── 엑셀 업로드 ─────────────────────────────────────────
@@ -193,18 +193,18 @@ export default function SkuMaster() {
         const rows = [];
         const badLines = [];
         raw.forEach((r, i) => {
-            const skuNm = String(r['상품명'] ?? '').trim();
+            const prodNm = String(r['상품명'] ?? '').trim();
             const tempRaw = String(r['온도대'] ?? '').trim();
             const tempZone = tempZoneCodes.includes(tempRaw.toUpperCase())
                 ? tempRaw.toUpperCase()
                 : nameToCode[tempRaw];
-            if (!skuNm || !tempZone) {
+            if (!prodNm || !tempZone) {
                 badLines.push(i + 2); // 엑셀 행 번호 (헤더 1행 + 1-base)
                 return;
             }
             const shelf = r['유통기한(일)'];
             rows.push({
-                skuCd: '', skuNm, tempZone,
+                prodCd: '', prodNm, tempZone,
                 shelfLifeDays: (shelf == null || shelf === '') ? null : Number(shelf),
                 _status: 'C',
             });
@@ -232,16 +232,16 @@ export default function SkuMaster() {
             toast('변경된 내용이 없습니다.');
             return;
         }
-        // 검증 (SKU 코드는 서버 채번, 삭제 행은 id만 쓰므로 검증 대상 아님)
+        // 검증 (상품 코드는 서버 채번, 삭제 행은 id만 쓰므로 검증 대상 아님)
         for (const r of dirty.filter(r => r._status !== 'D')) {
-            if (!r.skuNm.trim()) {
+            if (!r.prodNm.trim()) {
                 toast.error('상품명은 필수입니다.');
                 return;
             }
             // 빈 값 = 유통기한 미관리(공산품 등). 값이 있으면 1 이상이어야 한다.
             const hasShelfLife = r.shelfLifeDays != null && String(r.shelfLifeDays).trim() !== '';
             if (hasShelfLife && !(Number(r.shelfLifeDays) > 0)) {
-                toast.error(`유통기한(일)은 비워두거나(미관리) 1 이상이어야 합니다: ${r.skuNm}`);
+                toast.error(`유통기한(일)은 비워두거나(미관리) 1 이상이어야 합니다: ${r.prodNm}`);
                 return;
             }
         }
@@ -256,7 +256,7 @@ export default function SkuMaster() {
                 shelfLifeDays: (r.shelfLifeDays == null || String(r.shelfLifeDays).trim() === '')
                     ? null : Number(r.shelfLifeDays),
             }));
-            await skuApi.saveAll(payload);
+            await prodApi.saveAll(payload);
             toast.success(`${dirty.length}건 저장했습니다.`);
             fetchList();
         } catch (e) {
@@ -269,27 +269,27 @@ export default function SkuMaster() {
             {/* 타이틀 */}
             <div className="flex items-center gap-2">
                 <Barcode size={18} className="text-indigo-600" />
-                <h2 className="text-lg font-bold text-slate-800">SKU 관리</h2>
+                <h2 className="text-lg font-bold text-slate-800">상품 관리</h2>
                 <span className="text-xs text-slate-400 mt-0.5">상품 마스터 · 온도대/유통기한 정책</span>
             </div>
 
             {/* 검색 조건 */}
             <SearchBar label="검색" onSearch={fetchList}>
-                <SearchItem label="SKU 코드">
+                <SearchItem label="상품 코드">
                     <input
                         type="text"
-                        value={cond.skuCd}
-                        onChange={(e) => setCond(prev => ({ ...prev, skuCd: e.target.value }))}
+                        value={cond.prodCd}
+                        onChange={(e) => setCond(prev => ({ ...prev, prodCd: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="SKU-0001"
+                        placeholder="PROD-0001"
                         className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
                     />
                 </SearchItem>
                 <SearchItem label="상품명">
                     <input
                         type="text"
-                        value={cond.skuNm}
-                        onChange={(e) => setCond(prev => ({ ...prev, skuNm: e.target.value }))}
+                        value={cond.prodNm}
+                        onChange={(e) => setCond(prev => ({ ...prev, prodNm: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchList()}
                         placeholder="상품명 검색"
                         className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
