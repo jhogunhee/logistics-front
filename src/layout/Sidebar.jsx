@@ -13,6 +13,7 @@ import {
     History,
     Layers,
     LayoutDashboard,
+    LayoutGrid,
     ListChecks,
     MapPin,
     PackageOpen,
@@ -116,6 +117,7 @@ export default function Sidebar() {
 
                 <MenuGroup title="마스터">
                     <MenuItem to="/master/prod" label="상품 관리" icon={Barcode} />
+                    <MenuItem to="/master/zone" label="존 관리" icon={LayoutGrid} />
                     <MenuItem to="/master/location" label="로케이션 관리" icon={MapPin} />
                     <MenuItem to="/master/vendor" label="벤더 관리" icon={Truck} />
                     <MenuItem to="/master/store" label="점포 관리" icon={Store} />

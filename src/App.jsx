@@ -6,6 +6,7 @@ import Login from "@/pages/auth/Login.jsx";
 import Dashboard from "@/pages/dashboard/Dashboard.jsx";
 import Placeholder from "@/pages/common/Placeholder.jsx";
 import ProdMaster from "@/pages/master/ProdMaster.jsx";
+import ZonMaster from "@/pages/master/ZonMaster.jsx";
 import LocMaster from "@/pages/master/LocMaster.jsx";
 import VendorMaster from "@/pages/master/VendorMaster.jsx";
 import InboundOrder from "@/pages/oms/InboundOrder.jsx";
@@ -59,6 +60,7 @@ export default function App() {
 
                         {/* 마스터 */}
                         <Route path="/master/prod" element={<ProdMaster/>}/>
+                        <Route path="/master/zone" element={<ZonMaster/>}/>
                         <Route path="/master/location" element={<LocMaster/>}/>
                         <Route path="/master/vendor" element={<VendorMaster/>}/>
                         <Route path="/master/store" element={<Placeholder title="점포 관리"/>}/>

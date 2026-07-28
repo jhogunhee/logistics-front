@@ -20,5 +20,5 @@ export const LOC_TYPE_META = {
     STORAGE: { label: '보관',     badge: 'bg-emerald-100 text-emerald-700' },
 };
 
-/** 존 코드 목록 (존 마스터가 따로 없어 화면 상수로 관리) */
-export const ZONE_CODES = ['RCV-STAGE', 'DRY', 'CHL', 'FRZ'];
+// 존 코드 목록은 존 마스터(zonApi.list)에서 조회한다. 예전엔 여기 상수로 박혀 있었는데
+// SHIP-STAGE가 빠져 있어 해당 로케이션의 드롭다운·엑셀 검증이 깨져 있었다.

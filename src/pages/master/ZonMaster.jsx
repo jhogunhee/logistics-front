@@ -1,46 +1,36 @@
 import { useEffect, useRef, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
-import { Download, MapPin, Plus, Save, Trash2, Upload } from 'lucide-react';
+import { Download, LayoutGrid, Plus, Save, Trash2, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 
 import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
-import { locApi, LOC_TYPE_META } from '@/api/locApi';
-import { zonApi } from '@/api/zonApi';
+import { zonApi, STRG_TYP_META, BIZ_DVSN_META } from '@/api/zonApi';
 import { TEMP_ZONE_META } from '@/api/prodApi';
 import { codeApi, toSearchOptions } from '@/api/codeApi';
 
 // ISO 일시("2026-07-16T14:03:21...") → "2026-07-16"
 const formatDate = (v) => (v ? v.replace('T', ' ').slice(0, 11) : '');
 
-const TempZoneBadge = ({ value }) => {
-    const meta = TEMP_ZONE_META[value];
-    if (!meta) return null;
+const Badge = ({ meta, value, withCode }) => {
+    const m = meta[value];
+    if (!m) return null;
     return (
-        <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${meta.badge}`}>
-            {meta.label} {value}
+        <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${m.badge}`}>
+            {m.label}{withCode ? ` ${value}` : ''}
         </span>
     );
 };
 
-const LocTypeBadge = ({ value }) => {
-    const meta = LOC_TYPE_META[value];
-    if (!meta) return null;
-    return (
-        <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${meta.badge}`}>
-            {meta.label}
-        </span>
-    );
-};
-
-export default function LocMaster() {
+export default function ZonMaster() {
     const [rowData, setRowData] = useState([]);
-    const [cond, setCond] = useState({ locCd: '', zonCd: '', locTyp: '' });
-    const [locTypeOptions, setLocTypeOptions] = useState([{ value: '', label: '전체' }]);
-    const [zons, setZons] = useState([]); // 존 마스터 목록 (드롭다운 · 온도대 검증 · 엑셀 코드표의 원천)
-    const [tempZoneCodes, setTempZoneCodes] = useState([]); // 공통코드(TEMP_ZONE)의 코드값 목록
-    const [locTypeCodes, setLocTypeCodes] = useState([]); // 공통코드(LOC_TYPE)의 코드값 목록
+    const [cond, setCond] = useState({ zonCd: '', tmpZon: '', bizDvsn: '' });
+    const [tmpZonOptions, setTmpZonOptions] = useState([{ value: '', label: '전체' }]);
+    const [bizDvsnOptions, setBizDvsnOptions] = useState([{ value: '', label: '전체' }]);
+    const [tmpZonCodes, setTmpZonCodes] = useState([]); // 공통코드(TEMP_ZONE)의 코드값 목록
+    const [strgTypCodes, setStrgTypCodes] = useState([]); // 공통코드(STRG_TYP)의 코드값 목록
+    const [bizDvsnCodes, setBizDvsnCodes] = useState([]); // 공통코드(BIZ_DVSN)의 코드값 목록
     const [rowCount, setRowCount] = useState(0); // 행추가분은 rowData 상태에 없으므로 건수는 그리드 기준으로 센다
     const [saveConfirm, setSaveConfirm] = useState(null); // 저장 확인 모달에 넘길 대상 행들 (null이면 닫힘)
     const gridRef = useRef(null); // 그리드 api 호출용 (applyTransaction 등)
@@ -49,18 +39,13 @@ export default function LocMaster() {
     // 삭제(D) 표시된 행은 편집을 막는다
     const notDeleted = (p) => p.data._status !== 'D';
 
-    // 존 마스터에서 파생 — 하드코딩하지 않는다 (존이 추가되면 여기 자동 반영)
-    const zonCodes = zons.map(z => z.zonCd);
-    const zonOptions = [{ value: '', label: '전체' }, ...zons.map(z => ({ value: z.zonCd, label: `${z.zonCd} ${z.zonNm}` }))];
-    const zonTmpMap = Object.fromEntries(zons.map(z => [z.zonCd, z.tmpZon]));
-
     const STATUS_META = {
         C: { label: '신규', cls: 'text-blue-500' },
         U: { label: '수정', cls: 'text-amber-500' },
         D: { label: '삭제', cls: 'text-red-500' },
     };
 
-    // 온도대/유형 편집기 목록은 공통코드 상태를 직접 참조한다
+    // 온도구분/보관유형/업무구분 편집기 목록은 공통코드 상태를 직접 참조한다
     const columnDefs = [
         {
             headerName: 'No.', width: 60, editable: false,
@@ -68,33 +53,32 @@ export default function LocMaster() {
             cellClass: 'text-slate-400',
         },
         {
-            // 코드는 업무 식별자라 수정 불가 — 신규(C) 행에서만 입력받는다
-            field: 'locCd', headerName: '로케이션 코드', width: 120,
+            // 존코드는 하위 로케이션이 문자열로 참조하는 업무 식별자라 수정 불가 — 신규(C) 행에서만 입력받는다
+            field: 'zonCd', headerName: '존코드', width: 120,
             editable: (p) => p.data._status === 'C',
+            headerTooltip: '하위 로케이션이 이 코드로 존을 참조하므로 등록 후에는 변경할 수 없습니다',
         },
+        { field: 'zonNm', headerName: '존명', width: 160, editable: notDeleted },
         {
-            field: 'zonCd', headerName: '존', width: 110, editable: notDeleted,
+            field: 'tmpZon', headerName: '온도구분', width: 110, editable: notDeleted,
             cellEditor: 'agSelectCellEditor',
-            cellEditorParams: { values: zonCodes },
-        },
-        {
-            field: 'tmpZon', headerName: '온도대', width: 100, editable: notDeleted,
-            cellEditor: 'agSelectCellEditor',
-            cellEditorParams: { values: tempZoneCodes },
+            cellEditorParams: { values: tmpZonCodes },
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-            cellRenderer: (p) => <TempZoneBadge value={p.value} />,
+            cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} withCode />,
         },
         {
-            field: 'locTyp', headerName: '유형', width: 100, editable: notDeleted,
+            field: 'strgTyp', headerName: '보관유형', width: 100, editable: notDeleted,
             cellEditor: 'agSelectCellEditor',
-            cellEditorParams: { values: locTypeCodes },
+            cellEditorParams: { values: strgTypCodes },
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-            cellRenderer: (p) => <LocTypeBadge value={p.value} />,
+            cellRenderer: (p) => <Badge meta={STRG_TYP_META} value={p.value} />,
         },
         {
-            field: 'pikngPrty', headerName: '피킹 우선순위', width: 120, editable: notDeleted,
-            cellClass: 'ag-right-aligned-cell',
-            headerTooltip: 'FEFO 동순위(같은 유통기한) 간 할당 순서. 낮을수록 먼저',
+            field: 'bizDvsn', headerName: '업무구분', width: 110, editable: notDeleted,
+            cellEditor: 'agSelectCellEditor',
+            cellEditorParams: { values: bizDvsnCodes },
+            cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+            cellRenderer: (p) => <Badge meta={BIZ_DVSN_META} value={p.value} />,
         },
         {
             field: '_status', headerName: '상태', width: 70,
@@ -118,22 +102,27 @@ export default function LocMaster() {
     ];
 
     const fetchList = async () => {
-        const data = await locApi.list(cond);
+        const data = await zonApi.list(cond);
         setRowData(data);
     };
 
-    // 최초 1회 조회 (이후엔 조회 버튼으로 재조회) + 존 마스터 · 온도대/유형 공통코드 조회
+    // 최초 1회 조회 (이후엔 조회 버튼으로 재조회) + 세 구분의 공통코드 조회
     useEffect(() => {
         let ignore = false;
-        locApi.list().then(data => { if (!ignore) setRowData(data); });
-        zonApi.list().then(data => { if (!ignore) setZons(data); });
+        zonApi.list().then(data => { if (!ignore) setRowData(data); });
         codeApi.list('TEMP_ZONE').then(codes => {
-            if (!ignore) setTempZoneCodes(codes.map(c => c.codeCd));
-        });
-        codeApi.list('LOC_TYPE').then(codes => {
             if (!ignore) {
-                setLocTypeOptions(toSearchOptions(codes));
-                setLocTypeCodes(codes.map(c => c.codeCd));
+                setTmpZonOptions(toSearchOptions(codes));
+                setTmpZonCodes(codes.map(c => c.codeCd));
+            }
+        });
+        codeApi.list('STRG_TYP').then(codes => {
+            if (!ignore) setStrgTypCodes(codes.map(c => c.codeCd));
+        });
+        codeApi.list('BIZ_DVSN').then(codes => {
+            if (!ignore) {
+                setBizDvsnOptions(toSearchOptions(codes));
+                setBizDvsnCodes(codes.map(c => c.codeCd));
             }
         });
         return () => { ignore = true; };
@@ -152,19 +141,16 @@ export default function LocMaster() {
     const handleAddRow = () => {
         const api = gridRef.current.api;
         const res = api.applyTransaction({
-            // 기본 존은 마스터의 첫 행에서 가져온다 — 코드를 박아두면 그 존이 삭제됐을 때 저장이 실패한다
-            add: [{
-                locCd: '', zonCd: zons[0]?.zonCd ?? '', tmpZon: zons[0]?.tmpZon ?? 'DRY',
-                locTyp: 'STORAGE', pikngPrty: 0, _status: 'C',
-            }],
+            add: [{ zonCd: '', zonNm: '', tmpZon: 'DRY', strgTyp: 'RACK', bizDvsn: 'STRG', _status: 'C' }],
         });
         const rowIndex = res.add[0].rowIndex;
         api.ensureIndexVisible(rowIndex, 'bottom');
-        api.startEditingCell({ rowIndex, colKey: 'locCd' });
+        api.startEditingCell({ rowIndex, colKey: 'zonCd' });
     };
 
     // ── 삭제 ────────────────────────────────────────────────
-    // 신규(C) 행은 그리드에서 바로 제거, 기존 행은 D로 표시해 저장 시 서버에 반영한다 (재조회하면 원복)
+    // 신규(C) 행은 그리드에서 바로 제거, 기존 행은 D로 표시해 저장 시 서버에 반영한다 (재조회하면 원복).
+    // 하위 로케이션이 있는 존인지는 서버가 판단한다 (프론트는 로케이션 목록을 들고 있지 않다).
     const handleDeleteRows = () => {
         const api = gridRef.current.api;
         const selected = api.getSelectedNodes();
@@ -191,28 +177,28 @@ export default function LocMaster() {
     // 두 번째 시트에 코드표를 넣어 입력 가능한 값을 안내한다 (업로드는 첫 시트만 읽음).
     const handleTemplateDownload = () => {
         const sheet = XLSX.utils.json_to_sheet([
-            { '로케이션 코드': 'DRY-C-01-01 (예시)', '존': 'DRY', '온도대': 'DRY', '유형': 'STORAGE', '피킹 우선순위': 5 },
-            { '로케이션 코드': 'CHL-B-02-01 (예시)', '존': 'CHL', '온도대': 'CHL', '유형': 'STORAGE', '피킹 우선순위': 4 },
-            { '로케이션 코드': 'RCV-STAGE-2 (예시)', '존': 'RCV-STAGE', '온도대': 'DRY', '유형': 'STAGE', '피킹 우선순위': 0 },
+            { '존코드': 'DRY-B (예시)', '존명': '상온 B동', '온도구분': 'DRY', '보관유형': 'RACK', '업무구분': 'STRG' },
+            { '존코드': 'PICK-1 (예시)', '존명': '피킹존 1', '온도구분': 'CHL', '보관유형': 'FLAT', '업무구분': 'PIKNG' },
+            { '존코드': 'RTN (예시)', '존명': '반품존', '온도구분': 'DRY', '보관유형': '가상', '업무구분': '반품' },
         ]);
-        sheet['!cols'] = [{ wch: 22 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 12 }]; // 열 너비
+        sheet['!cols'] = [{ wch: 16 }, { wch: 18 }, { wch: 10 }, { wch: 10 }, { wch: 12 }]; // 열 너비
 
         const codeSheet = XLSX.utils.json_to_sheet([
-            ...zons.map(z => ({ '구분': '존', '코드': z.zonCd, '이름': z.zonNm })),
-            ...Object.entries(TEMP_ZONE_META).map(([cd, meta]) => ({ '구분': '온도대', '코드': cd, '이름': meta.label })),
-            ...Object.entries(LOC_TYPE_META).map(([cd, meta]) => ({ '구분': '유형', '코드': cd, '이름': meta.label })),
+            ...tmpZonCodes.map(cd => ({ '구분': '온도구분', '코드': cd, '이름': TEMP_ZONE_META[cd]?.label ?? '' })),
+            ...strgTypCodes.map(cd => ({ '구분': '보관유형', '코드': cd, '이름': STRG_TYP_META[cd]?.label ?? '' })),
+            ...bizDvsnCodes.map(cd => ({ '구분': '업무구분', '코드': cd, '이름': BIZ_DVSN_META[cd]?.label ?? '' })),
         ]);
-        codeSheet['!cols'] = [{ wch: 8 }, { wch: 12 }, { wch: 10 }];
+        codeSheet['!cols'] = [{ wch: 10 }, { wch: 12 }, { wch: 12 }];
 
         const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, sheet, '로케이션');
+        XLSX.utils.book_append_sheet(workbook, sheet, '존');
         XLSX.utils.book_append_sheet(workbook, codeSheet, '코드표');
-        XLSX.writeFile(workbook, 'loc_upload_template.xlsx');
+        XLSX.writeFile(workbook, 'zon_upload_template.xlsx');
     };
 
     // ── 엑셀 업로드 ─────────────────────────────────────────
-    // 첫 시트의 [로케이션 코드 | 존 | 온도대 | 유형 | 피킹 우선순위] 컬럼을 읽어 신규(C) 행으로 추가한다.
-    // 온도대/유형은 코드(DRY/STORAGE)와 이름(상온/보관) 모두 허용.
+    // 첫 시트의 [존코드 | 존명 | 온도구분 | 보관유형 | 업무구분] 컬럼을 읽어 신규(C) 행으로 추가한다.
+    // 세 구분 모두 코드(DRY/RACK/STRG)와 이름(상온/랙/보관) 양쪽을 허용한다.
     const handleExcelUpload = async (e) => {
         const file = e.target.files[0];
         e.target.value = ''; // 같은 파일을 다시 선택해도 change 이벤트가 오도록 초기화
@@ -222,39 +208,31 @@ export default function LocMaster() {
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const raw = XLSX.utils.sheet_to_json(sheet, { defval: null });
 
-        const tempNameToCode = Object.fromEntries(
-            Object.entries(TEMP_ZONE_META).map(([cd, meta]) => [meta.label, cd])
-        );
-        const typeNameToCode = Object.fromEntries(
-            Object.entries(LOC_TYPE_META).map(([cd, meta]) => [meta.label, cd])
-        );
+        // 코드값 또는 표시명 → 코드값. 코드표에 없으면 undefined
+        const resolve = (input, codes, meta) => {
+            const v = String(input ?? '').trim();
+            if (!v) return undefined;
+            if (codes.includes(v.toUpperCase())) return v.toUpperCase();
+            return codes.find(cd => meta[cd]?.label === v);
+        };
+
         const rows = [];
         const badLines = [];
         raw.forEach((r, i) => {
-            const locCd = String(r['로케이션 코드'] ?? '').trim();
-            const zonCd = String(r['존'] ?? '').trim().toUpperCase();
-            const tempRaw = String(r['온도대'] ?? '').trim();
-            const typeRaw = String(r['유형'] ?? '').trim();
-            const tmpZon = tempZoneCodes.includes(tempRaw.toUpperCase())
-                ? tempRaw.toUpperCase()
-                : tempNameToCode[tempRaw];
-            const locTyp = locTypeCodes.includes(typeRaw.toUpperCase())
-                ? typeRaw.toUpperCase()
-                : typeNameToCode[typeRaw];
-            if (!locCd || !zonCodes.includes(zonCd) || !tmpZon || !locTyp) {
+            const zonCd = String(r['존코드'] ?? '').trim();
+            const zonNm = String(r['존명'] ?? '').trim();
+            const tmpZon = resolve(r['온도구분'], tmpZonCodes, TEMP_ZONE_META);
+            const strgTyp = resolve(r['보관유형'], strgTypCodes, STRG_TYP_META);
+            const bizDvsn = resolve(r['업무구분'], bizDvsnCodes, BIZ_DVSN_META);
+            if (!zonCd || !zonNm || !tmpZon || !strgTyp || !bizDvsn) {
                 badLines.push(i + 2); // 엑셀 행 번호 (헤더 1행 + 1-base)
                 return;
             }
-            const prty = r['피킹 우선순위'];
-            rows.push({
-                locCd, zonCd, tmpZon, locTyp,
-                pikngPrty: (prty == null || prty === '') ? 0 : Number(prty),
-                _status: 'C',
-            });
+            rows.push({ zonCd, zonNm, tmpZon, strgTyp, bizDvsn, _status: 'C' });
         });
 
         if (badLines.length > 0) {
-            toast.error(`코드/존/온도대/유형이 잘못된 행이 있습니다 (엑셀 ${badLines.join(', ')}행)`);
+            toast.error(`존코드/존명/온도구분/보관유형/업무구분이 잘못된 행이 있습니다 (엑셀 ${badLines.join(', ')}행)`);
             return;
         }
         if (rows.length === 0) {
@@ -277,18 +255,16 @@ export default function LocMaster() {
         }
         // 검증 (삭제 행은 id만 쓰므로 검증 대상 아님)
         for (const r of dirty.filter(r => r._status !== 'D')) {
-            if (!r.locCd.trim()) {
-                toast.error('로케이션 코드는 필수입니다.');
+            if (!String(r.zonCd ?? '').trim()) {
+                toast.error('존코드는 필수입니다.');
                 return;
             }
-            // 존의 온도구분과 비교한다 (예전엔 존코드 문자열 자체를 온도대와 비교해서
-            // DRY/CHL/FRZ 세 존에만 보관 로케이션을 붙일 수 있었다)
-            if (r.locTyp === 'STORAGE' && zonTmpMap[r.zonCd] !== r.tmpZon) {
-                toast.error(`보관 로케이션의 온도대는 존의 온도대와 같아야 합니다: ${r.locCd}`);
+            if (!String(r.zonNm ?? '').trim()) {
+                toast.error(`존명은 필수입니다: ${r.zonCd}`);
                 return;
             }
-            if (r.pikngPrty !== '' && r.pikngPrty != null && !(Number(r.pikngPrty) >= 0)) {
-                toast.error(`피킹 우선순위는 0 이상 숫자여야 합니다: ${r.locCd}`);
+            if (!r.tmpZon || !r.strgTyp || !r.bizDvsn) {
+                toast.error(`온도구분·보관유형·업무구분은 필수입니다: ${r.zonCd}`);
                 return;
             }
         }
@@ -297,12 +273,7 @@ export default function LocMaster() {
 
     const doSave = async (dirty) => {
         try {
-            // 빈 우선순위는 0으로 정규화해서 전송
-            const payload = dirty.map(r => ({
-                ...r,
-                pikngPrty: (r.pikngPrty == null || r.pikngPrty === '') ? 0 : Number(r.pikngPrty),
-            }));
-            await locApi.saveAll(payload);
+            await zonApi.saveAll(dirty);
             toast.success(`${dirty.length}건 저장했습니다.`);
             fetchList();
         } catch (e) {
@@ -314,36 +285,36 @@ export default function LocMaster() {
         <div className="flex flex-col gap-4 h-full">
             {/* 타이틀 */}
             <div className="flex items-center gap-2">
-                <MapPin size={18} className="text-indigo-600" />
-                <h2 className="text-lg font-bold text-slate-800">로케이션 관리</h2>
-                <span className="text-xs text-slate-400 mt-0.5">로케이션 마스터 · 스테이징/보관존</span>
+                <LayoutGrid size={18} className="text-indigo-600" />
+                <h2 className="text-lg font-bold text-slate-800">존 관리</h2>
+                <span className="text-xs text-slate-400 mt-0.5">존 마스터 · 로케이션의 상위 그룹</span>
             </div>
 
             {/* 검색 조건 */}
             <SearchBar label="검색" onSearch={fetchList}>
-                <SearchItem label="로케이션">
+                <SearchItem label="존코드">
                     <input
                         type="text"
-                        value={cond.locCd}
-                        onChange={(e) => setCond(prev => ({ ...prev, locCd: e.target.value }))}
+                        value={cond.zonCd}
+                        onChange={(e) => setCond(prev => ({ ...prev, zonCd: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="DRY-A-01-01"
+                        placeholder="DRY"
                         className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
                     />
                 </SearchItem>
-                <SearchItem label="존">
+                <SearchItem label="온도구분">
                     <DropdownSelect
-                        value={cond.zonCd}
-                        onChange={(v) => setCond(prev => ({ ...prev, zonCd: v }))}
-                        options={zonOptions}
+                        value={cond.tmpZon}
+                        onChange={(v) => setCond(prev => ({ ...prev, tmpZon: v }))}
+                        options={tmpZonOptions}
                         placeholder="전체"
                     />
                 </SearchItem>
-                <SearchItem label="유형">
+                <SearchItem label="업무구분">
                     <DropdownSelect
-                        value={cond.locTyp}
-                        onChange={(v) => setCond(prev => ({ ...prev, locTyp: v }))}
-                        options={locTypeOptions}
+                        value={cond.bizDvsn}
+                        onChange={(v) => setCond(prev => ({ ...prev, bizDvsn: v }))}
+                        options={bizDvsnOptions}
                         placeholder="전체"
                     />
                 </SearchItem>
@@ -397,6 +368,9 @@ export default function LocMaster() {
                             신규 <b className="text-blue-500">{saveConfirm.filter(r => r._status === 'C').length}</b>건 ·
                             수정 <b className="text-amber-500">{saveConfirm.filter(r => r._status === 'U').length}</b>건 ·
                             삭제 <b className="text-red-500">{saveConfirm.filter(r => r._status === 'D').length}</b>건
+                        </p>
+                        <p className="text-xs text-slate-400">
+                            하위 로케이션이 있는 존은 삭제되지 않습니다.
                         </p>
                         <div className="flex gap-2 justify-end">
                             <button
