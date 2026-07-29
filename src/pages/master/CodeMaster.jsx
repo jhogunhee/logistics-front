@@ -78,37 +78,6 @@ export default function CodeMaster() {
             headerTooltip: '화면 콤보박스에 노출되는 순서입니다',
         },
         {
-            field: '_status', headerName: '상태', width: 70,
-            cellRenderer: (p) => {
-                const meta = STATUS_META[p.value];
-                return meta
-                    ? <span className={`text-[11px] font-bold ${meta.cls}`}>{meta.label}</span>
-                    : null;
-            },
-        },
-    ];
-
-    const columnDefs = [
-        {
-            headerName: 'No.', width: 60, editable: false,
-            valueGetter: (p) => p.node.rowIndex + 1,
-            cellClass: 'text-slate-400',
-        },
-        {
-            field: 'codeCd', headerName: '코드', width: 140,
-            editable: isNew,
-            headerTooltip: '로직이 리터럴로 참조하는 값입니다. 등록 후에는 변경할 수 없습니다',
-            valueParser: (p) => String(p.newValue ?? '').trim().toUpperCase(), // 코드는 대문자로 통일
-            cellRenderer: (p) => p.value || <span className="text-slate-400">(입력)</span>,
-        },
-        { field: 'codeNm', headerName: '코드명', flex: 1, minWidth: 160, editable: notDeleted },
-        {
-            field: 'srtSeq', headerName: '정렬순서', width: 110, editable: notDeleted,
-            type: 'numericColumn',
-            cellEditor: 'agNumberCellEditor',
-            headerTooltip: '화면 콤보박스에 노출되는 순서입니다',
-        },
-        {
             // 참조값은 뜻이 그룹마다 다르다 — 컬럼명으로는 알 수 없으므로 위 그룹 설명을 본다
             field: 'ref1', headerName: '참조1', width: 110, editable: notDeleted,
             headerTooltip: '코드에 딸린 부가 속성. 뜻은 그룹마다 다릅니다 (그룹 설명 참고)',
@@ -270,7 +239,7 @@ export default function CodeMaster() {
         api.forEachNode(node => { maxSeq = Math.max(maxSeq, node.data.srtSeq ?? 0); });
 
         const res = api.applyTransaction({
-            add: [{ codeCd: '', codeNm: '', srtSeq: maxSeq + 1, _status: 'C' }],
+            add: [{ codeCd: '', codeNm: '', srtSeq: maxSeq + 1, ref1: '', ref2: '', ref3: '', _status: 'C' }],
         });
         const rowIndex = res.add[0].rowIndex;
         api.ensureIndexVisible(rowIndex, 'bottom');
