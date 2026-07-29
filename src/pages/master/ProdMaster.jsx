@@ -6,6 +6,7 @@ import * as XLSX from 'xlsx';
 
 import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
+import SelectCellEditor from '@/components/common/SelectCellEditor';
 import { prodApi, TEMP_ZONE_META } from '@/api/prodApi';
 import { codeApi, toSearchOptions } from '@/api/codeApi';
 
@@ -27,6 +28,7 @@ export default function ProdMaster() {
     const [cond, setCond] = useState({ prodCd: '', prodNm: '', tmpZon: '' });
     const [tempZoneOptions, setTempZoneOptions] = useState([{ value: '', label: '전체' }]);
     const [tempZoneCodes, setTempZoneCodes] = useState([]); // 공통코드(TEMP_ZONE)의 코드값 목록
+    const [uomCodes, setUomCodes] = useState([]); // 공통코드(UOM)의 코드값 목록 — 입고/출고단위 콤보박스
     const [rowCount, setRowCount] = useState(0); // 행추가분은 rowData 상태에 없으므로 건수는 그리드 기준으로 센다
     const [saveConfirm, setSaveConfirm] = useState(null); // 저장 확인 모달에 넘길 대상 행들 (null이면 닫힘)
     const gridRef = useRef(null); // 그리드 api 호출용 (applyTransaction 등)
@@ -55,10 +57,30 @@ export default function ProdMaster() {
         { field: 'prodNm', headerName: '상품명', minWidth: 200, editable: notDeleted },
         {
             field: 'tmpZon', headerName: '온도대', width: 100, editable: notDeleted,
-            cellEditor: 'agSelectCellEditor',
-            cellEditorParams: { values: tempZoneCodes },
+            cellEditor: SelectCellEditor,
+            cellEditorParams: {
+                values: tempZoneCodes,
+                labelMap: Object.fromEntries(
+                    Object.entries(TEMP_ZONE_META).map(([cd, meta]) => [cd, meta.label])
+                ),
+            },
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
             cellRenderer: (p) => <TempZoneBadge value={p.value} />,
+        },
+        {
+            // 등록 후에는 여기서 못 고친다 — 변경은 단위 관리 화면의 라디오가 맡는다. 두 화면에서
+            // 고칠 수 있으면 어느 쪽이 최신인지 흐려지고, 그 화면은 포장 행 위에서 고르므로
+            // 포장 없는 단위를 지정하는 일이 없다.
+            // 신규 등록(행추가·엑셀)에서 초깃값을 정하는 것은 별개다 — 서버가 그 단위의 포장을
+            // 낱개수량 1로 만들어 두므로(ProdService.ensureUoms) 그대로 저장돼도 환산이 항등이다.
+            field: 'inbUomCd', headerName: '입고단위', width: 100, editable: false,
+            cellClass: 'text-slate-500',
+            headerTooltip: '벤더에게 발주하고 납품받는 단위. 변경은 단위 관리 화면에서 합니다',
+        },
+        {
+            field: 'outbUomCd', headerName: '출고단위', width: 100, editable: false,
+            cellClass: 'text-slate-500',
+            headerTooltip: '재고 저장 단위이기도 합니다 — 재고·검수·적치·출고의 모든 수량이 이 단위 기준입니다. 변경은 단위 관리 화면에서 합니다',
         },
         {
             field: 'shelfLifeDays', headerName: '유통기한(일)', width: 120, editable: notDeleted,
@@ -93,7 +115,7 @@ export default function ProdMaster() {
         setRowData(data);
     };
 
-    // 최초 1회 조회 (이후엔 조회 버튼으로 재조회) + 온도대 공통코드 조회
+    // 최초 1회 조회 (이후엔 조회 버튼으로 재조회) + 공통코드 2종(온도대·단위) 조회
     useEffect(() => {
         let ignore = false;
         prodApi.list().then(data => { if (!ignore) setRowData(data); });
@@ -102,6 +124,9 @@ export default function ProdMaster() {
                 setTempZoneOptions(toSearchOptions(codes));
                 setTempZoneCodes(codes.map(c => c.codeCd));
             }
+        });
+        codeApi.list('UOM').then(codes => {
+            if (!ignore) setUomCodes(codes.map(c => c.codeCd));
         });
         return () => { ignore = true; };
     }, []);
@@ -119,7 +144,9 @@ export default function ProdMaster() {
     const handleAddRow = () => {
         const api = gridRef.current.api;
         const res = api.applyTransaction({
-            add: [{ prodCd: '', prodNm: '', tmpZon: 'DRY', shelfLifeDays: null, _status: 'C' }],
+            // 단위 기본값은 EA — 낱개로 받아 낱개로 내보내는 상품이 대부분이고,
+            // 서버가 그 단위의 포장을 낱개수량 1로 자동 생성하므로 이대로 저장해도 환산이 항등이다
+            add: [{ prodCd: '', prodNm: '', tmpZon: 'DRY', inbUomCd: 'EA', outbUomCd: 'EA', shelfLifeDays: null, _status: 'C' }],
         });
         const rowIndex = res.add[0].rowIndex;
         api.ensureIndexVisible(rowIndex, 'bottom');
@@ -154,12 +181,12 @@ export default function ProdMaster() {
     // 두 번째 시트에 온도대 코드표를 넣어 입력 가능한 값을 안내한다 (업로드는 첫 시트만 읽음).
     const handleTemplateDownload = () => {
         const sheet = XLSX.utils.json_to_sheet([
-            { '상품명': '신라면 멀티팩 (예시)', '온도대': 'DRY', '유통기한(일)': 180 },
-            { '상품명': '서울우유 1L (예시)', '온도대': 'CHL', '유통기한(일)': 14 },
-            { '상품명': '왕교자 만두 1kg (예시)', '온도대': 'FRZ', '유통기한(일)': 365 },
-            { '상품명': '일회용 종이컵 1000입 (예시 - 유통기한 미관리는 빈 칸)', '온도대': 'DRY', '유통기한(일)': null },
+            { '상품명': '신라면 멀티팩 (예시)', '온도대': 'DRY', '입고단위': 'BOX', '출고단위': 'EA', '유통기한(일)': 180 },
+            { '상품명': '서울우유 1L (예시)', '온도대': 'CHL', '입고단위': 'EA', '출고단위': 'EA', '유통기한(일)': 14 },
+            { '상품명': '왕교자 만두 1kg (예시)', '온도대': 'FRZ', '입고단위': 'EA', '출고단위': 'EA', '유통기한(일)': 365 },
+            { '상품명': '일회용 종이컵 1000입 (예시 - 유통기한 미관리는 빈 칸)', '온도대': 'DRY', '입고단위': 'BOX', '출고단위': 'EA', '유통기한(일)': null },
         ]);
-        sheet['!cols'] = [{ wch: 45 }, { wch: 10 }, { wch: 12 }]; // 열 너비
+        sheet['!cols'] = [{ wch: 45 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 12 }]; // 열 너비
 
         // 온도대 코드표 시트 (TEMP_ZONE_META 기준이라 코드가 늘어나면 같이 반영됨)
         const codeSheet = XLSX.utils.json_to_sheet(
@@ -169,15 +196,24 @@ export default function ProdMaster() {
         );
         codeSheet['!cols'] = [{ wch: 12 }, { wch: 8 }, { wch: 24 }];
 
+        // 단위 코드표 시트. 공통코드 UOM 그룹을 그대로 내려주므로 단위를 추가하면 양식에도 따라온다.
+        // 낱개수량(BOX 1개 = 몇 낱개)은 상품마다 달라서 여기 담을 수 없다 — 단위 관리 화면에서 넣는다.
+        const uomSheet = XLSX.utils.json_to_sheet(
+            uomCodes.map(cd => ({ '단위 코드': cd, '비고': '빈 칸이면 EA(낱개)로 등록됩니다' }))
+        );
+        uomSheet['!cols'] = [{ wch: 12 }, { wch: 34 }];
+
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, sheet, '상품');
         XLSX.utils.book_append_sheet(workbook, codeSheet, '온도대 코드');
+        XLSX.utils.book_append_sheet(workbook, uomSheet, '단위 코드');
         XLSX.writeFile(workbook, 'prod_upload_template.xlsx');
     };
 
     // ── 엑셀 업로드 ─────────────────────────────────────────
-    // 첫 시트의 [상품명 | 온도대 | 유통기한(일)] 컬럼을 읽어 신규(C) 행으로 추가한다.
-    // 온도대는 코드(DRY)와 이름(상온) 모두 허용, 유통기한 빈 칸은 미관리(null).
+    // 첫 시트의 [상품명 | 온도대 | 입고단위 | 출고단위 | 유통기한(일)] 컬럼을 읽어 신규(C) 행으로 추가한다.
+    // 온도대는 코드(DRY)와 이름(상온) 모두 허용, 유통기한 빈 칸은 미관리(null),
+    // 단위 빈 칸은 EA(낱개) — 옛 양식(단위 열이 없는 파일)도 그대로 올라간다.
     const handleExcelUpload = async (e) => {
         const file = e.target.files[0];
         e.target.value = ''; // 같은 파일을 다시 선택해도 change 이벤트가 오도록 초기화
@@ -192,19 +228,27 @@ export default function ProdMaster() {
         );
         const rows = [];
         const badLines = [];
+        const badUomLines = [];
         raw.forEach((r, i) => {
             const prodNm = String(r['상품명'] ?? '').trim();
             const tempRaw = String(r['온도대'] ?? '').trim();
             const tmpZon = tempZoneCodes.includes(tempRaw.toUpperCase())
                 ? tempRaw.toUpperCase()
                 : nameToCode[tempRaw];
+            const inbUomCd = String(r['입고단위'] ?? '').trim().toUpperCase() || 'EA';
+            const outbUomCd = String(r['출고단위'] ?? '').trim().toUpperCase() || 'EA';
             if (!prodNm || !tmpZon) {
                 badLines.push(i + 2); // 엑셀 행 번호 (헤더 1행 + 1-base)
                 return;
             }
+            // 없는 단위 코드는 저장 시점이 아니라 여기서 잡는다 — 서버는 문자열을 그대로 받는다
+            if (!uomCodes.includes(inbUomCd) || !uomCodes.includes(outbUomCd)) {
+                badUomLines.push(i + 2);
+                return;
+            }
             const shelf = r['유통기한(일)'];
             rows.push({
-                prodCd: '', prodNm, tmpZon,
+                prodCd: '', prodNm, tmpZon, inbUomCd, outbUomCd,
                 shelfLifeDays: (shelf == null || shelf === '') ? null : Number(shelf),
                 _status: 'C',
             });
@@ -212,6 +256,10 @@ export default function ProdMaster() {
 
         if (badLines.length > 0) {
             toast.error(`상품명/온도대가 잘못된 행이 있습니다 (엑셀 ${badLines.join(', ')}행)`);
+            return;
+        }
+        if (badUomLines.length > 0) {
+            toast.error(`단위 코드가 잘못된 행이 있습니다 (엑셀 ${badUomLines.join(', ')}행) — 양식의 「단위 코드」 시트를 참고하세요`);
             return;
         }
         if (rows.length === 0) {
@@ -236,6 +284,14 @@ export default function ProdMaster() {
         for (const r of dirty.filter(r => r._status !== 'D')) {
             if (!r.prodNm.trim()) {
                 toast.error('상품명은 필수입니다.');
+                return;
+            }
+            if (!String(r.inbUomCd ?? '').trim()) {
+                toast.error(`입고단위는 필수입니다: ${r.prodNm}`);
+                return;
+            }
+            if (!String(r.outbUomCd ?? '').trim()) {
+                toast.error(`출고단위는 필수입니다: ${r.prodNm}`);
                 return;
             }
             // 빈 값 = 유통기한 미관리(공산품 등). 값이 있으면 1 이상이어야 한다.

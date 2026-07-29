@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# IntelliJ 모듈 파일 (.idea와 함께 IDE 산출물)
+*.iml

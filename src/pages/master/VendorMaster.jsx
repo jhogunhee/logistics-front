@@ -4,22 +4,10 @@ import { Building2, Plus, Save, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import SearchBar, { SearchItem } from '@/components/common/SearchBar';
-import DropdownSelect from '@/components/common/DropdownSelect';
 import { vendorApi } from '@/api/vendorApi';
 
 // ISO 일시("2026-07-16T14:03:21...") → "2026-07-16"
 const formatDate = (v) => (v ? v.replace('T', ' ').slice(0, 11) : '');
-
-const USE_YN_META = {
-    Y: { label: '사용', badge: 'bg-emerald-100 text-emerald-700' },
-    N: { label: '중지', badge: 'bg-slate-200 text-slate-500' },
-};
-
-const USE_YN_OPTIONS = [
-    { value: '', label: '전체' },
-    { value: 'Y', label: '사용' },
-    { value: 'N', label: '중지' },
-];
 
 const STATUS_META = {
     C: { label: '신규', cls: 'text-blue-500' },
@@ -27,19 +15,9 @@ const STATUS_META = {
     D: { label: '삭제', cls: 'text-red-500' },
 };
 
-const UseYnBadge = ({ value }) => {
-    const meta = USE_YN_META[value];
-    if (!meta) return null;
-    return (
-        <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${meta.badge}`}>
-            {meta.label}
-        </span>
-    );
-};
-
 export default function VendorMaster() {
     const [rowData, setRowData] = useState([]);
-    const [cond, setCond] = useState({ vndrCd: '', vndrNm: '', usYn: '' });
+    const [cond, setCond] = useState({ vndrCd: '', vndrNm: '' });
     const [rowCount, setRowCount] = useState(0); // 행추가분은 rowData 상태에 없으므로 건수는 그리드 기준으로 센다
     const [saveConfirm, setSaveConfirm] = useState(null); // 저장 확인 모달 대상 행들 (null이면 닫힘)
     const gridRef = useRef(null);
@@ -60,14 +38,6 @@ export default function VendorMaster() {
         { field: 'vndrNm', headerName: '벤더명', minWidth: 180, flex: 1, editable: notDeleted },
         { field: 'picNm', headerName: '담당자', width: 110, editable: notDeleted },
         { field: 'telNo', headerName: '연락처', width: 140, editable: notDeleted },
-        {
-            field: 'usYn', headerName: '사용여부', width: 100, editable: notDeleted,
-            cellEditor: 'agSelectCellEditor',
-            cellEditorParams: { values: ['Y', 'N'] },
-            cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-            cellRenderer: (p) => <UseYnBadge value={p.value} />,
-            headerTooltip: '중지하면 신규 주문에서 선택할 수 없습니다 (과거 주문은 유지)',
-        },
         {
             field: '_status', headerName: '상태', width: 70,
             cellRenderer: (p) => {
@@ -113,7 +83,7 @@ export default function VendorMaster() {
     const handleAddRow = () => {
         const api = gridRef.current.api;
         const res = api.applyTransaction({
-            add: [{ vndrCd: '', vndrNm: '', picNm: '', telNo: '', usYn: 'Y', _status: 'C' }],
+            add: [{ vndrCd: '', vndrNm: '', picNm: '', telNo: '', _status: 'C' }],
         });
         const rowIndex = res.add[0].rowIndex;
         api.ensureIndexVisible(rowIndex, 'bottom');
@@ -157,10 +127,6 @@ export default function VendorMaster() {
                 toast.error('벤더명은 필수입니다.');
                 return;
             }
-            if (!['Y', 'N'].includes(r.usYn)) {
-                toast.error(`사용여부는 Y 또는 N이어야 합니다: ${r.vndrNm}`);
-                return;
-            }
         }
         setSaveConfirm(dirty);
     };
@@ -171,8 +137,7 @@ export default function VendorMaster() {
             toast.success(`${dirty.length}건 저장했습니다.`);
             fetchList();
         } catch (e) {
-            // 주문이 참조 중인 벤더를 삭제하면 FK 위반이 난다 — 사용중지로 유도한다
-            toast.error(e.message || '저장에 실패했습니다. 주문이 참조 중인 벤더는 삭제 대신 사용중지하세요.');
+            toast.error(e.message || '저장에 실패했습니다.');
         }
     };
 
@@ -207,14 +172,6 @@ export default function VendorMaster() {
                         onKeyDown={(e) => e.key === 'Enter' && fetchList()}
                         placeholder="벤더명 검색"
                         className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
-                    />
-                </SearchItem>
-                <SearchItem label="사용여부">
-                    <DropdownSelect
-                        value={cond.usYn}
-                        onChange={(v) => setCond(prev => ({ ...prev, usYn: v }))}
-                        options={USE_YN_OPTIONS}
-                        placeholder="전체"
                     />
                 </SearchItem>
             </SearchBar>

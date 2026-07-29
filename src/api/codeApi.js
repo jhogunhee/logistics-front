@@ -2,9 +2,20 @@
 import api from '@/utils/axios';
 
 export const codeApi = {
-    /** 그룹의 사용중(Y) 코드 목록. 응답: [{ codeCd, codeNm, srtSeq }] (srtSeq 순) */
+    /** 그룹의 코드 목록. 응답: [{ codeCd, codeNm, srtSeq }] (srtSeq 순). 화면 콤보박스가 쓴다 */
     list(grpCd) {
         return api.get(`/master/codes/${grpCd}`);
+    },
+
+    /** 관리 화면용 검색 (코드/코드명 부분일치). cond: { codeCd, codeNm } */
+    search(grpCd, cond = {}) {
+        const params = Object.fromEntries(Object.entries(cond).filter(([, v]) => v));
+        return api.get(`/master/codes/${grpCd}/search`, { params });
+    },
+
+    /** 신규(C)/수정(U)/삭제(D) 행 일괄 저장. 코드 중복·하위 참조 검증은 서버에서 한다 */
+    saveAll(grpCd, rows) {
+        return api.post(`/master/codes/${grpCd}/bulk`, rows);
     },
 };
 

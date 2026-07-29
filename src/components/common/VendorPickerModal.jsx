@@ -24,7 +24,7 @@ export default function VendorPickerModal({ open, onClose, onSelect }) {
         if (vendors !== null) return;
 
         let ignore = false;
-        vendorApi.usable().then(data => { if (!ignore) setVendors(data); });
+        vendorApi.list().then(data => { if (!ignore) setVendors(data); });
         return () => { ignore = true; };
     }, [open]);
 

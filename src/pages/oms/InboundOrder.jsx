@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import ProdPickerModal from '@/components/common/ProdPickerModal';
 import VendorPickerModal from '@/components/common/VendorPickerModal';
 import { omsIbOrderApi } from '@/api/omsIbOrderApi';
-import { TEMP_ZONE_META } from '@/api/prodApi';
+import { cnvrQtyOf, TEMP_ZONE_META } from '@/api/prodApi';
 
 // 오늘 날짜 "YYYY-MM-DD" (입고 예정일 기본값)
 const todayStr = () => new Date().toISOString().slice(0, 10);
@@ -71,7 +71,16 @@ export default function InboundOrder() {
         lines: prev.lines.filter((_, i) => i !== idx),
     }));
 
-    const totalQty = form.lines.reduce((sum, l) => sum + (Number(l.odrQty) || 0), 0);
+    // 발주 수량(입고단위) → 재고 수량(출고단위). 서버가 저장하는 값이 아니라 미리보기다 —
+    // 실제 환산은 주문 확정 시 OmsIbOrderService.convert()가 Prod.toOutbQty()로 한 번만 한다.
+    // 여기서 같은 식을 되풀이하는 이유는 담당자가 "몇 개가 들어오는지" 입력하는 중에 봐야 하기 때문.
+    const convertedQty = (line) => (Number(line.odrQty) || 0) * cnvrQtyOf(line);
+
+    // 발주 수량은 라인마다 입고단위가 달라(BOX + EA) 더할 수 없다. 합계는 재고 단위로 환산한 쪽만 낸다.
+    // 그것도 모든 라인의 출고단위가 같을 때만 — 다르면 숫자 하나로 합칠 근거가 없다.
+    const totalConvQty = form.lines.reduce((sum, l) => sum + convertedQty(l), 0);
+    const outbUoms = new Set(form.lines.map(l => l.outbUomCd));
+    const totalUom = outbUoms.size === 1 ? [...outbUoms][0] : null;
 
     // 팝업에서 이미 담긴 상품을 비활성 처리하기 위한 목록.
     // 라인 교체 모드에선 그 라인 자신은 제외해야 "같은 상품 다시 고르기"가 막히지 않는다.
@@ -163,7 +172,9 @@ export default function InboundOrder() {
                         <Package size={14} className="text-slate-500" />
                         <span className="text-xs font-bold text-slate-600">발주 상품</span>
                         <span className="text-[11px] text-slate-400">
-                            {form.lines.length}건 · 총 {totalQty.toLocaleString()}개
+                            {form.lines.length}건
+                            {totalUom && ` · 환산 ${totalConvQty.toLocaleString()} ${totalUom}`}
+                            {' · 수량은 발주단위 기준입니다'}
                         </span>
                     </div>
                     <button
@@ -176,11 +187,14 @@ export default function InboundOrder() {
                 {/* 컬럼 헤더 — 아래 행들과 같은 폭 규칙을 공유한다 */}
                 <div className="flex items-center gap-3 px-4 py-2 border-b border-slate-200 text-[11px] font-bold text-slate-500 shrink-0">
                     <span className="w-10 shrink-0">No.</span>
-                    <span className="w-36 shrink-0">상품 코드</span>
+                    <span className="w-28 shrink-0">상품 코드</span>
                     <span className="flex-1 min-w-0">상품명</span>
-                    <span className="w-28 shrink-0 text-center">온도대</span>
-                    <span className="w-24 shrink-0 text-right">유통기한</span>
-                    <span className="w-36 shrink-0 text-right">발주 수량</span>
+                    <span className="w-24 shrink-0 text-center">온도대</span>
+                    <span className="w-20 shrink-0 text-right">유통기한</span>
+                    <span className="w-40 shrink-0 text-right">발주 수량</span>
+                    <span className="w-36 shrink-0 text-right" title="확정 시 ASN에 이 수량으로 반영됩니다">
+                        환산 수량 (재고)
+                    </span>
                     <span className="w-16 shrink-0" />
                 </div>
 
@@ -201,28 +215,51 @@ export default function InboundOrder() {
                         return (
                             <div key={line.prodId} className="flex items-center gap-3 px-4 py-2 hover:bg-slate-50/70">
                                 <span className="w-10 shrink-0 text-xs text-slate-400">{idx + 1}</span>
-                                <span className="w-36 shrink-0 text-sm font-medium text-slate-700">{line.prodCd}</span>
+                                <span className="w-28 shrink-0 text-sm font-medium text-slate-700">{line.prodCd}</span>
                                 <span className="flex-1 min-w-0 truncate text-sm text-slate-700">{line.prodNm}</span>
-                                <span className="w-28 shrink-0 flex justify-center">
+                                <span className="w-24 shrink-0 flex justify-center">
                                     {tz && (
                                         <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${tz.badge}`}>
                                             {tz.label} {line.tmpZon}
                                         </span>
                                     )}
                                 </span>
-                                <span className="w-24 shrink-0 text-right text-sm text-slate-600">
+                                <span className="w-20 shrink-0 text-right text-sm text-slate-600">
                                     {line.shelfLifeDays == null
                                         ? <span className="text-slate-400">미관리</span>
                                         : `${line.shelfLifeDays}일`}
                                 </span>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    value={line.odrQty}
-                                    onChange={(e) => setQty(idx, e.target.value)}
-                                    placeholder="수량"
-                                    className="w-36 shrink-0 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-right focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
-                                />
+                                {/* 발주 수량 — 단위는 상품이 정하므로 라벨로만 붙는다 (담당자가 고를 수 없다) */}
+                                <span className="w-40 shrink-0 flex items-center gap-1.5">
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        value={line.odrQty}
+                                        onChange={(e) => setQty(idx, e.target.value)}
+                                        placeholder="수량"
+                                        className="flex-1 min-w-0 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-right focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                                    />
+                                    <span className="w-9 shrink-0 text-[11px] font-bold text-slate-500">
+                                        {line.inbUomCd}
+                                    </span>
+                                </span>
+                                {/* 환산 수량 — 읽기 전용. 환산이 없는 상품(×1)은 회색으로 눌러 둔다 */}
+                                <span className="w-36 shrink-0 flex items-center justify-end gap-1.5">
+                                    {Number(line.odrQty) > 0 ? (
+                                        <>
+                                            <span className={`text-sm font-bold tabular-nums ${
+                                                cnvrQtyOf(line) > 1 ? 'text-indigo-600' : 'text-slate-500'
+                                            }`}>
+                                                {convertedQty(line).toLocaleString()}
+                                            </span>
+                                            <span className="w-9 shrink-0 text-[11px] font-bold text-slate-500 text-left">
+                                                {line.outbUomCd}
+                                            </span>
+                                        </>
+                                    ) : (
+                                        <span className="text-sm text-slate-300">-</span>
+                                    )}
+                                </span>
                                 <span className="w-16 shrink-0 flex justify-center gap-1">
                                     <button
                                         onClick={() => setPickerFor(idx)}
@@ -245,7 +282,13 @@ export default function InboundOrder() {
                 {/* 합계 */}
                 <div className="flex items-center gap-3 px-4 py-2 bg-slate-50 border-t border-slate-200 text-xs font-bold text-slate-600 shrink-0">
                     <span className="flex-1 text-right">합계</span>
-                    <span className="w-36 shrink-0 text-right">{totalQty.toLocaleString()}</span>
+                    {/* 발주 수량 칸은 비운다 — 라인마다 발주단위가 달라 더한 값에 의미가 없다 */}
+                    <span className="w-40 shrink-0" />
+                    <span className="w-36 shrink-0 text-right">
+                        {totalUom
+                            ? `${totalConvQty.toLocaleString()} ${totalUom}`
+                            : <span className="font-medium text-slate-400">재고 단위 혼재</span>}
+                    </span>
                     <span className="w-16 shrink-0" />
                 </div>
             </section>

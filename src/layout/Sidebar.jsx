@@ -18,6 +18,7 @@ import {
     MapPin,
     PackageOpen,
     PauseCircle,
+    Ruler,
     ScrollText,
     Send,
     Settings2,
@@ -117,6 +118,7 @@ export default function Sidebar() {
 
                 <MenuGroup title="마스터">
                     <MenuItem to="/master/prod" label="상품 관리" icon={Barcode} />
+                    <MenuItem to="/master/uom" label="단위 관리" icon={Ruler} />
                     <MenuItem to="/master/zone" label="존 관리" icon={LayoutGrid} />
                     <MenuItem to="/master/location" label="로케이션 관리" icon={MapPin} />
                     <MenuItem to="/master/vendor" label="벤더 관리" icon={Truck} />

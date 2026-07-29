@@ -57,15 +57,23 @@ export default function DropdownSelect({
             if (listRef.current?.contains(e.target)) return;
             setOpen(false);
         };
-        // 스크롤/리사이즈되면 좌표가 어긋나므로 재계산 대신 닫는다 (단순하고 이 앱 규모엔 충분)
-        const onScrollOrResize = () => setOpen(false);
+        // 페이지가 스크롤되면 fixed 좌표가 어긋나므로 재계산 대신 닫는다 (단순하고 이 앱 규모엔 충분).
+        //
+        // 단, 목록 자신의 스크롤은 무시한다 — capture(true)로 듣기 때문에 목록 안에서 휠을 돌려도
+        // 이 핸들러가 걸린다. 옵션이 max-h-60(240px)을 넘는 그룹(단위 12건 등)에서 항목을 고르려고
+        // 내리는 순간 닫혀버렸다. 목록은 fixed라 자기 스크롤로 좌표가 어긋나지도 않는다.
+        const onScroll = (e) => {
+            if (listRef.current?.contains(e.target)) return;
+            setOpen(false);
+        };
+        const onResize = () => setOpen(false);
         document.addEventListener('mousedown', onClickOutside);
-        window.addEventListener('scroll', onScrollOrResize, true);
-        window.addEventListener('resize', onScrollOrResize);
+        window.addEventListener('scroll', onScroll, true);
+        window.addEventListener('resize', onResize);
         return () => {
             document.removeEventListener('mousedown', onClickOutside);
-            window.removeEventListener('scroll', onScrollOrResize, true);
-            window.removeEventListener('resize', onScrollOrResize);
+            window.removeEventListener('scroll', onScroll, true);
+            window.removeEventListener('resize', onResize);
         };
     }, [open]);
 

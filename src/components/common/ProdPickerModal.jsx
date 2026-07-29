@@ -2,12 +2,36 @@ import { useEffect, useMemo, useState } from 'react';
 import { Check, Package, Search, X } from 'lucide-react';
 
 import DropdownSelect from '@/components/common/DropdownSelect';
-import { prodApi, TEMP_ZONE_META } from '@/api/prodApi';
+import { cnvrQtyOf, prodApi, TEMP_ZONE_META } from '@/api/prodApi';
 
 const TEMP_ZONE_OPTIONS = [
     { value: '', label: '전체' },
     ...Object.entries(TEMP_ZONE_META).map(([value, m]) => ({ value, label: `${m.label} ${value}` })),
 ];
+
+/**
+ * 상품의 단위 구성. 입고단위로 발주하고, 재고는 출고단위로 쌓인다.
+ * 배수는 포장의 낱개수량에서 파생한다 ({@link cnvrQtyOf}) — 상품에 환산수량 칸이 없다.
+ *
+ * 두 단위가 같으면(환산 1) 화살표 없이 단위 하나만 보여준다 — 대부분의 상품이 여기 해당해서
+ * 전부 "EA → EA ×1"로 그리면 정작 환산이 있는 상품이 눈에 안 띈다.
+ */
+const UomFlow = ({ prod }) => {
+    const cnvr = cnvrQtyOf(prod);
+    const converts = prod.inbUomCd !== prod.outbUomCd || cnvr > 1;
+    return (
+        <span className="flex items-center justify-center gap-1 text-[11px]">
+            <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-bold">{prod.inbUomCd}</span>
+            {converts && (
+                <>
+                    <span className="text-slate-300">→</span>
+                    <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-600 font-bold">{prod.outbUomCd}</span>
+                    <span className="text-slate-400">×{cnvr}</span>
+                </>
+            )}
+        </span>
+    );
+};
 
 /**
  * 상품 선택 팝업.
@@ -133,10 +157,11 @@ export default function ProdPickerModal({ open, onClose, onSelect, multiple = fa
                 {/* 컬럼 헤더 */}
                 <div className="flex items-center gap-3 px-6 py-2 border-b border-slate-200 text-[11px] font-bold text-slate-500 shrink-0">
                     {multiple && <span className="w-6 shrink-0" />}
-                    <span className="w-36 shrink-0">상품 코드</span>
+                    <span className="w-32 shrink-0">상품 코드</span>
                     <span className="flex-1 min-w-0">상품명</span>
-                    <span className="w-28 shrink-0 text-center">온도대</span>
-                    <span className="w-24 shrink-0 text-right">유통기한</span>
+                    <span className="w-24 shrink-0 text-center">온도대</span>
+                    <span className="w-20 shrink-0 text-right">유통기한</span>
+                    <span className="w-44 shrink-0 text-center">단위 (발주 → 재고)</span>
                 </div>
 
                 {/* 목록 */}
@@ -175,19 +200,22 @@ export default function ProdPickerModal({ open, onClose, onSelect, multiple = fa
                                         {isChecked && <Check size={11} className="text-white" strokeWidth={3} />}
                                     </span>
                                 )}
-                                <span className="w-36 shrink-0 text-sm font-medium text-slate-700">{s.prodCd}</span>
+                                <span className="w-32 shrink-0 text-sm font-medium text-slate-700">{s.prodCd}</span>
                                 <span className="flex-1 min-w-0 truncate text-sm text-slate-700">{s.prodNm}</span>
-                                <span className="w-28 shrink-0 flex justify-center">
+                                <span className="w-24 shrink-0 flex justify-center">
                                     {tz && (
                                         <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${tz.badge}`}>
                                             {tz.label} {s.tmpZon}
                                         </span>
                                     )}
                                 </span>
-                                <span className="w-24 shrink-0 text-right text-sm text-slate-600">
+                                <span className="w-20 shrink-0 text-right text-sm text-slate-600">
                                     {s.shelfLifeDays == null
                                         ? <span className="text-slate-400">미관리</span>
                                         : `${s.shelfLifeDays}일`}
+                                </span>
+                                <span className="w-44 shrink-0">
+                                    <UomFlow prod={s} />
                                 </span>
                             </div>
                         );
