@@ -4,23 +4,13 @@ import { Hash, ListOrdered, Plus, Save, Trash2, X, Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import SearchBar, { SearchItem } from '@/components/common/SearchBar';
-import DropdownSelect from '@/components/common/DropdownSelect';
 import { nbrRuleApi, DYNC_KY_TYP_META } from '@/api/nbrRuleApi';
 
 // ISO 일시("2026-07-16T14:03:21...") → "2026-07-16 14:03:21"
 const formatDateTime = (v) => (v ? v.replace('T', ' ').slice(0, 19) : '');
 const formatDate = (v) => (v ? v.replace('T', ' ').slice(0, 11) : '');
 
-const USE_YN_META = {
-    Y: { label: '사용', badge: 'bg-emerald-100 text-emerald-700' },
-    N: { label: '중지', badge: 'bg-slate-200 text-slate-500' },
-};
-
-const USE_YN_OPTIONS = [
-    { value: '', label: '전체' },
-    { value: 'Y', label: '사용' },
-    { value: 'N', label: '중지' },
-];
+const DLMT_OPTIONS = ['-', '_', ''];
 
 const STATUS_META = {
     C: { label: '신규', cls: 'text-blue-500' },
@@ -40,14 +30,16 @@ const Badge = ({ meta, value }) => {
 
 export default function NbrRuleMaster() {
     const [rowData, setRowData] = useState([]);
-    const [cond, setCond] = useState({ ruleCd: '', ruleNm: '', usYn: '' });
+    const [cond, setCond] = useState({ ruleCd: '', ruleNm: '' });
     const [rowCount, setRowCount] = useState(0); // 행추가분은 rowData 상태에 없으므로 건수는 그리드 기준으로 센다
     const [saveConfirm, setSaveConfirm] = useState(null); // 저장 확인 모달에 넘길 대상 행들 (null이면 닫힘)
     const [counterModal, setCounterModal] = useState(null); // { ruleCd, rows } — 카운터 보기 모달 (null이면 닫힘)
     const gridRef = useRef(null);
 
-    // 삭제(D) 표시된 행은 편집을 막는다
-    const notDeleted = (p) => p.data._status !== 'D';
+    // 삭제(D) 표시된 행은 편집을 막는다. ag-grid가 셀 에디터의 옵션 라벨을 만들 때
+    // valueFormatter를 data 없는 합성 컨텍스트로도 호출하므로(p.data undefined),
+    // editable도 같은 방식으로 호출될 가능성에 대비해 옵셔널 체이닝으로 방어한다.
+    const notDeleted = (p) => p.data?._status !== 'D';
     // 카운터는 저장된 규칙에만 존재한다 — 아직 저장 전인 신규(C) 행은 조회할 대상이 없다
     const isPersisted = (data) => data._status !== 'C';
 
@@ -74,26 +66,43 @@ export default function NbrRuleMaster() {
         },
         { field: 'ruleNm', headerName: '규칙명', width: 160, editable: notDeleted },
         {
-            field: 'ptrn', headerName: '패턴', minWidth: 200, flex: 1, editable: notDeleted,
-            headerTooltip: '{SEQ:n} 정확히 1개 필수(n=1~9, zero-pad). 동적키유형이 일자별이면 {yyyyMMdd} 필수. 예: PROD-{SEQ:4}, IB-{yyyyMMdd}-{SEQ:3}',
+            field: 'prfx', headerName: '접두어', width: 110, editable: notDeleted,
+            headerTooltip: '채번 앞에 붙는 고정 문자열 (예: IB, PROD)',
+        },
+        {
+            field: 'prfxDlmt', headerName: '접두구분자', width: 100, editable: notDeleted,
+            cellEditor: 'agSelectCellEditor',
+            cellEditorParams: { values: DLMT_OPTIONS },
+            cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+            valueFormatter: (p) => (p.value === '' ? '(없음)' : p.value),
+            headerTooltip: '접두어 뒤 구분자. 동적키유형이 고정이면 접두어-SEQ 사이 유일한 경계로 쓰입니다',
+        },
+        {
+            field: 'seqDgt', headerName: '자릿수', width: 90, editable: notDeleted,
+            cellEditor: 'agNumberCellEditor',
+            cellEditorParams: { min: 1, max: 9, precision: 0 },
+            cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+            headerTooltip: 'SEQ 자릿수(zero-pad 폭), 1~9',
+        },
+        {
+            // 동적키유형이 고정이면 날짜 조각 자체가 없어 이 구분자가 쓰이지 않는다
+            field: 'deDlmt', headerName: '날짜구분자', width: 100,
+            editable: (p) => notDeleted(p) && p.data?.dyncKyTyp !== 'NONE',
+            cellEditor: 'agSelectCellEditor',
+            cellEditorParams: { values: DLMT_OPTIONS },
+            cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+            valueFormatter: (p) => (p.data?.dyncKyTyp === 'NONE' ? '—' : (p.value === '' ? '(없음)' : p.value)),
+            headerTooltip: '날짜 뒤 구분자. 동적키유형이 고정이면 쓰이지 않습니다',
         },
         {
             // 동적키유형은 카운터 분리 기준이라 등록 후 바꾸면 기존 카운터와 정합이 깨진다 — 신규(C) 행에서만 입력받는다
             field: 'dyncKyTyp', headerName: '동적키유형', width: 110,
             editable: (p) => p.data._status === 'C',
             cellEditor: 'agSelectCellEditor',
-            cellEditorParams: { values: ['NONE', 'DATE'] },
+            cellEditorParams: { values: ['NONE', 'YEAR', 'MONTH', 'DAY'] },
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
             cellRenderer: (p) => <Badge meta={DYNC_KY_TYP_META} value={p.value} />,
-            headerTooltip: '고정=카운터 전역 공유 / 일자별=발급 시 넘긴 날짜 기준으로 카운터 분리. 등록 후 변경 불가',
-        },
-        {
-            field: 'usYn', headerName: '사용여부', width: 100, editable: notDeleted,
-            cellEditor: 'agSelectCellEditor',
-            cellEditorParams: { values: ['Y', 'N'] },
-            cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-            cellRenderer: (p) => <Badge meta={USE_YN_META} value={p.value} />,
-            headerTooltip: '중지하면 발급 요청이 거부됩니다 (이미 발급된 번호는 유지)',
+            headerTooltip: '고정=카운터 전역 공유 / 연도별·월별·일자별=발급 시 넘긴 날짜 기준으로 리셋 단위 분리. 등록 후 변경 불가',
         },
         {
             headerName: '카운터', width: 80, editable: false,
@@ -155,7 +164,10 @@ export default function NbrRuleMaster() {
     const handleAddRow = () => {
         const api = gridRef.current.api;
         const res = api.applyTransaction({
-            add: [{ ruleCd: '', ruleNm: '', ptrn: '', dyncKyTyp: 'NONE', usYn: 'Y', _status: 'C' }],
+            add: [{
+                ruleCd: '', ruleNm: '', prfx: '', prfxDlmt: '-', deDlmt: '-', seqDgt: 3,
+                dyncKyTyp: 'NONE', _status: 'C',
+            }],
         });
         const rowIndex = res.add[0].rowIndex;
         api.ensureIndexVisible(rowIndex, 'bottom');
@@ -194,12 +206,15 @@ export default function NbrRuleMaster() {
             return;
         }
         const row = selected[0].data;
-        if (!String(row.ptrn ?? '').trim() || !row.dyncKyTyp) {
-            toast.error('패턴과 동적키유형을 먼저 입력하세요.');
+        if (!String(row.prfx ?? '').trim() || !row.dyncKyTyp) {
+            toast.error('접두어와 동적키유형을 먼저 입력하세요.');
             return;
         }
         try {
-            const { number } = await nbrRuleApi.preview({ ptrn: row.ptrn, dyncKyTyp: row.dyncKyTyp });
+            const { number } = await nbrRuleApi.preview({
+                prfx: row.prfx, prfxDlmt: row.prfxDlmt, deDlmt: row.deDlmt,
+                seqDgt: row.seqDgt, dyncKyTyp: row.dyncKyTyp,
+            });
             toast.success(`미리보기: ${number}`);
         } catch (e) {
             toast.error(e.message || '패턴이 올바르지 않습니다.');
@@ -224,16 +239,25 @@ export default function NbrRuleMaster() {
                 toast.error(`규칙명은 필수입니다: ${r.ruleCd}`);
                 return;
             }
-            if (!String(r.ptrn ?? '').trim()) {
-                toast.error(`패턴은 필수입니다: ${r.ruleCd}`);
+            if (!String(r.prfx ?? '').trim()) {
+                toast.error(`접두어는 필수입니다: ${r.ruleCd}`);
                 return;
             }
-            if (!['NONE', 'DATE'].includes(r.dyncKyTyp)) {
-                toast.error(`동적키유형은 고정 또는 일자별이어야 합니다: ${r.ruleCd}`);
+            if (!DLMT_OPTIONS.includes(r.prfxDlmt)) {
+                toast.error(`접두구분자가 올바르지 않습니다: ${r.ruleCd}`);
                 return;
             }
-            if (!['Y', 'N'].includes(r.usYn)) {
-                toast.error(`사용여부는 Y 또는 N이어야 합니다: ${r.ruleCd}`);
+            if (!DLMT_OPTIONS.includes(r.deDlmt)) {
+                toast.error(`날짜구분자가 올바르지 않습니다: ${r.ruleCd}`);
+                return;
+            }
+            const seqDgt = Number(r.seqDgt);
+            if (!Number.isInteger(seqDgt) || seqDgt < 1 || seqDgt > 9) {
+                toast.error(`자릿수는 1~9 사이의 정수여야 합니다: ${r.ruleCd}`);
+                return;
+            }
+            if (!['NONE', 'YEAR', 'MONTH', 'DAY'].includes(r.dyncKyTyp)) {
+                toast.error(`동적키유형이 올바르지 않습니다: ${r.ruleCd}`);
                 return;
             }
         }
@@ -281,14 +305,6 @@ export default function NbrRuleMaster() {
                         onKeyDown={(e) => e.key === 'Enter' && fetchList()}
                         placeholder="규칙명 검색"
                         className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
-                    />
-                </SearchItem>
-                <SearchItem label="사용여부">
-                    <DropdownSelect
-                        value={cond.usYn}
-                        onChange={(v) => setCond(prev => ({ ...prev, usYn: v }))}
-                        options={USE_YN_OPTIONS}
-                        placeholder="전체"
                     />
                 </SearchItem>
             </SearchBar>

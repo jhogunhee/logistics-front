@@ -2,13 +2,13 @@
 import api from '@/utils/axios';
 
 export const nbrRuleApi = {
-    /** 목록 조회. cond: { ruleCd, ruleNm, usYn } — 빈 값 조건은 빼고 보낸다 */
+    /** 목록 조회. cond: { ruleCd, ruleNm } — 빈 값 조건은 빼고 보낸다 */
     list(cond = {}) {
         const params = Object.fromEntries(Object.entries(cond).filter(([, v]) => v));
         return api.get('/master/nbr-rules', { params });
     },
 
-    /** 신규(C)/수정(U)/삭제(D) 행 일괄 저장. 패턴 검증·동적키유형 변경 차단은 서버에서 한다 */
+    /** 신규(C)/수정(U)/삭제(D) 행 일괄 저장. 조립 조건 검증·동적키유형 변경 차단은 서버에서 한다 */
     saveAll(rows) {
         return api.post('/master/nbr-rules/bulk', rows);
     },
@@ -18,14 +18,16 @@ export const nbrRuleApi = {
         return api.get(`/master/nbr-rules/${ruleCd}/seqs`);
     },
 
-    /** 패턴 미리보기. 저장 전 형식 확인용 — DB를 건드리지 않고 오늘 날짜 + seq=1로 렌더링만 한다 */
-    preview({ ptrn, dyncKyTyp }) {
-        return api.post('/master/nbr-rules/preview', { ptrn, dyncKyTyp });
+    /** 조립 결과 미리보기. 저장 전 형식 확인용 — DB를 건드리지 않고 오늘 날짜 + seq=1로 렌더링만 한다 */
+    preview({ prfx, prfxDlmt, deDlmt, seqDgt, dyncKyTyp }) {
+        return api.post('/master/nbr-rules/preview', { prfx, prfxDlmt, deDlmt, seqDgt, dyncKyTyp });
     },
 };
 
 /** 동적키유형 표시 메타 */
 export const DYNC_KY_TYP_META = {
     NONE: { label: '고정', badge: 'bg-slate-100 text-slate-600' },
-    DATE: { label: '일자별', badge: 'bg-sky-100 text-sky-700' },
+    YEAR: { label: '연도별', badge: 'bg-sky-100 text-sky-700' },
+    MONTH: { label: '월별', badge: 'bg-sky-100 text-sky-700' },
+    DAY: { label: '일자별', badge: 'bg-sky-100 text-sky-700' },
 };
