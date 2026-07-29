@@ -17,6 +17,7 @@ import {
     LayoutDashboard,
     LayoutGrid,
     ListChecks,
+    ListTree,
     MapPin,
     PackageOpen,
     PauseCircle,
@@ -48,7 +49,7 @@ const MENU = [
         title: "OMS",
         items: [
             { to: "/oms/inbound-order", label: "입고주문", icon: FileInput, keywords: "발주 po purchase order 등록" },
-            { to: "/oms/inbound-orders", label: "입고주문 관리", icon: ClipboardList, keywords: "발주 목록 변환 취소" },
+            { to: "/oms/inbound-orders", label: "입고주문 관리", icon: ClipboardList, keywords: "발주 목록 확정 취소 삭제" },
             { to: "/oms/outbound-order", label: "출고주문", icon: FileOutput, keywords: "수주 so 점포 등록" },
             { to: "/oms/outbound-orders", label: "출고주문 관리", icon: FilePlus, keywords: "수주 목록 취소" },
         ],
@@ -95,6 +96,7 @@ const MENU = [
             { to: "/master/store", label: "점포 관리", icon: Store, keywords: "store 점포 매장" },
             { to: "/master/putaway-strategy", label: "적치 전략관리", icon: Settings2, keywords: "putaway strategy 전략" },
             { to: "/master/nbr-rules", label: "채번규칙 관리", icon: Hash, keywords: "nbr 채번 번호 규칙 패턴 시퀀스 採番" },
+            { to: "/master/codes", label: "공통코드 관리", icon: ListTree, keywords: "code 공통코드 그룹 코드값 온도대 보관유형 업무구분 발주구분 계량단위" },
         ],
     },
 ];
