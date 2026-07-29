@@ -15,7 +15,7 @@ export const asnApi = {
     },
 
     // 등록도 취소도 여기 없다. ASN의 생성/소멸은 OMS 입고주문이 주관한다
-    // — omsIbOrderApi의 convert() / cancelConvert() 참고.
+    // — omsIbOrderApi의 confirm() / cancelConfirm() 참고.
     // 창고가 예정을 스스로 만들거나 없애면 주문 상태와 어긋나기 때문이고,
     // 서버도 같은 이유로 두 엔드포인트를 제거했다.
 

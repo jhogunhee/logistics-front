@@ -21,35 +21,35 @@ export const omsIbOrderApi = {
     },
 
     /** 수정. payload는 create와 동일하다. 작성(CREATED) 상태만 가능 —
-     *  변환된 주문은 서버가 거부한다(이미 나간 ASN 예정수량과 어긋나므로 변환취소가 먼저).
+     *  확정된 주문은 서버가 거부한다(이미 나간 ASN 예정수량과 어긋나므로 확정취소가 먼저).
      *  주문번호는 바뀌지 않는다. 예정일을 고쳐도 채번 시점의 번호를 그대로 쓴다 */
     update(omsIbOrderId, payload) {
         return api.put(`/oms/inbound-orders/${omsIbOrderId}`, payload);
     },
 
-    /** 변환 → WMS 입고예정(ASN) 생성. 반환값은 생성된 ASN의 ibOrderId.
-     *  작성(CREATED) 상태만 가능 — 재변환은 서버가 거부한다(ASN 중복 생성 방지) */
-    convert(omsIbOrderId) {
-        return api.post(`/oms/inbound-orders/${omsIbOrderId}/convert`);
+    /** 확정 → WMS 입고예정(ASN) 생성. 반환값은 생성된 ASN의 ibOrderId.
+     *  작성(CREATED) 상태만 가능 — 재확정은 서버가 거부한다(ASN 중복 생성 방지) */
+    confirm(omsIbOrderId) {
+        return api.post(`/oms/inbound-orders/${omsIbOrderId}/confirm`);
     },
 
-    /** 변환취소 → ASN을 취소하고 주문을 작성 상태로 원복한다 (고쳐서 다시 변환 가능).
+    /** 확정취소 → ASN을 취소하고 주문을 작성 상태로 원복한다 (고쳐서 다시 확정 가능).
      *  검수가 시작된 ASN이면 서버가 거부한다. ASN 취소 경로는 이것 하나뿐 */
-    cancelConvert(omsIbOrderId) {
-        return api.post(`/oms/inbound-orders/${omsIbOrderId}/convert-cancel`);
+    cancelConfirm(omsIbOrderId) {
+        return api.post(`/oms/inbound-orders/${omsIbOrderId}/confirm-cancel`);
     },
 
-    /** 취소. 확정 전(CREATED)만 가능 — 이후엔 서버가 거부한다 */
-    cancel(omsIbOrderId) {
-        return api.post(`/oms/inbound-orders/${omsIbOrderId}/cancel`);
+    /** 삭제. 확정 전(CREATED)만 가능 — 확정된 주문은 확정취소가 먼저다.
+     *  취소 상태를 두지 않으므로 "없앤다"는 조작은 이것 하나뿐이다 */
+    remove(omsIbOrderId) {
+        return api.delete(`/oms/inbound-orders/${omsIbOrderId}`);
     },
 };
 
 /** 입고주문 상태 표시 메타 — 백엔드 OmsIbStatus와 1:1 */
 export const OMS_IB_STATUS_META = {
     CREATED:   { label: '작성', badge: 'bg-slate-100 text-slate-600' },
-    CONVERTED: { label: '변환완료', badge: 'bg-emerald-100 text-emerald-700' },
-    CANCELLED: { label: '취소', badge: 'bg-rose-100 text-rose-600' },
+    CONFIRMED: { label: '확정', badge: 'bg-emerald-100 text-emerald-700' },
 };
 
 /** 상태 검색 드롭다운 옵션 */

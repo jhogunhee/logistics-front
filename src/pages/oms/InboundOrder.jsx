@@ -93,7 +93,7 @@ export default function InboundOrder() {
         return () => { ignore = true; };
     }, [isEdit, omsIbOrderId, navigate]);
 
-    // 변환·취소된 주문은 고칠 수 없다 (서버도 거부한다). 화면에서 미리 잠가 헛수고를 막는다.
+    // 확정된 주문은 고칠 수 없다 (서버도 거부한다). 화면에서 미리 잠가 헛수고를 막는다.
     const readOnly = isEdit && form.status && form.status !== 'CREATED';
 
     // 선택된 벤더는 코드/명까지 폼에 담아둔다 (표시용). 저장 시엔 vendorId만 보낸다.
@@ -132,7 +132,7 @@ export default function InboundOrder() {
     }));
 
     // 발주 수량(입고단위) → 재고 수량(출고단위). 서버가 저장하는 값이 아니라 미리보기다 —
-    // 실제 환산은 주문 확정 시 OmsIbOrderService.convert()가 Prod.toOutbQty()로 한 번만 한다.
+    // 실제 환산은 주문 확정 시 OmsIbOrderService.confirm()가 Prod.toOutbQty()로 한 번만 한다.
     // 여기서 같은 식을 되풀이하는 이유는 담당자가 "몇 개가 들어오는지" 입력하는 중에 봐야 하기 때문.
     const convertedQty = (line) => (Number(line.odrQty) || 0) * cnvrQtyOf(line);
 
@@ -175,7 +175,7 @@ export default function InboundOrder() {
                 toast.success(`${form.omsIbNo} 을(를) 수정했습니다.`);
             } else {
                 await omsIbOrderApi.create(payload);
-                toast.success('입고주문을 등록했습니다. 변환은 관리 화면에서 진행하세요.');
+                toast.success('입고주문을 등록했습니다. 확정은 관리 화면에서 진행하세요.');
             }
             navigate('/oms/inbound-orders');
         } catch (e) {
@@ -199,8 +199,8 @@ export default function InboundOrder() {
                 </h2>
                 <span className="text-xs text-slate-400 mt-0.5">
                     {readOnly
-                        ? '변환·취소된 주문은 수정할 수 없습니다 — 고치려면 관리 화면에서 변환취소를 먼저 하세요'
-                        : '벤더 발주 등록 — 변환하면 입고예정(ASN)이 자동 생성됩니다'}
+                        ? '확정된 주문은 수정할 수 없습니다 — 고치려면 관리 화면에서 확정취소를 먼저 하세요'
+                        : '벤더 발주 등록 — 확정하면 입고예정(ASN)이 자동 생성됩니다'}
                 </span>
             </div>
 
@@ -248,7 +248,7 @@ export default function InboundOrder() {
                             <Search size={13} className="shrink-0 text-slate-400" />
                         </button>
                     </Field>
-                    <Field label="입고 예정일" required hint="변환 시 생성될 입고번호(IB-)의 채번 기준일">
+                    <Field label="입고 예정일" required hint="확정 시 생성될 입고번호(IB-)의 채번 기준일">
                         <input
                             type="date"
                             value={form.expctDe}

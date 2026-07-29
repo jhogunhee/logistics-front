@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AgGridReact } from 'ag-grid-react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import { ArrowRightLeft, Ban, ClipboardList, Undo2 } from 'lucide-react';
+import { CheckCircle2, ClipboardList, Trash2, Undo2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import SearchBar, { SearchItem } from '@/components/common/SearchBar';
@@ -109,9 +109,9 @@ export default function InboundOrderList() {
     const [lineRows, setLineRows] = useState([]);
     const [selected, setSelected] = useState(null);
     const [cond, setCond] = useState({ omsIbNo: '', vndrNm: '', status: '', dateFrom: todayStr(), dateTo: todayStr() });
-    const [convertTarget, setConvertTarget] = useState(null);             // 변환 확인 모달 대상
-    const [convertCancelTarget, setConvertCancelTarget] = useState(null); // 변환취소 확인 모달 대상
-    const [cancelTarget, setCancelTarget] = useState(null);   // 취소 확인 모달 대상
+    const [confirmTarget, setConfirmTarget] = useState(null);             // 확정 확인 모달 대상
+    const [confirmCancelTarget, setConfirmCancelTarget] = useState(null); // 확정취소 확인 모달 대상
+    const [deleteTarget, setDeleteTarget] = useState(null);   // 삭제 확인 모달 대상
     const gridRef = useRef(null);
     const navigate = useNavigate();
     const [odrDvsnNmByCd, setOdrDvsnNmByCd] = useState({});
@@ -150,78 +150,83 @@ export default function InboundOrderList() {
         setLineRows(await omsIbOrderApi.lines(node.data.omsIbOrderId));
     };
 
-    // ── 변환 (ASN 생성) ──────────────────────────────────────
+    // ── 주문확정 (ASN 생성) ──────────────────────────────────
+    // 사용자가 하는 행위는 "발주를 확정한다"이고 ASN 생성은 그 결과다 — 그래서 버튼은
+    // 「주문확정」이고, 무엇이 생기는지는 툴팁·모달이 설명한다. 내부 용어는 convert 그대로다.
+    //
     // 화면 검증은 버튼을 눌러보기 전에 알려주는 용도일 뿐, 진짜 관문은 서버(엔티티)다.
     // 두 곳의 기준이 갈리지 않게 조건 문구를 서버 메시지와 맞춰둔다.
-    const handleConvertClick = () => {
+    const handleConfirmClick = () => {
         if (!selected) {
-            toast('변환할 주문을 선택하세요.');
+            toast('확정할 주문을 선택하세요.');
             return;
         }
         if (selected.status !== 'CREATED') {
-            toast.error('작성 상태의 주문만 변환할 수 있습니다.');
+            toast.error('작성 상태의 주문만 확정할 수 있습니다.');
             return;
         }
-        setConvertTarget(selected);
+        setConfirmTarget(selected);
     };
 
-    const doConvert = async (order) => {
+    const doConfirm = async (order) => {
         try {
-            await omsIbOrderApi.convert(order.omsIbOrderId);
-            toast.success(`${order.omsIbNo} 변환 완료 — 입고예정(ASN)이 생성됐습니다.`);
+            await omsIbOrderApi.confirm(order.omsIbOrderId);
+            toast.success(`${order.omsIbNo} 확정 — 입고예정(ASN)이 생성됐습니다.`);
             fetchList();
         } catch (e) {
-            toast.error(e.message || '변환에 실패했습니다.');
+            toast.error(e.message || '확정에 실패했습니다.');
         }
     };
 
-    // ── 변환취소 (ASN 취소 + 주문 원복) ───────────────────────
-    const handleConvertCancelClick = () => {
+    // ── 확정취소 (ASN 취소 + 주문 원복) ───────────────────────
+    const handleConfirmCancelClick = () => {
         if (!selected) {
-            toast('변환취소할 주문을 선택하세요.');
+            toast('확정취소할 주문을 선택하세요.');
             return;
         }
-        if (selected.status !== 'CONVERTED') {
-            toast.error('변환된 주문만 변환취소할 수 있습니다.');
+        if (selected.status !== 'CONFIRMED') {
+            toast.error('확정된 주문만 확정취소할 수 있습니다.');
             return;
         }
         if (selected.ibStatus && selected.ibStatus !== 'SCHEDULED') {
             toast.error('검수가 시작된 입고는 되돌릴 수 없습니다.');
             return;
         }
-        setConvertCancelTarget(selected);
+        setConfirmCancelTarget(selected);
     };
 
-    const doConvertCancel = async (order) => {
+    const doConfirmCancel = async (order) => {
         try {
-            await omsIbOrderApi.cancelConvert(order.omsIbOrderId);
-            toast.success(`${order.omsIbNo} 변환취소 — 작성 상태로 되돌렸습니다.`);
+            await omsIbOrderApi.cancelConfirm(order.omsIbOrderId);
+            toast.success(`${order.omsIbNo} 확정취소 — 작성 상태로 되돌렸습니다.`);
             fetchList();
         } catch (e) {
-            toast.error(e.message || '변환취소에 실패했습니다.');
+            toast.error(e.message || '확정취소에 실패했습니다.');
         }
     };
 
-    // ── 주문취소 ─────────────────────────────────────────────
-    const handleCancelClick = () => {
+    // ── 주문삭제 ─────────────────────────────────────────────
+    // 취소 상태를 두지 않으므로 "없앤다"는 조작은 이것 하나뿐이다.
+    // 확정된 주문은 확정취소로 작성 상태에 되돌린 뒤에야 지울 수 있다.
+    const handleDeleteClick = () => {
         if (!selected) {
-            toast('취소할 주문을 선택하세요.');
+            toast('삭제할 주문을 선택하세요.');
             return;
         }
         if (selected.status !== 'CREATED') {
-            toast.error('작성 상태의 주문만 취소할 수 있습니다. 변환된 주문은 변환취소가 먼저입니다.');
+            toast.error('작성 상태의 주문만 삭제할 수 있습니다. 확정된 주문은 확정취소가 먼저입니다.');
             return;
         }
-        setCancelTarget(selected);
+        setDeleteTarget(selected);
     };
 
-    const doCancel = async (order) => {
+    const doDelete = async (order) => {
         try {
-            await omsIbOrderApi.cancel(order.omsIbOrderId);
-            toast.success(`${order.omsIbNo} 를 취소했습니다.`);
+            await omsIbOrderApi.remove(order.omsIbOrderId);
+            toast.success(`${order.omsIbNo} 를 삭제했습니다.`);
             fetchList();
         } catch (e) {
-            toast.error(e.message || '취소에 실패했습니다.');
+            toast.error(e.message || '삭제에 실패했습니다.');
         }
     };
 
@@ -232,7 +237,7 @@ export default function InboundOrderList() {
                 <ClipboardList size={18} className="text-indigo-600" />
                 <h2 className="text-lg font-bold text-slate-800">입고주문 관리</h2>
                 <span className="text-xs text-slate-400 mt-0.5">
-                    조회 · 확정 · 취소 — 확정하면 입고예정(ASN)이 생성되고 이후는 입고 메뉴에서 진행합니다
+                    조회 · 확정 · 삭제 — 확정하면 입고예정(ASN)이 생성되고 이후는 입고 메뉴에서 진행합니다
                 </span>
             </div>
 
@@ -292,21 +297,22 @@ export default function InboundOrderList() {
                         <span className="text-xs text-slate-500 font-medium">{rowData.length}건</span>
                         <div className="flex gap-2">
                             <button
-                                onClick={handleCancelClick}
+                                onClick={handleDeleteClick}
+                                title="작성 상태의 주문을 지웁니다. 확정된 주문은 확정취소가 먼저입니다"
                                 className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[12px] font-bold text-slate-600 hover:border-red-300 hover:text-red-600 transition-colors">
-                                <Ban size={13} /> 주문취소
+                                <Trash2 size={13} /> 주문삭제
                             </button>
                             <button
-                                onClick={handleConvertCancelClick}
+                                onClick={handleConfirmCancelClick}
                                 title="생성된 입고예정(ASN)을 취소하고 주문을 작성 상태로 되돌립니다"
                                 className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[12px] font-bold text-slate-600 hover:border-amber-300 hover:text-amber-600 transition-colors">
-                                <Undo2 size={13} /> 변환취소
+                                <Undo2 size={13} /> 확정취소
                             </button>
                             <button
-                                onClick={handleConvertClick}
+                                onClick={handleConfirmClick}
                                 title="입고예정(ASN)을 생성해 창고 작업을 시작합니다"
                                 className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 rounded-lg text-[12px] font-bold text-white hover:bg-indigo-700 transition-colors">
-                                <ArrowRightLeft size={13} /> ASN 변환
+                                <CheckCircle2 size={13} /> 주문확정
                             </button>
                         </div>
                     </div>
@@ -344,81 +350,84 @@ export default function InboundOrderList() {
                 </Panel>
             </PanelGroup>
 
-            {/* 변환 확인 모달 */}
-            {convertTarget && (
+            {/* 확정 확인 모달 */}
+            {confirmTarget && (
                 <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 bg-black/20">
                     <div className="bg-white rounded-2xl shadow-xl p-6 w-[420px] flex flex-col gap-4">
-                        <h3 className="text-lg font-bold text-slate-800">입고예정(ASN)으로 변환할까요?</h3>
+                        <h3 className="text-lg font-bold text-slate-800">주문을 확정할까요?</h3>
                         <p className="text-sm text-slate-500">
-                            {convertTarget.omsIbNo} · {convertTarget.vndrNm} · 라인 {convertTarget.lineCount}건 ·
-                            {' '}{convertTarget.totalOrderQty.toLocaleString()}개
+                            {confirmTarget.omsIbNo} · {confirmTarget.vndrNm} · 라인 {confirmTarget.lineCount}건 ·
+                            {' '}{confirmTarget.totalOrderQty.toLocaleString()}개
                         </p>
                         <p className="text-xs text-slate-600 bg-slate-50 rounded-lg px-3 py-2 leading-relaxed">
-                            변환하면 입고예정이 생성되어 창고 작업이 시작됩니다.
-                            검수가 시작되기 전이라면 <b>변환취소</b>로 되돌려 다시 변환할 수 있습니다.
+                            확정하면 입고예정(ASN)이 생성되어 창고 작업이 시작됩니다.
+                            검수가 시작되기 전이라면 <b>확정취소</b>로 되돌려 다시 확정할 수 있습니다.
                         </p>
                         <div className="flex gap-2 justify-end">
                             <button
-                                onClick={() => setConvertTarget(null)}
+                                onClick={() => setConfirmTarget(null)}
                                 className="px-4 py-2 text-sm font-bold rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50">
                                 닫기
                             </button>
                             <button
-                                onClick={() => { doConvert(convertTarget); setConvertTarget(null); }}
+                                onClick={() => { doConfirm(confirmTarget); setConfirmTarget(null); }}
                                 className="px-4 py-2 text-sm font-bold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
-                                변환
+                                주문확정
                             </button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* 변환취소 확인 모달 */}
-            {convertCancelTarget && (
+            {/* 확정취소 확인 모달 */}
+            {confirmCancelTarget && (
                 <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 bg-black/20">
                     <div className="bg-white rounded-2xl shadow-xl p-6 w-[420px] flex flex-col gap-4">
-                        <h3 className="text-lg font-bold text-slate-800">변환을 취소할까요?</h3>
+                        <h3 className="text-lg font-bold text-slate-800">확정을 취소할까요?</h3>
                         <p className="text-sm text-slate-500">
-                            {convertCancelTarget.omsIbNo} · 입고번호 {convertCancelTarget.ibNo}
+                            {confirmCancelTarget.omsIbNo} · 입고번호 {confirmCancelTarget.ibNo}
                         </p>
                         <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 leading-relaxed">
                             입고예정이 취소되고 주문은 <b>작성</b> 상태로 돌아갑니다.
-                            내용을 고쳐 다시 변환할 수 있습니다. 취소된 입고예정은 이력으로 남습니다.
+                            내용을 고쳐 다시 확정할 수 있습니다. 취소된 입고예정은 이력으로 남습니다.
                         </p>
                         <div className="flex gap-2 justify-end">
                             <button
-                                onClick={() => setConvertCancelTarget(null)}
+                                onClick={() => setConfirmCancelTarget(null)}
                                 className="px-4 py-2 text-sm font-bold rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50">
                                 닫기
                             </button>
                             <button
-                                onClick={() => { doConvertCancel(convertCancelTarget); setConvertCancelTarget(null); }}
+                                onClick={() => { doConfirmCancel(confirmCancelTarget); setConfirmCancelTarget(null); }}
                                 className="px-4 py-2 text-sm font-bold rounded-lg bg-amber-600 text-white hover:bg-amber-700">
-                                변환취소
+                                확정취소
                             </button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* 취소 확인 모달 */}
-            {cancelTarget && (
+            {/* 삭제 확인 모달 — 되돌릴 수 없으므로 라인 건수까지 보여준다 */}
+            {deleteTarget && (
                 <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 bg-black/20">
                     <div className="bg-white rounded-2xl shadow-xl p-6 w-96 flex flex-col gap-4">
-                        <h3 className="text-lg font-bold text-slate-800">주문을 취소하시겠습니까?</h3>
+                        <h3 className="text-lg font-bold text-slate-800">주문을 삭제하시겠습니까?</h3>
                         <p className="text-sm text-slate-500">
-                            {cancelTarget.omsIbNo} · {cancelTarget.vndrNm} · 라인 {cancelTarget.lineCount}건
+                            {deleteTarget.omsIbNo} · {deleteTarget.vndrNm} · 라인 {deleteTarget.lineCount}건
+                        </p>
+                        <p className="text-xs text-slate-400">
+                            취소 상태로 남기지 않고 지웁니다 — 되돌릴 수 없습니다.
                         </p>
                         <div className="flex gap-2 justify-end">
                             <button
-                                onClick={() => setCancelTarget(null)}
+                                onClick={() => setDeleteTarget(null)}
                                 className="px-4 py-2 text-sm font-bold rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50">
                                 닫기
                             </button>
                             <button
-                                onClick={() => { doCancel(cancelTarget); setCancelTarget(null); }}
+                                onClick={() => { doDelete(deleteTarget); setDeleteTarget(null); }}
                                 className="px-4 py-2 text-sm font-bold rounded-lg bg-red-600 text-white hover:bg-red-700">
-                                주문취소
+                                주문삭제
                             </button>
                         </div>
                     </div>
