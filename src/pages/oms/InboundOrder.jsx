@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { FileInput, Package, Plus, RotateCcw, Save, Search, Trash2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { FileInput, Package, Plus, RotateCcw, Save, Search, Trash2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import ProdPickerModal from '@/components/common/ProdPickerModal';
@@ -29,12 +29,56 @@ const Field = ({ label, required, hint, children }) => (
 );
 
 export default function InboundOrder() {
+    // 경로에 id가 있으면 수정, 없으면 등록. 화면 구성이 같아 컴포넌트를 나누지 않는다.
+    const { omsIbOrderId } = useParams();
+    const isEdit = Boolean(omsIbOrderId);
+
     const [form, setForm] = useState(EMPTY_FORM);
     const [saving, setSaving] = useState(false);
+    const [loading, setLoading] = useState(isEdit);
     // null이면 닫힘 / 'add'면 다중 추가 / 숫자면 그 인덱스 라인의 상품 교체
     const [pickerFor, setPickerFor] = useState(null);
     const [vendorPickerOpen, setVendorPickerOpen] = useState(false);
     const navigate = useNavigate();
+
+    // 수정 진입 시 주문을 불러온다. 헤더는 목록 API에서, 라인은 라인 API에서 가져온다 —
+    // 단건 조회 엔드포인트가 없어서 목록을 주문번호로 좁혀 한 건만 받는다.
+    useEffect(() => {
+        if (!isEdit) return;
+        let ignore = false;
+        (async () => {
+            try {
+                const [orders, lines] = await Promise.all([
+                    omsIbOrderApi.list(),
+                    omsIbOrderApi.lines(omsIbOrderId),
+                ]);
+                if (ignore) return;
+                const order = orders.find(o => String(o.omsIbOrderId) === String(omsIbOrderId));
+                if (!order) {
+                    toast.error('주문을 찾을 수 없습니다.');
+                    navigate('/oms/inbound-orders');
+                    return;
+                }
+                setForm({
+                    omsIbNo: order.omsIbNo,
+                    status: order.status,
+                    vendorId: order.vendorId,
+                    vndrCd: order.vndrCd,
+                    vndrNm: order.vndrNm,
+                    expctDe: order.expctDe,
+                    lines: lines.map(l => ({ ...l, odrQty: l.odrQty })),
+                });
+            } catch (e) {
+                if (!ignore) toast.error(e.message || '주문을 불러오지 못했습니다.');
+            } finally {
+                if (!ignore) setLoading(false);
+            }
+        })();
+        return () => { ignore = true; };
+    }, [isEdit, omsIbOrderId, navigate]);
+
+    // 변환·취소된 주문은 고칠 수 없다 (서버도 거부한다). 화면에서 미리 잠가 헛수고를 막는다.
+    const readOnly = isEdit && form.status && form.status !== 'CREATED';
 
     // 선택된 벤더는 코드/명까지 폼에 담아둔다 (표시용). 저장 시엔 vendorId만 보낸다.
     const pickVendor = (v) => setForm(prev => ({
@@ -89,6 +133,7 @@ export default function InboundOrder() {
         .map(l => l.prodId);
 
     const handleSave = async () => {
+        if (readOnly) { toast.error('작성 상태의 주문만 수정할 수 있습니다.'); return; }
         if (!form.vendorId) { toast.error('벤더는 필수입니다.'); return; }
         if (!form.expctDe) { toast.error('입고 예정일은 필수입니다.'); return; }
         if (form.lines.length === 0) { toast.error('발주 상품을 1건 이상 담아주세요.'); return; }
@@ -100,29 +145,43 @@ export default function InboundOrder() {
         }
 
         setSaving(true);
+        const payload = {
+            vendorId: Number(form.vendorId),
+            expctDe: form.expctDe,
+            lines: form.lines.map(l => ({ prodId: l.prodId, odrQty: Number(l.odrQty) })),
+        };
         try {
-            await omsIbOrderApi.create({
-                vendorId: Number(form.vendorId),
-                expctDe: form.expctDe,
-                lines: form.lines.map(l => ({ prodId: l.prodId, odrQty: Number(l.odrQty) })),
-            });
-            toast.success('입고주문을 등록했습니다. 확정은 관리 화면에서 진행하세요.');
+            if (isEdit) {
+                await omsIbOrderApi.update(omsIbOrderId, payload);
+                toast.success(`${form.omsIbNo} 을(를) 수정했습니다.`);
+            } else {
+                await omsIbOrderApi.create(payload);
+                toast.success('입고주문을 등록했습니다. 변환은 관리 화면에서 진행하세요.');
+            }
             navigate('/oms/inbound-orders');
         } catch (e) {
-            toast.error(e.message || '등록에 실패했습니다.');
+            toast.error(e.message || (isEdit ? '수정에 실패했습니다.' : '등록에 실패했습니다.'));
         } finally {
             setSaving(false);
         }
     };
+
+    if (loading) {
+        return <div className="py-20 text-center text-sm text-slate-400">주문을 불러오는 중…</div>;
+    }
 
     return (
         <div className="flex flex-col gap-4 h-full">
             {/* 타이틀 */}
             <div className="flex items-center gap-2">
                 <FileInput size={18} className="text-indigo-600" />
-                <h2 className="text-lg font-bold text-slate-800">입고주문</h2>
+                <h2 className="text-lg font-bold text-slate-800">
+                    {isEdit ? '입고주문 수정' : '입고주문'}
+                </h2>
                 <span className="text-xs text-slate-400 mt-0.5">
-                    벤더 발주 등록 — 확정하면 입고예정(ASN)이 자동 생성됩니다
+                    {readOnly
+                        ? '변환·취소된 주문은 수정할 수 없습니다 — 고치려면 관리 화면에서 변환취소를 먼저 하세요'
+                        : '벤더 발주 등록 — 변환하면 입고예정(ASN)이 자동 생성됩니다'}
                 </span>
             </div>
 
@@ -132,12 +191,15 @@ export default function InboundOrder() {
                     <span className="text-xs font-bold text-slate-600">주문 정보</span>
                 </div>
                 <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-3">
-                    <Field label="주문번호" hint="등록 시 서버가 채번합니다">
+                    <Field
+                        label="주문번호"
+                        hint={isEdit ? '채번된 번호는 바뀌지 않습니다 (예정일을 고쳐도 그대로)' : '등록 시 서버가 채번합니다'}>
                         <input
                             type="text"
-                            value="PO-YYYYMMDD-NNN"
+                            value={form.omsIbNo || 'PO-YYYYMMDD-NNN'}
                             disabled
-                            className={inputCls + ' bg-slate-50 text-slate-400 cursor-not-allowed'}
+                            className={inputCls + ` bg-slate-50 cursor-not-allowed ${
+                                form.omsIbNo ? 'text-slate-600 font-medium' : 'text-slate-400'}`}
                         />
                     </Field>
                     {/* 상품과 같은 팝업 방식으로 통일 — 한 폼 안에서 선택 UI가 갈리지 않게 한다 */}
@@ -147,19 +209,21 @@ export default function InboundOrder() {
                         hint={form.vndrCd ? `벤더 코드 ${form.vndrCd}` : '거래중인 벤더만 선택할 수 있습니다'}>
                         <button
                             onClick={() => setVendorPickerOpen(true)}
-                            className={inputCls + ' flex items-center justify-between gap-2 text-left hover:border-indigo-300'}>
+                            disabled={readOnly}
+                            className={inputCls + ' flex items-center justify-between gap-2 text-left hover:border-indigo-300 disabled:bg-slate-50 disabled:cursor-not-allowed'}>
                             <span className={`truncate ${form.vndrNm ? 'text-slate-700' : 'text-slate-400'}`}>
                                 {form.vndrNm || '벤더 선택'}
                             </span>
                             <Search size={13} className="shrink-0 text-slate-400" />
                         </button>
                     </Field>
-                    <Field label="입고 예정일" required hint="확정 시 생성될 입고번호(IB-)의 채번 기준일">
+                    <Field label="입고 예정일" required hint="변환 시 생성될 입고번호(IB-)의 채번 기준일">
                         <input
                             type="date"
                             value={form.expctDe}
                             onChange={(e) => setForm(prev => ({ ...prev, expctDe: e.target.value }))}
-                            className={inputCls}
+                            disabled={readOnly}
+                            className={inputCls + ' disabled:bg-slate-50 disabled:cursor-not-allowed'}
                         />
                     </Field>
                 </div>
@@ -179,13 +243,14 @@ export default function InboundOrder() {
                     </div>
                     <button
                         onClick={() => setPickerFor('add')}
-                        className="flex items-center gap-1 px-3 py-1 bg-white border border-slate-200 rounded-lg text-[12px] font-bold text-indigo-600 hover:border-indigo-300 transition-colors">
+                        disabled={readOnly}
+                        className="flex items-center gap-1 px-3 py-1 bg-white border border-slate-200 rounded-lg text-[12px] font-bold text-indigo-600 hover:border-indigo-300 transition-colors disabled:opacity-40 disabled:hover:border-slate-200">
                         <Plus size={13} /> 상품 추가
                     </button>
                 </div>
 
                 {/* 컬럼 헤더 — 아래 행들과 같은 폭 규칙을 공유한다 */}
-                <div className="flex items-center gap-3 px-4 py-2 border-b border-slate-200 text-[11px] font-bold text-slate-500 shrink-0">
+                <div className="flex items-center gap-3 px-4 py-1.5 border-b border-slate-200 text-[11px] font-bold text-slate-500 shrink-0">
                     <span className="w-10 shrink-0">No.</span>
                     <span className="w-28 shrink-0">상품 코드</span>
                     <span className="flex-1 min-w-0">상품명</span>
@@ -213,7 +278,7 @@ export default function InboundOrder() {
                     {form.lines.map((line, idx) => {
                         const tz = TEMP_ZONE_META[line.tmpZon];
                         return (
-                            <div key={line.prodId} className="flex items-center gap-3 px-4 py-2 hover:bg-slate-50/70">
+                            <div key={line.prodId} className="flex items-center gap-3 px-4 py-1 hover:bg-slate-50/70">
                                 <span className="w-10 shrink-0 text-xs text-slate-400">{idx + 1}</span>
                                 <span className="w-28 shrink-0 text-sm font-medium text-slate-700">{line.prodCd}</span>
                                 <span className="flex-1 min-w-0 truncate text-sm text-slate-700">{line.prodNm}</span>
@@ -236,8 +301,9 @@ export default function InboundOrder() {
                                         min="1"
                                         value={line.odrQty}
                                         onChange={(e) => setQty(idx, e.target.value)}
+                                        disabled={readOnly}
                                         placeholder="수량"
-                                        className="flex-1 min-w-0 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-right focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                                        className="flex-1 min-w-0 px-2.5 py-1 bg-white border border-slate-200 rounded-md text-sm text-right focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
                                     />
                                     <span className="w-9 shrink-0 text-[11px] font-bold text-slate-500">
                                         {line.inbUomCd}
@@ -263,14 +329,16 @@ export default function InboundOrder() {
                                 <span className="w-16 shrink-0 flex justify-center gap-1">
                                     <button
                                         onClick={() => setPickerFor(idx)}
+                                        disabled={readOnly}
                                         title="상품 바꾸기"
-                                        className="text-slate-300 hover:text-indigo-600">
+                                        className="text-slate-300 hover:text-indigo-600 disabled:opacity-30 disabled:hover:text-slate-300">
                                         <Search size={14} />
                                     </button>
                                     <button
                                         onClick={() => removeLine(idx)}
+                                        disabled={readOnly}
                                         title="라인 삭제"
-                                        className="text-slate-300 hover:text-red-500">
+                                        className="text-slate-300 hover:text-red-500 disabled:opacity-30 disabled:hover:text-slate-300">
                                         <Trash2 size={15} />
                                     </button>
                                 </span>
@@ -296,15 +364,17 @@ export default function InboundOrder() {
             {/* 액션 */}
             <div className="flex gap-2 justify-end shrink-0">
                 <button
-                    onClick={() => setForm(EMPTY_FORM())}
+                    onClick={() => (isEdit ? navigate('/oms/inbound-orders') : setForm(EMPTY_FORM()))}
                     className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50">
-                    <RotateCcw size={14} /> 초기화
+                    {isEdit ? <><X size={14} /> 목록으로</> : <><RotateCcw size={14} /> 초기화</>}
                 </button>
                 <button
                     onClick={handleSave}
-                    disabled={saving}
+                    disabled={saving || readOnly}
                     className="flex items-center gap-1.5 px-5 py-2 text-sm font-bold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 shadow-md active:scale-95 transition-all">
-                    <Save size={14} /> {saving ? '등록 중…' : '등록'}
+                    <Save size={14} /> {saving
+                        ? (isEdit ? '수정 중…' : '등록 중…')
+                        : (isEdit ? '수정' : '등록')}
                 </button>
             </div>
 

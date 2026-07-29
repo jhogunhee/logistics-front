@@ -33,6 +33,8 @@ export default function App() {
 
                         {/* OMS: 주문 원장 (WMS 입고예정/출고주문의 발생지) */}
                         <Route path="/oms/inbound-order" element={<InboundOrder/>}/>
+                        {/* 관리 화면에서 주문번호를 눌러 들어오는 수정 경로. 같은 컴포넌트가 id 유무로 갈린다 */}
+                        <Route path="/oms/inbound-order/:omsIbOrderId" element={<InboundOrder/>}/>
                         <Route path="/oms/inbound-orders" element={<InboundOrderList/>}/>
                         <Route path="/oms/outbound-order" element={<Placeholder title="출고주문"/>}/>
                         <Route path="/oms/outbound-orders" element={<Placeholder title="출고주문 관리"/>}/>

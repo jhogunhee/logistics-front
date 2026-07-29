@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AgGridReact } from 'ag-grid-react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { ArrowRightLeft, Ban, ClipboardList, Undo2 } from 'lucide-react';
@@ -36,7 +37,21 @@ const centered = { display: 'flex', alignItems: 'center', justifyContent: 'cente
 
 const HEADER_COLUMN_DEFS = [
     { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
-    { field: 'omsIbNo', headerName: '주문번호', width: 170 },
+    {
+        // 주문번호를 눌러 수정 화면으로. 컬럼 정의가 모듈 상수라 navigate를 직접 못 잡아
+        // 그리드 context로 콜백을 넘겨 받는다.
+        field: 'omsIbNo', headerName: '주문번호', width: 170,
+        cellRenderer: (p) => (
+            <button
+                onClick={() => p.context.openOrder(p.data)}
+                title={p.data.status === 'CREATED'
+                    ? '주문 수정'
+                    : '조회 (작성 상태가 아니라 수정은 잠깁니다)'}
+                className="font-medium text-indigo-600 hover:underline">
+                {p.value}
+            </button>
+        ),
+    },
     {
         field: 'status', headerName: '주문상태', width: 100,
         cellStyle: centered,
@@ -80,6 +95,8 @@ export default function InboundOrderList() {
     const [convertCancelTarget, setConvertCancelTarget] = useState(null); // 변환취소 확인 모달 대상
     const [cancelTarget, setCancelTarget] = useState(null);   // 취소 확인 모달 대상
     const gridRef = useRef(null);
+    const navigate = useNavigate();
+
 
     const fetchList = async () => {
         const data = await omsIbOrderApi.list(cond);
@@ -272,6 +289,7 @@ export default function InboundOrderList() {
                             ref={gridRef}
                             rowData={rowData}
                             columnDefs={HEADER_COLUMN_DEFS}
+                            context={{ openOrder: (o) => navigate(`/oms/inbound-order/${o.omsIbOrderId}`) }}
                             rowHeight={34}
                             headerHeight={38}
                             rowSelection={{ mode: 'singleRow', checkboxes: false, enableClickSelection: true }}

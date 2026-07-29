@@ -20,6 +20,13 @@ export const omsIbOrderApi = {
         return api.post('/oms/inbound-orders', payload);
     },
 
+    /** 수정. payload는 create와 동일하다. 작성(CREATED) 상태만 가능 —
+     *  변환된 주문은 서버가 거부한다(이미 나간 ASN 예정수량과 어긋나므로 변환취소가 먼저).
+     *  주문번호는 바뀌지 않는다. 예정일을 고쳐도 채번 시점의 번호를 그대로 쓴다 */
+    update(omsIbOrderId, payload) {
+        return api.put(`/oms/inbound-orders/${omsIbOrderId}`, payload);
+    },
+
     /** 변환 → WMS 입고예정(ASN) 생성. 반환값은 생성된 ASN의 ibOrderId.
      *  작성(CREATED) 상태만 가능 — 재변환은 서버가 거부한다(ASN 중복 생성 방지) */
     convert(omsIbOrderId) {
