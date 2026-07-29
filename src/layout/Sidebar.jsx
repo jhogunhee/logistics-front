@@ -10,6 +10,7 @@ import {
     FileInput,
     FileOutput,
     FilePlus,
+    Hash,
     History,
     Layers,
     LayoutDashboard,
@@ -122,6 +123,7 @@ export default function Sidebar() {
                     <MenuItem to="/master/vendor" label="벤더 관리" icon={Truck} />
                     <MenuItem to="/master/store" label="점포 관리" icon={Store} />
                     <MenuItem to="/master/putaway-strategy" label="적치 전략관리" icon={Settings2} />
+                    <MenuItem to="/master/nbr-rules" label="채번규칙 관리" icon={Hash} />
                 </MenuGroup>
             </nav>
 
