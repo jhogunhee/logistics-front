@@ -9,6 +9,7 @@ import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import { omsIbOrderApi, OMS_IB_STATUS_META, OMS_IB_STATUS_OPTIONS } from '@/api/omsIbOrderApi';
 import { ASN_STATUS_META } from '@/api/asnApi';
+import { codeApi } from '@/api/codeApi';
 import { TEMP_ZONE_META } from '@/api/prodApi';
 
 // 오늘 날짜 "YYYY-MM-DD" (검색 기본값)
@@ -57,7 +58,24 @@ const HEADER_COLUMN_DEFS = [
         cellStyle: centered,
         cellRenderer: (p) => <Badge meta={OMS_IB_STATUS_META[p.value]} />,
     },
+    {
+        // 표시명은 공통코드에서 받아 context로 넘긴다 (코드값만으론 화면에서 못 읽는다).
+        // 긴급만 색으로 띄운다 — 정상이 대부분이라 전부 뱃지를 달면 오히려 안 보인다.
+        field: 'odrDvsn', headerName: '발주구분', width: 100,
+        cellStyle: centered,
+        cellRenderer: (p) => {
+            const nm = p.context.odrDvsnNm(p.value);
+            if (!nm) return null;
+            return p.value === 'NRML'
+                ? <span className="text-[11px] text-slate-500">{nm}</span>
+                : <span className="text-[11px] px-2 py-0.5 rounded-full font-bold bg-amber-100 text-amber-700">{nm}</span>;
+        },
+    },
     { field: 'vndrNm', headerName: '벤더', flex: 1, minWidth: 110 },
+    {
+        field: 'picNm', headerName: '담당자', width: 90,
+        cellRenderer: (p) => p.value || <span className="text-slate-300">-</span>,
+    },
     { field: 'expctDe', headerName: '입고 예정일', width: 120 },
     { field: 'lineCount', headerName: '라인수', width: 80, cellClass: 'ag-right-aligned-cell' },
     { field: 'totalOrderQty', headerName: '발주수량', width: 100, cellClass: 'ag-right-aligned-cell' },
@@ -96,7 +114,15 @@ export default function InboundOrderList() {
     const [cancelTarget, setCancelTarget] = useState(null);   // 취소 확인 모달 대상
     const gridRef = useRef(null);
     const navigate = useNavigate();
+    const [odrDvsnNmByCd, setOdrDvsnNmByCd] = useState({});
 
+    useEffect(() => {
+        let ignore = false;
+        codeApi.list('ODR_DVSN').then(codes => {
+            if (!ignore) setOdrDvsnNmByCd(Object.fromEntries(codes.map(c => [c.codeCd, c.codeNm])));
+        });
+        return () => { ignore = true; };
+    }, []);
 
     const fetchList = async () => {
         const data = await omsIbOrderApi.list(cond);
@@ -289,7 +315,10 @@ export default function InboundOrderList() {
                             ref={gridRef}
                             rowData={rowData}
                             columnDefs={HEADER_COLUMN_DEFS}
-                            context={{ openOrder: (o) => navigate(`/oms/inbound-order/${o.omsIbOrderId}`) }}
+                            context={{
+                                openOrder: (o) => navigate(`/oms/inbound-order/${o.omsIbOrderId}`),
+                                odrDvsnNm: (cd) => odrDvsnNmByCd[cd],
+                            }}
                             rowHeight={34}
                             headerHeight={38}
                             rowSelection={{ mode: 'singleRow', checkboxes: false, enableClickSelection: true }}

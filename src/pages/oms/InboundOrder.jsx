@@ -6,12 +6,18 @@ import toast from 'react-hot-toast';
 import ProdPickerModal from '@/components/common/ProdPickerModal';
 import VendorPickerModal from '@/components/common/VendorPickerModal';
 import { omsIbOrderApi } from '@/api/omsIbOrderApi';
+import { codeApi } from '@/api/codeApi';
 import { cnvrQtyOf, TEMP_ZONE_META } from '@/api/prodApi';
 
 // 오늘 날짜 "YYYY-MM-DD" (입고 예정일 기본값)
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
-const EMPTY_FORM = () => ({ vendorId: '', expctDe: todayStr(), lines: [] });
+const EMPTY_FORM = () => ({
+    vendorId: '', expctDe: todayStr(),
+    odrDvsn: 'NRML',   // 컬럼 DEFAULT와 같은 값 — 대부분의 발주가 정상 건이다
+    picNm: '', rmk: '',
+    lines: [],
+});
 
 const inputCls = 'w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm ' +
     'focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400';
@@ -36,10 +42,17 @@ export default function InboundOrder() {
     const [form, setForm] = useState(EMPTY_FORM);
     const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(isEdit);
+    const [odrDvsnCodes, setOdrDvsnCodes] = useState([]);
     // null이면 닫힘 / 'add'면 다중 추가 / 숫자면 그 인덱스 라인의 상품 교체
     const [pickerFor, setPickerFor] = useState(null);
     const [vendorPickerOpen, setVendorPickerOpen] = useState(false);
     const navigate = useNavigate();
+
+    useEffect(() => {
+        let ignore = false;
+        codeApi.list('ODR_DVSN').then(codes => { if (!ignore) setOdrDvsnCodes(codes); });
+        return () => { ignore = true; };
+    }, []);
 
     // 수정 진입 시 주문을 불러온다. 헤더는 목록 API에서, 라인은 라인 API에서 가져온다 —
     // 단건 조회 엔드포인트가 없어서 목록을 주문번호로 좁혀 한 건만 받는다.
@@ -66,6 +79,9 @@ export default function InboundOrder() {
                     vndrCd: order.vndrCd,
                     vndrNm: order.vndrNm,
                     expctDe: order.expctDe,
+                    odrDvsn: order.odrDvsn ?? 'NRML',
+                    picNm: order.picNm ?? '',
+                    rmk: order.rmk ?? '',
                     lines: lines.map(l => ({ ...l, odrQty: l.odrQty })),
                 });
             } catch (e) {
@@ -148,6 +164,9 @@ export default function InboundOrder() {
         const payload = {
             vendorId: Number(form.vendorId),
             expctDe: form.expctDe,
+            odrDvsn: form.odrDvsn,
+            picNm: form.picNm?.trim() || null,
+            rmk: form.rmk?.trim() || null,
             lines: form.lines.map(l => ({ prodId: l.prodId, odrQty: Number(l.odrQty) })),
         };
         try {
@@ -202,6 +221,18 @@ export default function InboundOrder() {
                                 form.omsIbNo ? 'text-slate-600 font-medium' : 'text-slate-400'}`}
                         />
                     </Field>
+                    {/* 발주구분은 지금 표시·분류용이다 — 긴급이라고 적치·피킹 순서가 바뀌지는 않는다 */}
+                    <Field label="발주구분" hint="분류용입니다 — 창고 작업 순서를 바꾸지는 않습니다">
+                        <select
+                            value={form.odrDvsn}
+                            onChange={(e) => setForm(prev => ({ ...prev, odrDvsn: e.target.value }))}
+                            disabled={readOnly}
+                            className={inputCls + ' disabled:bg-slate-50 disabled:cursor-not-allowed'}>
+                            {odrDvsnCodes.map(c => (
+                                <option key={c.codeCd} value={c.codeCd}>{c.codeNm}</option>
+                            ))}
+                        </select>
+                    </Field>
                     {/* 상품과 같은 팝업 방식으로 통일 — 한 폼 안에서 선택 UI가 갈리지 않게 한다 */}
                     <Field
                         label="벤더"
@@ -223,6 +254,28 @@ export default function InboundOrder() {
                             value={form.expctDe}
                             onChange={(e) => setForm(prev => ({ ...prev, expctDe: e.target.value }))}
                             disabled={readOnly}
+                            className={inputCls + ' disabled:bg-slate-50 disabled:cursor-not-allowed'}
+                        />
+                    </Field>
+                    <Field label="담당자" hint="발주를 낸 사람. 등록자 계정과는 별개입니다">
+                        <input
+                            type="text"
+                            value={form.picNm}
+                            onChange={(e) => setForm(prev => ({ ...prev, picNm: e.target.value }))}
+                            disabled={readOnly}
+                            maxLength={30}
+                            placeholder="김상현"
+                            className={inputCls + ' disabled:bg-slate-50 disabled:cursor-not-allowed'}
+                        />
+                    </Field>
+                    <Field label="비고" hint="벤더 전달사항 등 (ASN으로 넘어가지 않습니다)">
+                        <input
+                            type="text"
+                            value={form.rmk}
+                            onChange={(e) => setForm(prev => ({ ...prev, rmk: e.target.value }))}
+                            disabled={readOnly}
+                            maxLength={200}
+                            placeholder="오전 도착 요청"
                             className={inputCls + ' disabled:bg-slate-50 disabled:cursor-not-allowed'}
                         />
                     </Field>
