@@ -51,7 +51,7 @@ export default function ProdMaster() {
             cellClass: 'text-slate-400',
         },
         {
-            field: 'prodCd', headerName: '상품 코드', width: 100, editable: false,
+            field: 'prodCd', headerName: '상품 코드', width: 140, editable: false,
             cellRenderer: (p) => p.value || <span className="text-slate-400">(저장 시 채번)</span>,
         },
         { field: 'prodNm', headerName: '상품명', minWidth: 200, editable: notDeleted },
