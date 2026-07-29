@@ -11,6 +11,7 @@ import {
     FileInput,
     FileOutput,
     FilePlus,
+    Hash,
     History,
     Layers,
     LayoutDashboard,
@@ -93,6 +94,7 @@ const MENU = [
             { to: "/master/vendor", label: "벤더 관리", icon: Truck, keywords: "vendor 거래처 납품처" },
             { to: "/master/store", label: "점포 관리", icon: Store, keywords: "store 점포 매장" },
             { to: "/master/putaway-strategy", label: "적치 전략관리", icon: Settings2, keywords: "putaway strategy 전략" },
+            { to: "/master/nbr-rules", label: "채번규칙 관리", icon: Hash, keywords: "nbr 채번 번호 규칙 패턴 시퀀스 採番" },
         ],
     },
 ];

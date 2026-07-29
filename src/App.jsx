@@ -10,6 +10,7 @@ import UomMaster from "@/pages/master/UomMaster.jsx";
 import ZonMaster from "@/pages/master/ZonMaster.jsx";
 import LocMaster from "@/pages/master/LocMaster.jsx";
 import VendorMaster from "@/pages/master/VendorMaster.jsx";
+import NbrRuleMaster from "@/pages/master/NbrRuleMaster.jsx";
 import InboundOrder from "@/pages/oms/InboundOrder.jsx";
 import InboundOrderList from "@/pages/oms/InboundOrderList.jsx";
 import AsnList from "@/pages/inbound/AsnList.jsx";
@@ -69,6 +70,7 @@ export default function App() {
                         <Route path="/master/vendor" element={<VendorMaster/>}/>
                         <Route path="/master/store" element={<Placeholder title="점포 관리"/>}/>
                         <Route path="/master/putaway-strategy" element={<Placeholder title="적치 전략관리"/>}/>
+                        <Route path="/master/nbr-rules" element={<NbrRuleMaster/>}/>
                     </Route>
                 </Routes>
             </BrowserRouter>
