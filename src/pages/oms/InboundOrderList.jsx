@@ -42,7 +42,7 @@ const HEADER_COLUMN_DEFS = [
     {
         // 주문번호를 눌러 수정 화면으로. 컬럼 정의가 모듈 상수라 navigate를 직접 못 잡아
         // 그리드 context로 콜백을 넘겨 받는다.
-        field: 'omsIbNo', headerName: '주문번호', width: 170,
+        field: 'omsIbNo', headerName: '주문번호', width: 150,
         cellRenderer: (p) => (
             <button
                 onClick={() => p.context.openOrder(p.data)}
@@ -57,7 +57,7 @@ const HEADER_COLUMN_DEFS = [
     { field: 'expctDe', headerName: '입고 예정일', width: 120 },
     { field: 'vndrNm', headerName: '벤더', flex: 1, minWidth: 110 },
     {
-        field: 'status', headerName: '주문상태', width: 100,
+        field: 'status', headerName: '주문상태', width: 90,
         cellStyle: centered,
         cellRenderer: (p) => <Badge meta={OMS_IB_STATUS_META[p.value]} />,
     },
@@ -90,12 +90,12 @@ const HEADER_COLUMN_DEFS = [
         valueFormatter: (p) => p.value?.toLocaleString(),
     },
     {
-        field: 'ibNo', headerName: '입고번호', width: 170,
+        field: 'ibNo', headerName: '입고번호', width: 140,
         headerTooltip: '확정 시 자동 생성된 입고예정(ASN) 번호',
         cellRenderer: (p) => p.value ?? <span className="text-slate-300">미생성</span>,
     },
     {
-        field: 'ibStatus', headerName: '창고 진행', width: 110,
+        field: 'ibStatus', headerName: '창고 진행', width: 95,
         headerTooltip: 'ASN의 입고 진행 상태',
         cellStyle: centered,
         cellRenderer: (p) => <Badge meta={ASN_STATUS_META[p.value]} />,
@@ -105,7 +105,7 @@ const HEADER_COLUMN_DEFS = [
 const LINE_COLUMN_DEFS = [
     { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
     { field: 'prodCd', headerName: '상품 코드', width: 140 },
-    { field: 'prodNm', headerName: '상품명', flex: 1, minWidth: 200 },
+    { field: 'prodNm', headerName: '상품명', minWidth: 300 },
     {
         field: 'tmpZon', headerName: '온도대', width: 120,
         cellStyle: centered,
@@ -175,17 +175,40 @@ export default function InboundOrderList() {
         return () => { ignore = true; };
     }, []);
 
-    // 헤더 행 선택 시 라인 조회
-    const onSelectionChanged = async (e) => {
-        const node = e.api.getSelectedNodes()[0];
-        if (!node) {
-            setSelected(null);
-            setLineRows([]);
-            return;
-        }
-        setSelected(node.data);
-        setLineRows(await omsIbOrderApi.lines(node.data.omsIbOrderId));
+    // 행 클릭 시 라인 조회 — 체크박스(일괄 처리 대상)와 역할을 분리한다.
+    // 클릭은 "들여다본다", 체크는 "처리한다".
+    const onRowClicked = async (e) => {
+        setSelected(e.data);
+        setLineRows(await omsIbOrderApi.lines(e.data.omsIbOrderId));
     };
+
+    // 버튼들이 처리할 대상 = 체크된 행들
+    const checkedRows = () => gridRef.current?.api?.getSelectedRows() ?? [];
+
+    // 일괄 실행 — 한 건 실패가 나머지를 막지 않도록 순차 처리 후 결과를 요약한다.
+    // 화면 검증을 통과해도 서버(엔티티)가 거부할 수 있으므로 실패는 건별로 모은다.
+    const runBatch = async (orders, call, verb) => {
+        let ok = 0;
+        const fails = [];
+        for (const o of orders) {
+            try {
+                await call(o);
+                ok += 1;
+            } catch (e) {
+                fails.push(`${o.omsIbNo}: ${e.message || '실패'}`);
+            }
+        }
+        if (ok > 0) toast.success(`${ok}건 ${verb} 완료`);
+        if (fails.length > 0) {
+            toast.error(`${fails.length}건 실패 — ${fails[0]}${fails.length > 1 ? ` 외 ${fails.length - 1}건` : ''}`);
+        }
+        fetchList();
+    };
+
+    // 모달 요약용 — "PO-... 외 2건"
+    const summarize = (orders) => orders.length === 1
+        ? orders[0].omsIbNo
+        : `${orders[0].omsIbNo} 외 ${orders.length - 1}건`;
 
     // ── 주문확정 (ASN 생성) ──────────────────────────────────
     // 사용자가 하는 행위는 "발주를 확정한다"이고 ASN 생성은 그 결과다 — 그래서 버튼은
@@ -193,79 +216,62 @@ export default function InboundOrderList() {
     //
     // 화면 검증은 버튼을 눌러보기 전에 알려주는 용도일 뿐, 진짜 관문은 서버(엔티티)다.
     // 두 곳의 기준이 갈리지 않게 조건 문구를 서버 메시지와 맞춰둔다.
+    // 체크된 것 중 조건에 맞는 행만 대상으로 담고, 빠지는 건수는 모달이 알려준다.
     const handleConfirmClick = () => {
-        if (!selected) {
-            toast('확정할 주문을 선택하세요.');
+        const checked = checkedRows();
+        if (checked.length === 0) {
+            toast('확정할 주문을 체크하세요.');
             return;
         }
-        if (selected.status !== 'CREATED') {
+        const targets = checked.filter(o => o.status === 'CREATED');
+        if (targets.length === 0) {
             toast.error('작성 상태의 주문만 확정할 수 있습니다.');
             return;
         }
-        setConfirmTarget(selected);
+        setConfirmTarget({ targets, excluded: checked.length - targets.length });
     };
 
-    const doConfirm = async (order) => {
-        try {
-            await omsIbOrderApi.confirm(order.omsIbOrderId);
-            toast.success(`${order.omsIbNo} 확정 — 입고예정(ASN)이 생성됐습니다.`);
-            fetchList();
-        } catch (e) {
-            toast.error(e.message || '확정에 실패했습니다.');
-        }
-    };
+    const doConfirm = (orders) =>
+        runBatch(orders, o => omsIbOrderApi.confirm(o.omsIbOrderId), '확정');
 
-    // ── 확정취소 (ASN 취소 + 주문 원복) ───────────────────────
+    // ── 확정취소 (ASN 삭제 + 주문 원복) ───────────────────────
     const handleConfirmCancelClick = () => {
-        if (!selected) {
-            toast('확정취소할 주문을 선택하세요.');
+        const checked = checkedRows();
+        if (checked.length === 0) {
+            toast('확정취소할 주문을 체크하세요.');
             return;
         }
-        if (selected.status !== 'CONFIRMED') {
-            toast.error('확정된 주문만 확정취소할 수 있습니다.');
+        const targets = checked.filter(o =>
+            o.status === 'CONFIRMED' && (!o.ibStatus || o.ibStatus === 'SCHEDULED'));
+        if (targets.length === 0) {
+            toast.error('확정 상태이면서 검수 전인 주문만 확정취소할 수 있습니다.');
             return;
         }
-        if (selected.ibStatus && selected.ibStatus !== 'SCHEDULED') {
-            toast.error('검수가 시작된 입고는 되돌릴 수 없습니다.');
-            return;
-        }
-        setConfirmCancelTarget(selected);
+        setConfirmCancelTarget({ targets, excluded: checked.length - targets.length });
     };
 
-    const doConfirmCancel = async (order) => {
-        try {
-            await omsIbOrderApi.cancelConfirm(order.omsIbOrderId);
-            toast.success(`${order.omsIbNo} 확정취소 — 작성 상태로 되돌렸습니다.`);
-            fetchList();
-        } catch (e) {
-            toast.error(e.message || '확정취소에 실패했습니다.');
-        }
-    };
+    const doConfirmCancel = (orders) =>
+        runBatch(orders, o => omsIbOrderApi.cancelConfirm(o.omsIbOrderId), '확정취소');
 
     // ── 주문삭제 ─────────────────────────────────────────────
     // 취소 상태를 두지 않으므로 "없앤다"는 조작은 이것 하나뿐이다.
     // 확정된 주문은 확정취소로 작성 상태에 되돌린 뒤에야 지울 수 있다.
     const handleDeleteClick = () => {
-        if (!selected) {
-            toast('삭제할 주문을 선택하세요.');
+        const checked = checkedRows();
+        if (checked.length === 0) {
+            toast('삭제할 주문을 체크하세요.');
             return;
         }
-        if (selected.status !== 'CREATED') {
+        const targets = checked.filter(o => o.status === 'CREATED');
+        if (targets.length === 0) {
             toast.error('작성 상태의 주문만 삭제할 수 있습니다. 확정된 주문은 확정취소가 먼저입니다.');
             return;
         }
-        setDeleteTarget(selected);
+        setDeleteTarget({ targets, excluded: checked.length - targets.length });
     };
 
-    const doDelete = async (order) => {
-        try {
-            await omsIbOrderApi.remove(order.omsIbOrderId);
-            toast.success(`${order.omsIbNo} 를 삭제했습니다.`);
-            fetchList();
-        } catch (e) {
-            toast.error(e.message || '삭제에 실패했습니다.');
-        }
-    };
+    const doDelete = (orders) =>
+        runBatch(orders, o => omsIbOrderApi.remove(o.omsIbOrderId), '삭제');
 
     return (
         <div className="flex flex-col gap-4 h-full">
@@ -343,19 +349,19 @@ export default function InboundOrderList() {
                         <div className="flex gap-2">
                             <button
                                 onClick={handleDeleteClick}
-                                title="작성 상태의 주문을 지웁니다. 확정된 주문은 확정취소가 먼저입니다"
+                                title="체크한 주문을 일괄 삭제합니다 (작성 상태만). 확정된 주문은 확정취소가 먼저입니다"
                                 className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[12px] font-bold text-slate-600 hover:border-red-300 hover:text-red-600 transition-colors">
                                 <Trash2 size={13} /> 주문삭제
                             </button>
                             <button
                                 onClick={handleConfirmCancelClick}
-                                title="생성된 입고예정(ASN)을 취소하고 주문을 작성 상태로 되돌립니다"
+                                title="체크한 주문의 입고예정(ASN)을 삭제하고 작성 상태로 일괄 원복합니다"
                                 className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[12px] font-bold text-slate-600 hover:border-amber-300 hover:text-amber-600 transition-colors">
                                 <Undo2 size={13} /> 확정취소
                             </button>
                             <button
                                 onClick={handleConfirmClick}
-                                title="입고예정(ASN)을 생성해 창고 작업을 시작합니다"
+                                title="체크한 주문을 일괄 확정해 입고예정(ASN)을 생성합니다"
                                 className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 rounded-lg text-[12px] font-bold text-white hover:bg-indigo-700 transition-colors">
                                 <CheckCircle2 size={13} /> 주문확정
                             </button>
@@ -372,8 +378,8 @@ export default function InboundOrderList() {
                             }}
                             rowHeight={34}
                             headerHeight={38}
-                            rowSelection={{ mode: 'singleRow', checkboxes: false, enableClickSelection: true }}
-                            onSelectionChanged={onSelectionChanged}
+                            rowSelection={{ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false }}
+                            onRowClicked={onRowClicked}
                         />
                     </div>
                 </Panel>
@@ -386,7 +392,7 @@ export default function InboundOrderList() {
                     <div className="flex items-center gap-2">
                         <span className="text-sm font-bold text-slate-700">발주 라인</span>
                         <span className="text-xs text-slate-400">
-                            {selected ? `${selected.omsIbNo} · ${selected.vndrNm}` : '위에서 주문을 선택하세요'}
+                            {selected ? `${selected.omsIbNo} · ${selected.vndrNm}` : '위에서 주문 행을 클릭하세요 (체크는 확정·삭제 대상 선택)'}
                         </span>
                     </div>
                     <div className="flex-1 min-h-0">
@@ -399,15 +405,23 @@ export default function InboundOrderList() {
             {confirmTarget && (
                 <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 bg-black/20">
                     <div className="bg-white rounded-2xl shadow-xl p-6 w-[420px] flex flex-col gap-4">
-                        <h3 className="text-lg font-bold text-slate-800">주문을 확정할까요?</h3>
+                        <h3 className="text-lg font-bold text-slate-800">
+                            주문 {confirmTarget.targets.length}건을 확정할까요?
+                        </h3>
                         <p className="text-sm text-slate-500">
-                            {confirmTarget.omsIbNo} · {confirmTarget.vndrNm} · 라인 {confirmTarget.lineCount}건 ·
-                            {' '}환산 {confirmTarget.totalCnvrQty.toLocaleString()}
+                            {summarize(confirmTarget.targets)} ·
+                            {' '}라인 {confirmTarget.targets.reduce((s, o) => s + o.lineCount, 0)}건 ·
+                            {' '}환산 {confirmTarget.targets.reduce((s, o) => s + o.totalCnvrQty, 0).toLocaleString()}
                         </p>
                         <p className="text-xs text-slate-600 bg-slate-50 rounded-lg px-3 py-2 leading-relaxed">
                             확정하면 입고예정(ASN)이 생성되어 창고 작업이 시작됩니다.
                             검수가 시작되기 전이라면 <b>확정취소</b>로 되돌려 다시 확정할 수 있습니다.
                         </p>
+                        {confirmTarget.excluded > 0 && (
+                            <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
+                                작성 상태가 아닌 {confirmTarget.excluded}건은 제외됩니다.
+                            </p>
+                        )}
                         <div className="flex gap-2 justify-end">
                             <button
                                 onClick={() => setConfirmTarget(null)}
@@ -415,7 +429,7 @@ export default function InboundOrderList() {
                                 닫기
                             </button>
                             <button
-                                onClick={() => { doConfirm(confirmTarget); setConfirmTarget(null); }}
+                                onClick={() => { doConfirm(confirmTarget.targets); setConfirmTarget(null); }}
                                 className="px-4 py-2 text-sm font-bold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
                                 주문확정
                             </button>
@@ -428,14 +442,23 @@ export default function InboundOrderList() {
             {confirmCancelTarget && (
                 <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 bg-black/20">
                     <div className="bg-white rounded-2xl shadow-xl p-6 w-[420px] flex flex-col gap-4">
-                        <h3 className="text-lg font-bold text-slate-800">확정을 취소할까요?</h3>
+                        <h3 className="text-lg font-bold text-slate-800">
+                            {confirmCancelTarget.targets.length}건의 확정을 취소할까요?
+                        </h3>
                         <p className="text-sm text-slate-500">
-                            {confirmCancelTarget.omsIbNo} · 입고번호 {confirmCancelTarget.ibNo}
+                            {summarize(confirmCancelTarget.targets)}
+                            {confirmCancelTarget.targets.length === 1 &&
+                                ` · 입고번호 ${confirmCancelTarget.targets[0].ibNo}`}
                         </p>
                         <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 leading-relaxed">
                             입고예정이 <b>삭제</b>되고 주문은 <b>작성</b> 상태로 돌아갑니다.
                             내용을 고쳐 다시 확정하면 새 입고번호로 입고예정이 다시 생성됩니다.
                         </p>
+                        {confirmCancelTarget.excluded > 0 && (
+                            <p className="text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2">
+                                확정(검수 전) 상태가 아닌 {confirmCancelTarget.excluded}건은 제외됩니다.
+                            </p>
+                        )}
                         <div className="flex gap-2 justify-end">
                             <button
                                 onClick={() => setConfirmCancelTarget(null)}
@@ -443,7 +466,7 @@ export default function InboundOrderList() {
                                 닫기
                             </button>
                             <button
-                                onClick={() => { doConfirmCancel(confirmCancelTarget); setConfirmCancelTarget(null); }}
+                                onClick={() => { doConfirmCancel(confirmCancelTarget.targets); setConfirmCancelTarget(null); }}
                                 className="px-4 py-2 text-sm font-bold rounded-lg bg-amber-600 text-white hover:bg-amber-700">
                                 확정취소
                             </button>
@@ -456,13 +479,21 @@ export default function InboundOrderList() {
             {deleteTarget && (
                 <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 bg-black/20">
                     <div className="bg-white rounded-2xl shadow-xl p-6 w-96 flex flex-col gap-4">
-                        <h3 className="text-lg font-bold text-slate-800">주문을 삭제하시겠습니까?</h3>
+                        <h3 className="text-lg font-bold text-slate-800">
+                            주문 {deleteTarget.targets.length}건을 삭제하시겠습니까?
+                        </h3>
                         <p className="text-sm text-slate-500">
-                            {deleteTarget.omsIbNo} · {deleteTarget.vndrNm} · 라인 {deleteTarget.lineCount}건
+                            {summarize(deleteTarget.targets)} ·
+                            {' '}라인 {deleteTarget.targets.reduce((s, o) => s + o.lineCount, 0)}건
                         </p>
                         <p className="text-xs text-slate-400">
                             취소 상태로 남기지 않고 지웁니다 — 되돌릴 수 없습니다.
                         </p>
+                        {deleteTarget.excluded > 0 && (
+                            <p className="text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2">
+                                작성 상태가 아닌 {deleteTarget.excluded}건은 제외됩니다.
+                            </p>
+                        )}
                         <div className="flex gap-2 justify-end">
                             <button
                                 onClick={() => setDeleteTarget(null)}
@@ -470,7 +501,7 @@ export default function InboundOrderList() {
                                 닫기
                             </button>
                             <button
-                                onClick={() => { doDelete(deleteTarget); setDeleteTarget(null); }}
+                                onClick={() => { doDelete(deleteTarget.targets); setDeleteTarget(null); }}
                                 className="px-4 py-2 text-sm font-bold rounded-lg bg-red-600 text-white hover:bg-red-700">
                                 주문삭제
                             </button>
