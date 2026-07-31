@@ -80,20 +80,14 @@ const HEADER_COLUMN_DEFS = [
     },
     { field: 'lineCount', headerName: '라인수', width: 80, cellClass: 'ag-right-aligned-cell' },
     {
-        // 라인마다 발주단위가 다르면(BOX+PLT 등) 합계 숫자에 의미가 없다 — 등록 화면과 같은 규칙으로
-        // 단위가 하나일 때만 수량을 보여주고, 섞이면 「혼재」로 눙치지 않고 밝힌다.
         field: 'totalOrderQty', headerName: '총 발주수량', width: 120, cellClass: 'ag-right-aligned-cell',
-        headerTooltip: '발주단위 기준 합계 — 라인 간 단위가 섞이면 합칠 수 없어 「혼재」로 표시합니다',
-        cellRenderer: (p) => p.data.odrUomCd
-            ? <>{p.value?.toLocaleString()} <span className="text-[11px] font-bold text-slate-400">{p.data.odrUomCd}</span></>
-            : <span className="text-[11px] text-slate-400">단위 혼재</span>,
+        headerTooltip: '라인 발주수량(발주단위 기준)의 합',
+        valueFormatter: (p) => p.value?.toLocaleString(),
     },
     {
         field: 'totalCnvrQty', headerName: '총 환산수량', width: 130, cellClass: 'ag-right-aligned-cell',
-        headerTooltip: '재고 단위로 환산한 합계 — 확정 시 ASN에 반영되는 수량 기준',
-        cellRenderer: (p) => p.data.cnvrUomCd
-            ? <>{p.value?.toLocaleString()} <span className="text-[11px] font-bold text-slate-400">{p.data.cnvrUomCd}</span></>
-            : <span className="text-[11px] text-slate-400">단위 혼재</span>,
+        headerTooltip: '발주 수량을 낱개(EA)로 환산한 합계',
+        valueFormatter: (p) => p.value?.toLocaleString(),
     },
     {
         field: 'ibNo', headerName: '입고번호', width: 170,
@@ -128,12 +122,17 @@ const LINE_COLUMN_DEFS = [
         ),
     },
     {
+        field: 'inbEaQty', headerName: '낱개수량', width: 90, cellClass: 'ag-right-aligned-cell',
+        headerTooltip: '발주단위 1개 = 낱개(EA) 몇 개인지 — 단위 관리의 낱개수량과 같은 값',
+        valueFormatter: (p) => p.value?.toLocaleString(),
+    },
+    {
         field: 'cnvrQty', headerName: '환산수량', width: 130, cellClass: 'ag-right-aligned-cell',
-        headerTooltip: '재고 단위로 환산한 수량 — 확정 시 ASN에 이 수량으로 반영됩니다',
+        headerTooltip: '발주 수량을 낱개(EA)로 환산한 수량',
         cellRenderer: (p) => (
             <>
                 {p.value?.toLocaleString()}
-                {' '}<span className="text-[11px] font-bold text-slate-400">{p.data.outbUomCd}</span>
+                {' '}<span className="text-[11px] font-bold text-slate-400">EA</span>
             </>
         ),
     },
@@ -402,9 +401,8 @@ export default function InboundOrderList() {
                     <div className="bg-white rounded-2xl shadow-xl p-6 w-[420px] flex flex-col gap-4">
                         <h3 className="text-lg font-bold text-slate-800">주문을 확정할까요?</h3>
                         <p className="text-sm text-slate-500">
-                            {confirmTarget.omsIbNo} · {confirmTarget.vndrNm} · 라인 {confirmTarget.lineCount}건
-                            {confirmTarget.cnvrUomCd &&
-                                ` · 환산 ${confirmTarget.totalCnvrQty.toLocaleString()} ${confirmTarget.cnvrUomCd}`}
+                            {confirmTarget.omsIbNo} · {confirmTarget.vndrNm} · 라인 {confirmTarget.lineCount}건 ·
+                            {' '}환산 {confirmTarget.totalCnvrQty.toLocaleString()}
                         </p>
                         <p className="text-xs text-slate-600 bg-slate-50 rounded-lg px-3 py-2 leading-relaxed">
                             확정하면 입고예정(ASN)이 생성되어 창고 작업이 시작됩니다.

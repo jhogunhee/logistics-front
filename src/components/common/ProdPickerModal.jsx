@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Check, Package, Search, X } from 'lucide-react';
 
 import DropdownSelect from '@/components/common/DropdownSelect';
-import { cnvrQtyOf, prodApi, TEMP_ZONE_META } from '@/api/prodApi';
+import { eaQtyPerInbUomOf, prodApi, TEMP_ZONE_META } from '@/api/prodApi';
 
 const TEMP_ZONE_OPTIONS = [
     { value: '', label: '전체' },
@@ -10,23 +10,22 @@ const TEMP_ZONE_OPTIONS = [
 ];
 
 /**
- * 상품의 단위 구성. 입고단위로 발주하고, 재고는 출고단위로 쌓인다.
- * 배수는 포장의 낱개수량에서 파생한다 ({@link cnvrQtyOf}) — 상품에 환산수량 칸이 없다.
+ * 상품의 단위 구성. 발주는 입고단위로 하고, 화면의 환산수량은 낱개(EA) 기준이다 —
+ * 발주 화면과 같은 기준을 여기서 미리 보여준다 ({@link eaQtyPerInbUomOf}).
  *
- * 두 단위가 같으면(환산 1) 화살표 없이 단위 하나만 보여준다 — 대부분의 상품이 여기 해당해서
+ * 발주단위가 낱개 그 자체면(×1) 화살표 없이 단위 하나만 보여준다 —
  * 전부 "EA → EA ×1"로 그리면 정작 환산이 있는 상품이 눈에 안 띈다.
  */
 const UomFlow = ({ prod }) => {
-    const cnvr = cnvrQtyOf(prod);
-    const converts = prod.inbUomCd !== prod.outbUomCd || cnvr > 1;
+    const eaQty = eaQtyPerInbUomOf(prod);
     return (
         <span className="flex items-center justify-center gap-1 text-[11px]">
             <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-bold">{prod.inbUomCd}</span>
-            {converts && (
+            {eaQty > 1 && (
                 <>
                     <span className="text-slate-300">→</span>
-                    <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-600 font-bold">{prod.outbUomCd}</span>
-                    <span className="text-slate-400">×{cnvr}</span>
+                    <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-600 font-bold">EA</span>
+                    <span className="text-slate-400">×{eaQty.toLocaleString()}</span>
                 </>
             )}
         </span>
@@ -161,7 +160,7 @@ export default function ProdPickerModal({ open, onClose, onSelect, multiple = fa
                     <span className="flex-1 min-w-0">상품명</span>
                     <span className="w-24 shrink-0 text-center">온도대</span>
                     <span className="w-20 shrink-0 text-right">유통기한</span>
-                    <span className="w-44 shrink-0 text-center">단위 (발주 → 재고)</span>
+                    <span className="w-44 shrink-0 text-center">단위 (발주 → 낱개)</span>
                 </div>
 
                 {/* 목록 */}
