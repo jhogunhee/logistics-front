@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AgGridReact } from 'ag-grid-react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import { CheckCircle2, ClipboardList, Trash2, Undo2 } from 'lucide-react';
+import { CheckCircle2, ClipboardList, Search, Trash2, Undo2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
+import VendorPickerModal from '@/components/common/VendorPickerModal';
 import { omsIbOrderApi, OMS_IB_STATUS_META, OMS_IB_STATUS_OPTIONS } from '@/api/omsIbOrderApi';
 import { ASN_STATUS_META } from '@/api/asnApi';
 import { codeApi } from '@/api/codeApi';
@@ -53,6 +54,8 @@ const HEADER_COLUMN_DEFS = [
             </button>
         ),
     },
+    { field: 'expctDe', headerName: '입고 예정일', width: 120 },
+    { field: 'vndrNm', headerName: '벤더', flex: 1, minWidth: 110 },
     {
         field: 'status', headerName: '주문상태', width: 100,
         cellStyle: centered,
@@ -71,14 +74,27 @@ const HEADER_COLUMN_DEFS = [
                 : <span className="text-[11px] px-2 py-0.5 rounded-full font-bold bg-amber-100 text-amber-700">{nm}</span>;
         },
     },
-    { field: 'vndrNm', headerName: '벤더', flex: 1, minWidth: 110 },
     {
         field: 'picNm', headerName: '담당자', width: 90,
         cellRenderer: (p) => p.value || <span className="text-slate-300">-</span>,
     },
-    { field: 'expctDe', headerName: '입고 예정일', width: 120 },
     { field: 'lineCount', headerName: '라인수', width: 80, cellClass: 'ag-right-aligned-cell' },
-    { field: 'totalOrderQty', headerName: '발주수량', width: 100, cellClass: 'ag-right-aligned-cell' },
+    {
+        // 라인마다 발주단위가 다르면(BOX+PLT 등) 합계 숫자에 의미가 없다 — 등록 화면과 같은 규칙으로
+        // 단위가 하나일 때만 수량을 보여주고, 섞이면 「혼재」로 눙치지 않고 밝힌다.
+        field: 'totalOrderQty', headerName: '총 발주수량', width: 120, cellClass: 'ag-right-aligned-cell',
+        headerTooltip: '발주단위 기준 합계 — 라인 간 단위가 섞이면 합칠 수 없어 「혼재」로 표시합니다',
+        cellRenderer: (p) => p.data.odrUomCd
+            ? <>{p.value?.toLocaleString()} <span className="text-[11px] font-bold text-slate-400">{p.data.odrUomCd}</span></>
+            : <span className="text-[11px] text-slate-400">단위 혼재</span>,
+    },
+    {
+        field: 'totalCnvrQty', headerName: '총 환산수량', width: 130, cellClass: 'ag-right-aligned-cell',
+        headerTooltip: '재고 단위로 환산한 합계 — 확정 시 ASN에 반영되는 수량 기준',
+        cellRenderer: (p) => p.data.cnvrUomCd
+            ? <>{p.value?.toLocaleString()} <span className="text-[11px] font-bold text-slate-400">{p.data.cnvrUomCd}</span></>
+            : <span className="text-[11px] text-slate-400">단위 혼재</span>,
+    },
     {
         field: 'ibNo', headerName: '입고번호', width: 170,
         headerTooltip: '확정 시 자동 생성된 입고예정(ASN) 번호',
@@ -101,7 +117,26 @@ const LINE_COLUMN_DEFS = [
         cellStyle: centered,
         cellRenderer: (p) => <TempZoneBadge value={p.value} />,
     },
-    { field: 'odrQty', headerName: '발주수량', width: 110, cellClass: 'ag-right-aligned-cell' },
+    {
+        field: 'odrQty', headerName: '발주수량', width: 120, cellClass: 'ag-right-aligned-cell',
+        headerTooltip: '발주단위(벤더에게 주문한 단위) 기준',
+        cellRenderer: (p) => (
+            <>
+                {p.value?.toLocaleString()}
+                {' '}<span className="text-[11px] font-bold text-slate-400">{p.data.inbUomCd}</span>
+            </>
+        ),
+    },
+    {
+        field: 'cnvrQty', headerName: '환산수량', width: 130, cellClass: 'ag-right-aligned-cell',
+        headerTooltip: '재고 단위로 환산한 수량 — 확정 시 ASN에 이 수량으로 반영됩니다',
+        cellRenderer: (p) => (
+            <>
+                {p.value?.toLocaleString()}
+                {' '}<span className="text-[11px] font-bold text-slate-400">{p.data.outbUomCd}</span>
+            </>
+        ),
+    },
 ];
 
 export default function InboundOrderList() {
@@ -115,6 +150,9 @@ export default function InboundOrderList() {
     const gridRef = useRef(null);
     const navigate = useNavigate();
     const [odrDvsnNmByCd, setOdrDvsnNmByCd] = useState({});
+    // 벤더 검색은 자유 입력 대신 등록 화면과 같은 팝업(VendorPickerModal)에서 고른다 —
+    // 서버 검색 파라미터가 vndrNm(contains)이라 값은 id가 아니라 이름 그대로 보낸다.
+    const [vendorPickerOpen, setVendorPickerOpen] = useState(false);
 
     useEffect(() => {
         let ignore = false;
@@ -253,24 +291,6 @@ export default function InboundOrderList() {
                         className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
                     />
                 </SearchItem>
-                <SearchItem label="벤더">
-                    <input
-                        type="text"
-                        value={cond.vndrNm}
-                        onChange={(e) => setCond(prev => ({ ...prev, vndrNm: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="서울식품"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
-                    />
-                </SearchItem>
-                <SearchItem label="주문상태">
-                    <DropdownSelect
-                        value={cond.status}
-                        onChange={(v) => setCond(prev => ({ ...prev, status: v }))}
-                        options={OMS_IB_STATUS_OPTIONS}
-                        placeholder="전체"
-                    />
-                </SearchItem>
                 <SearchItem label="입고예정일" wide>
                     <div className="flex items-center gap-2">
                         <input
@@ -287,6 +307,32 @@ export default function InboundOrderList() {
                             className="flex-1 min-w-0 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
                         />
                     </div>
+                </SearchItem>
+                <SearchItem label="벤더">
+                    <button
+                        type="button"
+                        onClick={() => setVendorPickerOpen(true)}
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-left flex items-center justify-between gap-2 hover:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400">
+                        <span className={`truncate ${cond.vndrNm ? 'text-slate-700' : 'text-slate-400'}`}>
+                            {cond.vndrNm || '전체'}
+                        </span>
+                        {cond.vndrNm
+                            ? <X
+                                size={13}
+                                title="벤더 조건 지우기"
+                                className="shrink-0 text-slate-400 hover:text-slate-600"
+                                onClick={(e) => { e.stopPropagation(); setCond(prev => ({ ...prev, vndrNm: '' })); }}
+                            />
+                            : <Search size={13} className="shrink-0 text-slate-400" />}
+                    </button>
+                </SearchItem>
+                <SearchItem label="주문상태">
+                    <DropdownSelect
+                        value={cond.status}
+                        onChange={(v) => setCond(prev => ({ ...prev, status: v }))}
+                        options={OMS_IB_STATUS_OPTIONS}
+                        placeholder="전체"
+                    />
                 </SearchItem>
             </SearchBar>
 
@@ -356,8 +402,9 @@ export default function InboundOrderList() {
                     <div className="bg-white rounded-2xl shadow-xl p-6 w-[420px] flex flex-col gap-4">
                         <h3 className="text-lg font-bold text-slate-800">주문을 확정할까요?</h3>
                         <p className="text-sm text-slate-500">
-                            {confirmTarget.omsIbNo} · {confirmTarget.vndrNm} · 라인 {confirmTarget.lineCount}건 ·
-                            {' '}{confirmTarget.totalOrderQty.toLocaleString()}개
+                            {confirmTarget.omsIbNo} · {confirmTarget.vndrNm} · 라인 {confirmTarget.lineCount}건
+                            {confirmTarget.cnvrUomCd &&
+                                ` · 환산 ${confirmTarget.totalCnvrQty.toLocaleString()} ${confirmTarget.cnvrUomCd}`}
                         </p>
                         <p className="text-xs text-slate-600 bg-slate-50 rounded-lg px-3 py-2 leading-relaxed">
                             확정하면 입고예정(ASN)이 생성되어 창고 작업이 시작됩니다.
@@ -388,8 +435,8 @@ export default function InboundOrderList() {
                             {confirmCancelTarget.omsIbNo} · 입고번호 {confirmCancelTarget.ibNo}
                         </p>
                         <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 leading-relaxed">
-                            입고예정이 취소되고 주문은 <b>작성</b> 상태로 돌아갑니다.
-                            내용을 고쳐 다시 확정할 수 있습니다. 취소된 입고예정은 이력으로 남습니다.
+                            입고예정이 <b>삭제</b>되고 주문은 <b>작성</b> 상태로 돌아갑니다.
+                            내용을 고쳐 다시 확정하면 새 입고번호로 입고예정이 다시 생성됩니다.
                         </p>
                         <div className="flex gap-2 justify-end">
                             <button
@@ -433,6 +480,13 @@ export default function InboundOrderList() {
                     </div>
                 </div>
             )}
+
+            {/* 벤더 선택 팝업 — 등록 화면과 같은 컴포넌트를 검색 조건에 재사용 */}
+            <VendorPickerModal
+                open={vendorPickerOpen}
+                onClose={() => setVendorPickerOpen(false)}
+                onSelect={(v) => setCond(prev => ({ ...prev, vndrNm: v.vndrNm }))}
+            />
         </div>
     );
 }
