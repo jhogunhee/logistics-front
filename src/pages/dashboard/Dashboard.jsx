@@ -11,13 +11,12 @@ const todayStr = () => new Date().toISOString().slice(0, 10);
 // ISO 일시("2026-07-16T14:03:21...") → "2026-07-16 14:03"
 const formatDateTime = (v) => (v ? v.replace('T', ' ').slice(0, 16) : '');
 
-const STATUS_ORDER = ['SCHEDULED', 'RECEIVING', 'RECEIVED', 'COMPLETED', 'CANCELLED'];
+const STATUS_ORDER = ['SCHEDULED', 'RECEIVING', 'RECEIVED', 'COMPLETED'];
 const STATUS_BAR_COLOR = {
     SCHEDULED: 'bg-slate-300',
     RECEIVING: 'bg-amber-400',
     RECEIVED: 'bg-sky-400',
     COMPLETED: 'bg-emerald-400',
-    CANCELLED: 'bg-rose-400',
 };
 
 const StatCard = ({ title, value, icon: Icon, hint }) => (
