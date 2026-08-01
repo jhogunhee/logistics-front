@@ -15,6 +15,11 @@ import { TEMP_ZONE_META } from '@/api/prodApi';
 
 // 오늘 날짜 "YYYY-MM-DD" (검색 기본값)
 const todayStr = () => new Date().toISOString().slice(0, 10);
+const daysAheadStr = (n) => {
+    const d = new Date();
+    d.setDate(d.getDate() + n);
+    return d.toISOString().slice(0, 10);
+};
 
 const Badge = ({ meta }) => {
     if (!meta) return null;
@@ -142,7 +147,7 @@ export default function InboundOrderList() {
     const [rowData, setRowData] = useState([]);
     const [lineRows, setLineRows] = useState([]);
     const [selected, setSelected] = useState(null);
-    const [cond, setCond] = useState({ omsIbNo: '', vndrNm: '', status: '', dateFrom: todayStr(), dateTo: todayStr() });
+    const [cond, setCond] = useState({ omsIbNo: '', vndrNm: '', status: '', dateFrom: todayStr(), dateTo: daysAheadStr(7) });
     const [confirmTarget, setConfirmTarget] = useState(null);             // 확정 확인 모달 대상
     const [confirmCancelTarget, setConfirmCancelTarget] = useState(null); // 확정취소 확인 모달 대상
     const [deleteTarget, setDeleteTarget] = useState(null);   // 삭제 확인 모달 대상

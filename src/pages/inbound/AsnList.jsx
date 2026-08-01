@@ -11,6 +11,11 @@ import { TEMP_ZONE_META } from '@/api/prodApi';
 
 // 오늘 날짜 "YYYY-MM-DD" (검색 기본값)
 const todayStr = () => new Date().toISOString().slice(0, 10);
+const daysAheadStr = (n) => {
+    const d = new Date();
+    d.setDate(d.getDate() + n);
+    return d.toISOString().slice(0, 10);
+};
 
 const StatusBadge = ({ value }) => {
     const meta = ASN_STATUS_META[value];
@@ -75,7 +80,7 @@ export default function AsnList() {
     const [rowData, setRowData] = useState([]);
     const [lineRows, setLineRows] = useState([]);
     const [selectedAsn, setSelectedAsn] = useState(null);
-    const [cond, setCond] = useState({ ibNo: '', status: '', dateFrom: todayStr(), dateTo: todayStr() });
+    const [cond, setCond] = useState({ ibNo: '', status: '', dateFrom: todayStr(), dateTo: daysAheadStr(7) });
     const gridRef = useRef(null);
 
     const fetchList = async () => {
