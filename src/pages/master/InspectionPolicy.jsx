@@ -6,7 +6,7 @@ import ConfirmDialog from '@/components/common/ConfirmDialog';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import ProdPickerModal from '@/components/common/ProdPickerModal';
 import ComponentPicker from '@/components/strategy/ComponentPicker';
-import DynamicParamForm from '@/components/strategy/DynamicParamForm';
+import RuleParamForm, { RULE_PARA_DEFAULTS } from '@/components/strategy/RuleParamForm';
 import ExecutionHistory from '@/components/strategy/ExecutionHistory';
 import RevisionHistory from '@/components/strategy/RevisionHistory';
 import SortableList from '@/components/strategy/SortableList';
@@ -79,14 +79,7 @@ export default function InspectionPolicy() {
 
     // ── 정의 편집 ────────────────────────────────────────────
     const addRule = (descriptor) => {
-        // 기본값을 폼에 미리 채운다 (BOOLEAN 'true' → true)
-        const para = {};
-        descriptor.params.forEach(p => {
-            if (p.defaultValue != null) {
-                para[p.key] = p.type === 'BOOLEAN' ? p.defaultValue === 'true' : p.defaultValue;
-            }
-        });
-        setRules(prev => [...prev, { ruleCd: descriptor.code, para }]);
+        setRules(prev => [...prev, { ruleCd: descriptor.code, para: { ...(RULE_PARA_DEFAULTS[descriptor.code] ?? {}) } }]);
     };
 
     const definition = () => ({
@@ -123,7 +116,7 @@ export default function InspectionPolicy() {
             title: '검수 정책 삭제',
             message: `이 정책의 최근 실행 기록이 ${execText} 있습니다.\n`
                 + '정책과 규칙 전부가 삭제되고, 이후 검수는 제약 없이 통과합니다.\n'
-                + '삭제 전 구성은 리비전 이력에 남아 복원할 수 있습니다.',
+                + '삭제 전 구성은 리비전 이력(감사용)에 남지만, 화면에서 복원할 수는 없습니다.',
             confirmText: '삭제',
             danger: true,
         });
@@ -206,7 +199,6 @@ export default function InspectionPolicy() {
                             className="flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-lg text-[12px] font-bold text-slate-500 hover:bg-slate-50">
                         <ScrollText size={13} /> 실행 이력
                     </button>
-                    {/* 리비전은 정책이 삭제된 뒤에도 남는다 — 복원 진입점이므로 항상 노출 */}
                     <button onClick={() => setRevisionOpen(true)}
                             className="flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-lg text-[12px] font-bold text-slate-500 hover:bg-slate-50">
                         <History size={13} /> 리비전 이력
@@ -264,8 +256,8 @@ export default function InspectionPolicy() {
                                     </button>
                                 </div>
                                 <div className="pl-7">
-                                    <DynamicParamForm specs={d?.params ?? []} value={rule.para}
-                                                      onChange={(para) => setRules(prev => prev.map((r, i) => i === idx ? { ...r, para } : r))} />
+                                    <RuleParamForm ruleCd={rule.ruleCd} value={rule.para}
+                                                   onChange={(para) => setRules(prev => prev.map((r, i) => i === idx ? { ...r, para } : r))} />
                                 </div>
                             </div>
                         );
@@ -370,10 +362,9 @@ export default function InspectionPolicy() {
                              disabledCodes={rules.map(r => r.ruleCd)}
                              onSelect={addRule} onClose={() => setPickerOpen(false)} />
             <ProdPickerModal open={prodPickerOpen} onClose={() => setProdPickerOpen(false)} onSelect={addPreviewProd} />
-            <RevisionHistory open={revisionOpen} onClose={() => { setRevisionOpen(false); fetchPolicy(); }}
+            <RevisionHistory open={revisionOpen} onClose={() => setRevisionOpen(false)}
                              listFn={strategyApi.inspectionPolicy.revisions}
-                             getFn={strategyApi.inspectionPolicy.revision}
-                             onRestore={strategyApi.inspectionPolicy.restore} />
+                             getFn={strategyApi.inspectionPolicy.revision} />
             <ExecutionHistory open={execOpen} onClose={() => setExecOpen(false)} stgyTyp="INSP" stgyId={plcyId ?? undefined} />
             <ConfirmDialog ref={confirmRef} />
         </div>

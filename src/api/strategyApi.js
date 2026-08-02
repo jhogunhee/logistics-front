@@ -4,15 +4,15 @@ import api from '@/utils/axios';
 
 export const strategyApi = {
     meta: {
-        /** 검수 규칙 Descriptor 목록. [{ code, name, description, deprecated, params: [ParamSpec] }] */
+        /** 검수 규칙 목록 (백엔드 InspectionRule enum). [{ code, name, description, deprecated }] — 파라미터 폼은 RuleParamForm에 고정 */
         inspectionRules() {
             return api.get('/strategy/meta/inspection-rules');
         },
-        /** 적치 방식 Descriptor 목록 */
+        /** 적치 방식 목록 (백엔드 PutawayMethod enum) */
         putawayMethods() {
             return api.get('/strategy/meta/putaway-methods');
         },
-        /** 조건 필드 목록. domain: 'putaway-target' | 'putaway-loc'. [{ code, label, allowedOps, optionSource }] */
+        /** 조건 필드 목록. domain: 'putaway-target'(단계 조건) | 'putaway-loc'(적치위치 — BIZ_DVSN뿐). [{ code, label, allowedOps, optionSource }] */
         fields(domain) {
             return api.get(`/strategy/meta/fields/${domain}`);
         },
@@ -40,14 +40,12 @@ export const strategyApi = {
         preview(payload) {
             return api.post('/strategy/inspection-policy/preview', payload);
         },
+        /** 리비전 이력 (조회 전용 감사 이력) */
         revisions() {
             return api.get('/strategy/inspection-policy/revisions');
         },
         revision(rvsnNo) {
             return api.get(`/strategy/inspection-policy/revisions/${rvsnNo}`);
-        },
-        restore(rvsnNo) {
-            return api.post(`/strategy/inspection-policy/revisions/${rvsnNo}/restore`);
         },
     },
 
@@ -68,22 +66,16 @@ export const strategyApi = {
         remove(id) {
             return api.delete(`/strategy/putaway-strategies/${id}`);
         },
-        /** 삭제된 전략 목록 (리비전에만 남은 것) — restore(stgyId, lastRvsnNo)로 새 전략으로 복원 */
-        deleted() {
-            return api.get('/strategy/putaway-strategies/deleted');
-        },
         /** 미저장 정의 미리보기. payload: { definition, ibLineId?, lotId?, prodId?, qty } */
         preview(payload) {
             return api.post('/strategy/putaway-strategies/preview', payload);
         },
+        /** 리비전 이력 (조회 전용 감사 이력) */
         revisions(id) {
             return api.get(`/strategy/putaway-strategies/${id}/revisions`);
         },
         revision(id, rvsnNo) {
             return api.get(`/strategy/putaway-strategies/${id}/revisions/${rvsnNo}`);
-        },
-        restore(id, rvsnNo) {
-            return api.post(`/strategy/putaway-strategies/${id}/revisions/${rvsnNo}/restore`);
         },
     },
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArchiveRestore, ArrowLeft, History, Play, Plus, RotateCcw, ScrollText, Settings2, Trash2, X } from 'lucide-react';
+import { ArrowLeft, History, Play, Plus, ScrollText, Settings2, Trash2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import ConfirmDialog from '@/components/common/ConfirmDialog';
@@ -7,11 +7,11 @@ import DropdownSelect from '@/components/common/DropdownSelect';
 import ProdPickerModal from '@/components/common/ProdPickerModal';
 import ComponentPicker from '@/components/strategy/ComponentPicker';
 import ConditionBuilder from '@/components/strategy/ConditionBuilder';
-import DynamicParamForm from '@/components/strategy/DynamicParamForm';
 import ExecutionHistory from '@/components/strategy/ExecutionHistory';
 import RevisionHistory from '@/components/strategy/RevisionHistory';
 import SortableList from '@/components/strategy/SortableList';
-import { strategyApi, OP_LABELS } from '@/api/strategyApi';
+import { useOptions } from '@/components/strategy/useOptions';
+import { strategyApi } from '@/api/strategyApi';
 import { putawayApi } from '@/api/putawayApi';
 
 const SORT_FIELD_OPTIONS = [
@@ -25,21 +25,13 @@ const SORT_DIR_OPTIONS = [
 ];
 
 const emptyDefinition = () => ({
-    stgyNm: '', prty: 0, untSpltYn: false, tgtCond: [], locSrt: [], stages: [],
+    stgyNm: '', odrDvsn: null, untSpltYn: false, locSrt: [], stages: [],
 });
-
-/** 조건 요약 문자열 — 목록의 "적용대상 요약" 컬럼 (이름/조건 불일치 방지의 화면 대응) */
-const condSummary = (conds, fields) => {
-    if (!conds || conds.length === 0) return '(전체 대상)';
-    return conds.map(c => {
-        const label = fields.find(f => f.code === c.fld)?.label ?? c.fld;
-        return `${label} ${OP_LABELS[c.op] ?? c.op} ${(c.vals ?? []).join(',')}`;
-    }).join(' · ');
-};
 
 /**
  * SC-02 적치 전략관리. 목록 → 편집(좌: 정의 / 우: 미리보기) 2단 구성.
- * 적치 추천 시 적용대상이 맞는 전략 중 우선순위가 가장 낮은(앞선) 1개가 선택된다.
+ * 적용대상은 발주구분 선택(전체/정상/긴급 — 유형당 전략 1개)이고, 추천 시
+ * "유형 일치 전략 → 전체 전략 → 수동 폴백" 순으로 선택된다 (우선순위 숫자 없음).
  */
 export default function PutawayStrategy() {
     const [mode, setMode] = useState('list');            // 'list' | 'edit'
@@ -48,17 +40,16 @@ export default function PutawayStrategy() {
     const [def, setDef] = useState(emptyDefinition());
     const [baseline, setBaseline] = useState('');        // 마지막 저장 상태 스냅샷 — dirty 판정 기준
 
-    // 메타 (레지스트리·필드)
+    // 메타 (방식·조건 필드·적용대상 선택지)
     const [methods, setMethods] = useState([]);
-    const [targetFields, setTargetFields] = useState([]);
-    const [locFields, setLocFields] = useState([]);
+    const [targetFields, setTargetFields] = useState([]);   // 단계 조건 필드
+    const odrOptions = useOptions('odrDvsns');              // 적용대상 발주구분 (정상/긴급)
+    const odrLabel = (v) => v == null || v === '' ? '전체' : (odrOptions.find(o => o.value === v)?.label ?? v);
 
     const [pickerOpen, setPickerOpen] = useState(false);
     const [revisionOpen, setRevisionOpen] = useState(false);
     const [execOpen, setExecOpen] = useState(false);          // 편집 중 전략의 실행 이력
     const [execAllOpen, setExecAllOpen] = useState(false);    // 목록 화면의 전체 실행 이력
-    const [deletedOpen, setDeletedOpen] = useState(false);    // 삭제된 전략 복원 모달
-    const [deletedRows, setDeletedRows] = useState([]);
     const confirmRef = useRef(null);
 
     const dirty = mode === 'edit' && JSON.stringify(def) !== baseline;
@@ -76,7 +67,6 @@ export default function PutawayStrategy() {
     useEffect(() => {
         strategyApi.meta.putawayMethods().then(setMethods);
         strategyApi.meta.fields('putaway-target').then(setTargetFields);
-        strategyApi.meta.fields('putaway-loc').then(setLocFields);
         fetchList();
     }, []);
 
@@ -104,8 +94,8 @@ export default function PutawayStrategy() {
         const data = await strategyApi.putawayStrategies.get(id);
         setEditingId(id);
         const loaded = {
-            stgyNm: data.stgyNm, prty: data.prty, untSpltYn: data.untSpltYn,
-            tgtCond: data.tgtCond ?? [], locSrt: data.locSrt ?? [],
+            stgyNm: data.stgyNm, odrDvsn: data.odrDvsn ?? null, untSpltYn: data.untSpltYn,
+            locSrt: data.locSrt ?? [],
             stages: (data.stages ?? []).map(s => ({
                 mthdCd: s.mthdCd, mthdPara: s.mthdPara ?? {}, lineCond: s.lineCond ?? [], locCond: s.locCond ?? [],
             })),
@@ -139,7 +129,7 @@ export default function PutawayStrategy() {
 
     const definition = () => ({
         ...def,
-        prty: Number(def.prty) || 0,
+        odrDvsn: def.odrDvsn || null,   // '' = 전체 → null로 정규화
         stages: def.stages.map((s, i) => ({ ...s, srtSeq: i })),
     });
 
@@ -177,8 +167,8 @@ export default function PutawayStrategy() {
         const ok = await confirmRef.current.confirm({
             title: '적치 전략 삭제',
             message: `"${def.stgyNm}" 전략의 최근 실행 기록이 ${execText} 있습니다.\n`
-                + '삭제하면 추천에서 제외되며, 삭제 전 구성은 리비전 이력에 남아\n'
-                + '목록의 [삭제된 전략]에서 복원할 수 있습니다.',
+                + '삭제하면 추천에서 제외됩니다. 삭제 전 구성은 리비전 이력(감사용)에\n'
+                + '남지만, 화면에서 복원할 수는 없습니다.',
             confirmText: '삭제',
             danger: true,
         });
@@ -191,28 +181,6 @@ export default function PutawayStrategy() {
             fetchList();
         } catch (e) {
             toast.error(e.message || '삭제에 실패했습니다.');
-        }
-    };
-
-    // ── 삭제된 전략 복원 ─────────────────────────────────────
-    const openDeleted = async () => {
-        try {
-            setDeletedRows(await strategyApi.putawayStrategies.deleted());
-            setDeletedOpen(true);
-        } catch (e) {
-            toast.error(e.message || '삭제된 전략 조회에 실패했습니다.');
-        }
-    };
-
-    const restoreDeleted = async (row) => {
-        try {
-            const restored = await strategyApi.putawayStrategies.restore(row.stgyId, row.lastRvsnNo);
-            toast.success(`"${row.stgyNm}" 전략을 새 전략으로 복원했습니다.`);
-            setDeletedOpen(false);
-            fetchList();
-            openEdit(restored.ptawyStgyId);
-        } catch (e) {
-            toast.error(e.message || '복원에 실패했습니다.');
         }
     };
 
@@ -258,15 +226,11 @@ export default function PutawayStrategy() {
                 <div className="flex items-center gap-2">
                     <Settings2 size={18} className="text-indigo-600" />
                     <h2 className="text-lg font-bold text-slate-800">적치 전략관리</h2>
-                    <span className="text-xs text-slate-400 mt-0.5">적치 추천 시 적용대상이 맞는 전략 중 우선순위가 가장 앞선 1개가 선택됩니다</span>
+                    <span className="text-xs text-slate-400 mt-0.5">입고의 발주구분과 일치하는 전략 → 없으면 전체 전략 → 없으면 수동 선택 (유형당 전략 1개)</span>
                     <div className="ml-auto flex items-center gap-2">
                         <button onClick={() => setExecAllOpen(true)}
                                 className="flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-lg text-[12px] font-bold text-slate-500 hover:bg-slate-50">
                             <ScrollText size={13} /> 실행 이력
-                        </button>
-                        <button onClick={openDeleted}
-                                className="flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-lg text-[12px] font-bold text-slate-500 hover:bg-slate-50">
-                            <ArchiveRestore size={13} /> 삭제된 전략
                         </button>
                         <button onClick={openNew}
                                 className="flex items-center gap-1 px-4 py-1.5 bg-indigo-600 rounded-lg text-[12px] font-bold text-white hover:bg-indigo-700">
@@ -279,25 +243,27 @@ export default function PutawayStrategy() {
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="bg-slate-50 text-xs text-slate-500">
-                                <th className="px-4 py-2.5 text-left w-24 font-bold">우선순위</th>
+                                <th className="px-4 py-2.5 text-left w-28 font-bold">적용대상</th>
                                 <th className="px-4 py-2.5 text-left w-56 font-bold">전략명</th>
-                                <th className="px-4 py-2.5 text-left font-bold">적용대상 요약</th>
                                 <th className="px-4 py-2.5 text-right w-20 font-bold">단계</th>
                                 <th className="px-4 py-2.5 text-left w-40 font-bold">수정일시</th>
                             </tr>
                         </thead>
                         <tbody>
                             {rows.length === 0 && (
-                                <tr><td colSpan={5} className="px-4 py-10 text-center text-slate-400">
+                                <tr><td colSpan={4} className="px-4 py-10 text-center text-slate-400">
                                     등록된 적치 전략이 없습니다 — 전략이 없으면 작업자가 수동으로 로케이션을 고릅니다.
                                 </td></tr>
                             )}
                             {rows.map(r => (
                                 <tr key={r.ptawyStgyId} onClick={() => openEdit(r.ptawyStgyId)}
                                     className="border-t border-slate-100 hover:bg-indigo-50/40 cursor-pointer">
-                                    <td className="px-4 py-2.5 font-bold text-slate-600">{r.prty}</td>
+                                    <td className="px-4 py-2.5">
+                                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                                            r.odrDvsn == null ? 'bg-slate-100 text-slate-500' : 'bg-amber-50 text-amber-700'
+                                        }`}>{odrLabel(r.odrDvsn)}</span>
+                                    </td>
                                     <td className="px-4 py-2.5 font-bold text-slate-700">{r.stgyNm}</td>
-                                    <td className="px-4 py-2.5 text-xs text-slate-500">{condSummary(r.tgtCond, targetFields)}</td>
                                     <td className="px-4 py-2.5 text-right text-slate-600">{r.stageCount}</td>
                                     <td className="px-4 py-2.5 text-xs text-slate-400">{r.updatedAt?.replace('T', ' ').slice(0, 16)}</td>
                                 </tr>
@@ -307,42 +273,6 @@ export default function PutawayStrategy() {
                 </div>
 
                 <ExecutionHistory open={execAllOpen} onClose={() => setExecAllOpen(false)} stgyTyp="PTAWY" />
-
-                {/* 삭제된 전략 복원 모달 — stgy_rvsn에만 남은 전략을 새 전략으로 재생 (D4의 안전망) */}
-                {deletedOpen && (
-                    <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 bg-black/20" onClick={() => setDeletedOpen(false)}>
-                        <div className="bg-white rounded-2xl shadow-xl p-6 w-[560px] flex flex-col gap-4"
-                             onClick={(e) => e.stopPropagation()}>
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <ArchiveRestore size={16} className="text-indigo-600" />
-                                    <h3 className="text-lg font-bold text-slate-800">삭제된 전략</h3>
-                                    <span className="text-xs text-slate-400">복원하면 마지막 리비전으로 새 전략이 만들어집니다</span>
-                                </div>
-                                <button onClick={() => setDeletedOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
-                            </div>
-                            <div className="flex flex-col gap-2 max-h-80 overflow-y-auto">
-                                {deletedRows.length === 0 && (
-                                    <p className="text-sm text-slate-400 text-center py-6">삭제된 전략이 없습니다.</p>
-                                )}
-                                {deletedRows.map(r => (
-                                    <div key={r.stgyId} className="flex items-center gap-3 px-4 py-2.5 border border-slate-200 rounded-xl">
-                                        <div className="flex flex-col min-w-0">
-                                            <span className="text-sm font-bold text-slate-700">{r.stgyNm}</span>
-                                            <span className="text-[11px] text-slate-400">
-                                                마지막 리비전 {r.lastRvsnNo} · {r.lastSavedAt?.replace('T', ' ').slice(0, 16)}
-                                            </span>
-                                        </div>
-                                        <button onClick={() => restoreDeleted(r)}
-                                                className="ml-auto flex items-center gap-1 px-3 py-1.5 bg-indigo-600 rounded-lg text-[12px] font-bold text-white hover:bg-indigo-700 shrink-0">
-                                            <RotateCcw size={12} /> 복원
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                )}
                 <ConfirmDialog ref={confirmRef} />
             </div>
         );
@@ -357,12 +287,14 @@ export default function PutawayStrategy() {
                     <ArrowLeft size={16} />
                 </button>
                 <input type="text" value={def.stgyNm} onChange={(e) => setDef(prev => ({ ...prev, stgyNm: e.target.value }))}
-                       placeholder="전략명 (예: 상온 기본)" title="표시용 이름 — 실행에 사용되지 않습니다"
+                       placeholder="전략명 (예: 기본 적치)" title="표시용 이름 — 실행에 사용되지 않습니다"
                        className="w-64 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400" />
-                <label className="text-xs font-bold text-slate-500 ml-2">우선순위</label>
-                <input type="number" min="0" value={def.prty} title="낮을수록 먼저 선택됩니다"
-                       onChange={(e) => setDef(prev => ({ ...prev, prty: e.target.value }))}
-                       className="w-20 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-right focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400" />
+                <label className="text-xs font-bold text-slate-500 ml-2">적용대상</label>
+                <div className="w-32" title="이 발주구분의 입고에만 적용됩니다 — 유형당 전략 1개">
+                    <DropdownSelect value={def.odrDvsn ?? ''}
+                                    onChange={(v) => setDef(prev => ({ ...prev, odrDvsn: v || null }))}
+                                    options={[{ value: '', label: '전체' }, ...odrOptions.map(o => ({ value: o.value, label: o.label }))]} />
+                </div>
                 <div className="ml-auto flex items-center gap-2">
                     {editingId != null && (
                         <>
@@ -390,14 +322,6 @@ export default function PutawayStrategy() {
             <div className="flex-1 min-h-0 flex gap-4">
                 {/* 좌: 정의 편집 */}
                 <div className="flex-1 min-w-0 flex flex-col gap-4 overflow-y-auto pr-1">
-                    {/* 적용대상 */}
-                    <div className="border border-slate-200 rounded-xl bg-white p-4 flex flex-col gap-3">
-                        <span className="text-sm font-bold text-slate-700">적용대상</span>
-                        <ConditionBuilder fields={targetFields} value={def.tgtCond}
-                                          onChange={(tgtCond) => setDef(prev => ({ ...prev, tgtCond }))}
-                                          emptyHint="조건이 없으면 모든 입고에 적용됩니다." />
-                    </div>
-
                     {/* 단계 */}
                     <div className="border border-slate-200 rounded-xl bg-white p-4 flex flex-col gap-3">
                         <div className="flex items-center justify-between">
@@ -432,21 +356,14 @@ export default function PutawayStrategy() {
                                             <Trash2 size={15} />
                                         </button>
                                     </div>
-                                    {(m?.params?.length ?? 0) > 0 && (
-                                        <div className="pl-7">
-                                            <DynamicParamForm specs={m.params} value={stage.mthdPara}
-                                                              onChange={(mthdPara) => updateStage(idx, { mthdPara })} />
-                                        </div>
-                                    )}
                                     <div className="pl-7 flex flex-col gap-2">
-                                        <span className="text-[11px] font-bold text-slate-500">이 단계를 시도할 라인 조건</span>
+                                        <span className="text-[11px] font-bold text-slate-500">조건 — 이 조건일 때만 이 단계 적용</span>
                                         <ConditionBuilder fields={targetFields} value={stage.lineCond}
                                                           onChange={(lineCond) => updateStage(idx, { lineCond })}
                                                           emptyHint="조건이 없으면 항상 시도합니다." />
-                                        <span className="text-[11px] font-bold text-slate-500 mt-1">후보 로케이션 범위</span>
-                                        <ConditionBuilder fields={locFields} value={stage.locCond}
-                                                          onChange={(locCond) => updateStage(idx, { locCond })}
-                                                          emptyHint="조건이 없으면 범위 제한이 없습니다." />
+                                        <span className="text-[11px] font-bold text-slate-500 mt-1">적치위치 (존 업무유형) — 여기에 둔다</span>
+                                        <LocAssignPicker value={stage.locCond}
+                                                         onChange={(locCond) => updateStage(idx, { locCond })} />
                                     </div>
                                 </div>
                             );
@@ -537,18 +454,6 @@ export default function PutawayStrategy() {
                     {/* 결과 */}
                     {previewResult && (
                         <div className="flex flex-col gap-2.5 mt-1">
-                            {/* 실제 선택 전략 경고 */}
-                            {previewResult.actualSelectedStgyId != null && previewResult.actualSelectedStgyId !== editingId && (
-                                <div className="px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-700 font-bold">
-                                    ⚠ 이 대상에는 실제로 "{previewResult.actualSelectedStgyNm}" 전략(우선 매칭)이 선택됩니다 — 아래는 편집 중 정의로 산정한 결과입니다.
-                                </div>
-                            )}
-                            {previewResult.actualSelectedStgyId == null && (
-                                <div className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-[11px] text-slate-500">
-                                    현재 저장된 전략 중 이 대상에 매칭되는 것이 없습니다 (저장 전이거나 적용대상 불일치).
-                                </div>
-                            )}
-
                             <div className="flex items-center gap-3 text-sm">
                                 <span className="font-bold text-slate-700">배정 {previewResult.asgnQty} / 요청 {previewResult.reqQty}</span>
                                 {previewResult.remainQty > 0 && (
@@ -597,14 +502,48 @@ export default function PutawayStrategy() {
                              onSelect={(prod) => setPreviewTarget(prev => ({ ...prev, prod }))} />
             {editingId != null && (
                 <>
-                    <RevisionHistory open={revisionOpen} onClose={() => { setRevisionOpen(false); openEdit(editingId); }}
+                    <RevisionHistory open={revisionOpen} onClose={() => setRevisionOpen(false)}
                                      listFn={() => strategyApi.putawayStrategies.revisions(editingId)}
-                                     getFn={(no) => strategyApi.putawayStrategies.revision(editingId, no)}
-                                     onRestore={(no) => strategyApi.putawayStrategies.restore(editingId, no)} />
+                                     getFn={(no) => strategyApi.putawayStrategies.revision(editingId, no)} />
                     <ExecutionHistory open={execOpen} onClose={() => setExecOpen(false)} stgyTyp="PTAWY" stgyId={editingId} />
                 </>
             )}
             <ConfirmDialog ref={confirmRef} />
+        </div>
+    );
+}
+
+/**
+ * 적치위치 지정 — 존 업무유형 멀티선택. 조건이 아니라 적용기준값이라 연산자가 없다.
+ * 저장 형태는 loc_cond JSON에 {fld: BIZ_DVSN, op: IN, vals} 1건 (서버 검증과 동일 규약).
+ */
+function LocAssignPicker({ value = [], onChange }) {
+    const options = useOptions('bizDvsns');
+    const vals = value[0]?.vals ?? [];
+    const set = (next) => onChange(next.length > 0 ? [{ fld: 'BIZ_DVSN', op: 'IN', vals: next }] : []);
+    const remaining = options.filter(o => !vals.includes(o.value));
+
+    return (
+        <div className="flex items-center gap-1.5 flex-wrap">
+            {vals.map(v => (
+                <span key={v} className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold">
+                    {options.find(o => o.value === v)?.label ?? v}
+                    <button onClick={() => set(vals.filter(x => x !== v))}
+                            className="text-indigo-300 hover:text-indigo-600" title="지정 해제">
+                        <X size={12} />
+                    </button>
+                </span>
+            ))}
+            {vals.length === 0 && (
+                <span className="text-xs text-slate-400">지정 없음 — 전체 보관 로케이션에 적치합니다.</span>
+            )}
+            {remaining.length > 0 && (
+                <div className="w-36">
+                    <DropdownSelect value="" placeholder="업무유형 추가"
+                                    onChange={(v) => v && set([...vals, v])}
+                                    options={remaining.map(o => ({ value: o.value, label: o.label }))} />
+                </div>
+            )}
         </div>
     );
 }

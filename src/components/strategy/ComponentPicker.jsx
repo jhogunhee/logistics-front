@@ -1,13 +1,13 @@
 import { X } from 'lucide-react';
 
 /**
- * 레지스트리 구성요소 선택 모달. 목록은 메타 API Descriptor에서만 온다 (P1) —
+ * 전략 구성요소(검수 규칙·적치 방식) 선택 모달. 목록은 메타 API(백엔드 enum)에서만 온다 (P1) —
  * deprecated는 신규 선택 목록에서 숨긴다.
  *
  * props:
  *   open           표시 여부
  *   title          모달 제목 (예: "규칙 추가")
- *   descriptors    [{ code, name, description, deprecated, params }]
+ *   descriptors    [{ code, name, description, deprecated }]
  *   disabledCodes  선택 불가 code 목록 (이미 등록된 규칙 등)
  *   onSelect       (descriptor) => void
  *   onClose        () => void

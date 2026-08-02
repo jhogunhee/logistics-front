@@ -1,19 +1,18 @@
 import { useEffect, useState } from 'react';
-import { History, RotateCcw, X } from 'lucide-react';
+import { History, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 /**
- * 리비전 이력 모달 — 목록 + 스냅샷 보기 + 복원.
- * 복원은 스냅샷을 "새 저장으로 재생"한다 — 리비전은 앞으로만 증가한다 (되감기가 아님).
+ * 리비전 이력 모달 — 목록 + 스냅샷 보기 (조회 전용 감사 이력).
+ * 예전 정의로 되돌리려면 스냅샷 JSON을 보고 편집 화면에서 다시 저장한다.
  *
  * props:
  *   open       표시 여부
  *   onClose    () => void
  *   listFn     () => Promise<[{ rvsnNo, savedBy, savedAt }]>
  *   getFn      (rvsnNo) => Promise<snapshot object>
- *   onRestore  (rvsnNo) => Promise — 성공 시 모달을 닫고 호출 측이 재조회한다
  */
-export default function RevisionHistory({ open, onClose, listFn, getFn, onRestore }) {
+export default function RevisionHistory({ open, onClose, listFn, getFn }) {
     const [revisions, setRevisions] = useState([]);
     const [selected, setSelected] = useState(null);   // rvsnNo
     const [snapshot, setSnapshot] = useState(null);
@@ -40,16 +39,6 @@ export default function RevisionHistory({ open, onClose, listFn, getFn, onRestor
             setSnapshot(await getFn(rvsnNo));
         } catch (e) {
             toast.error(e.message || '스냅샷 조회에 실패했습니다.');
-        }
-    };
-
-    const restore = async () => {
-        try {
-            await onRestore(selected);
-            toast.success(`리비전 ${selected}(으)로 복원했습니다 (새 리비전으로 저장됨).`);
-            onClose();
-        } catch (e) {
-            toast.error(e.message || '복원에 실패했습니다.');
         }
     };
 
@@ -90,15 +79,9 @@ export default function RevisionHistory({ open, onClose, listFn, getFn, onRestor
                         {snapshot == null ? (
                             <p className="text-sm text-slate-400 text-center py-10">리비전을 선택하면 그때의 정의를 보여줍니다.</p>
                         ) : (
-                            <>
-                                <pre className="flex-1 bg-slate-50 border border-slate-200 rounded-xl p-3 text-[11px] leading-relaxed overflow-auto max-h-80">
-                                    {JSON.stringify(snapshot, null, 2)}
-                                </pre>
-                                <button onClick={restore}
-                                        className="self-end flex items-center gap-1 px-4 py-2 bg-indigo-600 rounded-lg text-sm font-bold text-white hover:bg-indigo-700">
-                                    <RotateCcw size={14} /> 이 리비전으로 복원
-                                </button>
-                            </>
+                            <pre className="flex-1 bg-slate-50 border border-slate-200 rounded-xl p-3 text-[11px] leading-relaxed overflow-auto max-h-80">
+                                {JSON.stringify(snapshot, null, 2)}
+                            </pre>
                         )}
                     </div>
                 </div>
