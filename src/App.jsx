@@ -21,6 +21,7 @@ import Receiving from "@/pages/inbound/Receiving.jsx";
 import Putaway from "@/pages/inbound/Putaway.jsx";
 import StockStatus from "@/pages/stock/StockStatus.jsx";
 import InvHistory from "@/pages/stock/InvHistory.jsx";
+import StockMove from "@/pages/stock/StockMove.jsx";
 
 export default function App() {
     return (
@@ -55,7 +56,8 @@ export default function App() {
                         <Route path="/stock/history" element={<InvHistory/>}/>
                         <Route path="/stock/attribute" element={<Placeholder title="재고 속성변경"/>}/>
                         <Route path="/stock/hold" element={<Placeholder title="재고 보류"/>}/>
-                        <Route path="/stock/move" element={<Placeholder title="재고 이동"/>}/>
+                        {/* 재고 이동 2단계(지시=예약 → 확정). 메뉴는 하나 — 화면 안 탭으로 등록/관리를 오간다 */}
+                        <Route path="/stock/move" element={<StockMove/>}/>
                         <Route path="/stock/count" element={<Placeholder title="재고조사"/>}/>
 
                         {/* 출고: 웨이브 편성 → 할당 → 피킹지시 → 피킹 → 출고확정 */}

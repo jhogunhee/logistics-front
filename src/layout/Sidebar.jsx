@@ -72,7 +72,7 @@ const MENU = [
             { to: "/stock/history", label: "재고 이력 조회", icon: History, keywords: "inventory history 원장 입출고" },
             { to: "/stock/attribute", label: "재고 속성변경", icon: Tags, keywords: "lot 유통기한 변경" },
             { to: "/stock/hold", label: "재고 보류", icon: PauseCircle, keywords: "hold 출고 금지" },
-            { to: "/stock/move", label: "재고 이동", icon: ArrowLeftRight, keywords: "move 로케이션 이동" },
+            { to: "/stock/move", label: "재고 이동", icon: ArrowLeftRight, keywords: "move 로케이션 이동 지시 예약 등록 확정 취소" },
             { to: "/stock/count", label: "재고조사", icon: Calculator, keywords: "실사 count 조정 adjust" },
         ],
     },
