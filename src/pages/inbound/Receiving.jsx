@@ -63,6 +63,7 @@ export default function Receiving() {
     const [selectedAsn, setSelectedAsn] = useState(null);
     const [cond, setCond] = useState({ ibNo: '', dateFrom: todayStr(), dateTo: todayStr() });
     const [receiveConfirm, setReceiveConfirm] = useState(null); // 검수 저장 확인 모달 대상 라인들
+    const [violations, setViolations] = useState([]); // 검수 제약 위반 목록 — 저장 거부 응답의 violations
     const [receiptsModal, setReceiptsModal] = useState(null); // { line, receipts } — 검수 이력 모달 대상
     const [cancelReceiptTarget, setCancelReceiptTarget] = useState(null); // 검수 취소 확인 대상 (receipt 1건)
     const gridRef = useRef(null);
@@ -108,6 +109,7 @@ export default function Receiving() {
             return;
         }
         setSelectedAsn(node.data);
+        setViolations([]);
         const lines = await asnApi.lines(node.data.ibOrderId);
         // 입고일자는 전 라인, 제조일자는 유통기한 관리 상품만 입력
         // (둘 다 기본값 오늘 — 제조일자를 과거로 바꾸면 임박 Lot 시나리오 재현 가능)
@@ -212,6 +214,8 @@ export default function Receiving() {
 
     const doReceive = async (targets) => {
         try {
+            setViolations([]);
+            setLineRows(prev => prev.map(r => ({ ...r, _violationMsg: null })));
             await asnApi.receive(selectedAsn.ibOrderId, {
                 lines: targets.map(r => ({
                     ibLineId: r.ibLineId,
@@ -223,6 +227,17 @@ export default function Receiving() {
             toast.success(`${targets.length}개 라인 검수를 저장했습니다.`);
             fetchList(true);
         } catch (e) {
+            // 검수 제약 위반 — 서버가 라인·규칙 단위 위반 목록을 함께 준다 (저장은 전체 거부됨).
+            // 배너에 더해 위반 라인 행을 붉게 표시한다 (화면설계서 §5 인라인 표시)
+            const v = e.response?.data?.violations;
+            if (v?.length) {
+                setViolations(v);
+                setLineRows(prev => prev.map(r => {
+                    const msgs = v.filter(x => x.ibLineId === r.ibLineId)
+                        .map(x => `${x.ruleName}: ${x.message}`);
+                    return { ...r, _violationMsg: msgs.length > 0 ? msgs.join('\n') : null };
+                }));
+            }
             toast.error(e.message || '검수 저장에 실패했습니다.');
         }
     };
@@ -328,6 +343,19 @@ export default function Receiving() {
                             <ClipboardCheck size={13} /> 검수 저장
                         </button>
                     </div>
+                    {/* 검수 제약 위반 배너 — 저장이 전체 거부됐음을 라인·규칙 단위로 보여준다 */}
+                    {violations.length > 0 && (
+                        <div className="border border-rose-200 bg-rose-50 rounded-xl px-4 py-3 flex flex-col gap-1.5 shrink-0">
+                            <span className="text-xs font-bold text-rose-700">
+                                검수 제약 위반 {violations.length}건 — 저장이 거부되었습니다 (전체 롤백)
+                            </span>
+                            {violations.map((v, i) => (
+                                <div key={i} className="text-[11px] text-rose-600 leading-relaxed">
+                                    <b>{v.prodCd}</b> · {v.ruleName} — {v.message}
+                                </div>
+                            ))}
+                        </div>
+                    )}
                     <div className="flex-1 min-h-0">
                         <AgGridReact
                             ref={lineGridRef}
@@ -335,6 +363,7 @@ export default function Receiving() {
                             columnDefs={lineColumnDefs}
                             rowHeight={34}
                             stopEditingWhenCellsLoseFocus={true}
+                            getRowStyle={(p) => p.data._violationMsg ? { background: '#fff1f2' } : undefined}
                         />
                     </div>
                 </Panel>

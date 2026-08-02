@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
-import { ArrowRight, PackageOpen } from 'lucide-react';
+import { ArrowRight, PackageOpen, RefreshCw, Wand2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import SearchBar, { SearchItem } from '@/components/common/SearchBar';
@@ -51,6 +51,8 @@ export default function Putaway() {
     const [qty, setQty] = useState('');
     const [targetLocId, setTargetLocId] = useState('');
     const [confirmTarget, setConfirmTarget] = useState(null); // 적치 실행 확인 모달 대상
+    const [recommend, setRecommend] = useState(null); // 전략 추천 결과 — strategySelected=false면 수동 선택만 노출
+    const [confirmRecommend, setConfirmRecommend] = useState(null); // 추천대로 실행 확인 모달 대상
     const gridRef = useRef(null);
     const pendingSelectRef = useRef(null); // 재조회 후 같은 배치(라인+Lot)를 다시 선택하기 위한 키 (부분 적치 시 유지)
 
@@ -62,6 +64,7 @@ export default function Putaway() {
             setCandidateLocs([]);
             setQty('');
             setTargetLocId('');
+            setRecommend(null);
         }
         const data = await putawayApi.lines(cond);
         setRowData(data);
@@ -80,7 +83,7 @@ export default function Putaway() {
         return () => { ignore = true; };
     }, []);
 
-    // 배치 선택 시 대상 로케이션 후보 조회 + 수량 기본값(전량)
+    // 배치 선택 시 전략 추천 + 대상 로케이션 후보 조회 + 수량 기본값(전량)
     const onSelectionChanged = async (e) => {
         const node = e.api.getSelectedNodes()[0];
         if (!node) {
@@ -88,13 +91,43 @@ export default function Putaway() {
             setCandidateLocs([]);
             setQty('');
             setTargetLocId('');
+            setRecommend(null);
             return;
         }
         setSelected(node.data);
         setQty(String(node.data.pendingQty));
+        fetchRecommend(node.data, node.data.pendingQty);
         const locs = await putawayApi.candidateLocs(node.data.ibLineId);
         setCandidateLocs(locs);
         setTargetLocId(locs.length > 0 ? locs[0].locId : '');
+    };
+
+    // 전략 추천. 전략 미설정(strategySelected=false)이면 블록을 숨기고 수동 선택만 남긴다
+    const fetchRecommend = async (batch, recommendQty) => {
+        setRecommend(null);
+        const n = Number(recommendQty);
+        if (!(n > 0)) return;
+        try {
+            setRecommend(await putawayApi.recommend(batch.ibLineId, { lotId: batch.lotId, qty: n }));
+        } catch (e) {
+            toast.error(e.message || '적치 추천에 실패했습니다.');
+        }
+    };
+
+    // 추천대로 실행 — 추천 (로케이션, 수량) 행별로 기존 적치 API를 순차 호출
+    const doRecommendExecute = async (rec) => {
+        let done = 0;
+        try {
+            for (const a of rec.assignments) {
+                await putawayApi.putaway(selected.ibLineId, { lotId: selected.lotId, qty: a.qty, targetLocId: a.locId });
+                done += 1;
+            }
+            toast.success(`추천대로 ${rec.asgnQty}개를 ${rec.assignments.length}개 로케이션에 적치했습니다.`);
+        } catch (e) {
+            // 추천과 실행 사이 재고·용량이 변했을 수 있다 — 실패 지점부터 중단하고 재조회
+            toast.error(`${done}건 실행 후 실패: ${e.message || '적치에 실패했습니다.'}`);
+        }
+        fetchList(rec.remainQty > 0 || done < rec.assignments.length);
     };
 
     const handlePutawayClick = () => {
@@ -217,6 +250,43 @@ export default function Putaway() {
                                 <TempZoneBadge value={selected.tmpZon} />
                                 <span className="text-xs text-slate-400">{selected.ibNo} · {selected.lotNo} · 미적치 {selected.pendingQty}개</span>
                             </div>
+
+                            {/* 전략 추천 — 전략 미설정이면 이 블록이 없고 아래 수동 선택만 남는다 */}
+                            {recommend?.strategySelected && (
+                                <div className="border border-indigo-200 bg-indigo-50/50 rounded-xl px-4 py-3 flex flex-col gap-2">
+                                    <div className="flex items-center gap-2">
+                                        <Wand2 size={14} className="text-indigo-600" />
+                                        <span className="text-xs font-bold text-indigo-700">
+                                            전략 추천 — {recommend.stgyNm} · 배정 {recommend.asgnQty} / 요청 {recommend.reqQty}
+                                        </span>
+                                        {recommend.remainQty > 0 && (
+                                            <span className="text-[11px] font-bold text-rose-600">미배정 {recommend.remainQty} (수동 처리 필요)</span>
+                                        )}
+                                        <button onClick={() => fetchRecommend(selected, qty)}
+                                                className="ml-auto flex items-center gap-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-800"
+                                                title="입력한 수량으로 추천 다시 계산">
+                                            <RefreshCw size={12} /> 새로고침
+                                        </button>
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        {recommend.assignments.map((a, i) => (
+                                            <span key={i} className="px-2.5 py-1 bg-white border border-indigo-200 rounded-lg text-[12px]">
+                                                <span className="font-mono text-slate-600">{a.locCd}</span>
+                                                <b className="text-indigo-700 ml-1.5">{a.qty}</b>
+                                            </span>
+                                        ))}
+                                        {recommend.assignments.length > 0 && (
+                                            <button onClick={() => setConfirmRecommend(recommend)}
+                                                    className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 rounded-lg text-[12px] font-bold text-white hover:bg-indigo-700">
+                                                <ArrowRight size={12} /> 추천대로 실행
+                                            </button>
+                                        )}
+                                        {recommend.assignments.length === 0 && (
+                                            <span className="text-[11px] text-slate-400">배정 가능한 로케이션이 없습니다 — 수동으로 선택하세요.</span>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                             <div className="flex items-end gap-3">
                                 <div className="flex flex-col gap-1 w-32 shrink-0">
                                     <label className="text-xs font-bold text-slate-500">적치수량</label>
@@ -231,7 +301,7 @@ export default function Putaway() {
                                 </div>
                                 <div className="flex flex-col gap-1 flex-1 min-w-0">
                                     <label className="text-xs font-bold text-slate-500">
-                                        대상 로케이션 <span className="text-slate-400 font-normal">(추천 순 — 온도대 일치 보관존)</span>
+                                        대상 로케이션 <span className="text-slate-400 font-normal">(수동 선택 — 온도대 일치 보관존)</span>
                                     </label>
                                     <DropdownSelect
                                         value={targetLocId}
@@ -250,6 +320,40 @@ export default function Putaway() {
                     )}
                 </div>
             </div>
+
+            {/* 추천대로 실행 확인 모달 */}
+            {confirmRecommend && (
+                <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 bg-black/20">
+                    <div className="bg-white rounded-2xl shadow-xl p-6 w-[420px] flex flex-col gap-4">
+                        <h3 className="text-lg font-bold text-slate-800">추천대로 적치하시겠습니까?</h3>
+                        <p className="text-sm text-slate-500">
+                            {selected?.prodCd} {selected?.prodNm} · 총 <b className="text-emerald-600">{confirmRecommend.asgnQty}개</b>
+                        </p>
+                        <div className="flex flex-col gap-1">
+                            {confirmRecommend.assignments.map((a, i) => (
+                                <span key={i} className="text-xs text-slate-500">
+                                    RCV-STAGE → <span className="font-mono">{a.locCd}</span> <b>{a.qty}개</b>
+                                </span>
+                            ))}
+                        </div>
+                        {confirmRecommend.remainQty > 0 && (
+                            <p className="text-xs text-rose-500">미배정 {confirmRecommend.remainQty}개는 남습니다 — 실행 후 수동으로 처리하세요.</p>
+                        )}
+                        <div className="flex gap-2 justify-end">
+                            <button
+                                onClick={() => setConfirmRecommend(null)}
+                                className="px-4 py-2 text-sm font-bold rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50">
+                                취소
+                            </button>
+                            <button
+                                onClick={() => { doRecommendExecute(confirmRecommend); setConfirmRecommend(null); }}
+                                className="px-4 py-2 text-sm font-bold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
+                                적치
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* 적치 확인 모달 */}
             {confirmTarget && (

@@ -17,4 +17,13 @@ export const putawayApi = {
     putaway(ibLineId, payload) {
         return api.post(`/inbound/putaway/lines/${ibLineId}`, payload);
     },
+
+    /**
+     * 적치 전략 추천. payload: { lotId, qty }.
+     * 응답 { strategySelected, assignments: [{ locId, locCd, qty }], remainQty, trace … } —
+     * strategySelected=false면 전략 미설정이므로 수동 후보(candidateLocs)로 폴백한다.
+     */
+    recommend(ibLineId, payload) {
+        return api.post(`/inbound/putaway/lines/${ibLineId}/recommend`, payload);
+    },
 };
