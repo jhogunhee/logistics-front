@@ -12,9 +12,9 @@ import LocMaster from "@/pages/master/LocMaster.jsx";
 import VendorMaster from "@/pages/master/VendorMaster.jsx";
 import NbrRuleMaster from "@/pages/master/NbrRuleMaster.jsx";
 import CodeMaster from "@/pages/master/CodeMaster.jsx";
-import InspectionPolicy from "@/pages/master/InspectionPolicy.jsx";
-import PutawayStrategy from "@/pages/master/PutawayStrategy.jsx";
-import WaveStrategy from "@/pages/master/WaveStrategy.jsx";
+import InspectionPolicy from "@/pages/strategy/InspectionPolicy.jsx";
+import PutawayStrategy from "@/pages/strategy/PutawayStrategy.jsx";
+import WaveStrategy from "@/pages/strategy/WaveStrategy.jsx";
 import InboundOrder from "@/pages/oms/InboundOrder.jsx";
 import InboundOrderList from "@/pages/oms/InboundOrderList.jsx";
 import AsnList from "@/pages/inbound/AsnList.jsx";
@@ -81,11 +81,15 @@ export default function App() {
                         <Route path="/master/location" element={<LocMaster/>}/>
                         <Route path="/master/vendor" element={<VendorMaster/>}/>
                         <Route path="/master/store" element={<Placeholder title="점포 관리"/>}/>
-                        <Route path="/master/inspection-policy" element={<InspectionPolicy/>}/>
-                        <Route path="/master/putaway-strategy" element={<PutawayStrategy/>}/>
-                        <Route path="/master/wave-strategy" element={<WaveStrategy/>}/>
                         <Route path="/master/nbr-rules" element={<NbrRuleMaster/>}/>
                         <Route path="/master/codes" element={<CodeMaster/>}/>
+
+                        {/* 전략: 관리자가 정의하는 실행 정책 (기준정보와 달리 "어떻게 판단할지"를 담는다).
+                            백엔드 API 접두(/strategy)와 경로를 맞춘다 */}
+                        <Route path="/strategy/inspection" element={<InspectionPolicy/>}/>
+                        <Route path="/strategy/putaway" element={<PutawayStrategy/>}/>
+                        <Route path="/strategy/wave" element={<WaveStrategy/>}/>
+                        <Route path="/strategy/allocation" element={<Placeholder title="할당 전략관리"/>}/>
                     </Route>
                 </Routes>
             </BrowserRouter>

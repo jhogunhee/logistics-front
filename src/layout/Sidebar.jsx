@@ -96,11 +96,19 @@ const MENU = [
             { to: "/master/location", label: "로케이션 관리", icon: MapPin, keywords: "location 로케이션 랙" },
             { to: "/master/vendor", label: "벤더 관리", icon: Truck, keywords: "vendor 거래처 납품처" },
             { to: "/master/store", label: "점포 관리", icon: Store, keywords: "store 점포 매장" },
-            { to: "/master/inspection-policy", label: "검수 정책관리", icon: ShieldCheck, keywords: "inspection 검수 제약 정책 역순제한 유통기한 잔여비율 전략" },
-            { to: "/master/putaway-strategy", label: "적치 전략관리", icon: Settings2, keywords: "putaway strategy 전략 추천 단계" },
-            { to: "/master/wave-strategy", label: "웨이브 전략관리", icon: Waves, keywords: "wave strategy 웨이브 편성 출고 조건그룹 전략" },
             { to: "/master/nbr-rules", label: "채번규칙 관리", icon: Hash, keywords: "nbr 채번 번호 규칙 패턴 시퀀스 採番" },
             { to: "/master/codes", label: "공통코드 관리", icon: ListTree, keywords: "code 공통코드 그룹 코드값 온도대 보관유형 업무구분 발주구분 계량단위" },
+        ],
+    },
+    {
+        // 마스터(무엇이 있는가)와 성격이 다르다 — 여기 있는 건 "어떻게 판단할지"의 정의다.
+        // 저장하면 곧 운영에 반영되므로 각 화면이 미리보기를 끼고 있다.
+        title: "전략",
+        items: [
+            { to: "/strategy/inspection", label: "검수 정책관리", icon: ShieldCheck, keywords: "inspection 검수 제약 정책 역순제한 유통기한 잔여비율 전략 입고" },
+            { to: "/strategy/putaway", label: "적치 전략관리", icon: Settings2, keywords: "putaway strategy 전략 추천 단계 로케이션 입고" },
+            { to: "/strategy/wave", label: "웨이브 전략관리", icon: Waves, keywords: "wave strategy 웨이브 편성 출고 조건그룹 출고유형 차량편수 전략" },
+            { to: "/strategy/allocation", label: "할당 전략관리", icon: Shuffle, keywords: "allocation strategy 할당 분배 재고 배정 fefo 전략 출고" },
         ],
     },
 ];
