@@ -17,6 +17,8 @@ import PutawayStrategy from "@/pages/strategy/PutawayStrategy.jsx";
 import WaveStrategy from "@/pages/strategy/WaveStrategy.jsx";
 import InboundOrder from "@/pages/oms/InboundOrder.jsx";
 import InboundOrderList from "@/pages/oms/InboundOrderList.jsx";
+import OutboundOrder from "@/pages/oms/OutboundOrder.jsx";
+import OutboundOrderList from "@/pages/oms/OutboundOrderList.jsx";
 import AsnList from "@/pages/inbound/AsnList.jsx";
 import Receiving from "@/pages/inbound/Receiving.jsx";
 import Putaway from "@/pages/inbound/Putaway.jsx";
@@ -26,6 +28,7 @@ import StockMove from "@/pages/stock/StockMove.jsx";
 import StockHold from "@/pages/stock/StockHold.jsx";
 import StockCount from "@/pages/stock/StockCount.jsx";
 import StockAttr from "@/pages/stock/StockAttr.jsx";
+import Wave from "@/pages/outbound/Wave.jsx";
 
 export default function App() {
     return (
@@ -45,8 +48,10 @@ export default function App() {
                         {/* 관리 화면에서 주문번호를 눌러 들어오는 수정 경로. 같은 컴포넌트가 id 유무로 갈린다 */}
                         <Route path="/oms/inbound-order/:omsIbOrderId" element={<InboundOrder/>}/>
                         <Route path="/oms/inbound-orders" element={<InboundOrderList/>}/>
-                        <Route path="/oms/outbound-order" element={<Placeholder title="출고주문"/>}/>
-                        <Route path="/oms/outbound-orders" element={<Placeholder title="출고주문 관리"/>}/>
+                        <Route path="/oms/outbound-order" element={<OutboundOrder/>}/>
+                        {/* 입고주문과 같은 규칙 — 관리 화면에서 주문번호를 눌러 들어오는 수정 경로 */}
+                        <Route path="/oms/outbound-order/:omsOutbOrderId" element={<OutboundOrder/>}/>
+                        <Route path="/oms/outbound-orders" element={<OutboundOrderList/>}/>
 
                         {/* 입고: ASN → 검수 → 적치지시 → 적치 → 입고확정 */}
                         <Route path="/inbound/asn" element={<AsnList/>}/>
@@ -68,7 +73,7 @@ export default function App() {
                         <Route path="/stock/count" element={<StockCount/>}/>
 
                         {/* 출고: 웨이브 편성 → 할당 → 피킹지시 → 피킹 → 출고확정 */}
-                        <Route path="/outbound/wave" element={<Placeholder title="웨이브 편성"/>}/>
+                        <Route path="/outbound/wave" element={<Wave/>}/>
                         <Route path="/outbound/allocation" element={<Placeholder title="할당"/>}/>
                         <Route path="/outbound/pick-order" element={<Placeholder title="피킹지시"/>}/>
                         <Route path="/outbound/picking" element={<Placeholder title="피킹"/>}/>

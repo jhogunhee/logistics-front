@@ -34,7 +34,7 @@ export default function WaveOrderTrace({ order }) {
                     {order.vhclFltno ? `${order.vhclFltno}편` : '배차미정'}
                 </span>
                 <span className="text-xs text-slate-500 truncate">{order.storeNm}</span>
-                <span className="ml-auto text-[11px] text-slate-400 shrink-0">{order.odrDe}</span>
+                <span className="ml-auto text-[11px] text-slate-400 shrink-0">{order.expctDe}</span>
             </button>
             {open && (
                 <div className="border-t border-slate-100 px-2.5 py-1.5 flex flex-col gap-1.5 bg-slate-50/50">

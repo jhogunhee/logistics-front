@@ -80,7 +80,7 @@ const MENU = [
     {
         title: "출고",
         items: [
-            { to: "/outbound/wave", label: "웨이브 편성", icon: Layers, keywords: "wave 묶음" },
+            { to: "/outbound/wave", label: "웨이브 편성", icon: Layers, keywords: "wave 묶음 출고주문 담기 전략 실행 피킹지시 발행단위" },
             { to: "/outbound/allocation", label: "할당", icon: Shuffle, keywords: "allocation 재고 배정 fefo" },
             { to: "/outbound/pick-order", label: "피킹지시", icon: ScrollText, keywords: "picking 지시" },
             { to: "/outbound/picking", label: "피킹", icon: PackageOpen, keywords: "picking 집품" },

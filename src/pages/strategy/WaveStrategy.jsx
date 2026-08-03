@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, History, Play, Plus, Rocket, ScrollText, Trash2, Waves } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -17,10 +18,12 @@ const emptyDefinition = () => ({ stgyNm: '', prty: 0, condGrp: [] });
  * 조건그룹끼리는 OR, 그룹 안의 조건끼리는 AND다. 실행하면 전략마다 웨이브가 1개 생기고
  * 조건에 맞는 미편성 주문이 편입되며, 주문은 우선순위가 낮은(=먼저 실행되는) 전략이 선점한다.
  *
- * 실행 버튼이 이 화면에 있는 것은 출고 웨이브 화면이 아직 없기 때문이다 —
- * 웨이브 화면이 생기면 실행 진입점은 그쪽으로 옮긴다 (호출 API는 이미 업무 도메인에 있다).
+ * <b>실행 진입점은 이 화면에 없다</b> — 실행은 전략 정의를 고치는 일이 아니라 실제 편성을 만드는
+ * 업무 처리라서 웨이브 편성 화면(/outbound/wave)이 갖는다. 여기 남는 것은 정의 편집과, DB를
+ * 바꾸지 않는 미리보기다.
  */
 export default function WaveStrategy() {
+    const navigate = useNavigate();
     const [mode, setMode] = useState('list');            // 'list' | 'edit'
     const [rows, setRows] = useState([]);
     const [editingId, setEditingId] = useState(null);    // null = 신규
@@ -34,7 +37,7 @@ export default function WaveStrategy() {
     const confirmRef = useRef(null);
 
     // 미리보기 (대상 주문일 범위 — 비우면 미편성 주문 전체)
-    const [range, setRange] = useState({ odrDeFrom: '', odrDeTo: '' });
+    const [range, setRange] = useState({ expctDeFrom: '', expctDeTo: '' });
     const [previewResult, setPreviewResult] = useState(null);
 
     const dirty = mode === 'edit' && JSON.stringify(def) !== baseline;
@@ -155,8 +158,8 @@ export default function WaveStrategy() {
 
     // ── 미리보기 / 실행 ──────────────────────────────────────
     const rangePayload = () => ({
-        odrDeFrom: range.odrDeFrom || null,
-        odrDeTo: range.odrDeTo || null,
+        expctDeFrom: range.expctDeFrom || null,
+        expctDeTo: range.expctDeTo || null,
     });
 
     const runPreview = async () => {
@@ -170,28 +173,6 @@ export default function WaveStrategy() {
             }));
         } catch (e) {
             toast.error(e.message || '미리보기에 실패했습니다.');
-        }
-    };
-
-    /** 실제 편성. wavStgyId를 주면 그 전략만, 비우면 전 전략을 우선순위 순으로 */
-    const runExec = async (wavStgyId, stgyNm) => {
-        const scope = wavStgyId != null ? `"${stgyNm}" 전략을` : '등록된 웨이브 전략 전부를';
-        const ok = await confirmRef.current.confirm({
-            title: '웨이브 전략 실행',
-            message: `${scope} 실행합니다.\n`
-                + '조건에 맞는 미편성 주문이 새 웨이브로 편성됩니다 (실제 데이터가 바뀝니다).\n'
-                + '편입 0건인 전략은 웨이브를 만들지 않습니다.',
-            confirmText: '실행',
-        });
-        if (!ok) return;
-        try {
-            const res = await strategyApi.waveStrategies.execute({ wavStgyId, ...rangePayload() });
-            const created = res.results.filter(r => r.outbWaveId != null);
-            toast.success(created.length === 0
-                ? `대상 ${res.tgtCount}건 중 편입 0건 — 만들어진 웨이브가 없습니다.`
-                : `웨이브 ${created.length}개 생성 · 주문 ${res.assignedCount}건 편성 (${created.map(r => r.wavNo).join(', ')})`);
-        } catch (e) {
-            toast.error(e.message || '실행에 실패했습니다.');
         }
     };
 
@@ -210,9 +191,10 @@ export default function WaveStrategy() {
                                 className="flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-lg text-[12px] font-bold text-slate-500 hover:bg-slate-50">
                             <ScrollText size={13} /> 실행 이력
                         </button>
-                        <button onClick={() => runExec(null, null)} disabled={rows.length === 0}
-                                className="flex items-center gap-1 px-3 py-1.5 border border-emerald-200 rounded-lg text-[12px] font-bold text-emerald-700 hover:bg-emerald-50 disabled:text-slate-300 disabled:border-slate-200">
-                            <Rocket size={13} /> 전체 실행
+                        <button onClick={() => navigate('/outbound/wave')}
+                                title="전략 실행(실제 편성)은 웨이브 편성 화면에서 합니다"
+                                className="flex items-center gap-1 px-3 py-1.5 border border-emerald-200 rounded-lg text-[12px] font-bold text-emerald-700 hover:bg-emerald-50">
+                            <Rocket size={13} /> 웨이브 편성으로
                         </button>
                         <button onClick={openNew}
                                 className="flex items-center gap-1 px-4 py-1.5 bg-indigo-600 rounded-lg text-[12px] font-bold text-white hover:bg-indigo-700">
@@ -276,10 +258,6 @@ export default function WaveStrategy() {
                 <div className="ml-auto flex items-center gap-2">
                     {editingId != null && (
                         <>
-                            <button onClick={() => runExec(editingId, def.stgyNm)}
-                                    className="flex items-center gap-1 px-3 py-1.5 border border-emerald-200 rounded-lg text-[12px] font-bold text-emerald-700 hover:bg-emerald-50">
-                                <Rocket size={13} /> 이 전략 실행
-                            </button>
                             <button onClick={() => setExecOpen(true)}
                                     className="flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-lg text-[12px] font-bold text-slate-500 hover:bg-slate-50">
                                 <ScrollText size={13} /> 실행 이력
@@ -360,15 +338,15 @@ export default function WaveStrategy() {
                         <span className="text-[11px] text-slate-400">저장 전 정의 그대로 판정 — DB 변경 없음</span>
                     </div>
 
-                    {/* 주문일은 편성 조건이 아니라 대상 주문을 좁히는 실행 스코프다 */}
+                    {/* 출고예정일은 편성 조건이 아니라 대상 주문을 좁히는 실행 스코프다 */}
                     <div className="flex items-center gap-2">
-                        <label className="text-xs font-bold text-slate-500 shrink-0" title="편성 조건이 아니라 판정할 대상 주문의 범위입니다">주문일</label>
-                        <input type="date" value={range.odrDeFrom}
-                               onChange={(e) => setRange(prev => ({ ...prev, odrDeFrom: e.target.value }))}
+                        <label className="text-xs font-bold text-slate-500 shrink-0" title="편성 조건이 아니라 판정할 대상 주문의 범위입니다">출고예정일</label>
+                        <input type="date" value={range.expctDeFrom}
+                               onChange={(e) => setRange(prev => ({ ...prev, expctDeFrom: e.target.value }))}
                                className="flex-1 min-w-0 input-base" />
                         <span className="text-slate-400">~</span>
-                        <input type="date" value={range.odrDeTo}
-                               onChange={(e) => setRange(prev => ({ ...prev, odrDeTo: e.target.value }))}
+                        <input type="date" value={range.expctDeTo}
+                               onChange={(e) => setRange(prev => ({ ...prev, expctDeTo: e.target.value }))}
                                className="flex-1 min-w-0 input-base" />
                     </div>
                     <div className="flex items-center justify-between">
