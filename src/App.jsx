@@ -15,6 +15,7 @@ import CodeMaster from "@/pages/master/CodeMaster.jsx";
 import InspectionPolicy from "@/pages/strategy/InspectionPolicy.jsx";
 import PutawayStrategy from "@/pages/strategy/PutawayStrategy.jsx";
 import WaveStrategy from "@/pages/strategy/WaveStrategy.jsx";
+import AllocationStrategy from "@/pages/strategy/AllocationStrategy.jsx";
 import InboundOrder from "@/pages/oms/InboundOrder.jsx";
 import InboundOrderList from "@/pages/oms/InboundOrderList.jsx";
 import OutboundOrder from "@/pages/oms/OutboundOrder.jsx";
@@ -96,7 +97,7 @@ export default function App() {
                         <Route path="/strategy/inspection" element={<InspectionPolicy/>}/>
                         <Route path="/strategy/putaway" element={<PutawayStrategy/>}/>
                         <Route path="/strategy/wave" element={<WaveStrategy/>}/>
-                        <Route path="/strategy/allocation" element={<Placeholder title="할당 전략관리"/>}/>
+                        <Route path="/strategy/allocation" element={<AllocationStrategy/>}/>
                     </Route>
                 </Routes>
             </BrowserRouter>

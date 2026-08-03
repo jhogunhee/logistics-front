@@ -3,6 +3,7 @@ import { ChevronDown, ChevronRight, ScrollText, X } from 'lucide-react';
 
 import { strategyApi } from '@/api/strategyApi';
 import { fmtDt } from '@/utils/format';
+import AllocPlanTrace from './AllocPlanTrace';
 import WaveOrderTrace from './WaveOrderTrace';
 
 const TRGR_LABELS = { MANUAL: '화면 조작', AUTO: '자동', PREVIEW: '미리보기' };
@@ -15,7 +16,7 @@ const TRGR_LABELS = { MANUAL: '화면 조작', AUTO: '자동', PREVIEW: '미리�
  * props:
  *   open     표시 여부
  *   onClose  () => void
- *   stgyTyp  'INSP' | 'PTAWY' | 'WAV' — trace 렌더링 형태가 갈린다
+ *   stgyTyp  'INSP' | 'PTAWY' | 'WAV' | 'ALOC' — trace 렌더링 형태가 갈린다
  *   stgyId   특정 전략으로 한정 (없으면 유형 전체)
  */
 export default function ExecutionHistory({ open, onClose, stgyTyp, stgyId }) {
@@ -143,6 +144,15 @@ function Trace({ stgyTyp, trace }) {
                     대상 {trace.tgtCount} · 편입 {trace.matchedCount}
                 </span>
                 {trace.orders.map((o, oi) => <WaveOrderTrace key={oi} order={o} />)}
+            </div>
+        );
+    }
+
+    // 할당: 상품 그룹 × 계층·분배 (미리보기와 같은 구조라 같은 컴포넌트를 쓴다)
+    if (stgyTyp === 'ALOC' && trace.groups) {
+        return (
+            <div className="flex flex-col gap-2">
+                {trace.groups.map((g, gi) => <AllocPlanTrace key={gi} trace={g} />)}
             </div>
         );
     }
