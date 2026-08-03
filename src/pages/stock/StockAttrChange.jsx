@@ -116,8 +116,7 @@ export default function StockAttrChange() {
                 mfgDt, expiryDt, rsnCd,
                 rsnDscr: rsnCd === ETC_RSN_CD ? rsnDscr.trim() : null,
             });
-            // 성공 응답을 받고 나서 초기화·재조회한다 (레거시는 콜백 없이 먼저 비워
-            // 저장 실패 시 입력이 사라졌다 — 정의서 3-9)
+            // 성공 응답을 받고 나서 초기화·재조회한다 — 먼저 비우면 저장 실패 시 입력이 사라진다
             toast.success(`${selected.lotNo} 속성을 정정했습니다.`);
             setSelected(null);
             setMfgDt('');

@@ -32,6 +32,7 @@ import {
     Tags,
     Truck,
     Warehouse,
+    Waves,
     X,
 } from "lucide-react";
 
@@ -97,6 +98,7 @@ const MENU = [
             { to: "/master/store", label: "점포 관리", icon: Store, keywords: "store 점포 매장" },
             { to: "/master/inspection-policy", label: "검수 정책관리", icon: ShieldCheck, keywords: "inspection 검수 제약 정책 역순제한 유통기한 잔여비율 전략" },
             { to: "/master/putaway-strategy", label: "적치 전략관리", icon: Settings2, keywords: "putaway strategy 전략 추천 단계" },
+            { to: "/master/wave-strategy", label: "웨이브 전략관리", icon: Waves, keywords: "wave strategy 웨이브 편성 출고 조건그룹 전략" },
             { to: "/master/nbr-rules", label: "채번규칙 관리", icon: Hash, keywords: "nbr 채번 번호 규칙 패턴 시퀀스 採番" },
             { to: "/master/codes", label: "공통코드 관리", icon: ListTree, keywords: "code 공통코드 그룹 코드값 온도대 보관유형 업무구분 발주구분 계량단위" },
         ],

@@ -14,6 +14,7 @@ import NbrRuleMaster from "@/pages/master/NbrRuleMaster.jsx";
 import CodeMaster from "@/pages/master/CodeMaster.jsx";
 import InspectionPolicy from "@/pages/master/InspectionPolicy.jsx";
 import PutawayStrategy from "@/pages/master/PutawayStrategy.jsx";
+import WaveStrategy from "@/pages/master/WaveStrategy.jsx";
 import InboundOrder from "@/pages/oms/InboundOrder.jsx";
 import InboundOrderList from "@/pages/oms/InboundOrderList.jsx";
 import AsnList from "@/pages/inbound/AsnList.jsx";
@@ -82,6 +83,7 @@ export default function App() {
                         <Route path="/master/store" element={<Placeholder title="점포 관리"/>}/>
                         <Route path="/master/inspection-policy" element={<InspectionPolicy/>}/>
                         <Route path="/master/putaway-strategy" element={<PutawayStrategy/>}/>
+                        <Route path="/master/wave-strategy" element={<WaveStrategy/>}/>
                         <Route path="/master/nbr-rules" element={<NbrRuleMaster/>}/>
                         <Route path="/master/codes" element={<CodeMaster/>}/>
                     </Route>

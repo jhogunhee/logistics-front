@@ -3,6 +3,7 @@ import { ChevronDown, ChevronRight, ScrollText, X } from 'lucide-react';
 
 import { strategyApi } from '@/api/strategyApi';
 import { fmtDt } from '@/utils/format';
+import WaveOrderTrace from './WaveOrderTrace';
 
 const TRGR_LABELS = { MANUAL: '화면 조작', AUTO: '자동', PREVIEW: '미리보기' };
 
@@ -14,7 +15,7 @@ const TRGR_LABELS = { MANUAL: '화면 조작', AUTO: '자동', PREVIEW: '미리�
  * props:
  *   open     표시 여부
  *   onClose  () => void
- *   stgyTyp  'INSP' | 'PTAWY' — trace 렌더링 형태가 갈린다
+ *   stgyTyp  'INSP' | 'PTAWY' | 'WAV' — trace 렌더링 형태가 갈린다
  *   stgyId   특정 전략으로 한정 (없으면 유형 전체)
  */
 export default function ExecutionHistory({ open, onClose, stgyTyp, stgyId }) {
@@ -130,6 +131,18 @@ function Trace({ stgyTyp, trace }) {
                         ))}
                     </div>
                 ))}
+            </div>
+        );
+    }
+
+    // 웨이브: 주문 × 조건그룹
+    if (stgyTyp === 'WAV' && trace.orders) {
+        return (
+            <div className="flex flex-col gap-1.5">
+                <span className="text-[11px] font-bold text-slate-600">
+                    대상 {trace.tgtCount} · 편입 {trace.matchedCount}
+                </span>
+                {trace.orders.map((o, oi) => <WaveOrderTrace key={oi} order={o} />)}
             </div>
         );
     }
