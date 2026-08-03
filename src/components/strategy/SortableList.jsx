@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { GripVertical } from 'lucide-react';
 
 /**
- * 순서 있는 목록의 drag & drop 래퍼 (HTML5 DnD — 의존성 없음). 화면설계서의 SortableStepList.
+ * 순서 있는 목록의 drag & drop 래퍼 (HTML5 DnD — 의존성 없음).
  * 카드 안 입력 필드의 텍스트 선택과 충돌하지 않도록, 핸들(≡)을 누른 동안에만 draggable을 켠다.
  *
  * props:

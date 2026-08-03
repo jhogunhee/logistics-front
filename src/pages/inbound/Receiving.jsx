@@ -218,7 +218,7 @@ export default function Receiving() {
             fetchList(true);
         } catch (e) {
             // 검수 제약 위반 — 서버가 라인·규칙 단위 위반 목록을 함께 준다 (저장은 전체 거부됨).
-            // 배너에 더해 위반 라인 행을 붉게 표시한다 (화면설계서 §5 인라인 표시)
+            // 배너에 더해 위반 라인 행을 붉게 표시한다
             const v = e.response?.data?.violations;
             if (v?.length) {
                 setViolations(v);

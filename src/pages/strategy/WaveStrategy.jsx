@@ -49,7 +49,7 @@ export default function WaveStrategy() {
         fetchList();
     }, []);
 
-    // 편집 중(dirty) 새로고침/탭 닫기 확인 (화면설계서 §1)
+    // 편집 중(dirty) 새로고침/탭 닫기 확인
     useEffect(() => {
         if (!dirty) return;
         const handler = (e) => { e.preventDefault(); e.returnValue = ''; };

@@ -10,7 +10,7 @@ const TRGR_LABELS = { MANUAL: '화면 조작', AUTO: '자동', PREVIEW: '미리�
 
 /**
  * 전략 실행 이력 모달 — "이 라인이 왜 차단됐나 / 이 배치가 왜 이렇게 배정됐나"를
- * 판정 근거(dcsn_trc) 그대로 보여준다 (프로세스정의서 §4.5). 최근 100건.
+ * 판정 근거(dcsn_trc) 그대로 보여준다. 최근 100건.
  *
  * props:
  *   open     표시 여부
@@ -78,7 +78,7 @@ export default function ExecutionHistory({ open, onClose, stgyTyp, stgyId }) {
     );
 }
 
-/** dcsn_trc 렌더링 — 유형별 구조(테이블설계서 §8.2)에 맞춰 표를 그리고, 모르는 형태면 JSON 원문 */
+/** dcsn_trc 렌더링 — 유형별 구조에 맞춰 표를 그리고, 모르는 형태면 JSON 원문 */
 function Trace({ stgyTyp, trace }) {
     if (trace == null) return <span className="text-xs text-slate-400">판정 근거가 기록되지 않았습니다.</span>;
 

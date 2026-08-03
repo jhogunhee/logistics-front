@@ -68,7 +68,7 @@ export default function InspectionPolicy() {
         return () => { ignore = true; };
     }, []);  // eslint-disable-line react-hooks/exhaustive-deps -- 최초 1회 로드 (applyPolicy는 안정적)
 
-    // 편집 중(dirty) 새로고침/탭 닫기 확인 (화면설계서 §1).
+    // 편집 중(dirty) 새로고침/탭 닫기 확인.
     // 앱 내부 사이드바 이동은 BrowserRouter(선언형)라 차단 지점이 없다 — 데이터 라우터 전환 시 useBlocker로 보강한다.
     useEffect(() => {
         if (!dirty) return;
@@ -106,7 +106,7 @@ export default function InspectionPolicy() {
     };
 
     const remove = async () => {
-        // 오삭제 방지: 이 정책의 최근 실행 기록을 집계해 함께 보여준다 (화면설계서 §1)
+        // 오삭제 방지: 이 정책의 최근 실행 기록을 집계해 함께 보여준다
         let execCount = 0;
         try {
             execCount = (await strategyApi.executions('INSP', plcyId)).length;
@@ -271,7 +271,7 @@ export default function InspectionPolicy() {
                         <span className="text-[11px] text-slate-400">저장 전 정의 그대로 판정 — DB 변경 없음</span>
                     </div>
 
-                    {/* 대상 선택: 검수 대기 입고 프리필 또는 가상 로트 직접 입력 (화면설계서 SC-01) */}
+                    {/* 대상 선택: 검수 대기 입고 프리필 또는 가상 로트 직접 입력 */}
                     <div className="flex items-center gap-3 text-xs font-bold text-slate-500">
                         <label className="flex items-center gap-1.5 cursor-pointer">
                             <input type="radio" checked={previewKind === 'asn'} onChange={() => switchPreviewKind('asn')} />

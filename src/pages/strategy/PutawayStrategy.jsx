@@ -70,7 +70,7 @@ export default function PutawayStrategy() {
         fetchList();
     }, []);
 
-    // 편집 중(dirty) 새로고침/탭 닫기 확인 (화면설계서 §1).
+    // 편집 중(dirty) 새로고침/탭 닫기 확인.
     // 앱 내부 사이드바 이동은 BrowserRouter(선언형)라 차단 지점이 없다 — [← 목록] 버튼만 가드한다.
     useEffect(() => {
         if (!dirty) return;
@@ -158,7 +158,7 @@ export default function PutawayStrategy() {
     };
 
     const remove = async () => {
-        // 오삭제 방지: 이 전략의 최근 실행 기록을 집계해 함께 보여준다 (화면설계서 §1)
+        // 오삭제 방지: 이 전략의 최근 실행 기록을 집계해 함께 보여준다
         let execCount = 0;
         try {
             execCount = (await strategyApi.executions('PTAWY', editingId)).length;
