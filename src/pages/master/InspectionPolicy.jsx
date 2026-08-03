@@ -248,7 +248,7 @@ export default function InspectionPolicy() {
                                     {handle}
                                     <div className="flex flex-col min-w-0">
                                         <span className="text-sm font-bold text-slate-700">{idx + 1}. {d?.name ?? rule.ruleCd}</span>
-                                        <span className="text-xs text-slate-400 leading-relaxed">{d?.description}</span>
+                                        <span className="text-xs text-slate-400 leading-relaxed">{d?.dscr}</span>
                                     </div>
                                     <button onClick={() => setRules(prev => prev.filter((_, i) => i !== idx))}
                                             className="ml-auto p-1.5 text-slate-300 hover:text-rose-500 shrink-0" title="규칙 삭제 (저장 시 반영)">

@@ -79,7 +79,7 @@ const COLUMN_DEFS = [
         valueFormatter: (p) => num(p.value),
     },
     {
-        field: 'availableQty', headerName: '가용', width: 90,
+        field: 'avalQty', headerName: '가용', width: 90,
         headerTooltip: '가용재고 = 보유 - 할당 - 보류. 신규 할당 가능한 수량',
         cellClass: (p) => `ag-right-aligned-cell font-bold ${p.value <= 0 ? 'text-rose-500' : 'text-emerald-600'}`,
         valueFormatter: (p) => num(p.value),
@@ -112,7 +112,7 @@ export default function StockStatus() {
     const summary = useMemo(() => {
         const prodKinds = new Set(rowData.map(r => r.prodCd)).size;
         const onHand = rowData.reduce((s, r) => s + Number(r.onHandQty), 0);
-        const avail = rowData.reduce((s, r) => s + Number(r.availableQty), 0);
+        const avail = rowData.reduce((s, r) => s + Number(r.avalQty), 0);
         const alloc = rowData.reduce((s, r) => s + Number(r.alocQty), 0);
         const hold = rowData.reduce((s, r) => s + Number(r.hldQty), 0);
         return { prodKinds, onHand, avail, alloc, hold };

@@ -7,7 +7,7 @@ import { X } from 'lucide-react';
  * props:
  *   open           표시 여부
  *   title          모달 제목 (예: "규칙 추가")
- *   descriptors    [{ code, name, description, deprecated }]
+ *   descriptors    [{ code, name, dscr, deprecated }]
  *   disabledCodes  선택 불가 code 목록 (이미 등록된 규칙 등)
  *   onSelect       (descriptor) => void
  *   onClose        () => void
@@ -44,7 +44,7 @@ export default function ComponentPicker({ open, title, descriptors = [], disable
                                     <span className="text-[11px] text-slate-400 font-mono">{d.code}</span>
                                     {disabled && <span className="text-[11px] text-slate-400">이미 등록됨</span>}
                                 </div>
-                                <p className="text-xs text-slate-500 mt-1 leading-relaxed">{d.description}</p>
+                                <p className="text-xs text-slate-500 mt-1 leading-relaxed">{d.dscr}</p>
                             </button>
                         );
                     })}

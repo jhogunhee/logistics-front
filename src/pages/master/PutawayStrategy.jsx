@@ -349,7 +349,7 @@ export default function PutawayStrategy() {
                                         {handle}
                                         <div className="flex flex-col min-w-0">
                                             <span className="text-sm font-bold text-slate-700">{idx + 1}. {m?.name ?? stage.mthdCd}</span>
-                                            <span className="text-xs text-slate-400 leading-relaxed">{m?.description}</span>
+                                            <span className="text-xs text-slate-400 leading-relaxed">{m?.dscr}</span>
                                         </div>
                                         <button onClick={() => setDef(prev => ({ ...prev, stages: prev.stages.filter((_, i) => i !== idx) }))}
                                                 className="ml-auto p-1.5 text-slate-300 hover:text-rose-500 shrink-0" title="단계 삭제 (저장 시 반영)">

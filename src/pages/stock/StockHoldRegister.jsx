@@ -54,7 +54,7 @@ const COLUMN_DEFS = [
         valueFormatter: (p) => num(p.value),
     },
     {
-        field: 'availableQty', headerName: '가용', width: 90,
+        field: 'avalQty', headerName: '가용', width: 90,
         headerTooltip: '가용재고 = 보유 - 예약 - 보류. 보류 가능한 상한',
         cellClass: 'ag-right-aligned-cell font-bold text-emerald-600',
         valueFormatter: (p) => num(p.value),
@@ -75,12 +75,12 @@ export default function StockHoldRegister() {
     // 보류 대상은 보관 재고뿐이다 (v1 — 스테이징 보류는 적치·출고확정 파급을 수반해 제외)
     const fetchStock = async () => {
         const data = await invApi.list({ ...cond, locTyp: 'STORAGE' });
-        setRowData(data.filter(r => r.availableQty > 0));
+        setRowData(data.filter(r => r.avalQty > 0));
     };
 
     useEffect(() => {
         let ignore = false;
-        invApi.list({ locTyp: 'STORAGE' }).then(data => { if (!ignore) setRowData(data.filter(r => r.availableQty > 0)); });
+        invApi.list({ locTyp: 'STORAGE' }).then(data => { if (!ignore) setRowData(data.filter(r => r.avalQty > 0)); });
         codeApi.list('HLD_RSN').then(codes => { if (!ignore) setRsnCodes(codes); });
         return () => { ignore = true; };
     }, []);
@@ -95,7 +95,7 @@ export default function StockHoldRegister() {
         return m;
     }, [cart]);
 
-    const remainingAvailable = (row) => row.availableQty - (cartQtyByInv[row.invId] ?? 0);
+    const remainingAvailable = (row) => row.avalQty - (cartQtyByInv[row.invId] ?? 0);
 
     const onSelectionChanged = (e) => {
         const node = e.api.getSelectedNodes()[0];

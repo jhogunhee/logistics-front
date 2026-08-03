@@ -4,7 +4,7 @@ import api from '@/utils/axios';
 
 export const strategyApi = {
     meta: {
-        /** 검수 규칙 목록 (백엔드 InspectionRule enum). [{ code, name, description, deprecated }] — 파라미터 폼은 RuleParamForm에 고정 */
+        /** 검수 규칙 목록 (백엔드 InspectionRule enum). [{ code, name, dscr, deprecated }] — 파라미터 폼은 RuleParamForm에 고정 */
         inspectionRules() {
             return api.get('/strategy/meta/inspection-rules');
         },
