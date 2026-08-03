@@ -43,7 +43,7 @@ export default function CodeMaster() {
         },
         { field: 'grpNm', headerName: '그룹명', width: 150, editable: notDeleted },
         {
-            field: 'description', headerName: '설명', flex: 1, minWidth: 200, editable: notDeleted,
+            field: 'dscr', headerName: '설명', flex: 1, minWidth: 200, editable: notDeleted,
             cellRenderer: (p) => p.value || <span className="text-slate-300">-</span>,
         },
         {
@@ -184,7 +184,7 @@ export default function CodeMaster() {
     // 저장 대상이 코드가 아니라 그룹이라 저장 버튼도 패널마다 따로 둔다.
     const handleAddGroup = () => {
         const api = groupGridRef.current.api;
-        const res = api.applyTransaction({ add: [{ grpCd: '', grpNm: '', description: '', _status: 'C' }] });
+        const res = api.applyTransaction({ add: [{ grpCd: '', grpNm: '', dscr: '', _status: 'C' }] });
         const rowIndex = res.add[0].rowIndex;
         api.ensureIndexVisible(rowIndex, 'bottom');
         api.startEditingCell({ rowIndex, colKey: 'grpCd' });

@@ -2,7 +2,7 @@
 import api from '@/utils/axios';
 
 export const codeApi = {
-    /** 그룹 목록. 응답: [{ grpCd, grpNm, description }] (grpCd 순).
+    /** 그룹 목록. 응답: [{ grpCd, grpNm, dscr }] (grpCd 순).
      *  그룹 자체는 조회만 한다 — 스키마와 함께 결정되는 값이라 화면에서 늘리지 않는다 */
     groups() {
         return api.get('/master/codes/groups');
