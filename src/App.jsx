@@ -29,6 +29,7 @@ import StockHold from "@/pages/stock/StockHold.jsx";
 import StockCount from "@/pages/stock/StockCount.jsx";
 import StockAttr from "@/pages/stock/StockAttr.jsx";
 import Wave from "@/pages/outbound/Wave.jsx";
+import Allocation from "@/pages/outbound/Allocation.jsx";
 
 export default function App() {
     return (
@@ -74,7 +75,8 @@ export default function App() {
 
                         {/* 출고: 웨이브 편성 → 할당 → 피킹지시 → 피킹 → 출고확정 */}
                         <Route path="/outbound/wave" element={<Wave/>}/>
-                        <Route path="/outbound/allocation" element={<Placeholder title="할당"/>}/>
+                        {/* 할당은 웨이브를 대상으로 실행하고 결과는 주문 라인에 남는다 */}
+                        <Route path="/outbound/allocation" element={<Allocation/>}/>
                         <Route path="/outbound/pick-order" element={<Placeholder title="피킹지시"/>}/>
                         <Route path="/outbound/picking" element={<Placeholder title="피킹"/>}/>
                         <Route path="/outbound/shipping" element={<Placeholder title="출고확정"/>}/>
