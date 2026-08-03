@@ -148,12 +148,12 @@ export default function CodeMaster() {
         let ignore = false;
         codeApi.search(selectedGroup.grpCd, { codeCd: '', codeNm: '' })
             .then(d => { if (!ignore) setRowData(d); })
-            .catch(e => {
+            .catch(() => {
                 // 실패를 삼키면 앞 그룹의 코드가 그대로 남아 "한 칸 밀린" 화면이 된다 —
                 // 고른 그룹과 보이는 코드가 어긋나는 것이 빈 그리드보다 위험하다.
+                // 토스트는 axios 인터셉터가 띄우므로 여기서는 비우기만 한다.
                 if (ignore) return;
                 setRowData([]);
-                toast.error(e.message || '코드를 불러오지 못했습니다.');
             });
         return () => { ignore = true; };
     }, [selectedGroup]);

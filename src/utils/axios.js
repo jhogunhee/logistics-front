@@ -1,4 +1,5 @@
 import axios from 'axios';
+import toast from 'react-hot-toast';
 
 const instance = axios.create({
     baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080', // wms-backend 주소
@@ -28,6 +29,20 @@ instance.interceptors.response.use(
         if (error.response?.data?.message) {
             error.message = error.response.data.message;
         }
+
+        // 조회(GET) 실패는 여기서 토스트를 띄운다.
+        // 저장·삭제(POST/PUT/DELETE)는 화면마다 자기 문구로 이미 처리하고 있어 제외한다 —
+        // 여기서 함께 띄우면 토스트가 두 번 뜬다.
+        //
+        // 화면에 두지 않은 이유: 목록 조회 호출이 25개 화면에 75곳 흩어져 있어서 각자 catch를
+        // 붙이면 하나만 빠뜨려도 그 화면은 조회 실패 시 빈 그리드만 남고 아무 말이 없다.
+        // 조회 실패의 처리는 어느 화면이든 「무슨 일이 났는지 알린다」로 같으므로 한 곳에 둔다.
+        // 실패를 알리는 것 외에 화면이 더 할 일이 있으면(예: 이전 결과 비우기) 각자 catch를
+        // 덧붙이면 된다 — reject는 그대로 흘려보내므로 막히지 않는다.
+        if (error.config?.method === 'get' && error.response?.status !== 401) {
+            toast.error(error.message || '조회에 실패했습니다.');
+        }
+
         return Promise.reject(error);
     }
 );

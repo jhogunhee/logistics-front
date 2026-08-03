@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { ChevronDown, ChevronRight, ScrollText, X } from 'lucide-react';
-import toast from 'react-hot-toast';
 
 import { strategyApi } from '@/api/strategyApi';
 
@@ -27,7 +26,7 @@ export default function ExecutionHistory({ open, onClose, stgyTyp, stgyId }) {
         let ignore = false;
         strategyApi.executions(stgyTyp, stgyId)
             .then(data => { if (!ignore) { setRows(data); setOpenId(null); } })
-            .catch(e => toast.error(e.message || '실행 이력 조회에 실패했습니다.'));
+            .catch(() => {}); // 실패 토스트는 axios 인터셉터가 띄운다
         return () => { ignore = true; };
     }, [open, stgyTyp, stgyId]);
 

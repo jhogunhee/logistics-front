@@ -47,8 +47,8 @@ export default function NbrRuleMaster() {
         try {
             const rows = await nbrRuleApi.seqs(ruleCd);
             setCounterModal({ ruleCd, rows });
-        } catch (e) {
-            toast.error(e.message || '카운터 조회에 실패했습니다.');
+        } catch {
+            // 실패 토스트는 axios 인터셉터가 띄운다 (조회는 GET)
         }
     };
 

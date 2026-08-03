@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { History, X } from 'lucide-react';
-import toast from 'react-hot-toast';
 
 /**
  * 리비전 이력 모달 — 목록 + 스냅샷 보기 (조회 전용 감사 이력).
@@ -27,7 +26,7 @@ export default function RevisionHistory({ open, onClose, listFn, getFn }) {
                 setSelected(null);
                 setSnapshot(null);
             })
-            .catch(e => toast.error(e.message || '리비전 조회에 실패했습니다.'));
+            .catch(() => {}); // 실패 토스트는 axios 인터셉터가 띄운다
         return () => { ignore = true; };
     }, [open]);  // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -37,8 +36,8 @@ export default function RevisionHistory({ open, onClose, listFn, getFn }) {
         setSelected(rvsnNo);
         try {
             setSnapshot(await getFn(rvsnNo));
-        } catch (e) {
-            toast.error(e.message || '스냅샷 조회에 실패했습니다.');
+        } catch {
+            // 실패 토스트는 axios 인터셉터가 띄운다
         }
     };
 
