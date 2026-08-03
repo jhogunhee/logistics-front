@@ -24,6 +24,7 @@ import InvHistory from "@/pages/stock/InvHistory.jsx";
 import StockMove from "@/pages/stock/StockMove.jsx";
 import StockHold from "@/pages/stock/StockHold.jsx";
 import StockCount from "@/pages/stock/StockCount.jsx";
+import StockAttr from "@/pages/stock/StockAttr.jsx";
 
 export default function App() {
     return (
@@ -56,7 +57,8 @@ export default function App() {
                         {/* 재고 */}
                         <Route path="/stock/status" element={<StockStatus/>}/>
                         <Route path="/stock/history" element={<InvHistory/>}/>
-                        <Route path="/stock/attribute" element={<Placeholder title="재고 속성변경"/>}/>
+                        {/* 재고 속성변경 — Lot 속성(제조일자·유통기한) 정정. 재고는 움직이지 않는다. 탭으로 정정/이력을 오간다 */}
+                        <Route path="/stock/attribute" element={<StockAttr/>}/>
                         {/* 재고 보류 (수량 방식 — 등록 즉시 가용 차감). 메뉴는 하나 — 화면 안 탭으로 등록/관리/실적을 오간다 */}
                         <Route path="/stock/hold" element={<StockHold/>}/>
                         {/* 재고 이동 2단계(지시=예약 → 확정). 메뉴는 하나 — 화면 안 탭으로 등록/관리를 오간다 */}
