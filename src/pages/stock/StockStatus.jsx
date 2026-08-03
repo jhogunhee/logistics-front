@@ -68,13 +68,19 @@ const COLUMN_DEFS = [
     },
     {
         field: 'alocQty', headerName: '할당', width: 90,
-        headerTooltip: '출고 예약된 수량',
+        headerTooltip: '예약된 수량 — 출고 할당·이동지시가 선점',
         cellClass: (p) => `ag-right-aligned-cell ${p.value > 0 ? 'text-amber-600 font-bold' : 'text-slate-300'}`,
         valueFormatter: (p) => num(p.value),
     },
     {
+        field: 'hldQty', headerName: '보류', width: 90,
+        headerTooltip: '보류 수량 — 가용재고에서 제외. 내역은 재고 보류 화면에서',
+        cellClass: (p) => `ag-right-aligned-cell ${p.value > 0 ? 'text-rose-600 font-bold' : 'text-slate-300'}`,
+        valueFormatter: (p) => num(p.value),
+    },
+    {
         field: 'availableQty', headerName: '가용', width: 90,
-        headerTooltip: '가용재고 = 보유 - 할당. 신규 할당 가능한 수량',
+        headerTooltip: '가용재고 = 보유 - 할당 - 보류. 신규 할당 가능한 수량',
         cellClass: (p) => `ag-right-aligned-cell font-bold ${p.value <= 0 ? 'text-rose-500' : 'text-emerald-600'}`,
         valueFormatter: (p) => num(p.value),
     },
@@ -108,7 +114,8 @@ export default function StockStatus() {
         const onHand = rowData.reduce((s, r) => s + Number(r.onHandQty), 0);
         const avail = rowData.reduce((s, r) => s + Number(r.availableQty), 0);
         const alloc = rowData.reduce((s, r) => s + Number(r.alocQty), 0);
-        return { prodKinds, onHand, avail, alloc };
+        const hold = rowData.reduce((s, r) => s + Number(r.hldQty), 0);
+        return { prodKinds, onHand, avail, alloc, hold };
     }, [rowData]);
 
     return (
@@ -117,7 +124,7 @@ export default function StockStatus() {
             <div className="flex items-center gap-2">
                 <Box size={18} className="text-indigo-600" />
                 <h2 className="text-lg font-bold text-slate-800">현재고 조회</h2>
-                <span className="text-xs text-slate-400 mt-0.5">상품 + 로케이션 + Lot 단위 실시간 재고 · 가용 = 보유 − 할당</span>
+                <span className="text-xs text-slate-400 mt-0.5">상품 + 로케이션 + Lot 단위 실시간 재고 · 가용 = 보유 − 할당 − 보류</span>
             </div>
 
             {/* 요약 지표 */}
@@ -126,6 +133,7 @@ export default function StockStatus() {
                 <StatTile label="상품 종류" value={num(summary.prodKinds)} />
                 <StatTile label="총 보유수량" value={num(summary.onHand)} />
                 <StatTile label="총 할당수량" value={num(summary.alloc)} accent="text-amber-600" />
+                <StatTile label="총 보류수량" value={num(summary.hold)} accent="text-rose-600" />
                 <StatTile label="총 가용수량" value={num(summary.avail)} accent="text-emerald-600" />
             </div>
 
