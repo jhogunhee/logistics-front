@@ -50,7 +50,8 @@ export default function ExecutionHistory({ open, onClose, stgyTyp, stgyId }) {
                         <p className="text-sm text-slate-400 text-center py-8">실행 이력이 없습니다.</p>
                     )}
                     {rows.map(r => (
-                        <div key={r.id} className="border border-slate-200 rounded-lg overflow-hidden">
+                        // shrink-0 — 세로 flex 안에서 행이 눌려 글자가 잘리는 것을 막는다 (overflow-hidden이 최소높이를 0으로 만든다)
+                        <div key={r.id} className="border border-slate-200 rounded-lg overflow-hidden shrink-0">
                             <button onClick={() => setOpenId(openId === r.id ? null : r.id)}
                                     className="w-full px-3 py-2 flex items-center gap-2 text-left hover:bg-slate-50">
                                 {openId === r.id ? <ChevronDown size={14} className="text-slate-400 shrink-0" />

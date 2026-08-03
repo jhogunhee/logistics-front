@@ -182,20 +182,21 @@ export default function StockAttrChange() {
                         className="w-full input-base"
                     />
                 </SearchItem>
-                <SearchItem label="유통기한">
-                    <div className="flex items-center gap-1">
+                {/* 날짜 두 개는 한 칸에 들어가지 않는다 — 두 칸을 쓰고, 입력은 줄어들 수 있게 min-w-0 */}
+                <SearchItem label="유통기한" wide>
+                    <div className="flex items-center gap-2">
                         <input
                             type="date"
                             value={cond.expiryFrom}
                             onChange={(e) => setCond(prev => ({ ...prev, expiryFrom: e.target.value }))}
-                            className="w-full input-base"
+                            className="flex-1 min-w-0 input-base"
                         />
-                        <span className="text-slate-300">~</span>
+                        <span className="text-slate-400 shrink-0">~</span>
                         <input
                             type="date"
                             value={cond.expiryTo}
                             onChange={(e) => setCond(prev => ({ ...prev, expiryTo: e.target.value }))}
-                            className="w-full input-base"
+                            className="flex-1 min-w-0 input-base"
                         />
                     </div>
                 </SearchItem>
