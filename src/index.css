@@ -22,6 +22,56 @@ body,
     -moz-osx-font-smoothing: grayscale;
 }
 
+/*
+ * 입력·버튼 공통 클래스.
+ *
+ * 같은 Tailwind 문자열이 입력 74곳 · 버튼 20곳에 복붙돼 있었고 이미 갈라지기 시작했다 —
+ * bg-white가 있는 것과 없는 것, py-2와 py-1.5가 섞여 있었다. 한 곳에서 정의하면
+ * 스타일을 바꿀 때 한 번만 고치면 된다.
+ *
+ * 크기·너비처럼 자리마다 다른 것은 클래스에 담지 않는다 — `class="input-base w-full"`처럼
+ * 유틸리티를 덧붙여 쓴다.
+ */
+@layer components {
+    .input-base {
+        @apply px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm
+               focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400;
+    }
+
+    /* 수량 입력 — 오른쪽 정렬만 다르다 */
+    .input-num {
+        @apply input-base text-right;
+    }
+
+    /* 그리드 툴바의 주 동작 (저장 등) */
+    .btn-primary {
+        @apply flex items-center gap-1 px-3 py-1.5 bg-indigo-600 rounded-lg
+               text-[12px] font-bold text-white transition-colors
+               hover:bg-indigo-700 disabled:opacity-40 disabled:hover:bg-indigo-600;
+    }
+
+    /* 보조 동작 (행추가 등) */
+    .btn-ghost {
+        @apply flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg
+               text-[12px] font-bold text-slate-600 transition-colors
+               hover:border-indigo-300 hover:text-indigo-600
+               disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:text-slate-600;
+    }
+
+    /* 되돌릴 수 없는 동작 (삭제 등) — 평소엔 보조 버튼과 같고 hover에서만 붉어진다 */
+    .btn-danger {
+        @apply btn-ghost hover:border-red-300 hover:text-red-600;
+    }
+
+    /* 모달 안의 확인/취소 — 툴바 버튼보다 크다 */
+    .btn-modal-primary {
+        @apply px-4 py-2 text-sm font-bold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700;
+    }
+    .btn-modal-cancel {
+        @apply px-4 py-2 text-sm font-bold rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50;
+    }
+}
+
 /* Sidebar 등에서 사용하는 얇은 스크롤바 */
 .custom-scrollbar::-webkit-scrollbar {
     width: 6px;

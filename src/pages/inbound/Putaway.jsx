@@ -6,17 +6,8 @@ import toast from 'react-hot-toast';
 import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import { putawayApi } from '@/api/putawayApi';
-import { TEMP_ZONE_META } from '@/api/prodApi';
+import { TempZoneBadge } from '@/components/common/Badge';
 
-const TempZoneBadge = ({ value }) => {
-    const meta = TEMP_ZONE_META[value];
-    if (!meta) return null;
-    return (
-        <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${meta.badge}`}>
-            {meta.label} {value}
-        </span>
-    );
-};
 
 const COLUMN_DEFS = [
     { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
@@ -182,7 +173,7 @@ export default function Putaway() {
                         onChange={(e) => setCond(prev => ({ ...prev, ibNo: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchList()}
                         placeholder="IB-20260717-001"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                        className="w-full input-base"
                     />
                 </SearchItem>
                 <SearchItem label="입고일자" wide>
@@ -191,14 +182,14 @@ export default function Putaway() {
                             type="date"
                             value={cond.dateFrom}
                             onChange={(e) => setCond(prev => ({ ...prev, dateFrom: e.target.value }))}
-                            className="flex-1 min-w-0 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                            className="flex-1 min-w-0 input-base"
                         />
                         <span className="text-slate-400 shrink-0">~</span>
                         <input
                             type="date"
                             value={cond.dateTo}
                             onChange={(e) => setCond(prev => ({ ...prev, dateTo: e.target.value }))}
-                            className="flex-1 min-w-0 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                            className="flex-1 min-w-0 input-base"
                         />
                     </div>
                 </SearchItem>
@@ -209,7 +200,7 @@ export default function Putaway() {
                         onChange={(e) => setCond(prev => ({ ...prev, prodCd: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchList()}
                         placeholder="PROD-0001"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                        className="w-full input-base"
                     />
                 </SearchItem>
                 <SearchItem label="상품명">
@@ -219,7 +210,7 @@ export default function Putaway() {
                         onChange={(e) => setCond(prev => ({ ...prev, prodNm: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchList()}
                         placeholder="상품명 일부"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                        className="w-full input-base"
                     />
                 </SearchItem>
             </SearchBar>
@@ -277,7 +268,7 @@ export default function Putaway() {
                                         ))}
                                         {recommend.assignments.length > 0 && (
                                             <button onClick={() => setConfirmRecommend(recommend)}
-                                                    className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 rounded-lg text-[12px] font-bold text-white hover:bg-indigo-700">
+                                                    className="btn-primary">
                                                 <ArrowRight size={12} /> 추천대로 실행
                                             </button>
                                         )}
@@ -296,7 +287,7 @@ export default function Putaway() {
                                         max={selected.pendingQty}
                                         value={qty}
                                         onChange={(e) => setQty(e.target.value)}
-                                        className="px-3 py-2 border border-slate-200 rounded-lg text-sm text-right focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                                        className="input-num"
                                     />
                                 </div>
                                 <div className="flex flex-col gap-1 flex-1 min-w-0">
@@ -342,12 +333,12 @@ export default function Putaway() {
                         <div className="flex gap-2 justify-end">
                             <button
                                 onClick={() => setConfirmRecommend(null)}
-                                className="px-4 py-2 text-sm font-bold rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50">
+                                className="btn-modal-cancel">
                                 취소
                             </button>
                             <button
                                 onClick={() => { doRecommendExecute(confirmRecommend); setConfirmRecommend(null); }}
-                                className="px-4 py-2 text-sm font-bold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
+                                className="btn-modal-primary">
                                 적치
                             </button>
                         </div>
@@ -369,12 +360,12 @@ export default function Putaway() {
                         <div className="flex gap-2 justify-end">
                             <button
                                 onClick={() => setConfirmTarget(null)}
-                                className="px-4 py-2 text-sm font-bold rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50">
+                                className="btn-modal-cancel">
                                 취소
                             </button>
                             <button
                                 onClick={() => { doPutaway(confirmTarget); setConfirmTarget(null); }}
-                                className="px-4 py-2 text-sm font-bold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
+                                className="btn-modal-primary">
                                 적치
                             </button>
                         </div>

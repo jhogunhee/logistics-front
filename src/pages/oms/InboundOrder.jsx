@@ -8,9 +8,9 @@ import VendorPickerModal from '@/components/common/VendorPickerModal';
 import { omsIbOrderApi } from '@/api/omsIbOrderApi';
 import { codeApi } from '@/api/codeApi';
 import { eaQtyPerInbUomOf, TEMP_ZONE_META } from '@/api/prodApi';
+import { todayStr } from '@/utils/format';
 
 // 오늘 날짜 "YYYY-MM-DD" (입고 예정일 기본값)
-const todayStr = () => new Date().toISOString().slice(0, 10);
 
 const EMPTY_FORM = () => ({
     vendorId: '', expctDe: todayStr(),
@@ -19,8 +19,7 @@ const EMPTY_FORM = () => ({
     lines: [],
 });
 
-const inputCls = 'w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm ' +
-    'focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400';
+const inputCls = 'input-base w-full';
 
 /** 마스터 영역 필드 (라벨 위 / 입력 아래) */
 const Field = ({ label, required, hint, children, className = '' }) => (
@@ -429,7 +428,7 @@ export default function InboundOrder() {
             <div className="flex gap-2 justify-end shrink-0">
                 <button
                     onClick={() => (isEdit ? navigate('/oms/inbound-orders') : setForm(EMPTY_FORM()))}
-                    className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50">
+                    className="flex items-center gap-1.5 btn-modal-cancel">
                     {isEdit ? <><X size={14} /> 목록으로</> : <><RotateCcw size={14} /> 초기화</>}
                 </button>
                 <button

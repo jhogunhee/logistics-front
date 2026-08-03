@@ -444,7 +444,7 @@ export default function PutawayStrategy() {
                         <label className="text-xs font-bold text-slate-500">수량</label>
                         <input type="number" min="1" value={previewTarget.qty}
                                onChange={(e) => setPreviewTarget(prev => ({ ...prev, qty: e.target.value }))}
-                               className="w-28 px-3 py-2 border border-slate-200 rounded-lg text-sm text-right focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400" />
+                               className="w-28 input-num" />
                         <button onClick={runPreview}
                                 className="flex items-center gap-1 px-3 py-2 bg-indigo-600 rounded-lg text-[12px] font-bold text-white hover:bg-indigo-700">
                             <Play size={13} /> 미리보기 실행

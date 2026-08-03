@@ -6,9 +6,8 @@ import toast from 'react-hot-toast';
 import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import { invMovApi, INV_MOV_STATUS_META, INV_MOV_DVSN_META } from '@/api/invMovApi';
+import { fmtDt, num } from '@/utils/format';
 
-const num = (v) => (v == null ? '' : Number(v).toLocaleString());
-const fmtDt = (v) => (v ? v.replace('T', ' ').slice(0, 16) : '');
 
 const STATUS_OPTIONS = [
     { value: '', label: '전체' },
@@ -184,7 +183,7 @@ export default function StockMoveTaskList() {
                         onChange={(e) => setCond(prev => ({ ...prev, invMovNo: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchList()}
                         placeholder="MV-20260803-001"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                        className="w-full input-base"
                     />
                 </SearchItem>
                 <SearchItem label="상품 코드">
@@ -194,7 +193,7 @@ export default function StockMoveTaskList() {
                         onChange={(e) => setCond(prev => ({ ...prev, prodCd: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchList()}
                         placeholder="PROD-0001"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                        className="w-full input-base"
                     />
                 </SearchItem>
                 <SearchItem label="출발지">
@@ -204,7 +203,7 @@ export default function StockMoveTaskList() {
                         onChange={(e) => setCond(prev => ({ ...prev, fromLocCd: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchList()}
                         placeholder="DRY-A-01-01"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                        className="w-full input-base"
                     />
                 </SearchItem>
                 <SearchItem label="도착지">
@@ -214,7 +213,7 @@ export default function StockMoveTaskList() {
                         onChange={(e) => setCond(prev => ({ ...prev, toLocCd: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchList()}
                         placeholder="DRY-B-01-01"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                        className="w-full input-base"
                     />
                 </SearchItem>
                 <SearchItem label="이동구분">
@@ -281,7 +280,7 @@ export default function StockMoveTaskList() {
                                     max={selected.remainingQty}
                                     value={qty}
                                     onChange={(e) => setQty(e.target.value)}
-                                    className="px-3 py-2 border border-slate-200 rounded-lg text-sm text-right focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                                    className="input-num"
                                 />
                             </div>
                             <button
@@ -317,12 +316,12 @@ export default function StockMoveTaskList() {
                         <div className="flex gap-2 justify-end">
                             <button
                                 onClick={() => setConfirmTarget(null)}
-                                className="px-4 py-2 text-sm font-bold rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50">
+                                className="btn-modal-cancel">
                                 취소
                             </button>
                             <button
                                 onClick={() => { doConfirm(confirmTarget); setConfirmTarget(null); }}
-                                className="px-4 py-2 text-sm font-bold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
+                                className="btn-modal-primary">
                                 확정
                             </button>
                         </div>
@@ -346,7 +345,7 @@ export default function StockMoveTaskList() {
                         <div className="flex gap-2 justify-end">
                             <button
                                 onClick={() => setCancelTarget(null)}
-                                className="px-4 py-2 text-sm font-bold rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50">
+                                className="btn-modal-cancel">
                                 닫기
                             </button>
                             <button

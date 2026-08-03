@@ -7,15 +7,10 @@ import toast from 'react-hot-toast';
 import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import { asnApi, ASN_STATUS_META, ASN_STATUS_OPTIONS } from '@/api/asnApi';
-import { TEMP_ZONE_META } from '@/api/prodApi';
+import { TempZoneBadge } from '@/components/common/Badge';
+import { daysAheadStr, todayStr } from '@/utils/format';
 
 // 오늘 날짜 "YYYY-MM-DD" (검색 기본값)
-const todayStr = () => new Date().toISOString().slice(0, 10);
-const daysAheadStr = (n) => {
-    const d = new Date();
-    d.setDate(d.getDate() + n);
-    return d.toISOString().slice(0, 10);
-};
 
 const StatusBadge = ({ value }) => {
     const meta = ASN_STATUS_META[value];
@@ -27,15 +22,6 @@ const StatusBadge = ({ value }) => {
     );
 };
 
-const TempZoneBadge = ({ value }) => {
-    const meta = TEMP_ZONE_META[value];
-    if (!meta) return null;
-    return (
-        <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${meta.badge}`}>
-            {meta.label} {value}
-        </span>
-    );
-};
 
 const HEADER_COLUMN_DEFS = [
     { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
@@ -133,7 +119,7 @@ export default function AsnList() {
                         onChange={(e) => setCond(prev => ({ ...prev, ibNo: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchList()}
                         placeholder="IB-20260717-001"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                        className="w-full input-base"
                     />
                 </SearchItem>
                 <SearchItem label="입고진행상태">
@@ -150,14 +136,14 @@ export default function AsnList() {
                             type="date"
                             value={cond.dateFrom}
                             onChange={(e) => setCond(prev => ({ ...prev, dateFrom: e.target.value }))}
-                            className="flex-1 min-w-0 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                            className="flex-1 min-w-0 input-base"
                         />
                         <span className="text-slate-400 shrink-0">~</span>
                         <input
                             type="date"
                             value={cond.dateTo}
                             onChange={(e) => setCond(prev => ({ ...prev, dateTo: e.target.value }))}
-                            className="flex-1 min-w-0 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                            className="flex-1 min-w-0 input-base"
                         />
                     </div>
                 </SearchItem>

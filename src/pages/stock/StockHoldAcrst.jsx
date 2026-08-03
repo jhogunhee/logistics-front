@@ -6,9 +6,8 @@ import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import { invHldApi } from '@/api/invHldApi';
 import { codeApi, toSearchOptions } from '@/api/codeApi';
+import { fmtDt, num } from '@/utils/format';
 
-const num = (v) => (v == null ? '' : Number(v).toLocaleString());
-const fmtDt = (v) => (v ? v.replace('T', ' ').slice(0, 16) : '');
 
 /** 실적 종류. 보류/해제 실적은 별개 테이블이지만 화면 형태가 같아 토글로 오간다 */
 const KINDS = [
@@ -98,7 +97,7 @@ export default function StockHoldAcrst() {
                         onChange={(e) => setCond(prev => ({ ...prev, hldNo: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchList()}
                         placeholder="HD-20260803-001"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                        className="w-full input-base"
                     />
                 </SearchItem>
                 <SearchItem label="상품 코드">
@@ -108,7 +107,7 @@ export default function StockHoldAcrst() {
                         onChange={(e) => setCond(prev => ({ ...prev, prodCd: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchList()}
                         placeholder="PROD-0001"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                        className="w-full input-base"
                     />
                 </SearchItem>
                 <SearchItem label="로케이션">
@@ -118,7 +117,7 @@ export default function StockHoldAcrst() {
                         onChange={(e) => setCond(prev => ({ ...prev, locCd: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchList()}
                         placeholder="DRY-A-01-01"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                        className="w-full input-base"
                     />
                 </SearchItem>
                 <SearchItem label="사유">

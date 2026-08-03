@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 import { ChevronDown, ChevronRight, ScrollText, X } from 'lucide-react';
 
 import { strategyApi } from '@/api/strategyApi';
+import { fmtDt } from '@/utils/format';
 
 const TRGR_LABELS = { MANUAL: '화면 조작', AUTO: '자동', PREVIEW: '미리보기' };
 
-const fmt = (v) => (v ? v.replace('T', ' ').slice(0, 16) : '');
 
 /**
  * 전략 실행 이력 모달 — "이 라인이 왜 차단됐나 / 이 배치가 왜 이렇게 배정됐나"를
@@ -55,7 +55,7 @@ export default function ExecutionHistory({ open, onClose, stgyTyp, stgyId }) {
                                     className="w-full px-3 py-2 flex items-center gap-2 text-left hover:bg-slate-50">
                                 {openId === r.id ? <ChevronDown size={14} className="text-slate-400 shrink-0" />
                                                  : <ChevronRight size={14} className="text-slate-400 shrink-0" />}
-                                <span className="text-xs text-slate-400 shrink-0">{fmt(r.executedAt)}</span>
+                                <span className="text-xs text-slate-400 shrink-0">{fmtDt(r.executedAt)}</span>
                                 <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 font-bold shrink-0">
                                     {TRGR_LABELS[r.trgrTyp] ?? r.trgrTyp}
                                 </span>

@@ -7,9 +7,8 @@ import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import { invHldApi, INV_HLD_STATUS_META, ETC_RSN_CD } from '@/api/invHldApi';
 import { codeApi, toSearchOptions } from '@/api/codeApi';
+import { fmtDt, num } from '@/utils/format';
 
-const num = (v) => (v == null ? '' : Number(v).toLocaleString());
-const fmtDt = (v) => (v ? v.replace('T', ' ').slice(0, 16) : '');
 
 const STATUS_OPTIONS = [
     { value: '', label: '전체' },
@@ -175,7 +174,7 @@ export default function StockHoldList() {
                         onChange={(e) => setCond(prev => ({ ...prev, hldNo: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchList()}
                         placeholder="HD-20260803-001"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                        className="w-full input-base"
                     />
                 </SearchItem>
                 <SearchItem label="상품 코드">
@@ -185,7 +184,7 @@ export default function StockHoldList() {
                         onChange={(e) => setCond(prev => ({ ...prev, prodCd: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchList()}
                         placeholder="PROD-0001"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                        className="w-full input-base"
                     />
                 </SearchItem>
                 <SearchItem label="로케이션">
@@ -195,7 +194,7 @@ export default function StockHoldList() {
                         onChange={(e) => setCond(prev => ({ ...prev, locCd: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchList()}
                         placeholder="DRY-A-01-01"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                        className="w-full input-base"
                     />
                 </SearchItem>
                 <SearchItem label="보류사유">
@@ -257,7 +256,7 @@ export default function StockHoldList() {
                                     max={selected.remainingQty}
                                     value={qty}
                                     onChange={(e) => setQty(e.target.value)}
-                                    className="px-3 py-2 border border-slate-200 rounded-lg text-sm text-right focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                                    className="input-num"
                                 />
                             </div>
                             <div className="flex flex-col gap-1 w-40 shrink-0">
@@ -278,7 +277,7 @@ export default function StockHoldList() {
                                         value={rlzRsnDscr}
                                         onChange={(e) => setRlzRsnDscr(e.target.value)}
                                         placeholder="사유 내용 입력"
-                                        className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                                        className="input-base"
                                     />
                                 </div>
                             )}
@@ -309,7 +308,7 @@ export default function StockHoldList() {
                         <div className="flex gap-2 justify-end">
                             <button
                                 onClick={() => setReleaseTarget(null)}
-                                className="px-4 py-2 text-sm font-bold rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50">
+                                className="btn-modal-cancel">
                                 취소
                             </button>
                             <button

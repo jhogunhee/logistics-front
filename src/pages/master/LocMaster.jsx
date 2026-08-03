@@ -10,19 +10,11 @@ import { locApi, LOC_TYPE_META } from '@/api/locApi';
 import { zonApi } from '@/api/zonApi';
 import { TEMP_ZONE_META } from '@/api/prodApi';
 import { codeApi, toSearchOptions } from '@/api/codeApi';
+import { TempZoneBadge } from '@/components/common/Badge';
+import { RowStatusCell } from '@/components/common/Badge';
+import { fmtDe } from '@/utils/format';
 
-// ISO 일시("2026-07-16T14:03:21...") → "2026-07-16"
-const formatDate = (v) => (v ? v.replace('T', ' ').slice(0, 11) : '');
 
-const TempZoneBadge = ({ value }) => {
-    const meta = TEMP_ZONE_META[value];
-    if (!meta) return null;
-    return (
-        <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${meta.badge}`}>
-            {meta.label} {value}
-        </span>
-    );
-};
 
 const LocTypeBadge = ({ value }) => {
     const meta = LOC_TYPE_META[value];
@@ -54,11 +46,6 @@ export default function LocMaster() {
     const zonOptions = [{ value: '', label: '전체' }, ...zons.map(z => ({ value: z.zonCd, label: `${z.zonCd} ${z.zonNm}` }))];
     const zonTmpMap = Object.fromEntries(zons.map(z => [z.zonCd, z.tmpZon]));
 
-    const STATUS_META = {
-        C: { label: '신규', cls: 'text-blue-500' },
-        U: { label: '수정', cls: 'text-amber-500' },
-        D: { label: '삭제', cls: 'text-red-500' },
-    };
 
     // 온도대/유형 편집기 목록은 공통코드 상태를 직접 참조한다
     const columnDefs = [
@@ -103,22 +90,17 @@ export default function LocMaster() {
         },
         {
             field: '_status', headerName: '상태', width: 70,
-            cellRenderer: (p) => {
-                const meta = STATUS_META[p.value];
-                return meta
-                    ? <span className={`text-[11px] font-bold ${meta.cls}`}>{meta.label}</span>
-                    : null;
-            },
+            cellRenderer: (p) => <RowStatusCell value={p.value} />,
         },
         { field: 'createdBy', headerName: '등록자', width: 90, editable: false },
         {
             field: 'createdAt', headerName: '등록일자', width: 110, editable: false,
-            valueFormatter: (p) => formatDate(p.value),
+            valueFormatter: (p) => fmtDe(p.value),
         },
         { field: 'updatedBy', headerName: '수정자', width: 90, editable: false },
         {
             field: 'updatedAt', headerName: '수정일자', width: 110, editable: false,
-            valueFormatter: (p) => formatDate(p.value),
+            valueFormatter: (p) => fmtDe(p.value),
         },
     ];
 
@@ -339,7 +321,7 @@ export default function LocMaster() {
                         onChange={(e) => setCond(prev => ({ ...prev, locCd: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchList()}
                         placeholder="DRY-A-01-01"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                        className="w-full input-base"
                     />
                 </SearchItem>
                 <SearchItem label="존">
@@ -373,27 +355,27 @@ export default function LocMaster() {
                     />
                     <button
                         onClick={handleTemplateDownload}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[12px] font-bold text-slate-600 hover:border-indigo-300 hover:text-indigo-600 transition-colors">
+                        className="btn-ghost">
                         <Download size={13} /> 엑셀 양식
                     </button>
                     <button
                         onClick={() => fileInputRef.current.click()}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[12px] font-bold text-slate-600 hover:border-indigo-300 hover:text-indigo-600 transition-colors">
+                        className="btn-ghost">
                         <Upload size={13} /> 엑셀 업로드
                     </button>
                     <button
                         onClick={handleDeleteRows}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[12px] font-bold text-slate-600 hover:border-red-300 hover:text-red-600 transition-colors">
+                        className="btn-danger">
                         <Trash2 size={13} /> 삭제
                     </button>
                     <button
                         onClick={handleAddRow}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[12px] font-bold text-slate-600 hover:border-indigo-300 hover:text-indigo-600 transition-colors">
+                        className="btn-ghost">
                         <Plus size={13} /> 행추가
                     </button>
                     <button
                         onClick={handleSave}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 rounded-lg text-[12px] font-bold text-white hover:bg-indigo-700 transition-colors">
+                        className="btn-primary">
                         <Save size={13} /> 저장
                     </button>
                 </div>
@@ -412,12 +394,12 @@ export default function LocMaster() {
                         <div className="flex gap-2 justify-end">
                             <button
                                 onClick={() => setSaveConfirm(null)}
-                                className="px-4 py-2 text-sm font-bold rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50">
+                                className="btn-modal-cancel">
                                 취소
                             </button>
                             <button
                                 onClick={() => { doSave(saveConfirm); setSaveConfirm(null); }}
-                                className="px-4 py-2 text-sm font-bold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
+                                className="btn-modal-primary">
                                 저장
                             </button>
                         </div>

@@ -5,10 +5,9 @@ import { History } from 'lucide-react';
 import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import { invHistApi, TX_TYPE_META, TX_TYPE_OPTIONS } from '@/api/invHistApi';
-import { TEMP_ZONE_META } from '@/api/prodApi';
+import { TempZoneBadge } from '@/components/common/Badge';
+import { fmtDt } from '@/utils/format';
 
-// ISO 일시("2026-07-16T14:03:21...") → "2026-07-16 14:03"
-const formatDateTime = (v) => (v ? v.replace('T', ' ').slice(0, 16) : '');
 
 const TxTypeBadge = ({ value }) => {
     const meta = TX_TYPE_META[value];
@@ -20,15 +19,6 @@ const TxTypeBadge = ({ value }) => {
     );
 };
 
-const TempZoneBadge = ({ value }) => {
-    const meta = TEMP_ZONE_META[value];
-    if (!meta) return null;
-    return (
-        <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${meta.badge}`}>
-            {meta.label} {value}
-        </span>
-    );
-};
 
 const REF_DOC_TYPE_LABEL = { INBOUND: '입고', OUTBOUND: '출고' };
 
@@ -68,7 +58,7 @@ const COLUMN_DEFS = [
     },
     {
         field: 'createdAt', headerName: '생성일시', width: 150,
-        valueFormatter: (p) => formatDateTime(p.value),
+        valueFormatter: (p) => fmtDt(p.value),
     },
     { field: 'createdBy', headerName: '작성자', width: 90 },
 ];
@@ -106,7 +96,7 @@ export default function InvHistory() {
                         onChange={(e) => setCond(prev => ({ ...prev, prodCd: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchList()}
                         placeholder="PROD-0001"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                        className="w-full input-base"
                     />
                 </SearchItem>
                 <SearchItem label="상품명">
@@ -116,7 +106,7 @@ export default function InvHistory() {
                         onChange={(e) => setCond(prev => ({ ...prev, prodNm: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchList()}
                         placeholder="상품명 일부"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                        className="w-full input-base"
                     />
                 </SearchItem>
                 <SearchItem label="로케이션">
@@ -126,7 +116,7 @@ export default function InvHistory() {
                         onChange={(e) => setCond(prev => ({ ...prev, locCd: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchList()}
                         placeholder="RCV-STAGE"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                        className="w-full input-base"
                     />
                 </SearchItem>
                 <SearchItem label="유형">
@@ -144,7 +134,7 @@ export default function InvHistory() {
                         onChange={(e) => setCond(prev => ({ ...prev, rfnDocNo: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchList()}
                         placeholder="IB-20260717-001"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                        className="w-full input-base"
                     />
                 </SearchItem>
                 <SearchItem label="생성일자" wide>
@@ -153,14 +143,14 @@ export default function InvHistory() {
                             type="date"
                             value={cond.dateFrom}
                             onChange={(e) => setCond(prev => ({ ...prev, dateFrom: e.target.value }))}
-                            className="flex-1 min-w-0 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                            className="flex-1 min-w-0 input-base"
                         />
                         <span className="text-slate-400 shrink-0">~</span>
                         <input
                             type="date"
                             value={cond.dateTo}
                             onChange={(e) => setCond(prev => ({ ...prev, dateTo: e.target.value }))}
-                            className="flex-1 min-w-0 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                            className="flex-1 min-w-0 input-base"
                         />
                     </div>
                 </SearchItem>

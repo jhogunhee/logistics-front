@@ -11,15 +11,10 @@ import VendorPickerModal from '@/components/common/VendorPickerModal';
 import { omsIbOrderApi, OMS_IB_STATUS_META, OMS_IB_STATUS_OPTIONS } from '@/api/omsIbOrderApi';
 import { ASN_STATUS_META } from '@/api/asnApi';
 import { codeApi } from '@/api/codeApi';
-import { TEMP_ZONE_META } from '@/api/prodApi';
+import { TempZoneBadge } from '@/components/common/Badge';
+import { daysAheadStr, todayStr } from '@/utils/format';
 
 // 오늘 날짜 "YYYY-MM-DD" (검색 기본값)
-const todayStr = () => new Date().toISOString().slice(0, 10);
-const daysAheadStr = (n) => {
-    const d = new Date();
-    d.setDate(d.getDate() + n);
-    return d.toISOString().slice(0, 10);
-};
 
 const Badge = ({ meta }) => {
     if (!meta) return null;
@@ -30,15 +25,6 @@ const Badge = ({ meta }) => {
     );
 };
 
-const TempZoneBadge = ({ value }) => {
-    const meta = TEMP_ZONE_META[value];
-    if (!meta) return null;
-    return (
-        <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${meta.badge}`}>
-            {meta.label} {value}
-        </span>
-    );
-};
 
 const centered = { display: 'flex', alignItems: 'center', justifyContent: 'center' };
 
@@ -298,7 +284,7 @@ export default function InboundOrderList() {
                         onChange={(e) => setCond(prev => ({ ...prev, omsIbNo: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchList()}
                         placeholder="PO-20260723-001"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                        className="w-full input-base"
                     />
                 </SearchItem>
                 <SearchItem label="입고예정일" wide>
@@ -307,14 +293,14 @@ export default function InboundOrderList() {
                             type="date"
                             value={cond.dateFrom}
                             onChange={(e) => setCond(prev => ({ ...prev, dateFrom: e.target.value }))}
-                            className="flex-1 min-w-0 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                            className="flex-1 min-w-0 input-base"
                         />
                         <span className="text-slate-400 shrink-0">~</span>
                         <input
                             type="date"
                             value={cond.dateTo}
                             onChange={(e) => setCond(prev => ({ ...prev, dateTo: e.target.value }))}
-                            className="flex-1 min-w-0 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                            className="flex-1 min-w-0 input-base"
                         />
                     </div>
                 </SearchItem>
@@ -355,7 +341,7 @@ export default function InboundOrderList() {
                             <button
                                 onClick={handleDeleteClick}
                                 title="체크한 주문을 일괄 삭제합니다 (작성 상태만). 확정된 주문은 확정취소가 먼저입니다"
-                                className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[12px] font-bold text-slate-600 hover:border-red-300 hover:text-red-600 transition-colors">
+                                className="btn-danger">
                                 <Trash2 size={13} /> 주문삭제
                             </button>
                             <button
@@ -367,7 +353,7 @@ export default function InboundOrderList() {
                             <button
                                 onClick={handleConfirmClick}
                                 title="체크한 주문을 일괄 확정해 입고예정(ASN)을 생성합니다"
-                                className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 rounded-lg text-[12px] font-bold text-white hover:bg-indigo-700 transition-colors">
+                                className="btn-primary">
                                 <CheckCircle2 size={13} /> 주문확정
                             </button>
                         </div>
@@ -430,12 +416,12 @@ export default function InboundOrderList() {
                         <div className="flex gap-2 justify-end">
                             <button
                                 onClick={() => setConfirmTarget(null)}
-                                className="px-4 py-2 text-sm font-bold rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50">
+                                className="btn-modal-cancel">
                                 닫기
                             </button>
                             <button
                                 onClick={() => { doConfirm(confirmTarget.targets); setConfirmTarget(null); }}
-                                className="px-4 py-2 text-sm font-bold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
+                                className="btn-modal-primary">
                                 주문확정
                             </button>
                         </div>
@@ -467,7 +453,7 @@ export default function InboundOrderList() {
                         <div className="flex gap-2 justify-end">
                             <button
                                 onClick={() => setConfirmCancelTarget(null)}
-                                className="px-4 py-2 text-sm font-bold rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50">
+                                className="btn-modal-cancel">
                                 닫기
                             </button>
                             <button
@@ -502,7 +488,7 @@ export default function InboundOrderList() {
                         <div className="flex gap-2 justify-end">
                             <button
                                 onClick={() => setDeleteTarget(null)}
-                                className="px-4 py-2 text-sm font-bold rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50">
+                                className="btn-modal-cancel">
                                 닫기
                             </button>
                             <button

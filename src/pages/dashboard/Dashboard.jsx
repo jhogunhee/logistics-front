@@ -5,11 +5,9 @@ import { asnApi, ASN_STATUS_META } from '@/api/asnApi';
 import { putawayApi } from '@/api/putawayApi';
 import { prodApi } from '@/api/prodApi';
 import { invHistApi, TX_TYPE_META } from '@/api/invHistApi';
+import { fmtDt, todayStr } from '@/utils/format';
 
-const todayStr = () => new Date().toISOString().slice(0, 10);
 
-// ISO 일시("2026-07-16T14:03:21...") → "2026-07-16 14:03"
-const formatDateTime = (v) => (v ? v.replace('T', ' ').slice(0, 16) : '');
 
 const STATUS_ORDER = ['SCHEDULED', 'RECEIVING', 'RECEIVED', 'COMPLETED'];
 const STATUS_BAR_COLOR = {
@@ -98,7 +96,7 @@ const RecentHistory = ({ items }) => {
                         <span className={`font-bold shrink-0 w-12 text-right ${h.qty < 0 ? 'text-red-500' : 'text-emerald-600'}`}>
                             {h.qty > 0 ? `+${h.qty}` : h.qty}
                         </span>
-                        <span className="text-slate-400 shrink-0 w-28 text-right">{formatDateTime(h.createdAt)}</span>
+                        <span className="text-slate-400 shrink-0 w-28 text-right">{fmtDt(h.createdAt)}</span>
                     </div>
                 );
             })}

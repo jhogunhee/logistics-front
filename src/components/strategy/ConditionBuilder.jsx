@@ -118,10 +118,10 @@ function ValueInput({ field, op, vals, onChange }) {
         return (
             <div className="flex items-center gap-2">
                 <input type="text" value={vals[0] ?? ''} onChange={(e) => onChange([e.target.value, vals[1] ?? ''])}
-                       className="flex-1 min-w-0 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400" />
+                       className="flex-1 min-w-0 input-base" />
                 <span className="text-slate-400 shrink-0">~</span>
                 <input type="text" value={vals[1] ?? ''} onChange={(e) => onChange([vals[0] ?? '', e.target.value])}
-                       className="flex-1 min-w-0 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400" />
+                       className="flex-1 min-w-0 input-base" />
             </div>
         );
     }
@@ -132,7 +132,7 @@ function ValueInput({ field, op, vals, onChange }) {
             <input type="text" value={vals.join(',')}
                    onChange={(e) => onChange(e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
                    placeholder="값1, 값2, …"
-                   className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400" />
+                   className="w-full input-base" />
         );
     }
 
@@ -140,6 +140,6 @@ function ValueInput({ field, op, vals, onChange }) {
     return (
         <input type="text" value={vals[0] ?? ''} onChange={(e) => onChange([e.target.value])}
                placeholder={op === 'LIKE' ? '포함할 문자' : '값'}
-               className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400" />
+               className="w-full input-base" />
     );
 }

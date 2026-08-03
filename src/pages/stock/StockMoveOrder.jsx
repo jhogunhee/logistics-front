@@ -8,19 +8,10 @@ import DropdownSelect from '@/components/common/DropdownSelect';
 import { invApi } from '@/api/invApi';
 import { invMovApi } from '@/api/invMovApi';
 import { locApi } from '@/api/locApi';
-import { TEMP_ZONE_META } from '@/api/prodApi';
+import { TempZoneBadge } from '@/components/common/Badge';
+import { num } from '@/utils/format';
 
-const num = (v) => (v == null ? '' : Number(v).toLocaleString());
 
-const TempZoneBadge = ({ value }) => {
-    const meta = TEMP_ZONE_META[value];
-    if (!meta) return null;
-    return (
-        <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${meta.badge}`}>
-            {meta.label} {value}
-        </span>
-    );
-};
 
 const COLUMN_DEFS = [
     { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
@@ -181,7 +172,7 @@ export default function StockMoveOrder() {
                         onChange={(e) => setCond(prev => ({ ...prev, prodCd: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchStock()}
                         placeholder="PROD-0001"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                        className="w-full input-base"
                     />
                 </SearchItem>
                 <SearchItem label="상품명">
@@ -191,7 +182,7 @@ export default function StockMoveOrder() {
                         onChange={(e) => setCond(prev => ({ ...prev, prodNm: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchStock()}
                         placeholder="상품명 일부"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                        className="w-full input-base"
                     />
                 </SearchItem>
                 <SearchItem label="로케이션">
@@ -201,7 +192,7 @@ export default function StockMoveOrder() {
                         onChange={(e) => setCond(prev => ({ ...prev, locCd: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchStock()}
                         placeholder="DRY-A-01-01"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                        className="w-full input-base"
                     />
                 </SearchItem>
                 <SearchItem label="Lot번호">
@@ -211,7 +202,7 @@ export default function StockMoveOrder() {
                         onChange={(e) => setCond(prev => ({ ...prev, lotNo: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchStock()}
                         placeholder="LOT-260722-001"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                        className="w-full input-base"
                     />
                 </SearchItem>
             </SearchBar>
@@ -249,7 +240,7 @@ export default function StockMoveOrder() {
                                     min="1"
                                     value={qty}
                                     onChange={(e) => setQty(e.target.value)}
-                                    className="px-3 py-2 border border-slate-200 rounded-lg text-sm text-right focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                                    className="input-num"
                                 />
                             </div>
                             <div className="flex flex-col gap-1 w-64 shrink-0">
@@ -337,12 +328,12 @@ export default function StockMoveOrder() {
                         <div className="flex gap-2 justify-end">
                             <button
                                 onClick={() => setConfirmOpen(false)}
-                                className="px-4 py-2 text-sm font-bold rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50">
+                                className="btn-modal-cancel">
                                 취소
                             </button>
                             <button
                                 onClick={() => { handleRegister(); setConfirmOpen(false); }}
-                                className="px-4 py-2 text-sm font-bold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
+                                className="btn-modal-primary">
                                 등록
                             </button>
                         </div>

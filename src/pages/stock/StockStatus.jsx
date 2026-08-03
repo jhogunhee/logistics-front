@@ -7,8 +7,9 @@ import DropdownSelect from '@/components/common/DropdownSelect';
 import { invApi } from '@/api/invApi';
 import { TEMP_ZONE_META } from '@/api/prodApi';
 import { LOC_TYPE_META } from '@/api/locApi';
+import { TempZoneBadge } from '@/components/common/Badge';
+import { num } from '@/utils/format';
 
-const num = (v) => (v == null ? '' : Number(v).toLocaleString());
 
 const TEMP_ZONE_OPTIONS = [
     { value: '', label: '전체' },
@@ -20,15 +21,6 @@ const LOC_TYPE_OPTIONS = [
     ...Object.entries(LOC_TYPE_META).map(([value, m]) => ({ value, label: m.label })),
 ];
 
-const TempZoneBadge = ({ value }) => {
-    const meta = TEMP_ZONE_META[value];
-    if (!meta) return null;
-    return (
-        <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${meta.badge}`}>
-            {meta.label} {value}
-        </span>
-    );
-};
 
 const LocTypeBadge = ({ value }) => {
     const meta = LOC_TYPE_META[value];
@@ -146,7 +138,7 @@ export default function StockStatus() {
                         onChange={(e) => setCond(prev => ({ ...prev, prodCd: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchList()}
                         placeholder="PROD-0001"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                        className="w-full input-base"
                     />
                 </SearchItem>
                 <SearchItem label="상품명">
@@ -156,7 +148,7 @@ export default function StockStatus() {
                         onChange={(e) => setCond(prev => ({ ...prev, prodNm: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchList()}
                         placeholder="상품명 일부"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                        className="w-full input-base"
                     />
                 </SearchItem>
                 <SearchItem label="로케이션">
@@ -166,7 +158,7 @@ export default function StockStatus() {
                         onChange={(e) => setCond(prev => ({ ...prev, locCd: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchList()}
                         placeholder="DRY-A-01-01"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                        className="w-full input-base"
                     />
                 </SearchItem>
                 <SearchItem label="Lot번호">
@@ -176,7 +168,7 @@ export default function StockStatus() {
                         onChange={(e) => setCond(prev => ({ ...prev, lotNo: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchList()}
                         placeholder="LOT-260722-001"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                        className="w-full input-base"
                     />
                 </SearchItem>
                 <SearchItem label="온도대">

@@ -12,9 +12,9 @@ import RevisionHistory from '@/components/strategy/RevisionHistory';
 import SortableList from '@/components/strategy/SortableList';
 import { strategyApi } from '@/api/strategyApi';
 import { asnApi } from '@/api/asnApi';
+import { todayStr } from '@/utils/format';
 
 // 오늘 "YYYY-MM-DD" (미리보기 로트 기본값)
-const todayStr = () => new Date().toISOString().slice(0, 10);
 
 /**
  * SC-01 검수 정책관리. 정책은 전역 1개 — 목록 없이 바로 편집 화면이다.
@@ -223,7 +223,7 @@ export default function InspectionPolicy() {
                         <label className="text-xs font-bold text-slate-500 shrink-0">정책명</label>
                         <input type="text" value={stgyNm} onChange={(e) => setStgyNm(e.target.value)}
                                placeholder="예: 기본 검수 제약" title="표시용 이름 — 실행에 사용되지 않습니다"
-                               className="w-72 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400" />
+                               className="w-72 input-base" />
                         {!exists && <span className="text-[11px] text-amber-600 font-bold">아직 정책이 없습니다 — 저장하면 생성됩니다</span>}
                     </div>
 
@@ -294,7 +294,7 @@ export default function InspectionPolicy() {
                             </button>
                         )}
                         <button onClick={runPreview}
-                                className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 rounded-lg text-[12px] font-bold text-white hover:bg-indigo-700">
+                                className="btn-primary">
                             <Play size={13} /> 미리보기 실행
                         </button>
                     </div>

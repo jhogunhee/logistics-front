@@ -6,9 +6,9 @@ import toast from 'react-hot-toast';
 
 import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import { codeApi } from '@/api/codeApi';
+import { RowStatusCell } from '@/components/common/Badge';
+import { fmtDe } from '@/utils/format';
 
-// ISO 일시("2026-07-16T14:03:21...") → "2026-07-16"
-const formatDate = (v) => (v ? v.replace('T', ' ').slice(0, 11) : '');
 
 export default function CodeMaster() {
     const [groups, setGroups] = useState([]);
@@ -25,11 +25,6 @@ export default function CodeMaster() {
     // 코드 값은 (grp_cd, code_cd) PK의 일부라 등록 후 변경 불가 — 신규(C) 행에서만 입력받는다
     const isNew = (p) => p.data._status === 'C';
 
-    const STATUS_META = {
-        C: { label: '신규', cls: 'text-blue-500' },
-        U: { label: '수정', cls: 'text-amber-500' },
-        D: { label: '삭제', cls: 'text-red-500' },
-    };
 
     const GROUP_COLUMN_DEFS = [
         { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
@@ -48,12 +43,7 @@ export default function CodeMaster() {
         },
         {
             field: '_status', headerName: '상태', width: 70,
-            cellRenderer: (p) => {
-                const meta = STATUS_META[p.value];
-                return meta
-                    ? <span className={`text-[11px] font-bold ${meta.cls}`}>{meta.label}</span>
-                    : null;
-            },
+            cellRenderer: (p) => <RowStatusCell value={p.value} />,
         },
     ];
 
@@ -93,22 +83,17 @@ export default function CodeMaster() {
         },
         {
             field: '_status', headerName: '상태', width: 70,
-            cellRenderer: (p) => {
-                const meta = STATUS_META[p.value];
-                return meta
-                    ? <span className={`text-[11px] font-bold ${meta.cls}`}>{meta.label}</span>
-                    : null;
-            },
+            cellRenderer: (p) => <RowStatusCell value={p.value} />,
         },
         { field: 'createdBy', headerName: '등록자', width: 90, editable: false },
         {
             field: 'createdAt', headerName: '등록일자', width: 110, editable: false,
-            valueFormatter: (p) => formatDate(p.value),
+            valueFormatter: (p) => fmtDe(p.value),
         },
         { field: 'updatedBy', headerName: '수정자', width: 90, editable: false },
         {
             field: 'updatedAt', headerName: '수정일자', width: 110, editable: false,
-            valueFormatter: (p) => formatDate(p.value),
+            valueFormatter: (p) => fmtDe(p.value),
         },
     ];
 
@@ -332,7 +317,7 @@ export default function CodeMaster() {
                         onChange={(e) => setCond(prev => ({ ...prev, codeCd: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchCodes()}
                         placeholder="DRY"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                        className="w-full input-base"
                     />
                 </SearchItem>
                 <SearchItem label="코드명">
@@ -342,7 +327,7 @@ export default function CodeMaster() {
                         onChange={(e) => setCond(prev => ({ ...prev, codeNm: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchCodes()}
                         placeholder="상온"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                        className="w-full input-base"
                     />
                 </SearchItem>
             </SearchBar>
@@ -363,12 +348,12 @@ export default function CodeMaster() {
                         <div className="flex gap-2 justify-end">
                             <button
                                 onClick={() => setSaveConfirm(null)}
-                                className="px-4 py-2 text-sm font-bold rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50">
+                                className="btn-modal-cancel">
                                 취소
                             </button>
                             <button
                                 onClick={() => { doSave(saveConfirm); setSaveConfirm(null); }}
-                                className="px-4 py-2 text-sm font-bold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
+                                className="btn-modal-primary">
                                 저장
                             </button>
                         </div>
@@ -390,17 +375,17 @@ export default function CodeMaster() {
                             <button
                                 onClick={handleDeleteGroup}
                                 title="코드가 남아 있는 그룹은 서버가 삭제를 거부합니다"
-                                className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[12px] font-bold text-slate-600 hover:border-red-300 hover:text-red-600 transition-colors">
+                                className="btn-danger">
                                 <Trash2 size={13} /> 삭제
                             </button>
                             <button
                                 onClick={handleAddGroup}
-                                className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[12px] font-bold text-slate-600 hover:border-indigo-300 hover:text-indigo-600 transition-colors">
+                                className="btn-ghost">
                                 <Plus size={13} /> 행추가
                             </button>
                             <button
                                 onClick={handleSaveGroups}
-                                className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 rounded-lg text-[12px] font-bold text-white hover:bg-indigo-700 transition-colors">
+                                className="btn-primary">
                                 <Save size={13} /> 저장
                             </button>
                         </div>
@@ -442,17 +427,17 @@ export default function CodeMaster() {
                         <div className="flex gap-2">
                             <button
                                 onClick={handleDeleteRows}
-                                className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[12px] font-bold text-slate-600 hover:border-red-300 hover:text-red-600 transition-colors">
+                                className="btn-danger">
                                 <Trash2 size={13} /> 삭제
                             </button>
                             <button
                                 onClick={handleAddRow}
-                                className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[12px] font-bold text-slate-600 hover:border-indigo-300 hover:text-indigo-600 transition-colors">
+                                className="btn-ghost">
                                 <Plus size={13} /> 행추가
                             </button>
                             <button
                                 onClick={handleSave}
-                                className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 rounded-lg text-[12px] font-bold text-white hover:bg-indigo-700 transition-colors">
+                                className="btn-primary">
                                 <Save size={13} /> 저장
                             </button>
                         </div>

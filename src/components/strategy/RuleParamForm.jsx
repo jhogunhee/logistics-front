@@ -28,7 +28,7 @@ export default function RuleParamForm({ ruleCd, value = {}, onChange }) {
                     <input type="number" value={value.minPercent ?? ''}
                            min={MIN_PERCENT_RANGE.min} max={MIN_PERCENT_RANGE.max}
                            onChange={(e) => set('minPercent', e.target.value === '' ? '' : Number(e.target.value))}
-                           className="w-28 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-right focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400" />
+                           className="w-28 input-num" />
                     <span className="text-[11px] text-slate-400">{MIN_PERCENT_RANGE.min} ~ {MIN_PERCENT_RANGE.max}</span>
                 </ParamRow>
             );

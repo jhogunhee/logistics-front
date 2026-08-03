@@ -126,7 +126,7 @@ export default function ProdPickerModal({ open, onClose, onSelect, multiple = fa
                             value={cond.prodCd}
                             onChange={(e) => setCond(prev => ({ ...prev, prodCd: e.target.value }))}
                             placeholder="PROD-0001"
-                            className="flex-1 min-w-0 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                            className="flex-1 min-w-0 input-base py-1.5"
                         />
                     </label>
                     <label className="flex items-center gap-2">
@@ -137,7 +137,7 @@ export default function ProdPickerModal({ open, onClose, onSelect, multiple = fa
                             onChange={(e) => setCond(prev => ({ ...prev, prodNm: e.target.value }))}
                             placeholder="우유"
                             autoFocus
-                            className="flex-1 min-w-0 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                            className="flex-1 min-w-0 input-base py-1.5"
                         />
                     </label>
                     <div className="flex items-center gap-2">
@@ -230,14 +230,14 @@ export default function ProdPickerModal({ open, onClose, onSelect, multiple = fa
                     <div className="flex gap-2">
                         <button
                             onClick={onClose}
-                            className="px-4 py-2 text-sm font-bold rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50">
+                            className="btn-modal-cancel">
                             닫기
                         </button>
                         {multiple && (
                             <button
                                 onClick={confirmMultiple}
                                 disabled={checked.size === 0}
-                                className="px-4 py-2 text-sm font-bold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40">
+                                className="btn-modal-primary disabled:opacity-40">
                                 담기 {checked.size > 0 && `(${checked.size})`}
                             </button>
                         )}

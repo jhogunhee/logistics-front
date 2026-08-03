@@ -6,13 +6,11 @@ import toast from 'react-hot-toast';
 
 import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import { asnApi, ASN_STATUS_META } from '@/api/asnApi';
-import { TEMP_ZONE_META } from '@/api/prodApi';
+import { TempZoneBadge } from '@/components/common/Badge';
+import { fmtDt, todayStr } from '@/utils/format';
 
-// ISO 일시("2026-07-16T14:03:21...") → "2026-07-16 14:03"
-const formatDateTime = (v) => (v ? v.replace('T', ' ').slice(0, 16) : '');
 
 // 오늘 날짜 "YYYY-MM-DD" (입고일자/제조일자 기본값)
-const todayStr = () => new Date().toISOString().slice(0, 10);
 
 const StatusBadge = ({ value }) => {
     const meta = ASN_STATUS_META[value];
@@ -24,15 +22,6 @@ const StatusBadge = ({ value }) => {
     );
 };
 
-const TempZoneBadge = ({ value }) => {
-    const meta = TEMP_ZONE_META[value];
-    if (!meta) return null;
-    return (
-        <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${meta.badge}`}>
-            {meta.label} {value}
-        </span>
-    );
-};
 
 const HEADER_COLUMN_DEFS = [
     { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
@@ -53,7 +42,7 @@ const HEADER_COLUMN_DEFS = [
     { field: 'totalRcvdQty', headerName: '검수수량', width: 100, cellClass: 'ag-right-aligned-cell' },
     {
         field: 'createdAt', headerName: '등록시간', width: 150,
-        valueFormatter: (p) => formatDateTime(p.value),
+        valueFormatter: (p) => fmtDt(p.value),
     },
 ];
 
@@ -281,7 +270,7 @@ export default function Receiving() {
                         onChange={(e) => setCond(prev => ({ ...prev, ibNo: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && fetchList()}
                         placeholder="IB-20260717-001"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                        className="w-full input-base"
                     />
                 </SearchItem>
                 <SearchItem label="입고예정일" wide>
@@ -290,14 +279,14 @@ export default function Receiving() {
                             type="date"
                             value={cond.dateFrom}
                             onChange={(e) => setCond(prev => ({ ...prev, dateFrom: e.target.value }))}
-                            className="flex-1 min-w-0 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                            className="flex-1 min-w-0 input-base"
                         />
                         <span className="text-slate-400 shrink-0">~</span>
                         <input
                             type="date"
                             value={cond.dateTo}
                             onChange={(e) => setCond(prev => ({ ...prev, dateTo: e.target.value }))}
-                            className="flex-1 min-w-0 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                            className="flex-1 min-w-0 input-base"
                         />
                     </div>
                 </SearchItem>
@@ -339,7 +328,7 @@ export default function Receiving() {
                         </div>
                         <button
                             onClick={handleReceiveClick}
-                            className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 rounded-lg text-[12px] font-bold text-white hover:bg-indigo-700 transition-colors shrink-0">
+                            className="btn-primary shrink-0">
                             <ClipboardCheck size={13} /> 검수 저장
                         </button>
                     </div>
@@ -381,12 +370,12 @@ export default function Receiving() {
                         <div className="flex gap-2 justify-end">
                             <button
                                 onClick={() => setReceiveConfirm(null)}
-                                className="px-4 py-2 text-sm font-bold rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50">
+                                className="btn-modal-cancel">
                                 취소
                             </button>
                             <button
                                 onClick={() => { doReceive(receiveConfirm); setReceiveConfirm(null); }}
-                                className="px-4 py-2 text-sm font-bold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
+                                className="btn-modal-primary">
                                 저장
                             </button>
                         </div>
@@ -419,7 +408,7 @@ export default function Receiving() {
                                     <div className="flex flex-col gap-0.5">
                                         <span className="text-sm font-bold text-slate-700">{r.qty}개 · {r.lotNo}</span>
                                         <span className="text-[11px] text-slate-400">
-                                            입고일자 {r.receiptDt}{r.mfgDt ? ` · 제조일자 ${r.mfgDt}` : ''} · {formatDateTime(r.createdAt)}
+                                            입고일자 {r.receiptDt}{r.mfgDt ? ` · 제조일자 ${r.mfgDt}` : ''} · {fmtDt(r.createdAt)}
                                         </span>
                                     </div>
                                     {r.cancelled ? (
@@ -450,7 +439,7 @@ export default function Receiving() {
                         <div className="flex gap-2 justify-end">
                             <button
                                 onClick={() => setCancelReceiptTarget(null)}
-                                className="px-4 py-2 text-sm font-bold rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50">
+                                className="btn-modal-cancel">
                                 닫기
                             </button>
                             <button

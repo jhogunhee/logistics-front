@@ -115,7 +115,7 @@ export default function VendorPickerModal({ open, onClose, onSelect }) {
                     </span>
                     <button
                         onClick={onClose}
-                        className="px-4 py-2 text-sm font-bold rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50">
+                        className="btn-modal-cancel">
                         닫기
                     </button>
                 </div>
