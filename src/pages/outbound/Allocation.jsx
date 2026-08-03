@@ -71,6 +71,14 @@ const ALLOC_COLUMN_DEFS = [
             ? <span className="font-bold text-emerald-600 tabular-nums">{num(p.value)}</span>
             : <span className="text-slate-300 tabular-nums">0</span>),
     },
+    {
+        field: 'alocStgyId', headerName: '출처', width: 90,
+        headerTooltip: '전략 = 할당 전략이 만든 행 / 기본·수동 = 전략 없이 만들어진 행 '
+            + '(수동할당이거나, 매칭되는 전략이 없어 기본 동작으로 할당된 행)',
+        cellRenderer: (p) => (p.value != null
+            ? <span className="text-indigo-600 font-medium">전략</span>
+            : <span className="text-slate-400">기본·수동</span>),
+    },
 ];
 
 /**
@@ -291,6 +299,13 @@ export default function Allocation() {
                         <Fig label="요청" value={execResult.reqQty} />
                         <Fig label="할당" value={execResult.alocQty} tone="text-emerald-600" />
                         <Fig label="잔량" value={execResult.shortQty} tone={execResult.shortQty > 0 ? 'text-amber-600' : ''} />
+                        {/* 어느 규칙으로 뽑혔는지 — 전략이 없으면 「기본 동작」이 정상 상태다 */}
+                        <span className="text-slate-500" title="적용된 할당 전략 (실행 1회에 1건)">
+                            {execResult.stgyNm
+                                ? <>전략 <b className="text-indigo-600">{execResult.stgyNm}</b>
+                                    <span className="text-slate-400"> r{execResult.rvsnNo}</span></>
+                                : <span className="text-slate-400">기본 동작 (FEFO · 순차 소진)</span>}
+                        </span>
                         <button onClick={() => setExecResult(null)} className="ml-auto btn-ghost">닫기</button>
                     </div>
                     {shortLines.length > 0 && (
