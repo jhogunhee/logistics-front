@@ -12,6 +12,7 @@ import { codeApi, toSearchOptions } from '@/api/codeApi';
 import { TempZoneBadge } from '@/components/common/Badge';
 import { RowStatusCell } from '@/components/common/Badge';
 import { fmtDe } from '@/utils/format';
+import ConfirmModal from '@/components/common/ConfirmModal';
 
 
 
@@ -384,28 +385,18 @@ export default function ProdMaster() {
 
             {/* 저장 확인 모달 */}
             {saveConfirm && (
-                <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 bg-black/20">
-                    <div className="bg-white rounded-2xl shadow-xl p-6 w-96 flex flex-col gap-4">
-                        <h3 className="text-lg font-bold text-slate-800">저장하시겠습니까?</h3>
-                        <p className="text-sm text-slate-500">
-                            신규 <b className="text-blue-500">{saveConfirm.filter(r => r._status === 'C').length}</b>건 ·
-                            수정 <b className="text-amber-500">{saveConfirm.filter(r => r._status === 'U').length}</b>건 ·
-                            삭제 <b className="text-red-500">{saveConfirm.filter(r => r._status === 'D').length}</b>건
-                        </p>
-                        <div className="flex gap-2 justify-end">
-                            <button
-                                onClick={() => setSaveConfirm(null)}
-                                className="btn-modal-cancel">
-                                취소
-                            </button>
-                            <button
-                                onClick={() => { doSave(saveConfirm); setSaveConfirm(null); }}
-                                className="btn-modal-primary">
-                                저장
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <ConfirmModal
+                    title="저장하시겠습니까?"
+                    confirmText="저장"
+                    onCancel={() => setSaveConfirm(null)}
+                    onConfirm={() => { doSave(saveConfirm); setSaveConfirm(null); }}
+                >
+                    <p className="text-sm text-slate-500">
+                        신규 <b className="text-blue-500">{saveConfirm.filter(r => r._status === 'C').length}</b>건 ·
+                        수정 <b className="text-amber-500">{saveConfirm.filter(r => r._status === 'U').length}</b>건 ·
+                        삭제 <b className="text-red-500">{saveConfirm.filter(r => r._status === 'D').length}</b>건
+                    </p>
+                </ConfirmModal>
             )}
 
             {/* 그리드 — 고정 높이 대신 남은 화면 공간을 채운다 */}

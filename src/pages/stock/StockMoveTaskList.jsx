@@ -7,6 +7,7 @@ import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import { invMovApi, INV_MOV_STATUS_META, INV_MOV_DVSN_META } from '@/api/invMovApi';
 import { fmtDt, num } from '@/utils/format';
+import ConfirmModal from '@/components/common/ConfirmModal';
 
 
 const STATUS_OPTIONS = [
@@ -301,32 +302,22 @@ export default function StockMoveTaskList() {
 
             {/* 확정 확인 모달 */}
             {confirmTarget && (
-                <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 bg-black/20">
-                    <div className="bg-white rounded-2xl shadow-xl p-6 w-96 flex flex-col gap-4">
-                        <h3 className="text-lg font-bold text-slate-800">이동을 확정하시겠습니까?</h3>
-                        <p className="text-sm text-slate-500">
-                            {confirmTarget.prodCd} {confirmTarget.prodNm} · <b className="text-emerald-600">{num(confirmTarget.qty)}개</b>
-                        </p>
-                        <p className="text-xs text-slate-400 font-mono">
-                            {confirmTarget.fromLocCd} → {confirmTarget.toLocCd}
-                        </p>
-                        {confirmTarget.qty < confirmTarget.remainingQty && (
-                            <p className="text-xs text-amber-600">부분확정 — 잔여 {num(confirmTarget.remainingQty - confirmTarget.qty)}개는 지시 상태로 남습니다.</p>
-                        )}
-                        <div className="flex gap-2 justify-end">
-                            <button
-                                onClick={() => setConfirmTarget(null)}
-                                className="btn-modal-cancel">
-                                취소
-                            </button>
-                            <button
-                                onClick={() => { doConfirm(confirmTarget); setConfirmTarget(null); }}
-                                className="btn-modal-primary">
-                                확정
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <ConfirmModal
+                    title="이동을 확정하시겠습니까?"
+                    confirmText="확정"
+                    onCancel={() => setConfirmTarget(null)}
+                    onConfirm={() => { doConfirm(confirmTarget); setConfirmTarget(null); }}
+                >
+                    <p className="text-sm text-slate-500">
+                        {confirmTarget.prodCd} {confirmTarget.prodNm} · <b className="text-emerald-600">{num(confirmTarget.qty)}개</b>
+                    </p>
+                    <p className="text-xs text-slate-400 font-mono">
+                        {confirmTarget.fromLocCd} → {confirmTarget.toLocCd}
+                    </p>
+                    {confirmTarget.qty < confirmTarget.remainingQty && (
+                        <p className="text-xs text-amber-600">부분확정 — 잔여 {num(confirmTarget.remainingQty - confirmTarget.qty)}개는 지시 상태로 남습니다.</p>
+                    )}
+                </ConfirmModal>
             )}
 
             {/* 취소 확인 모달 */}

@@ -7,6 +7,7 @@ import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import { putawayApi } from '@/api/putawayApi';
 import { TempZoneBadge } from '@/components/common/Badge';
+import ConfirmModal from '@/components/common/ConfirmModal';
 
 
 const COLUMN_DEFS = [
@@ -348,29 +349,19 @@ export default function Putaway() {
 
             {/* 적치 확인 모달 */}
             {confirmTarget && (
-                <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 bg-black/20">
-                    <div className="bg-white rounded-2xl shadow-xl p-6 w-96 flex flex-col gap-4">
-                        <h3 className="text-lg font-bold text-slate-800">적치하시겠습니까?</h3>
-                        <p className="text-sm text-slate-500">
-                            {confirmTarget.prodCd} {confirmTarget.prodNm} · <b className="text-emerald-600">{confirmTarget.qty}개</b>
-                        </p>
-                        <p className="text-xs text-slate-400">
-                            RCV-STAGE → {targetLocLabel(confirmTarget.targetLocId)}
-                        </p>
-                        <div className="flex gap-2 justify-end">
-                            <button
-                                onClick={() => setConfirmTarget(null)}
-                                className="btn-modal-cancel">
-                                취소
-                            </button>
-                            <button
-                                onClick={() => { doPutaway(confirmTarget); setConfirmTarget(null); }}
-                                className="btn-modal-primary">
-                                적치
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <ConfirmModal
+                    title="적치하시겠습니까?"
+                    confirmText="적치"
+                    onCancel={() => setConfirmTarget(null)}
+                    onConfirm={() => { doPutaway(confirmTarget); setConfirmTarget(null); }}
+                >
+                    <p className="text-sm text-slate-500">
+                        {confirmTarget.prodCd} {confirmTarget.prodNm} · <b className="text-emerald-600">{confirmTarget.qty}개</b>
+                    </p>
+                    <p className="text-xs text-slate-400">
+                        RCV-STAGE → {targetLocLabel(confirmTarget.targetLocId)}
+                    </p>
+                </ConfirmModal>
             )}
         </div>
     );

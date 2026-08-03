@@ -8,6 +8,7 @@ import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import { asnApi, ASN_STATUS_META } from '@/api/asnApi';
 import { TempZoneBadge } from '@/components/common/Badge';
 import { fmtDt, todayStr } from '@/utils/format';
+import ConfirmModal from '@/components/common/ConfirmModal';
 
 
 // 오늘 날짜 "YYYY-MM-DD" (입고일자/제조일자 기본값)
@@ -360,27 +361,17 @@ export default function Receiving() {
 
             {/* 검수 저장 확인 모달 */}
             {receiveConfirm && (
-                <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 bg-black/20">
-                    <div className="bg-white rounded-2xl shadow-xl p-6 w-96 flex flex-col gap-4">
-                        <h3 className="text-lg font-bold text-slate-800">검수를 저장하시겠습니까?</h3>
-                        <p className="text-sm text-slate-500">
-                            {receiveConfirm.length}개 라인 · 총 검수수량 <b className="text-emerald-600">{receiveSummary(receiveConfirm)}</b>
-                        </p>
-                        <p className="text-xs text-slate-400">검수수량은 RCV-STAGE 재고로 즉시 반영됩니다.</p>
-                        <div className="flex gap-2 justify-end">
-                            <button
-                                onClick={() => setReceiveConfirm(null)}
-                                className="btn-modal-cancel">
-                                취소
-                            </button>
-                            <button
-                                onClick={() => { doReceive(receiveConfirm); setReceiveConfirm(null); }}
-                                className="btn-modal-primary">
-                                저장
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <ConfirmModal
+                    title="검수를 저장하시겠습니까?"
+                    confirmText="저장"
+                    onCancel={() => setReceiveConfirm(null)}
+                    onConfirm={() => { doReceive(receiveConfirm); setReceiveConfirm(null); }}
+                >
+                    <p className="text-sm text-slate-500">
+                        {receiveConfirm.length}개 라인 · 총 검수수량 <b className="text-emerald-600">{receiveSummary(receiveConfirm)}</b>
+                    </p>
+                    <p className="text-xs text-slate-400">검수수량은 RCV-STAGE 재고로 즉시 반영됩니다.</p>
+                </ConfirmModal>
             )}
 
             {/* 검수 이력 모달 */}

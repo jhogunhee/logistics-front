@@ -10,6 +10,7 @@ import { prodUomApi } from '@/api/prodUomApi';
 import { prodApi } from '@/api/prodApi';
 import { codeApi } from '@/api/codeApi';
 import { RowStatusCell } from '@/components/common/Badge';
+import ConfirmModal from '@/components/common/ConfirmModal';
 
 // 단위 코드 목록의 주인은 공통코드 UOM 그룹이다 (온도대·보관유형과 같은 API를 쓴다)
 const GRP_CD = 'UOM';
@@ -561,32 +562,22 @@ export default function UomMaster() {
 
             {/* 저장 확인 모달 */}
             {saveConfirm && (
-                <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 bg-black/20">
-                    <div className="bg-white rounded-2xl shadow-xl p-6 w-96 flex flex-col gap-4">
-                        <h3 className="text-lg font-bold text-slate-800">저장하시겠습니까?</h3>
-                        <p className="text-sm text-slate-500">
-                            <b className="text-slate-700">{selectedProd?.prodNm}</b> ·
-                            신규 <b className="text-blue-500">{saveConfirm.filter(r => r._status === 'C').length}</b>건 ·
-                            수정 <b className="text-amber-500">{saveConfirm.filter(r => r._status === 'U').length}</b>건 ·
-                            삭제 <b className="text-red-500">{saveConfirm.filter(r => r._status === 'D').length}</b>건
-                        </p>
-                        <p className="text-xs text-slate-400">
-                            입고단위·출고단위로 쓰이는 포장은 삭제되지 않습니다 — 다른 포장으로 옮긴 뒤 지우세요.
-                        </p>
-                        <div className="flex gap-2 justify-end">
-                            <button
-                                onClick={() => setSaveConfirm(null)}
-                                className="btn-modal-cancel">
-                                취소
-                            </button>
-                            <button
-                                onClick={() => { doSave(saveConfirm); setSaveConfirm(null); }}
-                                className="btn-modal-primary">
-                                저장
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <ConfirmModal
+                    title="저장하시겠습니까?"
+                    confirmText="저장"
+                    onCancel={() => setSaveConfirm(null)}
+                    onConfirm={() => { doSave(saveConfirm); setSaveConfirm(null); }}
+                >
+                    <p className="text-sm text-slate-500">
+                        <b className="text-slate-700">{selectedProd?.prodNm}</b> ·
+                        신규 <b className="text-blue-500">{saveConfirm.filter(r => r._status === 'C').length}</b>건 ·
+                        수정 <b className="text-amber-500">{saveConfirm.filter(r => r._status === 'U').length}</b>건 ·
+                        삭제 <b className="text-red-500">{saveConfirm.filter(r => r._status === 'D').length}</b>건
+                    </p>
+                    <p className="text-xs text-slate-400">
+                        입고단위·출고단위로 쓰이는 포장은 삭제되지 않습니다 — 다른 포장으로 옮긴 뒤 지우세요.
+                    </p>
+                </ConfirmModal>
             )}
 
             {/* 상품 삭제 확인 모달 — 포장까지 함께 사라지므로 건수를 먼저 보여준다 */}
@@ -621,30 +612,20 @@ export default function UomMaster() {
 
             {/* 엑셀 업로드 확인 모달 — 여러 상품에 걸치므로 그리드를 거치지 않고 바로 등록한다 */}
             {uploadConfirm && (
-                <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 bg-black/20">
-                    <div className="bg-white rounded-2xl shadow-xl p-6 w-96 flex flex-col gap-4">
-                        <h3 className="text-lg font-bold text-slate-800">포장을 등록하시겠습니까?</h3>
-                        <p className="text-sm text-slate-500">
-                            상품 <b className="text-slate-700">{new Set(uploadConfirm.map(r => r.prodId)).size}</b>건에
-                            포장 <b className="text-blue-500">{uploadConfirm.length}</b>건을 추가합니다.
-                        </p>
-                        <p className="text-xs text-slate-400">
-                            입고단위·출고단위는 엑셀로 정하지 않습니다 — 등록 후 상품을 골라 라디오로 지정하세요.
-                        </p>
-                        <div className="flex gap-2 justify-end">
-                            <button
-                                onClick={() => setUploadConfirm(null)}
-                                className="btn-modal-cancel">
-                                취소
-                            </button>
-                            <button
-                                onClick={() => { doUpload(uploadConfirm); setUploadConfirm(null); }}
-                                className="btn-modal-primary">
-                                등록
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <ConfirmModal
+                    title="포장을 등록하시겠습니까?"
+                    confirmText="등록"
+                    onCancel={() => setUploadConfirm(null)}
+                    onConfirm={() => { doUpload(uploadConfirm); setUploadConfirm(null); }}
+                >
+                    <p className="text-sm text-slate-500">
+                        상품 <b className="text-slate-700">{new Set(uploadConfirm.map(r => r.prodId)).size}</b>건에
+                        포장 <b className="text-blue-500">{uploadConfirm.length}</b>건을 추가합니다.
+                    </p>
+                    <p className="text-xs text-slate-400">
+                        입고단위·출고단위는 엑셀로 정하지 않습니다 — 등록 후 상품을 골라 라디오로 지정하세요.
+                    </p>
+                </ConfirmModal>
             )}
         </div>
     );

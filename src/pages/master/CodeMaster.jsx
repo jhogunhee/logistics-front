@@ -8,6 +8,7 @@ import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import { codeApi } from '@/api/codeApi';
 import { RowStatusCell } from '@/components/common/Badge';
 import { fmtDe } from '@/utils/format';
+import ConfirmModal from '@/components/common/ConfirmModal';
 
 
 export default function CodeMaster() {
@@ -17,6 +18,7 @@ export default function CodeMaster() {
     const [cond, setCond] = useState({ codeCd: '', codeNm: '' });
     const [rowCount, setRowCount] = useState(0); // 행추가분은 rowData 상태에 없으므로 건수는 그리드 기준으로 센다
     const [saveConfirm, setSaveConfirm] = useState(null); // 저장 확인 모달에 넘길 대상 행들 (null이면 닫힘)
+    const [groupSwitchConfirm, setGroupSwitchConfirm] = useState(null); // 미저장 상태에서 그룹을 바꾸려 할 때 보류된 그룹
     const groupGridRef = useRef(null);
     const gridRef = useRef(null);
 
@@ -147,22 +149,31 @@ export default function CodeMaster() {
      * 그룹 전환. 저장하지 않은 코드 변경이 있으면 되묻는다 —
      * 저장이 그룹 단위(/master/codes/{grpCd}/bulk)로 나가므로 다른 그룹의 편집분이 섞이면 안 된다.
      */
+    const applyGroupSwitch = (next) => {
+        setCond({ codeCd: '', codeNm: '' });
+        // 아직 저장 전인 신규 그룹은 서버에 없어 조회를 건너뛴다 — 그때 앞 그룹의 코드를
+        // 남겨두면 "그룹은 신규인데 코드는 남의 것"인 화면이 된다. 여기서 비운다.
+        if (next._status === 'C') setRowData([]);
+        setSelectedGroup(next);   // 조회는 위 useEffect가 이어받는다
+    };
+
+    /** 확인 모달에서 취소했을 때 — 선택을 앞 그룹으로 되돌린다 (이벤트가 다시 돌지만 grpCd가 같아 걸러진다) */
+    const revertGroupSelection = () => {
+        groupGridRef.current?.api.forEachNode(n => n.setSelected(n.data.grpCd === selectedGroup?.grpCd));
+    };
+
     const onGroupSelected = (p) => {
         const next = p.api.getSelectedRows()[0] ?? null;
         if (!next || next.grpCd === selectedGroup?.grpCd) return;
 
         const dirty = [];
         gridRef.current?.api.forEachNode(n => { if (n.data._status) dirty.push(n.data); });
-        if (dirty.length > 0 && !window.confirm('저장하지 않은 코드 변경이 있습니다. 그룹을 바꾸면 사라집니다.')) {
-            // 되돌린다 — 선택 이벤트가 다시 돌지만 grpCd가 같아 위에서 걸러진다
-            p.api.forEachNode(n => n.setSelected(n.data.grpCd === selectedGroup?.grpCd));
+        if (dirty.length > 0) {
+            // 확인 모달은 비동기라 여기서 막을 수 없다 — 전환을 보류해 두고 응답을 기다린다
+            setGroupSwitchConfirm(next);
             return;
         }
-        setCond({ codeCd: '', codeNm: '' });
-        // 아직 저장 전인 신규 그룹은 서버에 없어 조회를 건너뛴다 — 그때 앞 그룹의 코드를
-        // 남겨두면 "그룹은 신규인데 코드는 남의 것"인 화면이 된다. 여기서 비운다.
-        if (next._status === 'C') setRowData([]);
-        setSelectedGroup(next);   // 조회는 위 useEffect가 이어받는다
+        applyGroupSwitch(next);
     };
 
     // ── 그룹 편집 ────────────────────────────────────────────
@@ -334,31 +345,37 @@ export default function CodeMaster() {
 
             {/* 저장 확인 모달 */}
             {saveConfirm && (
-                <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 bg-black/20">
-                    <div className="bg-white rounded-2xl shadow-xl p-6 w-96 flex flex-col gap-4">
-                        <h3 className="text-lg font-bold text-slate-800">저장하시겠습니까?</h3>
-                        <p className="text-sm text-slate-500">
-                            <b>{selectedGroup?.grpNm}</b> · 신규 <b className="text-blue-500">{saveConfirm.filter(r => r._status === 'C').length}</b>건 ·
-                            수정 <b className="text-amber-500">{saveConfirm.filter(r => r._status === 'U').length}</b>건 ·
-                            삭제 <b className="text-red-500">{saveConfirm.filter(r => r._status === 'D').length}</b>건
-                        </p>
-                        <p className="text-xs text-slate-400">
-                            코드 값은 로직이 리터럴로 참조합니다. 이미 쓰이는 코드를 지우면 그 값을 가진 기존 데이터가 화면에서 빈 칸으로 보입니다.
-                        </p>
-                        <div className="flex gap-2 justify-end">
-                            <button
-                                onClick={() => setSaveConfirm(null)}
-                                className="btn-modal-cancel">
-                                취소
-                            </button>
-                            <button
-                                onClick={() => { doSave(saveConfirm); setSaveConfirm(null); }}
-                                className="btn-modal-primary">
-                                저장
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <ConfirmModal
+                    title="저장하시겠습니까?"
+                    confirmText="저장"
+                    onCancel={() => setSaveConfirm(null)}
+                    onConfirm={() => { doSave(saveConfirm); setSaveConfirm(null); }}
+                >
+                    <p className="text-sm text-slate-500">
+                        <b>{selectedGroup?.grpNm}</b> · 신규 <b className="text-blue-500">{saveConfirm.filter(r => r._status === 'C').length}</b>건 ·
+                        수정 <b className="text-amber-500">{saveConfirm.filter(r => r._status === 'U').length}</b>건 ·
+                        삭제 <b className="text-red-500">{saveConfirm.filter(r => r._status === 'D').length}</b>건
+                    </p>
+                    <p className="text-xs text-slate-400">
+                        코드 값은 로직이 리터럴로 참조합니다. 이미 쓰이는 코드를 지우면 그 값을 가진 기존 데이터가 화면에서 빈 칸으로 보입니다.
+                    </p>
+                </ConfirmModal>
+            )}
+
+            {/* 그룹 전환 확인 — 저장이 그룹 단위라 다른 그룹의 편집분이 섞이면 안 된다 */}
+            {groupSwitchConfirm && (
+                <ConfirmModal
+                    title="그룹을 바꾸시겠습니까?"
+                    confirmText="그룹 바꾸기"
+                    danger
+                    onCancel={() => { setGroupSwitchConfirm(null); revertGroupSelection(); }}
+                    onConfirm={() => { applyGroupSwitch(groupSwitchConfirm); setGroupSwitchConfirm(null); }}
+                >
+                    <p className="text-sm text-slate-500">
+                        <b className="text-slate-700">{selectedGroup?.grpNm}</b>에 저장하지 않은 코드 변경이 있습니다.
+                        그룹을 바꾸면 <b className="text-red-500">사라집니다</b>.
+                    </p>
+                </ConfirmModal>
             )}
 
             {/* 상하 분할 + 드래그 스플리터 (비율은 localStorage에 기억됨) */}
