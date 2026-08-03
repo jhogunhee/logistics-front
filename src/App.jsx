@@ -23,6 +23,7 @@ import StockStatus from "@/pages/stock/StockStatus.jsx";
 import InvHistory from "@/pages/stock/InvHistory.jsx";
 import StockMove from "@/pages/stock/StockMove.jsx";
 import StockHold from "@/pages/stock/StockHold.jsx";
+import StockCount from "@/pages/stock/StockCount.jsx";
 
 export default function App() {
     return (
@@ -60,7 +61,8 @@ export default function App() {
                         <Route path="/stock/hold" element={<StockHold/>}/>
                         {/* 재고 이동 2단계(지시=예약 → 확정). 메뉴는 하나 — 화면 안 탭으로 등록/관리를 오간다 */}
                         <Route path="/stock/move" element={<StockMove/>}/>
-                        <Route path="/stock/count" element={<Placeholder title="재고조사"/>}/>
+                        {/* 재고조사(실사) — 재고 수량 정정의 유일한 경로. 탭으로 조사 목록/실사 입력을 오간다 */}
+                        <Route path="/stock/count" element={<StockCount/>}/>
 
                         {/* 출고: 웨이브 편성 → 할당 → 피킹지시 → 피킹 → 출고확정 */}
                         <Route path="/outbound/wave" element={<Placeholder title="웨이브 편성"/>}/>
