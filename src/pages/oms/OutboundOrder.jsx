@@ -221,6 +221,18 @@ export default function OutboundOrder() {
                                 form.omsOutbNo ? 'text-slate-600 font-medium' : 'text-slate-400'}`}
                         />
                     </Field>
+                    {/* 출고유형은 웨이브 편성 조건의 기준값이라 주문 시점에 정해져야 한다 */}
+                    <Field label="출고유형" hint="웨이브 편성 조건의 기준값입니다 — 확정 시 창고로 그대로 넘어갑니다">
+                        <select
+                            value={form.outbTyp}
+                            onChange={(e) => setForm(prev => ({ ...prev, outbTyp: e.target.value }))}
+                            disabled={readOnly}
+                            className={inputCls + ' disabled:bg-slate-50 disabled:cursor-not-allowed'}>
+                            {outbTypCodes.map(c => (
+                                <option key={c.codeCd} value={c.codeCd}>{c.codeNm}</option>
+                            ))}
+                        </select>
+                    </Field>
                     {/* 상품과 같은 팝업 방식으로 통일 — 한 폼 안에서 선택 UI가 갈리지 않게 한다 */}
                     <Field
                         label="납품처"
@@ -245,30 +257,6 @@ export default function OutboundOrder() {
                             className={inputCls + ' disabled:bg-slate-50 disabled:cursor-not-allowed'}
                         />
                     </Field>
-                    {/* 출고유형·편수는 웨이브 편성 조건의 기준값이라 주문 시점에 정해져야 한다 */}
-                    <Field label="출고유형" hint="웨이브 편성 조건의 기준값입니다 — 확정 시 창고로 그대로 넘어갑니다">
-                        <select
-                            value={form.outbTyp}
-                            onChange={(e) => setForm(prev => ({ ...prev, outbTyp: e.target.value }))}
-                            disabled={readOnly}
-                            className={inputCls + ' disabled:bg-slate-50 disabled:cursor-not-allowed'}>
-                            {outbTypCodes.map(c => (
-                                <option key={c.codeCd} value={c.codeCd}>{c.codeNm}</option>
-                            ))}
-                        </select>
-                    </Field>
-                    <Field label="편수" hint="차량 배차 차수. 비우면 배차 미정이고, 미정인 주문은 편수 조건이 걸린 웨이브에 담기지 않습니다">
-                        <select
-                            value={form.vhclFltno}
-                            onChange={(e) => setForm(prev => ({ ...prev, vhclFltno: e.target.value }))}
-                            disabled={readOnly}
-                            className={inputCls + ' disabled:bg-slate-50 disabled:cursor-not-allowed'}>
-                            <option value="">배차 미정</option>
-                            {vhclFltnoCodes.map(c => (
-                                <option key={c.codeCd} value={c.codeCd}>{c.codeNm}</option>
-                            ))}
-                        </select>
-                    </Field>
                     <Field label="담당자" hint="수주를 받은 사람. 등록자 계정과는 별개입니다">
                         <input
                             type="text"
@@ -280,7 +268,7 @@ export default function OutboundOrder() {
                             className={inputCls + ' disabled:bg-slate-50 disabled:cursor-not-allowed'}
                         />
                     </Field>
-                    <Field label="비고" hint="점포 전달사항 등 (창고로 넘어가지 않습니다)" className="md:col-span-2">
+                    <Field label="비고" hint="점포 전달사항 등 (창고로 넘어가지 않습니다)">
                         <input
                             type="text"
                             value={form.rmk}
@@ -290,6 +278,19 @@ export default function OutboundOrder() {
                             placeholder="오전 도착 요청"
                             className={inputCls + ' disabled:bg-slate-50 disabled:cursor-not-allowed'}
                         />
+                    </Field>
+                    {/* 편수도 웨이브 편성 조건이지만 배차가 늦게 정해져 앞의 6칸(입고주문과 같은 배치) 뒤에 둔다 */}
+                    <Field label="편수" hint="차량 배차 차수. 비우면 배차 미정이고, 미정인 주문은 편수 조건이 걸린 웨이브에 담기지 않습니다">
+                        <select
+                            value={form.vhclFltno}
+                            onChange={(e) => setForm(prev => ({ ...prev, vhclFltno: e.target.value }))}
+                            disabled={readOnly}
+                            className={inputCls + ' disabled:bg-slate-50 disabled:cursor-not-allowed'}>
+                            <option value="">배차 미정</option>
+                            {vhclFltnoCodes.map(c => (
+                                <option key={c.codeCd} value={c.codeCd}>{c.codeNm}</option>
+                            ))}
+                        </select>
                     </Field>
                 </div>
             </section>
