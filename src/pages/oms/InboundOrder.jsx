@@ -53,9 +53,7 @@ export default function InboundOrder() {
     const navigate = useNavigate();
 
     useEffect(() => {
-        let ignore = false;
-        codeApi.list('ODR_DVSN').then(codes => { if (!ignore) setOdrDvsnCodes(codes); });
-        return () => { ignore = true; };
+        codeApi.list('ODR_DVSN').then(setOdrDvsnCodes);
     }, []);
 
     // 수정 진입 시 주문을 불러온다. 헤더는 목록 API에서, 라인은 라인 API에서 가져온다 —
