@@ -15,9 +15,9 @@ export const prodApi = {
 };
 
 /**
- * 입고단위(발주단위) 1개 = 낱개(EA) 몇 개인가. 화면의 「환산수량」은 이 낱개 기준이다 —
- * 출고단위 환산은 상품마다 단위(EA/BOX)가 갈려 합계가 어색해서 표시용으로 쓰지 않는다
- * (그쪽은 주문 확정 시 서버의 Prod.toOutbQty()가 ASN 예정수량을 만들 때만 쓴다).
+ * 입고단위(발주단위) 1개 = 낱개(EA) 몇 개인가. 재고 저장 단위가 낱개(EA)라
+ * 이 값 하나로 화면의 모든 환산이 끝난다 — 「환산수량」 표시도, 검수 화면이
+ * 입고단위 입력값과 EA 저장값(예정/누계/이력) 사이를 오가는 것도 전부 이것이다.
  *
  * 상품 마스터 응답(uoms 포함)과 입고주문 라인 응답(서버가 계산한 inbEaQty) 어느 쪽이 와도 동작한다.
  * 포장이 아직 없는 단위면 1을 돌려준다 — 환산 없음으로 그리는 편이 NaN보다 낫고,
@@ -27,14 +27,6 @@ export const eaQtyPerInbUomOf = (prodOrLine) =>
     prodOrLine?.inbEaQty
     ?? prodOrLine?.uoms?.find(u => u.uomCd === prodOrLine?.inbUomCd)?.eaQty
     ?? 1;
-
-/**
- * 입고단위 1개 = 출고단위(재고 저장 단위) 몇 개인가 (입수).
- * 검수 화면이 입고단위 입력값과 출고단위 저장값(예정/누계/이력) 사이를 오갈 때 쓴다.
- * 서버가 계산해 내려주는 outbQtyPerInbUom(IbLineResponse)을 그대로 쓴다 —
- * 나눗셈이 딱 떨어지는 건 상품 저장 시점에 서버가 보장한다.
- */
-export const outbQtyPerInbUomOf = (line) => line?.outbQtyPerInbUom || 1;
 
 /** 온도대 표시 메타 (라벨/뱃지 색) */
 export const TEMP_ZONE_META = {

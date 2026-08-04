@@ -137,8 +137,8 @@ export default function OutboundOrder() {
         lines: prev.lines.filter((_, i) => i !== idx),
     }));
 
-    // 수량은 전부 출고단위라 그대로 더한다 — 입고주문과 달리 환산 열이 없는 이유다
-    // (출고는 재고를 저장 단위 그대로 덜어내는 일이다).
+    // 수량은 전부 출고단위(주문서 단위)라 그대로 더한다. 창고 저장은 낱개(EA)이고
+    // 환산은 확정 시 서버가 한다 — 이 화면은 주문서 단위만 안다.
     const totalQty = form.lines.reduce((sum, l) => sum + (Number(l.odrQty) || 0), 0);
 
     // 팝업에서 이미 담긴 상품을 비활성 처리하기 위한 목록.
@@ -304,7 +304,7 @@ export default function OutboundOrder() {
                         <span className="text-[11px] text-slate-400">
                             {form.lines.length}건
                             {form.lines.length > 0 && ` · 합계 ${totalQty.toLocaleString()}`}
-                            {' · 수량은 출고단위 기준입니다 (환산 없음)'}
+                            {' · 수량은 출고단위 기준입니다 (확정 시 낱개로 환산)'}
                         </span>
                     </div>
                     <button
@@ -393,7 +393,7 @@ export default function OutboundOrder() {
                     })}
                 </div>
 
-                {/* 합계 — 전부 출고단위라 그냥 더해도 뜻이 어긋나지 않는다 */}
+                {/* 합계 — 주문서 단위(출고단위) 기준. 낱개 환산은 확정 시 서버 몫이다 */}
                 <div className="flex items-center gap-3 px-4 py-2 bg-slate-50 border-t border-slate-200 text-xs font-bold text-slate-600 shrink-0">
                     <span className="flex-1 text-right">합계</span>
                     <span className="w-40 shrink-0 text-right pr-11">{totalQty.toLocaleString()}</span>
@@ -424,10 +424,11 @@ export default function OutboundOrder() {
                 onSelect={pickStore}
             />
 
-            {/* 상품 선택 팝업 — 추가는 다중, 라인 교체는 단일 */}
+            {/* 상품 선택 팝업 — 추가는 다중, 라인 교체는 단일. 단위 컬럼은 출고단위(주문서 단위) */}
             <ProdPickerModal
                 open={pickerFor !== null}
                 multiple={pickerFor === 'add'}
+                uomRole="outb"
                 excludeIds={excludeIds}
                 onClose={() => setPickerFor(null)}
                 onSelect={(picked) => {

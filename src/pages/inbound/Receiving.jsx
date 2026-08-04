@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 
 import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import { asnApi, ASN_STATUS_META } from '@/api/asnApi';
-import { eaQtyPerInbUomOf, outbQtyPerInbUomOf } from '@/api/prodApi';
+import { eaQtyPerInbUomOf } from '@/api/prodApi';
 import { TempZoneBadge } from '@/components/common/Badge';
 import { fmtDt, num, todayStr, daysAheadStr } from '@/utils/format';
 import ConfirmModal from '@/components/common/ConfirmModal';
@@ -15,15 +15,15 @@ import VendorPickerModal from '@/components/common/VendorPickerModal';
 
 // 오늘 날짜 "YYYY-MM-DD" (입고일자/제조일자 기본값)
 
-// 출고단위 저장값(예정/누계/잔량)을 검수 입력 단위인 입고단위로 환산해 표시.
-// 입고단위로 딱 안 떨어지는 값(과거 낱개 검수분)은 소수로 그대로 보여준다 — 반올림해서 감추면 잔량이 왜곡된다
-const inInbUom = (outbQty, line) => Math.round((outbQty / outbQtyPerInbUomOf(line)) * 100) / 100;
+// 낱개(EA) 저장값(예정/누계/잔량)을 검수 입력 단위인 입고단위로 환산해 표시.
+// 입고단위로 딱 안 떨어지는 값(단위 변경 전 데이터)은 소수로 그대로 보여준다 — 반올림해서 감추면 잔량이 왜곡된다
+const inInbUom = (eaQty, line) => Math.round((eaQty / eaQtyPerInbUomOf(line)) * 100) / 100;
 
-// 검수 이력 등 출고단위 저장값 1건 표시: 입고단위로 떨어지면 "N BOX", 아니면(과거 낱개 검수분) 원값 그대로
-const fmtStoredQty = (outbQty, line) => {
-    if (!line) return `${num(outbQty)}개`;
-    const unit = outbQtyPerInbUomOf(line);
-    return outbQty % unit === 0 ? `${num(outbQty / unit)} ${line.inbUomCd}` : `${num(outbQty)} (출고단위)`;
+// 검수 이력 등 낱개(EA) 저장값 1건 표시: 입고단위로 떨어지면 "N BOX", 아니면 낱개 그대로 "N EA"
+const fmtStoredQty = (eaQty, line) => {
+    if (!line) return `${num(eaQty)}개`;
+    const unit = eaQtyPerInbUomOf(line);
+    return eaQty % unit === 0 ? `${num(eaQty / unit)} ${line.inbUomCd}` : `${num(eaQty)} EA`;
 };
 
 const StatusBadge = ({ value }) => {
@@ -52,9 +52,9 @@ const HEADER_COLUMN_DEFS = [
         headerTooltip: '검수된 라인 / 전체 라인',
         valueGetter: (p) => `${p.data.rcvdLineCount} / ${p.data.lineCount}`,
     },
-    // 예정수량·검수수량 합계 컬럼은 두지 않는다 — 상품마다 단위(출고단위)가 달라 합산 값이
-    // 무엇의 개수인지 말할 수 없다. 수량은 단위와 함께 라인(디테일) 그리드가 보여주고,
-    // 헤더의 진행 파악은 「검수 진행(라인 수)」이 맡는다
+    // 예정수량·검수수량 합계 컬럼은 두지 않는다 — 저장 단위가 낱개(EA)로 통일돼 합산 자체는
+    // 성립하지만, 생수 2박스와 김밥 3개가 섞인 낱개 합계는 진행 파악에 도움이 안 된다.
+    // 수량은 단위와 함께 라인(디테일) 그리드가 보여주고, 헤더는 「검수 진행(라인 수)」이 맡는다
     {
         field: 'createdAt', headerName: '등록시간', width: 150,
         valueFormatter: (p) => fmtDt(p.value),
@@ -243,9 +243,9 @@ export default function Receiving() {
                 toast.error(`검수수량은 입고단위(${r.inbUomCd}) 1 이상 정수여야 합니다: ${r.prodCd}`);
                 return;
             }
-            // 과입고 차단 — 잔량 비교는 출고단위(저장 단위)로 한다 (서버도 같은 검증을 하지만 저장 전에 거른다)
+            // 과입고 차단 — 잔량 비교는 낱개(저장 단위 EA)로 한다 (서버도 같은 검증을 하지만 저장 전에 거른다)
             const remaining = r.expctQty - r.rcvdQty;
-            if (inspect * outbQtyPerInbUomOf(r) > remaining) {
+            if (inspect * eaQtyPerInbUomOf(r) > remaining) {
                 toast.error(`검수수량이 잔량(${fmtStoredQty(remaining, r)})을 초과합니다: ${r.prodCd}`);
                 return;
             }

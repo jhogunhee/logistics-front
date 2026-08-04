@@ -68,7 +68,7 @@ export default function ProdMaster() {
         {
             field: 'outbUomCd', headerName: '출고단위', width: 100, editable: false,
             cellClass: 'text-slate-500',
-            headerTooltip: '재고 저장 단위이기도 합니다 — 재고·검수·적치·출고의 모든 수량이 이 단위 기준입니다. 변경은 단위 관리 화면에서 합니다',
+            headerTooltip: '출고주문서에 쓰는 단위입니다. 재고·창고 수량은 전부 낱개(EA)로 저장되고, 확정 시 이 단위에서 낱개로 환산됩니다. 변경은 단위 관리 화면에서 합니다',
         },
         {
             field: 'shelfLifeDays', headerName: '유통기한(일)', width: 120, editable: notDeleted,

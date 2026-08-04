@@ -17,7 +17,7 @@ export const omsOutbOrderApi = {
 
     /** 등록. payload: { storeId, outbTyp, vhclFltno, expctDe, picNm, rmk, lines: [{ prodId, odrQty }] }.
      *  주문번호는 서버 채번(SO-). 납품처는 이름이 아니라 마스터 ID로 보낸다 —
-     *  응답에는 storeCd/storeNm이 조인돼 내려온다. 수량은 출고단위 기준이라 환산이 없다 */
+     *  응답에는 storeCd/storeNm이 조인돼 내려온다. 수량은 출고단위(주문서 단위) — 낱개 환산은 확정 시 서버가 한다 */
     create(payload) {
         return api.post('/oms/outbound-orders', payload);
     },

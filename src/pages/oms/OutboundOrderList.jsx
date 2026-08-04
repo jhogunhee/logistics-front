@@ -77,7 +77,7 @@ const HEADER_COLUMN_DEFS = [
     { field: 'lineCount', headerName: '라인수', width: 80, cellClass: 'ag-right-aligned-cell' },
     {
         field: 'totalOrderQty', headerName: '총 주문수량', width: 120, cellClass: 'ag-right-aligned-cell',
-        headerTooltip: '라인 주문수량(출고단위 기준)의 합',
+        headerTooltip: '라인 주문수량(출고단위 = 주문서 단위)의 합',
         valueFormatter: (p) => p.value?.toLocaleString(),
     },
     {
@@ -109,7 +109,7 @@ const LINE_COLUMN_DEFS = [
     },
     {
         field: 'odrQty', headerName: '주문수량', width: 120, cellClass: 'ag-right-aligned-cell',
-        headerTooltip: '출고단위 기준 — 확정 시 환산 없이 그대로 창고로 넘어간다',
+        headerTooltip: '출고단위(주문서 단위) 기준 — 확정 시 낱개(EA)로 환산돼 창고로 넘어간다',
         cellRenderer: (p) => (
             <>
                 {p.value?.toLocaleString()}
