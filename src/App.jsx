@@ -22,6 +22,7 @@ import OutboundOrder from "@/pages/oms/OutboundOrder.jsx";
 import OutboundOrderList from "@/pages/oms/OutboundOrderList.jsx";
 import AsnList from "@/pages/inbound/AsnList.jsx";
 import Receiving from "@/pages/inbound/Receiving.jsx";
+import PutawayOrder from "@/pages/inbound/PutawayOrder.jsx";
 import Putaway from "@/pages/inbound/Putaway.jsx";
 import StockStatus from "@/pages/stock/StockStatus.jsx";
 import InvHistory from "@/pages/stock/InvHistory.jsx";
@@ -59,7 +60,8 @@ export default function App() {
                         {/* 입고: ASN → 검수 → 적치지시 → 적치 → 입고확정 */}
                         <Route path="/inbound/asn" element={<AsnList/>}/>
                         <Route path="/inbound/receiving" element={<Receiving/>}/>
-                        <Route path="/inbound/putaway-order" element={<Placeholder title="적치지시"/>}/>
+                        {/* 적치 2단계(지시 발행 → 실행). 메뉴는 하나 — 화면 안 탭으로 등록/관리를 오간다 */}
+                        <Route path="/inbound/putaway-order" element={<PutawayOrder/>}/>
                         <Route path="/inbound/putaway" element={<Putaway/>}/>
                         <Route path="/inbound/close" element={<Placeholder title="입고확정"/>}/>
 
