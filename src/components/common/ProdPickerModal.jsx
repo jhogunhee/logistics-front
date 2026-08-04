@@ -10,17 +10,20 @@ const TEMP_ZONE_OPTIONS = [
 ];
 
 /**
- * 상품의 단위 구성. 발주는 입고단위로 하고, 화면의 환산수량은 낱개(EA) 기준이다 —
- * 발주 화면과 같은 기준을 여기서 미리 보여준다 ({@link eaQtyPerInbUomOf}).
+ * 상품의 단위 구성. 부르는 화면의 작업 단위를 보여준다 — 발주(입고주문)는 입고단위,
+ * 출고주문은 출고단위. 환산수량은 어느 쪽이든 낱개(EA) 기준이다.
  *
- * 발주단위가 낱개 그 자체면(×1) 화살표 없이 단위 하나만 보여준다 —
+ * 작업단위가 낱개 그 자체면(×1) 화살표 없이 단위 하나만 보여준다 —
  * 전부 "EA → EA ×1"로 그리면 정작 환산이 있는 상품이 눈에 안 띈다.
  */
-const UomFlow = ({ prod }) => {
-    const eaQty = eaQtyPerInbUomOf(prod);
+const UomFlow = ({ prod, uomRole }) => {
+    const uomCd = uomRole === 'outb' ? prod.outbUomCd : prod.inbUomCd;
+    const eaQty = uomRole === 'outb'
+        ? (prod.uoms?.find(u => u.uomCd === prod.outbUomCd)?.eaQty ?? 1)
+        : eaQtyPerInbUomOf(prod);
     return (
         <span className="flex items-center justify-center gap-1 text-[11px]">
-            <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-bold">{prod.inbUomCd}</span>
+            <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-bold">{uomCd}</span>
             {eaQty > 1 && (
                 <>
                     <span className="text-slate-300">→</span>
@@ -43,8 +46,9 @@ const UomFlow = ({ prod }) => {
  * @param onSelect    선택 확정 콜백. multiple이면 상품 배열, 아니면 상품 객체 하나
  * @param multiple    true면 체크박스 다중 선택 (여러 라인을 한 번에 추가할 때)
  * @param excludeIds  이미 담긴 prodId 목록 — 중복 선택을 막기 위해 비활성 표시한다
+ * @param uomRole     단위 컬럼에 보여줄 작업 단위. 'inb'(기본, 발주) | 'outb'(출고주문)
  */
-export default function ProdPickerModal({ open, onClose, onSelect, multiple = false, excludeIds = [] }) {
+export default function ProdPickerModal({ open, onClose, onSelect, multiple = false, excludeIds = [], uomRole = 'inb' }) {
     const [prods, setProds] = useState(null); // null = 아직 안 받아옴
     const [cond, setCond] = useState({ prodCd: '', prodNm: '', tmpZon: '' });
     const [checked, setChecked] = useState(new Set());
@@ -160,7 +164,7 @@ export default function ProdPickerModal({ open, onClose, onSelect, multiple = fa
                     <span className="flex-1 min-w-0">상품명</span>
                     <span className="w-24 shrink-0 text-center">온도대</span>
                     <span className="w-20 shrink-0 text-right">유통기한</span>
-                    <span className="w-44 shrink-0 text-center">단위 (발주 → 낱개)</span>
+                    <span className="w-44 shrink-0 text-center">{uomRole === 'outb' ? '단위 (주문 → 낱개)' : '단위 (발주 → 낱개)'}</span>
                 </div>
 
                 {/* 목록 */}
@@ -214,7 +218,7 @@ export default function ProdPickerModal({ open, onClose, onSelect, multiple = fa
                                         : `${s.shelfLifeDays}일`}
                                 </span>
                                 <span className="w-44 shrink-0">
-                                    <UomFlow prod={s} />
+                                    <UomFlow prod={s} uomRole={uomRole} />
                                 </span>
                             </div>
                         );
