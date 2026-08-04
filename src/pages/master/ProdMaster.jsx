@@ -22,6 +22,7 @@ export default function ProdMaster() {
     const [tempZoneOptions, setTempZoneOptions] = useState([{ value: '', label: '전체' }]);
     const [tempZoneCodes, setTempZoneCodes] = useState([]); // 공통코드(TEMP_ZONE)의 코드값 목록
     const [uomCodes, setUomCodes] = useState([]); // 공통코드(UOM)의 코드값 목록 — 입고/출고단위 콤보박스
+    const [uomLabelMap, setUomLabelMap] = useState({}); // 코드 → 코드명. 콤보에 "BOX 박스"로 보여준다
     const [rowCount, setRowCount] = useState(0); // 행추가분은 rowData 상태에 없으므로 건수는 그리드 기준으로 센다
     const [saveConfirm, setSaveConfirm] = useState(null); // 저장 확인 모달에 넘길 대상 행들 (null이면 닫힘)
     const gridRef = useRef(null); // 그리드 api 호출용 (applyTransaction 등)
@@ -29,6 +30,8 @@ export default function ProdMaster() {
 
     // 삭제(D) 표시된 행은 편집을 막는다
     const notDeleted = (p) => p.data._status !== 'D';
+    // 단위 두 컬럼 전용 — 아직 저장 전인 신규 행에서만 연다 (아래 컬럼 정의 주석 참고)
+    const isNewRow = (p) => p.data._status === 'C';
 
 
     // 온도대 편집기 목록은 공통코드 상태를 직접 참조한다
@@ -56,19 +59,24 @@ export default function ProdMaster() {
             cellRenderer: (p) => <TempZoneBadge value={p.value} />,
         },
         {
-            // 등록 후에는 여기서 못 고친다 — 변경은 단위 관리 화면의 라디오가 맡는다. 두 화면에서
-            // 고칠 수 있으면 어느 쪽이 최신인지 흐려지고, 그 화면은 포장 행 위에서 고르므로
-            // 포장 없는 단위를 지정하는 일이 없다.
-            // 신규 등록(행추가·엑셀)에서 초깃값을 정하는 것은 별개다 — 서버가 그 단위의 포장을
-            // 낱개수량 1로 만들어 두므로(ProdService.ensureUoms) 그대로 저장돼도 환산이 항등이다.
-            field: 'inbUomCd', headerName: '입고단위', width: 100, editable: false,
-            cellClass: 'text-slate-500',
-            headerTooltip: '벤더에게 발주하고 납품받는 단위. 변경은 단위 관리 화면에서 합니다',
+            // 신규 행(C)에서만 연다. 등록 후에는 못 고치고 변경은 단위 관리 화면의 라디오가 맡는다 —
+            // 두 화면에서 고칠 수 있으면 어느 쪽이 최신인지 흐려지고, 그 화면은 포장 행 위에서
+            // 고르므로 포장 없는 단위를 지정하는 일이 없다. 아직 저장 전인 신규 행은 참조가 하나도
+            // 없어서 이 위험이 없고, 서버가 그 단위의 포장을 낱개수량 1로 만들어 둔다(ProdService.ensureUoms).
+            // 그 1이 실제 입수량과 다른 건은 저장 후 토스트로 단위 관리 화면 입력을 안내한다.
+            field: 'inbUomCd', headerName: '입고단위', width: 100, editable: isNewRow,
+            cellEditor: SelectCellEditor,
+            cellEditorParams: { values: uomCodes, labelMap: uomLabelMap },
+            // 잠긴 기존 행만 흐리게 — 열린 칸과 눈으로 구분된다
+            cellClass: (p) => (isNewRow(p) ? undefined : 'text-slate-500'),
+            headerTooltip: '벤더에게 발주하고 납품받는 단위. 신규 등록 시에만 지정할 수 있고, 등록 후 변경은 단위 관리 화면에서 합니다',
         },
         {
-            field: 'outbUomCd', headerName: '출고단위', width: 100, editable: false,
-            cellClass: 'text-slate-500',
-            headerTooltip: '출고주문서에 쓰는 단위입니다. 재고·창고 수량은 전부 낱개(EA)로 저장되고, 확정 시 이 단위에서 낱개로 환산됩니다. 변경은 단위 관리 화면에서 합니다',
+            field: 'outbUomCd', headerName: '출고단위', width: 100, editable: isNewRow,
+            cellEditor: SelectCellEditor,
+            cellEditorParams: { values: uomCodes, labelMap: uomLabelMap },
+            cellClass: (p) => (isNewRow(p) ? undefined : 'text-slate-500'),
+            headerTooltip: '출고주문서에 쓰는 단위입니다. 재고·창고 수량은 전부 낱개(EA)로 저장되고, 확정 시 이 단위에서 낱개로 환산됩니다. 신규 등록 시에만 지정할 수 있고, 등록 후 변경은 단위 관리 화면에서 합니다',
         },
         {
             field: 'shelfLifeDays', headerName: '유통기한(일)', width: 120, editable: notDeleted,
@@ -109,7 +117,10 @@ export default function ProdMaster() {
             }
         });
         codeApi.list('UOM').then(codes => {
-            if (!ignore) setUomCodes(codes.map(c => c.codeCd));
+            if (!ignore) {
+                setUomCodes(codes.map(c => c.codeCd));
+                setUomLabelMap(Object.fromEntries(codes.map(c => [c.codeCd, c.codeNm])));
+            }
         });
         return () => { ignore = true; };
     }, []);
@@ -287,6 +298,22 @@ export default function ProdMaster() {
         setSaveConfirm(dirty); // 가운데 확인 모달을 띄운다
     };
 
+    /**
+     * 낱개(EA)가 아닌 단위로 새로 등록된 상품을 안내한다.
+     * 서버는 그 단위의 포장을 낱개수량 1로 만들 뿐이라(ProdService.ensureUoms) BOX를 골라도
+     * 아직 "BOX 1개 = 1낱개"다. 실제 입수량은 단위 관리 화면에서 넣어야 환산이 맞는다.
+     * 행추가와 엑셀 업로드가 둘 다 이 저장을 타므로 안내도 여기 한 곳에 둔다.
+     */
+    const warnDefaultEaQty = (dirty) => {
+        const targets = dirty.filter(r =>
+            r._status === 'C' && (r.inbUomCd !== 'EA' || r.outbUomCd !== 'EA'));
+        if (targets.length === 0) return;
+        const head = targets[0].prodNm;
+        const label = targets.length === 1 ? head : `${head} 등 ${targets.length}건`;
+        toast(`${label}의 입수량이 1로 등록됐습니다. 단위 관리 화면에서 실제 입수량을 넣어주세요.`,
+            { duration: 8000, icon: '📦' });
+    };
+
     const doSave = async (dirty) => {
         try {
             // 빈 문자열은 null(미관리)로 정규화해서 전송
@@ -297,6 +324,7 @@ export default function ProdMaster() {
             }));
             await prodApi.saveAll(payload);
             toast.success(`${dirty.length}건 저장했습니다.`);
+            warnDefaultEaQty(dirty);
             fetchList();
         } catch (e) {
             toast.error(e.message || '저장에 실패했습니다.');
