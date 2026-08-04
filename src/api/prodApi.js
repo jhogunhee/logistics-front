@@ -28,6 +28,14 @@ export const eaQtyPerInbUomOf = (prodOrLine) =>
     ?? prodOrLine?.uoms?.find(u => u.uomCd === prodOrLine?.inbUomCd)?.eaQty
     ?? 1;
 
+/**
+ * 입고단위 1개 = 출고단위(재고 저장 단위) 몇 개인가 (입수).
+ * 검수 화면이 입고단위 입력값과 출고단위 저장값(예정/누계/이력) 사이를 오갈 때 쓴다.
+ * 서버가 계산해 내려주는 outbQtyPerInbUom(IbLineResponse)을 그대로 쓴다 —
+ * 나눗셈이 딱 떨어지는 건 상품 저장 시점에 서버가 보장한다.
+ */
+export const outbQtyPerInbUomOf = (line) => line?.outbQtyPerInbUom || 1;
+
 /** 온도대 표시 메타 (라벨/뱃지 색) */
 export const TEMP_ZONE_META = {
     DRY: { label: '상온', badge: 'bg-amber-100 text-amber-700' },

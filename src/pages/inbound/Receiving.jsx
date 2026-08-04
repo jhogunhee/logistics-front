@@ -1,17 +1,30 @@
 import { useEffect, useRef, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import { ClipboardCheck, History, X } from 'lucide-react';
+import { ClipboardCheck, History, Search, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import { asnApi, ASN_STATUS_META } from '@/api/asnApi';
+import { eaQtyPerInbUomOf, outbQtyPerInbUomOf } from '@/api/prodApi';
 import { TempZoneBadge } from '@/components/common/Badge';
-import { fmtDt, todayStr } from '@/utils/format';
+import { fmtDt, num, todayStr, daysAheadStr } from '@/utils/format';
 import ConfirmModal from '@/components/common/ConfirmModal';
+import VendorPickerModal from '@/components/common/VendorPickerModal';
 
 
 // 오늘 날짜 "YYYY-MM-DD" (입고일자/제조일자 기본값)
+
+// 출고단위 저장값(예정/누계/잔량)을 검수 입력 단위인 입고단위로 환산해 표시.
+// 입고단위로 딱 안 떨어지는 값(과거 낱개 검수분)은 소수로 그대로 보여준다 — 반올림해서 감추면 잔량이 왜곡된다
+const inInbUom = (outbQty, line) => Math.round((outbQty / outbQtyPerInbUomOf(line)) * 100) / 100;
+
+// 검수 이력 등 출고단위 저장값 1건 표시: 입고단위로 떨어지면 "N BOX", 아니면(과거 낱개 검수분) 원값 그대로
+const fmtStoredQty = (outbQty, line) => {
+    if (!line) return `${num(outbQty)}개`;
+    const unit = outbQtyPerInbUomOf(line);
+    return outbQty % unit === 0 ? `${num(outbQty / unit)} ${line.inbUomCd}` : `${num(outbQty)} (출고단위)`;
+};
 
 const StatusBadge = ({ value }) => {
     const meta = ASN_STATUS_META[value];
@@ -39,8 +52,9 @@ const HEADER_COLUMN_DEFS = [
         headerTooltip: '검수된 라인 / 전체 라인',
         valueGetter: (p) => `${p.data.rcvdLineCount} / ${p.data.lineCount}`,
     },
-    { field: 'totalExpctQty', headerName: '예정수량', width: 100, cellClass: 'ag-right-aligned-cell' },
-    { field: 'totalRcvdQty', headerName: '검수수량', width: 100, cellClass: 'ag-right-aligned-cell' },
+    // 예정수량·검수수량 합계 컬럼은 두지 않는다 — 상품마다 단위(출고단위)가 달라 합산 값이
+    // 무엇의 개수인지 말할 수 없다. 수량은 단위와 함께 라인(디테일) 그리드가 보여주고,
+    // 헤더의 진행 파악은 「검수 진행(라인 수)」이 맡는다
     {
         field: 'createdAt', headerName: '등록시간', width: 150,
         valueFormatter: (p) => fmtDt(p.value),
@@ -51,7 +65,9 @@ export default function Receiving() {
     const [rowData, setRowData] = useState([]);
     const [lineRows, setLineRows] = useState([]);
     const [selectedAsn, setSelectedAsn] = useState(null);
-    const [cond, setCond] = useState({ ibNo: '', dateFrom: todayStr(), dateTo: todayStr() });
+    // 기본 검색 = 오늘 ~ +7일 (입고주문·출고주문·ASN 관리와 통일. 예정일이 과거인 지연 도착은 기본 조회에 안 잡힌다)
+    const [cond, setCond] = useState({ ibNo: '', vndrNm: '', dateFrom: todayStr(), dateTo: daysAheadStr(7) });
+    const [vendorPickerOpen, setVendorPickerOpen] = useState(false);
     const [receiveConfirm, setReceiveConfirm] = useState(null); // 검수 저장 확인 모달 대상 라인들
     const [violations, setViolations] = useState([]); // 검수 제약 위반 목록 — 저장 거부 응답의 violations
     const [receiptsModal, setReceiptsModal] = useState(null); // { line, receipts } — 검수 이력 모달 대상
@@ -81,7 +97,7 @@ export default function Receiving() {
         p.api.forEachNode(n => { if (n.data.ibOrderId === id) n.setSelected(true); });
     };
 
-    // 최초 1회 조회 (검색조건 기본값 = 오늘)
+    // 최초 1회 조회 (검색조건 기본값 = 오늘 ~ +7일)
     useEffect(() => {
         let ignore = false;
         asnApi.list(cond).then(data => {
@@ -102,34 +118,59 @@ export default function Receiving() {
         setViolations([]);
         const lines = await asnApi.lines(node.data.ibOrderId);
         // 입고일자는 전 라인, 제조일자는 유통기한 관리 상품만 입력
-        // (둘 다 기본값 오늘 — 제조일자를 과거로 바꾸면 임박 Lot 시나리오 재현 가능)
+        // (입고일자만 기본값 오늘 — 제조일자는 거의 항상 과거라 오늘 기본값은 그럴듯한 오답, 직접 입력을 강제한다)
         setLineRows(lines.map(l => ({
             ...l,
-            _inspectQty: '',
+            _inspectQty: null, // 숫자 에디터라 빈 값은 ''가 아니라 null (''는 텍스트로 추론돼 에디터가 안 붙는다)
             _receiptDt: todayStr(),
-            _mfgDt: l.shelfLifeDays != null ? todayStr() : '',
+            _mfgDt: '',
         })));
     };
 
-    // 라인 그리드: 작업 순서대로 [식별 → 잔량 → 입력 4개]를 앞에 두고, 참고용 누계는 뒤로 보낸다
-    // (입력 컬럼이 가로 스크롤 없이 바로 보이게)
+    // 라인 그리드: 작업 순서대로 [식별 → 단위·예정·잔량 → 입력 3개(파란색, 연속 배치)]를 앞에 두고,
+    // 환산·누계 등 참고용은 뒤로 보낸다 (입력 컬럼이 가로 스크롤 없이 바로 보이게)
     const lineColumnDefs = [
-        { field: 'prodCd', headerName: '상품 코드', width: 115 },
-        { field: 'prodNm', headerName: '상품명', minWidth: 300 },
-        { field: 'expctQty', headerName: '예정', width: 70, cellClass: 'ag-right-aligned-cell' },
+        { field: 'prodCd', headerName: '상품 코드', width: 105 },
+        { field: 'prodNm', headerName: '상품명', flex: 1, minWidth: 180 },
+        {
+            field: 'inbUomCd', headerName: '단위', width: 64,
+            headerTooltip: '검수 입력 단위 = 입고단위(발주단위). 예정/잔량/검수누계도 이 단위로 환산해 표시',
+            cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+            cellRenderer: (p) => (
+                <span className="text-[11px] px-2 py-0.5 rounded-full font-bold bg-slate-100 text-slate-600">
+                    {p.value}
+                </span>
+            ),
+        },
+        {
+            headerName: '예정', width: 70, cellClass: 'ag-right-aligned-cell',
+            headerTooltip: '입고 예정 수량 (입고단위)',
+            valueGetter: (p) => inInbUom(p.data.expctQty, p.data),
+            valueFormatter: (p) => num(p.value),
+        },
         {
             headerName: '잔량', width: 70,
-            headerTooltip: '예정 - 검수누계. 아직 도착하지 않았거나 검수 전인 수량 (음수 = 과입고)',
-            valueGetter: (p) => p.data.expctQty - p.data.rcvdQty,
+            headerTooltip: '예정 - 검수누계 (입고단위). 아직 도착하지 않았거나 검수 전인 수량',
+            valueGetter: (p) => inInbUom(p.data.expctQty - p.data.rcvdQty, p.data),
+            valueFormatter: (p) => num(p.value),
             cellClass: (p) => p.value < 0 ? 'ag-right-aligned-cell text-red-500 font-bold' : 'ag-right-aligned-cell',
         },
         {
-            field: '_inspectQty', headerName: '검수수량', width: 90, editable: canReceive,
-            cellClass: 'ag-right-aligned-cell bg-indigo-50', headerTooltip: '이번에 개수 확인한 수량 (전량 재고로 입고)',
+            field: '_inspectQty', headerName: '검수수량', width: 95, editable: canReceive,
+            cellDataType: 'number',
+            cellEditor: 'agNumberCellEditor', cellEditorParams: { min: 1, precision: 0 },
+            valueFormatter: (p) => num(p.value),
+            cellClass: 'ag-right-aligned-cell bg-indigo-50',
+            headerTooltip: '이번에 개수 확인한 입고단위 개수 — 잔량 이내 정수만 (전량 재고로 입고)',
         },
         {
-                field: '_mfgDt', headerName: '제조일자', width: 115,
+                field: '_mfgDt', headerName: '제조일자', width: 110,
                 editable: (p) => canReceive && p.data.shelfLifeDays != null,
+                // dateString 명시 필수 — 기본값이 빈 문자열이라 타입 추론이 안 돼 날짜 파서가 없어 에디터가 죽는다
+                cellDataType: 'dateString',
+                cellEditor: 'agDateStringCellEditor',
+                // 달력 상한 = 입고일자 (제조일자는 입고보다 미래일 수 없다 — 저장 검증과 같은 규칙)
+                cellEditorParams: (p) => ({ max: p.data._receiptDt || todayStr() }),
                 cellClass: 'bg-indigo-50',
                 headerTooltip: '유통기한 = 제조일자 + 유통기한(일). 유통기한 미관리 상품은 입력 없음',
                 cellRenderer: (p) => p.data.shelfLifeDays == null
@@ -137,11 +178,27 @@ export default function Receiving() {
                     : p.value,
             },
         {
-            field: '_receiptDt', headerName: '입고일자', width: 115, editable: canReceive,
+            field: '_receiptDt', headerName: '입고일자', width: 110, editable: canReceive,
+            cellDataType: 'dateString',
+            cellEditor: 'agDateStringCellEditor',
             cellClass: 'bg-indigo-50',
             headerTooltip: '실제 입고된 날 (소급 등록 시 과거로 변경). Lot 번호 채번 기준',
         },
-        { field: 'rcvdQty', headerName: '검수누계', width: 90, cellClass: 'ag-right-aligned-cell' },
+        {
+            // 입력 3종(검수수량·제조일자·입고일자) 뒤에 둔다 — 입력 컬럼 사이에 끼우면 탭 이동이 끊긴다
+            headerName: '낱개환산', width: 95,
+            headerTooltip: '검수수량 × 입고단위 낱개수량 — 입력 확인용 낱개(EA) 환산',
+            valueGetter: (p) => {
+                const n = Number(p.data._inspectQty);
+                return n > 0 ? n * eaQtyPerInbUomOf(p.data) : null;
+            },
+            valueFormatter: (p) => num(p.value),
+            cellClass: (p) => p.value != null && eaQtyPerInbUomOf(p.data) > 1
+                ? 'ag-right-aligned-cell text-indigo-600 font-bold'
+                : 'ag-right-aligned-cell text-slate-500',
+        },
+        // 검수누계 컬럼은 두지 않는다 — 잔량 = 예정 − 누계라 셋 중 둘이면 충분하고,
+        // 건별 누계 확인은 「이력보기」가 맡는다 (rcvdQty 자체는 이력 버튼 활성 조건으로 계속 쓴다)
         {
             headerName: '검수이력', width: 90,
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
@@ -155,12 +212,12 @@ export default function Receiving() {
             ),
         },
         {
-            field: 'shelfLifeDays', headerName: '유통기한(일)', width: 110, cellClass: 'ag-right-aligned-cell',
-            headerTooltip: '서버가 제조일자 + 이 일수로 유통기한을 계산해 Lot에 기록',
+            field: 'shelfLifeDays', headerName: '유통기한', width: 95, cellClass: 'ag-right-aligned-cell',
+            headerTooltip: '유통기한 일수. 서버가 제조일자 + 이 일수로 유통기한을 계산해 Lot에 기록',
             cellRenderer: (p) => p.value == null ? <span className="text-slate-400">미관리</span> : p.value,
         },
         {
-            field: 'tmpZon', headerName: '온도대', width: 100,
+            field: 'tmpZon', headerName: '온도대', width: 90,
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
             cellRenderer: (p) => <TempZoneBadge value={p.value} />,
         },
@@ -182,8 +239,14 @@ export default function Receiving() {
         }
         for (const r of targets) {
             const inspect = Number(r._inspectQty);
-            if (!(inspect > 0)) {
-                toast.error(`검수수량은 1 이상이어야 합니다: ${r.prodCd}`);
+            if (!(inspect > 0) || !Number.isInteger(inspect)) {
+                toast.error(`검수수량은 입고단위(${r.inbUomCd}) 1 이상 정수여야 합니다: ${r.prodCd}`);
+                return;
+            }
+            // 과입고 차단 — 잔량 비교는 출고단위(저장 단위)로 한다 (서버도 같은 검증을 하지만 저장 전에 거른다)
+            const remaining = r.expctQty - r.rcvdQty;
+            if (inspect * outbQtyPerInbUomOf(r) > remaining) {
+                toast.error(`검수수량이 잔량(${fmtStoredQty(remaining, r)})을 초과합니다: ${r.prodCd}`);
                 return;
             }
             if (!String(r._receiptDt || '').trim()) {
@@ -232,8 +295,9 @@ export default function Receiving() {
         }
     };
 
+    // 확인 모달 합계 — 라인마다 입력 단위(BOX/PLT)가 달라 낱개(EA)로 통일해 합산한다 (입고주문 화면과 같은 기준)
     const receiveSummary = (targets) =>
-        targets.reduce((s, r) => s + Number(r._inspectQty), 0);
+        targets.reduce((s, r) => s + Number(r._inspectQty) * eaQtyPerInbUomOf(r), 0);
 
     // ── 검수 이력 / 취소 ─────────────────────────────────────
     const openReceiptsModal = async (line) => {
@@ -273,6 +337,24 @@ export default function Receiving() {
                         placeholder="IB-20260717-001"
                         className="w-full input-base"
                     />
+                </SearchItem>
+                <SearchItem label="벤더">
+                    <button
+                        type="button"
+                        onClick={() => setVendorPickerOpen(true)}
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-left flex items-center justify-between gap-2 hover:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400">
+                        <span className={`truncate ${cond.vndrNm ? 'text-slate-700' : 'text-slate-400'}`}>
+                            {cond.vndrNm || '전체'}
+                        </span>
+                        {cond.vndrNm
+                            ? <X
+                                size={13}
+                                title="벤더 조건 지우기"
+                                className="shrink-0 text-slate-400 hover:text-slate-600"
+                                onClick={(e) => { e.stopPropagation(); setCond(prev => ({ ...prev, vndrNm: '' })); }}
+                            />
+                            : <Search size={13} className="shrink-0 text-slate-400" />}
+                    </button>
                 </SearchItem>
                 <SearchItem label="입고예정일" wide>
                     <div className="flex items-center gap-2">
@@ -323,7 +405,7 @@ export default function Receiving() {
                             <span className="text-sm font-bold text-slate-700 shrink-0">검수 입력</span>
                             <span className="text-xs text-slate-400 truncate">
                                 {selectedAsn
-                                    ? `${selectedAsn.ibNo} · ${selectedAsn.vndrNm} — 파란 컬럼에 이번 검수분 입력`
+                                    ? `${selectedAsn.ibNo} · ${selectedAsn.vndrNm} — 파란 컬럼에 이번 검수분 입력 (검수수량은 입고단위 개수)`
                                     : '위에서 입고예정을 선택하세요'}
                             </span>
                         </div>
@@ -359,6 +441,13 @@ export default function Receiving() {
                 </Panel>
             </PanelGroup>
 
+            {/* 벤더 선택 팝업 — 자유 입력 대신 팝업에서 고른다 (OMS 주문목록과 같은 방식, vndrNm contains 검색) */}
+            <VendorPickerModal
+                open={vendorPickerOpen}
+                onClose={() => setVendorPickerOpen(false)}
+                onSelect={(v) => setCond(prev => ({ ...prev, vndrNm: v.vndrNm }))}
+            />
+
             {/* 검수 저장 확인 모달 */}
             {receiveConfirm && (
                 <ConfirmModal
@@ -368,7 +457,7 @@ export default function Receiving() {
                     onConfirm={() => { doReceive(receiveConfirm); setReceiveConfirm(null); }}
                 >
                     <p className="text-sm text-slate-500">
-                        {receiveConfirm.length}개 라인 · 총 검수수량 <b className="text-emerald-600">{receiveSummary(receiveConfirm)}</b>
+                        {receiveConfirm.length}개 라인 · 총 검수수량 <b className="text-emerald-600">{receiveSummary(receiveConfirm).toLocaleString()}</b> 낱개
                     </p>
                     <p className="text-xs text-slate-400">검수수량은 RCV-STAGE 재고로 즉시 반영됩니다.</p>
                 </ConfirmModal>
@@ -397,7 +486,7 @@ export default function Receiving() {
                             {receiptsModal.receipts.map(r => (
                                 <div key={r.invHistId} className={`flex items-center justify-between gap-3 px-3 py-2 border border-slate-200 rounded-lg ${r.cancelled ? 'opacity-50' : ''}`}>
                                     <div className="flex flex-col gap-0.5">
-                                        <span className="text-sm font-bold text-slate-700">{r.qty}개 · {r.lotNo}</span>
+                                        <span className="text-sm font-bold text-slate-700">{fmtStoredQty(r.qty, receiptsModal.line)} · {r.lotNo}</span>
                                         <span className="text-[11px] text-slate-400">
                                             입고일자 {r.receiptDt}{r.mfgDt ? ` · 제조일자 ${r.mfgDt}` : ''} · {fmtDt(r.createdAt)}
                                         </span>
@@ -424,7 +513,7 @@ export default function Receiving() {
                     <div className="bg-white rounded-2xl shadow-xl p-6 w-96 flex flex-col gap-4">
                         <h3 className="text-lg font-bold text-slate-800">검수를 취소하시겠습니까?</h3>
                         <p className="text-sm text-slate-500">
-                            {cancelReceiptTarget.qty}개 · {cancelReceiptTarget.lotNo}
+                            {fmtStoredQty(cancelReceiptTarget.qty, receiptsModal?.line)} · {cancelReceiptTarget.lotNo}
                         </p>
                         <p className="text-xs text-slate-400">이미 적치된 수량이 있으면 취소할 수 없습니다.</p>
                         <div className="flex gap-2 justify-end">
