@@ -113,8 +113,8 @@ const LINE_COLUMN_DEFS = [
         ),
     },
     {
-        field: 'inbEaQty', headerName: '낱개수량', width: 90, cellClass: 'ag-right-aligned-cell',
-        headerTooltip: '발주단위 1개 = 낱개(EA) 몇 개인지 — 단위 관리의 낱개수량과 같은 값',
+        field: 'inbEaQty', headerName: '입수량', width: 90, cellClass: 'ag-right-aligned-cell',
+        headerTooltip: '발주단위 1개당 입수량(낱개 기준) — 단위 관리의 낱개수량과 같은 값',
         valueFormatter: (p) => p.value?.toLocaleString(),
     },
     {

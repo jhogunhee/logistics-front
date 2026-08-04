@@ -314,8 +314,8 @@ export default function InboundOrder() {
                     <span className="w-24 shrink-0 text-center ml-auto">온도대</span>
                     <span className="w-20 shrink-0 text-right">유통기한</span>
                     <span className="w-40 shrink-0 text-right">발주 수량</span>
-                    <span className="w-20 shrink-0 text-right" title="발주단위 1개 = 낱개(EA) 몇 개인지 — 단위 관리의 낱개수량과 같은 값">
-                        낱개수량
+                    <span className="w-20 shrink-0 text-right" title="발주단위 1개당 입수량(낱개 기준) — 단위 관리의 낱개수량과 같은 값">
+                        입수량
                     </span>
                     <span className="w-36 shrink-0 text-right" title="발주 수량을 낱개(EA)로 환산한 수량입니다">
                         환산 수량 (낱개)
@@ -369,7 +369,7 @@ export default function InboundOrder() {
                                         {line.inbUomCd}
                                     </span>
                                 </span>
-                                {/* 낱개수량 — 발주단위 1개 = 낱개 몇 개인지 (환산의 배수, 단위 관리 화면과 같은 명칭) */}
+                                {/* 입수량 — 발주단위 1개 = 낱개 몇 개인지 (환산의 배수, 값의 근거는 단위 관리 화면의 낱개수량과 같다) */}
                                 <span className="w-20 shrink-0 text-right text-sm text-slate-500">
                                     {eaQtyPerInbUomOf(line).toLocaleString()}
                                 </span>

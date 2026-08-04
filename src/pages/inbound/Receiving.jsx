@@ -187,7 +187,7 @@ export default function Receiving() {
         {
             // 입력 3종(검수수량·제조일자·입고일자) 뒤에 둔다 — 입력 컬럼 사이에 끼우면 탭 이동이 끊긴다
             headerName: '낱개환산', width: 95,
-            headerTooltip: '검수수량 × 입고단위 낱개수량 — 입력 확인용 낱개(EA) 환산',
+            headerTooltip: '검수수량 × 입고단위 입수량 — 입력 확인용 낱개(EA) 환산',
             valueGetter: (p) => {
                 const n = Number(p.data._inspectQty);
                 return n > 0 ? n * eaQtyPerInbUomOf(p.data) : null;
