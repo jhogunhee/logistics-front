@@ -71,6 +71,11 @@ export default function UomMaster() {
 
     // 삭제(D) 표시된 행은 편집을 막는다
     const notDeleted = (p) => p.data._status !== 'D';
+    // 단위수량(파생 컬럼)의 분모 — 현재 출고단위로 지정된 포장의 낱개수량.
+    // 편집·라디오 변경마다 setUomRows가 다시 흐르므로 여기서 계산해도 최신이다
+    const outbRow = uomRows.find(r => r.outbUom && r._status !== 'D');
+    const outbEaQty = Number(outbRow?.eaQty) >= 1 ? Number(outbRow.eaQty) : null;
+    const outbUomCd = outbRow?.uomCd ?? '';
     // 단위는 (상품, 단위) 유일키의 일부라 등록 후 변경 불가 — 신규(C) 행에서만 고른다
     const isNew = (p) => p.data._status === 'C';
 
@@ -107,7 +112,26 @@ export default function UomMaster() {
             field: 'eaQty', headerName: '낱개수량', width: 100, editable: notDeleted,
             type: 'numericColumn',
             cellEditor: 'agNumberCellEditor',
-            headerTooltip: '이 단위 1개가 낱개 몇 개인가 (예: BOX 1개 = 24). 낱개 그 자체면 1',
+            headerTooltip: '이 단위 1개가 낱개 몇 개인가 (예: BOX 1개 = 24). 낱개 그 자체면 1. 저장되는 원본 값',
+        },
+        {
+            // 파생 표시 — 저장 필드가 아니다. 검수·재고가 실제로 움직이는 환산(출고단위 기준)을
+            // 낱개수량 옆에서 바로 보여준다. 출고단위 라디오를 바꾸면 값이 따라 바뀐다
+            headerName: '단위수량', width: 110,
+            headerTooltip: '이 단위 1개 = 출고단위 몇 개 (낱개수량 ÷ 출고단위 낱개수량). 검수 입력·재고 수량이 이 환산으로 움직입니다',
+            cellClass: 'ag-right-aligned-cell',
+            valueGetter: (p) => {
+                if (!outbEaQty || !(Number(p.data.eaQty) >= 1)) return null;
+                return Math.round((p.data.eaQty / outbEaQty) * 100) / 100;
+            },
+            cellRenderer: (p) => {
+                if (p.value == null) return <span className="text-slate-400">—</span>;
+                const label = `${p.value} ${outbUomCd}`;
+                // 입고단위 행 = 입수. 검수 입력 1개가 재고 몇 개가 되는지라 눈에 띄게 둔다
+                return p.data.inbUom
+                    ? <span className="text-indigo-600 font-bold">{label}</span>
+                    : <span className={p.data.outbUom ? 'text-slate-400' : ''}>{label}</span>;
+            },
         },
         {
             field: 'wgt', headerName: '중량(kg)', width: 100, editable: notDeleted,
@@ -430,7 +454,7 @@ export default function UomMaster() {
             <div className="flex items-center gap-2">
                 <Ruler size={18} className="text-indigo-600" />
                 <h2 className="text-lg font-bold text-slate-800">단위 관리</h2>
-                <span className="text-xs text-slate-400 mt-0.5">상품별 포장 · 낱개수량 · 중량</span>
+                <span className="text-xs text-slate-400 mt-0.5">상품별 포장 · 낱개수량(원본) · 단위수량(출고단위 환산) · 중량</span>
             </div>
 
             {/* 검색 조건 — 왼쪽 상품 목록을 좁힌다 */}
