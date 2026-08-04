@@ -19,6 +19,7 @@ import {
     ListChecks,
     ListTree,
     MapPin,
+    PackageCheck,
     PackageOpen,
     PauseCircle,
     Ruler,
@@ -80,6 +81,7 @@ const MENU = [
     {
         title: "출고",
         items: [
+            { to: "/outbound/order", label: "출고예정 관리", icon: PackageCheck, keywords: "출고예정 출고주문 obs outbound order 예정 창고 문서 조회" },
             { to: "/outbound/wave", label: "웨이브 편성", icon: Layers, keywords: "wave 묶음 출고주문 담기 전략 실행 피킹지시 발행단위" },
             { to: "/outbound/allocation", label: "할당", icon: Shuffle, keywords: "allocation 재고 배정 fefo" },
             { to: "/outbound/pick-order", label: "피킹지시", icon: ScrollText, keywords: "picking 지시" },

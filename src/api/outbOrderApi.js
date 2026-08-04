@@ -39,6 +39,12 @@ export const OUTB_STATUS_META = {
     SHIPPED:   { label: '출고확정', badge: 'bg-emerald-100 text-emerald-700' },
 };
 
+/** 출고진행상태 검색 드롭다운 옵션 (ASN_STATUS_OPTIONS와 같은 형태) */
+export const OUTB_STATUS_OPTIONS = [
+    { value: '', label: '전체' },
+    ...Object.entries(OUTB_STATUS_META).map(([value, m]) => ({ value, label: m.label })),
+];
+
 /**
  * 웨이브 편입 출처. 수동 편성은 금지 대상이 아니라 가시화 대상이다 —
  * 전략 조건과 맞지 않는 주문이 웨이브에 들어 있는 상황을 화면이 구분해 보여준다.

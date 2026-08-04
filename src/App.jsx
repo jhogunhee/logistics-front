@@ -29,6 +29,7 @@ import StockMove from "@/pages/stock/StockMove.jsx";
 import StockHold from "@/pages/stock/StockHold.jsx";
 import StockCount from "@/pages/stock/StockCount.jsx";
 import StockAttr from "@/pages/stock/StockAttr.jsx";
+import OutbOrderList from "@/pages/outbound/OutbOrderList.jsx";
 import Wave from "@/pages/outbound/Wave.jsx";
 import Allocation from "@/pages/outbound/Allocation.jsx";
 
@@ -74,7 +75,9 @@ export default function App() {
                         {/* 재고조사(실사) — 재고 수량 정정의 유일한 경로. 탭으로 조사 목록/실사 입력을 오간다 */}
                         <Route path="/stock/count" element={<StockCount/>}/>
 
-                        {/* 출고: 웨이브 편성 → 할당 → 피킹지시 → 피킹 → 출고확정 */}
+                        {/* 출고: 출고예정 → 웨이브 편성 → 할당 → 피킹지시 → 피킹 → 출고확정 */}
+                        {/* 입고예정(ASN)과 같은 자리 — OMS 출고주문 확정이 만든 창고 문서를 조회한다 */}
+                        <Route path="/outbound/order" element={<OutbOrderList/>}/>
                         <Route path="/outbound/wave" element={<Wave/>}/>
                         {/* 할당은 웨이브를 대상으로 실행하고 결과는 주문 라인에 남는다 */}
                         <Route path="/outbound/allocation" element={<Allocation/>}/>
