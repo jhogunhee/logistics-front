@@ -1,5 +1,6 @@
 import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar.jsx";
+import ServerWakeGate from "@/components/common/ServerWakeGate.jsx";
 import { LogOut } from "lucide-react";
 
 export default function Layout() {
@@ -31,7 +32,9 @@ export default function Layout() {
                 {/* 실제 콘텐츠 영역 — 창 스크롤 대신 카드 내부 스크롤을 쓴다 */}
                 <div className="p-8 flex-1 min-h-0">
                     <div className="bg-white rounded-xl shadow-sm border border-slate-200 h-full p-6 overflow-auto">
-                        <Outlet />
+                        <ServerWakeGate>
+                            <Outlet />
+                        </ServerWakeGate>
                     </div>
                 </div>
             </main>
