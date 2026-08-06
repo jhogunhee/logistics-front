@@ -11,18 +11,13 @@ import DropdownSelect from '@/components/common/DropdownSelect';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import ExecutionHistory from '@/components/strategy/ExecutionHistory';
 import WaveOrderTrace from '@/components/strategy/WaveOrderTrace';
-import { outbWaveApi, WAVE_STATUS_META } from '@/api/outbWaveApi';
-import { outbOrderApi, WAV_REG_TYP_META } from '@/api/outbOrderApi';
+import { outbWaveApi } from '@/api/outbWaveApi';
+import { outbOrderApi } from '@/api/outbOrderApi';
+import { WAVE_STATUS_META, WAV_REG_TYP_META } from '@/constants/badgeMeta';
 import { strategyApi } from '@/api/strategyApi';
 import { codeApi, toSearchOptions } from '@/api/codeApi';
+import { Badge } from '@/components/common/Badge';
 import { fmtDt, num } from '@/utils/format';
-
-/** 라벨만 보여주는 뱃지 (공통 Badge는 코드값을 함께 찍는 형태라 상태·출처에는 맞지 않는다) */
-const MetaBadge = ({ meta, value }) => {
-    const m = meta[value];
-    if (!m) return null;
-    return <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${m.badge}`}>{m.label}</span>;
-};
 
 const centered = { display: 'flex', alignItems: 'center', justifyContent: 'center' };
 
@@ -36,7 +31,7 @@ const WAVE_COLUMN_DEFS = [
     {
         field: 'status', headerName: '상태', width: 74, cellStyle: centered,
         headerTooltip: '편성중 = 주문을 담고 뺄 수 있음 / 지시발행 = 피킹지시가 나가 편성이 잠김',
-        cellRenderer: (p) => <MetaBadge meta={WAVE_STATUS_META} value={p.value} />,
+        cellRenderer: (p) => <Badge meta={WAVE_STATUS_META} value={p.value} show="label" />,
     },
     {
         field: 'wavStgyId', headerName: '생성 전략', flex: 1, minWidth: 140,
@@ -86,7 +81,7 @@ const WAVE_ORDER_COLUMN_DEFS = [
     {
         field: 'wavRegTyp', headerName: '편입', width: 80, cellStyle: centered,
         headerTooltip: '전략 실행으로 편입됐는지, 화면에서 수동으로 담았는지. 수동 편입분은 전략 조건과 맞지 않을 수 있다',
-        cellRenderer: (p) => <MetaBadge meta={WAV_REG_TYP_META} value={p.value} />,
+        cellRenderer: (p) => <Badge meta={WAV_REG_TYP_META} value={p.value} show="label" />,
     },
 ];
 

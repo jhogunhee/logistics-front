@@ -6,7 +6,8 @@ import toast from 'react-hot-toast';
 import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import { putawayApi } from '@/api/putawayApi';
-import { TempZoneBadge } from '@/components/common/Badge';
+import { TEMP_ZONE_META } from '@/constants/badgeMeta';
+import { Badge } from '@/components/common/Badge';
 import ConfirmModal from '@/components/common/ConfirmModal';
 
 
@@ -19,7 +20,7 @@ const COLUMN_DEFS = [
     {
         field: 'tmpZon', headerName: '온도대', width: 100,
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-        cellRenderer: (p) => <TempZoneBadge value={p.value} />,
+        cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
     },
     { field: 'lotNo', headerName: 'Lot번호', width: 130 },
     { field: 'receiptDt', headerName: '입고일자', width: 110 },
@@ -239,7 +240,7 @@ export default function Putaway() {
                         <>
                             <div className="flex items-center gap-2 text-sm">
                                 <span className="font-bold text-slate-700">{selected.prodCd} {selected.prodNm}</span>
-                                <TempZoneBadge value={selected.tmpZon} />
+                                <Badge meta={TEMP_ZONE_META} value={selected.tmpZon} />
                                 <span className="text-xs text-slate-400">{selected.ibNo} · {selected.lotNo} · 미적치 {selected.pendingQty}개</span>
                             </div>
 

@@ -5,8 +5,10 @@ import toast from 'react-hot-toast';
 
 import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
-import { invHldApi, INV_HLD_STATUS_META, ETC_RSN_CD } from '@/api/invHldApi';
+import { invHldApi, ETC_RSN_CD } from '@/api/invHldApi';
+import { INV_HLD_STATUS_META } from '@/constants/badgeMeta';
 import { codeApi, toSearchOptions } from '@/api/codeApi';
+import { Badge } from '@/components/common/Badge';
 import { fmtDt, num } from '@/utils/format';
 
 
@@ -14,16 +16,6 @@ const STATUS_OPTIONS = [
     { value: '', label: '전체' },
     ...Object.entries(INV_HLD_STATUS_META).map(([value, m]) => ({ value, label: m.label })),
 ];
-
-const StatusBadge = ({ value }) => {
-    const meta = INV_HLD_STATUS_META[value];
-    if (!meta) return null;
-    return (
-        <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${meta.badge}`}>
-            {meta.label}
-        </span>
-    );
-};
 
 export default function StockHoldList() {
     const [rowData, setRowData] = useState([]);
@@ -47,7 +39,7 @@ export default function StockHoldList() {
         {
             field: 'status', headerName: '상태', width: 90,
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-            cellRenderer: (p) => <StatusBadge value={p.value} />,
+            cellRenderer: (p) => <Badge meta={INV_HLD_STATUS_META} value={p.value} show="label" />,
         },
         { field: 'prodCd', headerName: '상품 코드', width: 115 },
         { field: 'prodNm', headerName: '상품명', flex: 1, minWidth: 160 },
@@ -237,7 +229,7 @@ export default function StockHoldList() {
                     ) : !actionable ? (
                         <div className="flex items-center gap-2 text-sm">
                             <span className="font-bold text-slate-700">{selected.hldNo}</span>
-                            <StatusBadge value={selected.status} />
+                            <Badge meta={INV_HLD_STATUS_META} value={selected.status} show="label" />
                             <span className="text-xs text-slate-400">전량 해제된 건입니다 — 다시 보류하려면 보류등록 탭에서 새로 등록하세요.</span>
                         </div>
                     ) : (

@@ -27,10 +27,3 @@ export const eaQtyPerInbUomOf = (prodOrLine) =>
     prodOrLine?.inbEaQty
     ?? prodOrLine?.uoms?.find(u => u.uomCd === prodOrLine?.inbUomCd)?.eaQty
     ?? 1;
-
-/** 온도대 표시 메타 (라벨/뱃지 색) */
-export const TEMP_ZONE_META = {
-    DRY: { label: '상온', badge: 'bg-amber-100 text-amber-700' },
-    CHL: { label: '냉장', badge: 'bg-sky-100 text-sky-700' },
-    FRZ: { label: '냉동', badge: 'bg-indigo-100 text-indigo-700' },
-};

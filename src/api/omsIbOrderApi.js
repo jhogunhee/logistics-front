@@ -45,15 +45,3 @@ export const omsIbOrderApi = {
         return api.delete(`/oms/inbound-orders/${omsIbOrderId}`);
     },
 };
-
-/** 입고주문 상태 표시 메타 — 백엔드 OmsIbStatus와 1:1 */
-export const OMS_IB_STATUS_META = {
-    CREATED:   { label: '작성', badge: 'bg-slate-100 text-slate-600' },
-    CONFIRMED: { label: '확정', badge: 'bg-emerald-100 text-emerald-700' },
-};
-
-/** 상태 검색 드롭다운 옵션 */
-export const OMS_IB_STATUS_OPTIONS = [
-    { value: '', label: '전체' },
-    ...Object.entries(OMS_IB_STATUS_META).map(([value, m]) => ({ value, label: m.label })),
-];

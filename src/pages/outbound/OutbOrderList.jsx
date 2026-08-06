@@ -5,17 +5,12 @@ import { PackageCheck } from 'lucide-react';
 
 import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
-import { TempZoneBadge } from '@/components/common/Badge';
-import { outbOrderApi, OUTB_STATUS_META, OUTB_STATUS_OPTIONS } from '@/api/outbOrderApi';
+import { Badge } from '@/components/common/Badge';
+import { outbOrderApi } from '@/api/outbOrderApi';
 import { codeApi, toSearchOptions } from '@/api/codeApi';
+import { OUTB_STATUS_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
+import { OUTB_STATUS_OPTIONS } from '@/constants/codeOptions';
 import { daysAheadStr, num, todayStr } from '@/utils/format';
-
-/** 라벨만 보여주는 뱃지 — 웨이브 편성 화면의 MetaBadge와 같은 형태 */
-const MetaBadge = ({ meta, value }) => {
-    const m = meta[value];
-    if (!m) return null;
-    return <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${m.badge}`}>{m.label}</span>;
-};
 
 const centered = { display: 'flex', alignItems: 'center', justifyContent: 'center' };
 
@@ -24,7 +19,7 @@ const HEADER_COLUMN_DEFS = [
     { field: 'outbNo', headerName: '출고번호', width: 160, cellClass: 'font-bold text-slate-700' },
     {
         field: 'status', headerName: '출고진행상태', width: 120, cellStyle: centered,
-        cellRenderer: (p) => <MetaBadge meta={OUTB_STATUS_META} value={p.value} />,
+        cellRenderer: (p) => <Badge meta={OUTB_STATUS_META} value={p.value} show="label" />,
     },
     // 점포명은 긴 것이 많아 이 폭에서는 잘린다 — 전체 이름은 툴팁과 하단 라인 패널 머리글에서 본다
     { field: 'storeNm', headerName: '점포', flex: 1, minWidth: 100, tooltipField: 'storeNm' },
@@ -76,7 +71,7 @@ const LINE_COLUMN_DEFS = [
     { field: 'prodNm', headerName: '상품명', flex: 1, minWidth: 200 },
     {
         field: 'tmpZon', headerName: '온도대', width: 120, cellStyle: centered,
-        cellRenderer: (p) => <TempZoneBadge value={p.value} />,
+        cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
     },
     { field: 'odrQty', headerName: '주문수량', width: 100, cellClass: 'ag-right-aligned-cell', valueFormatter: (p) => num(p.value) },
     { field: 'alocQty', headerName: '할당수량', width: 100, cellClass: 'ag-right-aligned-cell', valueFormatter: (p) => num(p.value) },

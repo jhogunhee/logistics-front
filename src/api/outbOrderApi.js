@@ -26,30 +26,3 @@ export const outbOrderApi = {
     // 확정취소(omsOutbOrderApi.cancelConfirm)로만 사라진다. 서버에도 두 엔드포인트가 없으므로
     // 여기에 되살리지 말 것.
 };
-
-/**
- * 출고 진행상태 표시 메타. 부분할당은 상태가 아니라 수량에서 파생하므로 여기 없다.
- * 취소(CANCELLED)도 없다 — 없앨 주문은 OMS 확정취소가 행째로 지운다(웨이브 편성 전만).
- */
-export const OUTB_STATUS_META = {
-    CREATED:   { label: '신규',     badge: 'bg-slate-100 text-slate-600' },
-    ALLOCATED: { label: '할당',     badge: 'bg-indigo-100 text-indigo-700' },
-    PICKING:   { label: '피킹중',   badge: 'bg-amber-100 text-amber-700' },
-    PICKED:    { label: '피킹완료', badge: 'bg-sky-100 text-sky-700' },
-    SHIPPED:   { label: '출고확정', badge: 'bg-emerald-100 text-emerald-700' },
-};
-
-/** 출고진행상태 검색 드롭다운 옵션 (ASN_STATUS_OPTIONS와 같은 형태) */
-export const OUTB_STATUS_OPTIONS = [
-    { value: '', label: '전체' },
-    ...Object.entries(OUTB_STATUS_META).map(([value, m]) => ({ value, label: m.label })),
-];
-
-/**
- * 웨이브 편입 출처. 수동 편성은 금지 대상이 아니라 가시화 대상이다 —
- * 전략 조건과 맞지 않는 주문이 웨이브에 들어 있는 상황을 화면이 구분해 보여준다.
- */
-export const WAV_REG_TYP_META = {
-    STGY:   { label: '전략',  badge: 'bg-violet-100 text-violet-700' },
-    MANUAL: { label: '수동',  badge: 'bg-slate-100 text-slate-500' },
-};

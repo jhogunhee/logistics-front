@@ -13,20 +13,3 @@ export const zonApi = {
         return api.post('/master/zons/bulk', rows);
     },
 };
-
-/** 보관유형 표시 메타 (공통코드 STRG_TYP) */
-export const STRG_TYP_META = {
-    RACK: { label: '랙',   badge: 'bg-sky-100 text-sky-700' },
-    FLAT: { label: '평치', badge: 'bg-lime-100 text-lime-700' },
-    VRTL: { label: '가상', badge: 'bg-slate-100 text-slate-600' },
-};
-
-/** 업무구분 표시 메타 (공통코드 BIZ_DVSN) */
-export const BIZ_DVSN_META = {
-    INB:   { label: '입고작업', badge: 'bg-blue-100 text-blue-700' },
-    OUTB:  { label: '출고작업', badge: 'bg-violet-100 text-violet-700' },
-    STRG:  { label: '보관',     badge: 'bg-emerald-100 text-emerald-700' },
-    PIKNG: { label: '피킹',     badge: 'bg-amber-100 text-amber-700' },
-    RTNGS: { label: '반품',     badge: 'bg-rose-100 text-rose-700' },
-    WRK:   { label: '작업',     badge: 'bg-slate-100 text-slate-600' },
-};

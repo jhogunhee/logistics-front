@@ -8,22 +8,14 @@ import toast from 'react-hot-toast';
 import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import VendorPickerModal from '@/components/common/VendorPickerModal';
-import { omsIbOrderApi, OMS_IB_STATUS_META, OMS_IB_STATUS_OPTIONS } from '@/api/omsIbOrderApi';
-import { ASN_STATUS_META } from '@/api/asnApi';
+import { omsIbOrderApi } from '@/api/omsIbOrderApi';
 import { codeApi } from '@/api/codeApi';
-import { TempZoneBadge } from '@/components/common/Badge';
+import { ASN_STATUS_META, OMS_IB_STATUS_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
+import { OMS_IB_STATUS_OPTIONS } from '@/constants/codeOptions';
+import { Badge } from '@/components/common/Badge';
 import { daysAheadStr, todayStr } from '@/utils/format';
 
 // 오늘 날짜 "YYYY-MM-DD" (검색 기본값)
-
-const Badge = ({ meta }) => {
-    if (!meta) return null;
-    return (
-        <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${meta.badge}`}>
-            {meta.label}
-        </span>
-    );
-};
 
 
 const centered = { display: 'flex', alignItems: 'center', justifyContent: 'center' };
@@ -50,7 +42,7 @@ const HEADER_COLUMN_DEFS = [
     {
         field: 'status', headerName: '주문상태', width: 90,
         cellStyle: centered,
-        cellRenderer: (p) => <Badge meta={OMS_IB_STATUS_META[p.value]} />,
+        cellRenderer: (p) => <Badge meta={OMS_IB_STATUS_META} value={p.value} show="label" />,
     },
     {
         // 표시명은 공통코드에서 받아 context로 넘긴다 (코드값만으론 화면에서 못 읽는다).
@@ -89,7 +81,7 @@ const HEADER_COLUMN_DEFS = [
         field: 'ibStatus', headerName: '창고 진행', width: 95,
         headerTooltip: 'ASN의 입고 진행 상태',
         cellStyle: centered,
-        cellRenderer: (p) => <Badge meta={ASN_STATUS_META[p.value]} />,
+        cellRenderer: (p) => <Badge meta={ASN_STATUS_META} value={p.value} show="label" />,
     },
 ];
 
@@ -100,7 +92,7 @@ const LINE_COLUMN_DEFS = [
     {
         field: 'tmpZon', headerName: '온도대', width: 120,
         cellStyle: centered,
-        cellRenderer: (p) => <TempZoneBadge value={p.value} />,
+        cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
     },
     {
         field: 'odrQty', headerName: '발주수량', width: 120, cellClass: 'ag-right-aligned-cell',

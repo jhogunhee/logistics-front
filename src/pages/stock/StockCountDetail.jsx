@@ -7,18 +7,13 @@ import ConfirmModal from '@/components/common/ConfirmModal';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import ProdPickerModal from '@/components/common/ProdPickerModal';
 import SelectCellEditor from '@/components/common/SelectCellEditor';
-import { TempZoneBadge } from '@/components/common/Badge';
-import { adjQtyOf, invStktkApi, INV_STKTK_STATUS_META, ETC_RSN_CD } from '@/api/invStktkApi';
+import { Badge } from '@/components/common/Badge';
+import { adjQtyOf, invStktkApi, ETC_RSN_CD } from '@/api/invStktkApi';
 import { codeApi } from '@/api/codeApi';
 import { locApi } from '@/api/locApi';
 import { lotApi } from '@/api/lotApi';
+import { INV_STKTK_STATUS_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { fmtDt, num } from '@/utils/format';
-
-const StatusBadge = ({ value }) => {
-    const meta = INV_STKTK_STATUS_META[value];
-    if (!meta) return null;
-    return <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${meta.badge}`}>{meta.label}</span>;
-};
 
 /** 전산수량 기준값 — 확정 후에는 확정시점 값이 고정 기준이다 */
 const baseQtyOf = (ln) => ln.cfmSysQty ?? ln.nowSysQty;
@@ -99,7 +94,7 @@ export default function StockCountDetail({ stktkId, onBack }) {
         {
             field: 'tmpZon', headerName: '온도대', width: 90,
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-            cellRenderer: (p) => <TempZoneBadge value={p.value} />,
+            cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
         },
         { field: 'lotNo', headerName: 'Lot번호', width: 130 },
         {
@@ -340,7 +335,7 @@ export default function StockCountDetail({ stktkId, onBack }) {
                     <ArrowLeft size={16} />
                 </button>
                 <h2 className="text-lg font-bold text-slate-800">{head.stktkNo}</h2>
-                <StatusBadge value={head.status} />
+                <Badge meta={INV_STKTK_STATUS_META} value={head.status} show="label" />
                 <span className="text-xs text-slate-400">{scopeText}</span>
                 <span className="text-xs text-slate-400">· 생성 {fmtDt(head.createdAt)}</span>
                 {head.cfmDt && <span className="text-xs text-emerald-600 font-bold">· 확정 {fmtDt(head.cfmDt)}</span>}

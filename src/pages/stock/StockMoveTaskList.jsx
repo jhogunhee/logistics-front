@@ -5,7 +5,9 @@ import toast from 'react-hot-toast';
 
 import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
-import { invMovApi, INV_MOV_STATUS_META, INV_MOV_DVSN_META } from '@/api/invMovApi';
+import { invMovApi } from '@/api/invMovApi';
+import { INV_MOV_DVSN_META, INV_MOV_STATUS_META } from '@/constants/badgeMeta';
+import { Badge } from '@/components/common/Badge';
 import { fmtDt, num } from '@/utils/format';
 import ConfirmModal from '@/components/common/ConfirmModal';
 
@@ -20,26 +22,6 @@ const DVSN_OPTIONS = [
     ...Object.entries(INV_MOV_DVSN_META).map(([value, m]) => ({ value, label: m.label })),
 ];
 
-const DvsnBadge = ({ value }) => {
-    const meta = INV_MOV_DVSN_META[value];
-    if (!meta) return null;
-    return (
-        <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${meta.badge}`}>
-            {meta.label}
-        </span>
-    );
-};
-
-const StatusBadge = ({ value }) => {
-    const meta = INV_MOV_STATUS_META[value];
-    if (!meta) return null;
-    return (
-        <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${meta.badge}`}>
-            {meta.label}
-        </span>
-    );
-};
-
 const COLUMN_DEFS = [
     { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
     { field: 'invMovNo', headerName: '이동지시번호', width: 150 },
@@ -47,12 +29,12 @@ const COLUMN_DEFS = [
         field: 'movDvsn', headerName: '이동구분', width: 100,
         headerTooltip: '이 화면의 확정·취소는 재고이동 유형만 가능 — 적치·피킹은 각자의 화면에서 처리',
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-        cellRenderer: (p) => <DvsnBadge value={p.value} />,
+        cellRenderer: (p) => <Badge meta={INV_MOV_DVSN_META} value={p.value} show="label" />,
     },
     {
         field: 'status', headerName: '상태', width: 90,
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-        cellRenderer: (p) => <StatusBadge value={p.value} />,
+        cellRenderer: (p) => <Badge meta={INV_MOV_STATUS_META} value={p.value} show="label" />,
     },
     { field: 'prodCd', headerName: '상품 코드', width: 115 },
     { field: 'prodNm', headerName: '상품명', flex: 1, minWidth: 160 },
@@ -257,8 +239,8 @@ export default function StockMoveTaskList() {
                     ) : !actionable ? (
                         <div className="flex items-center gap-2 text-sm">
                             <span className="font-bold text-slate-700">{selected.invMovNo}</span>
-                            <DvsnBadge value={selected.movDvsn} />
-                            <StatusBadge value={selected.status} />
+                            <Badge meta={INV_MOV_DVSN_META} value={selected.movDvsn} show="label" />
+                            <Badge meta={INV_MOV_STATUS_META} value={selected.status} show="label" />
                             <span className="text-xs text-slate-400">
                                 {!isInvMov
                                     ? `${INV_MOV_DVSN_META[selected.movDvsn]?.label ?? selected.movDvsn} 유형의 지시는 이 화면에서 확정·취소할 수 없습니다 — 해당 업무 화면에서 처리하세요.`

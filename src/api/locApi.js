@@ -14,11 +14,5 @@ export const locApi = {
     },
 };
 
-/** 로케이션 유형 표시 메타 */
-export const LOC_TYPE_META = {
-    STAGE:   { label: '스테이징', badge: 'bg-rose-100 text-rose-700' },
-    STORAGE: { label: '보관',     badge: 'bg-emerald-100 text-emerald-700' },
-};
-
 // 존 코드 목록은 존 마스터(zonApi.list)에서 조회한다. 예전엔 여기 상수로 박혀 있었는데
 // SHIP-STAGE가 빠져 있어 해당 로케이션의 드롭다운·엑셀 검증이 깨져 있었다.

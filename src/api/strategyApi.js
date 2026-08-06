@@ -185,15 +185,3 @@ export const strategyApi = {
         return api.get('/strategy/executions', { params: { stgyTyp, ...(stgyId ? { stgyId } : {}) } });
     },
 };
-
-/** 연산자 표시 라벨 (백엔드 enum과 1:1) */
-export const OP_LABELS = {
-    EQ: '=',
-    NE: '≠',
-    IN: '포함 (IN)',
-    NOT_IN: '제외 (NOT IN)',
-    GE: '≥',
-    LE: '≤',
-    BETWEEN: '범위',
-    LIKE: '포함 문자',
-};

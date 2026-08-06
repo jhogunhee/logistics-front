@@ -6,9 +6,11 @@ import toast from 'react-hot-toast';
 import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import ProdPickerModal from '@/components/common/ProdPickerModal';
-import { invStktkApi, INV_STKTK_STATUS_META } from '@/api/invStktkApi';
+import { invStktkApi } from '@/api/invStktkApi';
+import { INV_STKTK_STATUS_META } from '@/constants/badgeMeta';
 import { locApi } from '@/api/locApi';
 import { zonApi } from '@/api/zonApi';
+import { Badge } from '@/components/common/Badge';
 import { daysAheadStr, fmtDt, num, todayStr } from '@/utils/format';
 
 const STATUS_OPTIONS = [
@@ -16,19 +18,13 @@ const STATUS_OPTIONS = [
     ...Object.entries(INV_STKTK_STATUS_META).map(([value, m]) => ({ value, label: m.label })),
 ];
 
-const StatusBadge = ({ value }) => {
-    const meta = INV_STKTK_STATUS_META[value];
-    if (!meta) return null;
-    return <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${meta.badge}`}>{meta.label}</span>;
-};
-
 const COLUMN_DEFS = [
     { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
     { field: 'stktkNo', headerName: '조사번호', width: 150 },
     {
         field: 'status', headerName: '상태', width: 90,
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-        cellRenderer: (p) => <StatusBadge value={p.value} />,
+        cellRenderer: (p) => <Badge meta={INV_STKTK_STATUS_META} value={p.value} show="label" />,
     },
     {
         headerName: '조사 범위', flex: 1, minWidth: 240,

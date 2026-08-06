@@ -53,13 +53,6 @@ export const invStktkApi = {
     },
 };
 
-/** 조사 상태 표시 메타. 「부분입력」 같은 상태는 없다 — 진행도는 라인 수 비교로 본다 */
-export const INV_STKTK_STATUS_META = {
-    CREATED:   { label: '작성', badge: 'bg-indigo-100 text-indigo-700' },
-    CONFIRMED: { label: '확정', badge: 'bg-emerald-100 text-emerald-700' },
-    CANCELLED: { label: '취소', badge: 'bg-slate-100 text-slate-500' },
-};
-
 /** 「기타」 사유코드 — 이 코드일 때만 자유 텍스트 입력을 받는다 (보류와 같은 규칙) */
 export const ETC_RSN_CD = 'ETC';
 

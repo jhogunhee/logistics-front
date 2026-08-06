@@ -4,20 +4,11 @@ import { History } from 'lucide-react';
 
 import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
-import { invHistApi, TX_TYPE_META, TX_TYPE_OPTIONS } from '@/api/invHistApi';
-import { TempZoneBadge } from '@/components/common/Badge';
+import { invHistApi } from '@/api/invHistApi';
+import { TEMP_ZONE_META, TX_TYPE_META } from '@/constants/badgeMeta';
+import { TX_TYPE_OPTIONS } from '@/constants/codeOptions';
+import { Badge } from '@/components/common/Badge';
 import { fmtDt } from '@/utils/format';
-
-
-const TxTypeBadge = ({ value }) => {
-    const meta = TX_TYPE_META[value];
-    if (!meta) return null;
-    return (
-        <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${meta.badge}`}>
-            {meta.label}
-        </span>
-    );
-};
 
 
 const REF_DOC_TYPE_LABEL = { INBOUND: '입고', OUTBOUND: '출고' };
@@ -27,7 +18,7 @@ const COLUMN_DEFS = [
     {
             field: 'txTyp', headerName: '유형', width: 80,
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-            cellRenderer: (p) => <TxTypeBadge value={p.value} />,
+            cellRenderer: (p) => <Badge meta={TX_TYPE_META} value={p.value} show="label" />,
     },
     { field: 'prodCd', headerName: '상품 코드', width: 115 },
     { field: 'prodNm', headerName: '상품명', flex: 1, minWidth: 180 },
@@ -41,7 +32,7 @@ const COLUMN_DEFS = [
     {
         field: 'tmpZon', headerName: '온도대', width: 100,
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-        cellRenderer: (p) => <TempZoneBadge value={p.value} />,
+        cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
     },
     { field: 'lotNo', headerName: 'Lot번호', width: 130 },
     {

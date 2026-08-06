@@ -6,21 +6,13 @@ import toast from 'react-hot-toast';
 
 import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
-import { asnApi, ASN_STATUS_META, ASN_STATUS_OPTIONS } from '@/api/asnApi';
-import { TempZoneBadge } from '@/components/common/Badge';
+import { asnApi } from '@/api/asnApi';
+import { ASN_STATUS_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
+import { ASN_STATUS_OPTIONS } from '@/constants/codeOptions';
+import { Badge } from '@/components/common/Badge';
 import { daysAheadStr, todayStr } from '@/utils/format';
 
 // 오늘 날짜 "YYYY-MM-DD" (검색 기본값)
-
-const StatusBadge = ({ value }) => {
-    const meta = ASN_STATUS_META[value];
-    if (!meta) return null;
-    return (
-        <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${meta.badge}`}>
-            {meta.label}
-        </span>
-    );
-};
 
 
 const HEADER_COLUMN_DEFS = [
@@ -29,7 +21,7 @@ const HEADER_COLUMN_DEFS = [
     {
         field: 'status', headerName: '입고진행상태', width: 130,
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-        cellRenderer: (p) => <StatusBadge value={p.value} />,
+        cellRenderer: (p) => <Badge meta={ASN_STATUS_META} value={p.value} show="label" />,
     },
     { field: 'vndrNm', headerName: '벤더', flex: 1, minWidth: 110 },
     { field: 'expctDe', headerName: '입고 예정일', width: 120 },
@@ -49,7 +41,7 @@ const LINE_COLUMN_DEFS = [
     {
         field: 'tmpZon', headerName: '온도대', width: 120,
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-        cellRenderer: (p) => <TempZoneBadge value={p.value} />,
+        cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
     },
     { field: 'expctQty', headerName: '예정수량', width: 100, cellClass: 'ag-right-aligned-cell' },
     { field: 'rcvdQty', headerName: '검수수량', width: 100, cellClass: 'ag-right-aligned-cell' },

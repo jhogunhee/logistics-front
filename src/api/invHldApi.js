@@ -35,11 +35,5 @@ export const invHldApi = {
     },
 };
 
-/** 보류 건 상태 표시 메타. 2값뿐 — 부분 해제 여부는 수량(rlzQty vs hldQty)으로 본다 */
-export const INV_HLD_STATUS_META = {
-    HELD:     { label: '보류중', badge: 'bg-rose-100 text-rose-700' },
-    RELEASED: { label: '해제',   badge: 'bg-slate-100 text-slate-500' },
-};
-
 /** 「기타」 사유코드 — 이 코드일 때만 자유 텍스트 입력을 받는다 */
 export const ETC_RSN_CD = 'ETC';

@@ -6,26 +6,15 @@ import * as XLSX from 'xlsx';
 
 import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
-import { locApi, LOC_TYPE_META } from '@/api/locApi';
+import { locApi } from '@/api/locApi';
 import { zonApi } from '@/api/zonApi';
-import { TEMP_ZONE_META } from '@/api/prodApi';
+import { LOC_TYPE_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { codeApi, toSearchOptions } from '@/api/codeApi';
-import { TempZoneBadge } from '@/components/common/Badge';
+import { Badge } from '@/components/common/Badge';
 import { RowStatusCell } from '@/components/common/Badge';
 import { fmtDe } from '@/utils/format';
 import ConfirmModal from '@/components/common/ConfirmModal';
 
-
-
-const LocTypeBadge = ({ value }) => {
-    const meta = LOC_TYPE_META[value];
-    if (!meta) return null;
-    return (
-        <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${meta.badge}`}>
-            {meta.label}
-        </span>
-    );
-};
 
 export default function LocMaster() {
     const [rowData, setRowData] = useState([]);
@@ -70,14 +59,14 @@ export default function LocMaster() {
             cellEditor: 'agSelectCellEditor',
             cellEditorParams: { values: tempZoneCodes },
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-            cellRenderer: (p) => <TempZoneBadge value={p.value} />,
+            cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
         },
         {
             field: 'locTyp', headerName: '유형', width: 100, editable: notDeleted,
             cellEditor: 'agSelectCellEditor',
             cellEditorParams: { values: locTypeCodes },
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-            cellRenderer: (p) => <LocTypeBadge value={p.value} />,
+            cellRenderer: (p) => <Badge meta={LOC_TYPE_META} value={p.value} show="label" />,
         },
         {
             field: 'pikngPrty', headerName: '피킹 우선순위', width: 120, editable: notDeleted,

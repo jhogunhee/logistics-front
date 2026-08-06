@@ -1,7 +1,7 @@
 import { Plus, Trash2 } from 'lucide-react';
 
 import DropdownSelect from '@/components/common/DropdownSelect';
-import { OP_LABELS } from '@/api/strategyApi';
+import { OP_LABELS } from '@/constants/opLabels';
 import { useOptions } from './useOptions';
 
 /**

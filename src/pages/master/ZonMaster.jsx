@@ -6,23 +6,12 @@ import * as XLSX from 'xlsx';
 
 import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
-import { zonApi, STRG_TYP_META, BIZ_DVSN_META } from '@/api/zonApi';
-import { TEMP_ZONE_META } from '@/api/prodApi';
+import { zonApi } from '@/api/zonApi';
+import { BIZ_DVSN_META, STRG_TYP_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { codeApi, toSearchOptions } from '@/api/codeApi';
-import { RowStatusCell } from '@/components/common/Badge';
+import { Badge, RowStatusCell } from '@/components/common/Badge';
 import { fmtDe } from '@/utils/format';
 import ConfirmModal from '@/components/common/ConfirmModal';
-
-
-const Badge = ({ meta, value, withCode }) => {
-    const m = meta[value];
-    if (!m) return null;
-    return (
-        <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${m.badge}`}>
-            {m.label}{withCode ? ` ${value}` : ''}
-        </span>
-    );
-};
 
 export default function ZonMaster() {
     const [rowData, setRowData] = useState([]);
@@ -60,21 +49,21 @@ export default function ZonMaster() {
             cellEditor: 'agSelectCellEditor',
             cellEditorParams: { values: tmpZonCodes },
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-            cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} withCode />,
+            cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
         },
         {
             field: 'strgTyp', headerName: '보관유형', width: 100, editable: notDeleted,
             cellEditor: 'agSelectCellEditor',
             cellEditorParams: { values: strgTypCodes },
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-            cellRenderer: (p) => <Badge meta={STRG_TYP_META} value={p.value} />,
+            cellRenderer: (p) => <Badge meta={STRG_TYP_META} value={p.value} show="label" />,
         },
         {
             field: 'bizDvsn', headerName: '업무구분', width: 110, editable: notDeleted,
             cellEditor: 'agSelectCellEditor',
             cellEditorParams: { values: bizDvsnCodes },
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-            cellRenderer: (p) => <Badge meta={BIZ_DVSN_META} value={p.value} />,
+            cellRenderer: (p) => <Badge meta={BIZ_DVSN_META} value={p.value} show="label" />,
         },
         {
             field: '_status', headerName: '상태', width: 70,

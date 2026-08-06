@@ -5,9 +5,8 @@ import { Box } from 'lucide-react';
 import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import { invApi } from '@/api/invApi';
-import { TEMP_ZONE_META } from '@/api/prodApi';
-import { LOC_TYPE_META } from '@/api/locApi';
-import { TempZoneBadge } from '@/components/common/Badge';
+import { LOC_TYPE_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
+import { Badge } from '@/components/common/Badge';
 import { num } from '@/utils/format';
 
 
@@ -22,16 +21,6 @@ const LOC_TYPE_OPTIONS = [
 ];
 
 
-const LocTypeBadge = ({ value }) => {
-    const meta = LOC_TYPE_META[value];
-    if (!meta) return null;
-    return (
-        <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${meta.badge}`}>
-            {meta.label}
-        </span>
-    );
-};
-
 const COLUMN_DEFS = [
     { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
     { field: 'prodCd', headerName: '상품 코드', width: 115 },
@@ -39,13 +28,13 @@ const COLUMN_DEFS = [
     {
         field: 'tmpZon', headerName: '온도대', width: 100,
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-        cellRenderer: (p) => <TempZoneBadge value={p.value} />,
+        cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
     },
     { field: 'locCd', headerName: '로케이션', width: 130 },
     {
         field: 'locTyp', headerName: '구분', width: 90,
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-        cellRenderer: (p) => <LocTypeBadge value={p.value} />,
+        cellRenderer: (p) => <Badge meta={LOC_TYPE_META} value={p.value} show="label" />,
     },
     { field: 'lotNo', headerName: 'Lot번호', width: 130 },
     {

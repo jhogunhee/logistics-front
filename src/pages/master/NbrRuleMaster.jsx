@@ -4,24 +4,14 @@ import { Hash, ListOrdered, Plus, Save, Trash2, X, Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import SearchBar, { SearchItem } from '@/components/common/SearchBar';
-import { nbrRuleApi, DYNC_KY_TYP_META } from '@/api/nbrRuleApi';
-import { RowStatusCell } from '@/components/common/Badge';
+import { nbrRuleApi } from '@/api/nbrRuleApi';
+import { DYNC_KY_TYP_META } from '@/constants/badgeMeta';
+import { Badge, RowStatusCell } from '@/components/common/Badge';
 import { fmtDe, fmtDtSec } from '@/utils/format';
 import ConfirmModal from '@/components/common/ConfirmModal';
 
 
 const DLMT_OPTIONS = ['-', '_', ''];
-
-
-const Badge = ({ meta, value }) => {
-    const m = meta[value];
-    if (!m) return null;
-    return (
-        <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${m.badge}`}>
-            {m.label}
-        </span>
-    );
-};
 
 export default function NbrRuleMaster() {
     const [rowData, setRowData] = useState([]);
@@ -96,7 +86,7 @@ export default function NbrRuleMaster() {
             cellEditor: 'agSelectCellEditor',
             cellEditorParams: { values: ['NONE', 'YEAR', 'MONTH', 'DAY'] },
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-            cellRenderer: (p) => <Badge meta={DYNC_KY_TYP_META} value={p.value} />,
+            cellRenderer: (p) => <Badge meta={DYNC_KY_TYP_META} value={p.value} show="label" />,
             headerTooltip: '고정=카운터 전역 공유 / 연도별·월별·일자별=발급 시 넘긴 날짜 기준으로 리셋 단위 분리. 등록 후 변경 불가',
         },
         {

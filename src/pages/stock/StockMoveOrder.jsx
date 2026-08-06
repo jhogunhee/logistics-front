@@ -8,7 +8,8 @@ import DropdownSelect from '@/components/common/DropdownSelect';
 import { invApi } from '@/api/invApi';
 import { invMovApi } from '@/api/invMovApi';
 import { locApi } from '@/api/locApi';
-import { TempZoneBadge } from '@/components/common/Badge';
+import { TEMP_ZONE_META } from '@/constants/badgeMeta';
+import { Badge } from '@/components/common/Badge';
 import { num } from '@/utils/format';
 
 
@@ -20,7 +21,7 @@ const COLUMN_DEFS = [
     {
         field: 'tmpZon', headerName: '온도대', width: 100,
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-        cellRenderer: (p) => <TempZoneBadge value={p.value} />,
+        cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
     },
     { field: 'locCd', headerName: '로케이션', width: 130 },
     { field: 'lotNo', headerName: 'Lot번호', width: 130 },
@@ -228,7 +229,7 @@ export default function StockMoveOrder() {
                         <div className="flex items-end gap-3">
                             <div className="flex items-center gap-2 text-sm flex-1 min-w-0">
                                 <span className="font-bold text-slate-700 truncate">{selected.prodCd} {selected.prodNm}</span>
-                                <TempZoneBadge value={selected.tmpZon} />
+                                <Badge meta={TEMP_ZONE_META} value={selected.tmpZon} />
                                 <span className="text-xs text-slate-400 shrink-0">
                                     {selected.locCd} · {selected.lotNo} · 남은 가용 {num(remainingAvailable(selected))}
                                 </span>

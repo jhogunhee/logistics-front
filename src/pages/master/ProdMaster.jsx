@@ -7,9 +7,10 @@ import * as XLSX from 'xlsx';
 import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import SelectCellEditor from '@/components/common/SelectCellEditor';
-import { prodApi, TEMP_ZONE_META } from '@/api/prodApi';
+import { prodApi } from '@/api/prodApi';
+import { TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { codeApi, toSearchOptions } from '@/api/codeApi';
-import { TempZoneBadge } from '@/components/common/Badge';
+import { Badge } from '@/components/common/Badge';
 import { RowStatusCell } from '@/components/common/Badge';
 import { fmtDe } from '@/utils/format';
 import ConfirmModal from '@/components/common/ConfirmModal';
@@ -56,7 +57,7 @@ export default function ProdMaster() {
                 ),
             },
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-            cellRenderer: (p) => <TempZoneBadge value={p.value} />,
+            cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
         },
         {
             // 신규 행(C)에서만 연다. 등록 후에는 못 고치고 변경은 단위 관리 화면의 라디오가 맡는다 —

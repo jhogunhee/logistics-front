@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 
-import { OP_LABELS } from '@/api/strategyApi';
+import { OP_LABELS } from '@/constants/opLabels';
 import { useFields } from './useOptions';
 
 /**

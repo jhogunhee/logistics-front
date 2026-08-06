@@ -26,20 +26,3 @@ export const invMovApi = {
         return api.post(`/inventory/moves/${id}/cancel`);
     },
 };
-
-/** 이동지시 상태 표시 메타 (DIRECTED에 부분확정이 포함된다 — 진행도는 수량으로 본다) */
-export const INV_MOV_STATUS_META = {
-    DIRECTED:  { label: '지시', badge: 'bg-indigo-100 text-indigo-700' },
-    DONE:      { label: '완료', badge: 'bg-emerald-100 text-emerald-700' },
-    CANCELLED: { label: '취소', badge: 'bg-slate-100 text-slate-500' },
-};
-
-/**
- * 이동구분 표시 메타. 재고이동 화면의 확정·취소는 INV_MOV(재고이동)만 가능하다 —
- * 적치·피킹 유형은 각자의 화면 경로 전용 (서버도 같은 검증을 한다).
- */
-export const INV_MOV_DVSN_META = {
-    INV_MOV: { label: '재고이동', badge: 'bg-sky-100 text-sky-700' },
-    PTAWY:   { label: '적치',     badge: 'bg-violet-100 text-violet-700' },
-    PIKNG:   { label: '피킹',     badge: 'bg-orange-100 text-orange-700' },
-};

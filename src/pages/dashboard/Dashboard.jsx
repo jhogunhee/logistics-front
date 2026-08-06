@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Barcode, ClipboardCheck, History, PackageOpen, PackageSearch, Truck } from 'lucide-react';
 
-import { asnApi, ASN_STATUS_META } from '@/api/asnApi';
+import { asnApi } from '@/api/asnApi';
 import { putawayApi } from '@/api/putawayApi';
 import { prodApi } from '@/api/prodApi';
-import { invHistApi, TX_TYPE_META } from '@/api/invHistApi';
+import { invHistApi } from '@/api/invHistApi';
+import { ASN_STATUS_META, TX_TYPE_META } from '@/constants/badgeMeta';
 import { fmtDt, todayStr } from '@/utils/format';
 
 

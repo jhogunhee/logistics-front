@@ -7,7 +7,7 @@ import ProdPickerModal from '@/components/common/ProdPickerModal';
 import StorePickerModal from '@/components/common/StorePickerModal';
 import { omsOutbOrderApi } from '@/api/omsOutbOrderApi';
 import { codeApi } from '@/api/codeApi';
-import { TEMP_ZONE_META } from '@/api/prodApi';
+import { TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { todayStr } from '@/utils/format';
 
 const EMPTY_FORM = () => ({
