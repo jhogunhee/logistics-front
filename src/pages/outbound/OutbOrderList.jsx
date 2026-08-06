@@ -3,7 +3,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { PackageCheck } from 'lucide-react';
 
-import SearchBar, { SearchItem } from '@/components/common/SearchBar';
+import SearchBar, { SearchItem, SearchText, SearchDateRange } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import { Badge } from '@/components/common/Badge';
 import { outbOrderApi } from '@/api/outbOrderApi';
@@ -156,17 +156,8 @@ export default function OutbOrderList() {
             </div>
 
             {/* 검색 조건 */}
-            <SearchBar label="검색" onSearch={fetchList}>
-                <SearchItem label="출고번호">
-                    <input
-                        type="text"
-                        value={cond.outbNo}
-                        onChange={(e) => setCond(prev => ({ ...prev, outbNo: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="OB-20260803-001"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
+            <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
+                <SearchText name="outbNo" label="출고번호" placeholder="OB-20260803-001" />
                 <SearchItem label="출고진행상태">
                     <DropdownSelect
                         value={cond.status}
@@ -192,23 +183,7 @@ export default function OutbOrderList() {
                     />
                 </SearchItem>
                 {/* 기간은 출고예정일이다 — 주문일이 아니다. 웨이브도 같은 기준으로 대상을 좁힌다 */}
-                <SearchItem label="출고예정일" wide>
-                    <div className="flex items-center gap-2">
-                        <input
-                            type="date"
-                            value={cond.dateFrom}
-                            onChange={(e) => setCond(prev => ({ ...prev, dateFrom: e.target.value }))}
-                            className="flex-1 min-w-0 input-base"
-                        />
-                        <span className="text-slate-400 shrink-0">~</span>
-                        <input
-                            type="date"
-                            value={cond.dateTo}
-                            onChange={(e) => setCond(prev => ({ ...prev, dateTo: e.target.value }))}
-                            className="flex-1 min-w-0 input-base"
-                        />
-                    </div>
-                </SearchItem>
+                <SearchDateRange from="dateFrom" to="dateTo" label="출고예정일" />
             </SearchBar>
 
             {/* 상하 분할 + 드래그 스플리터 — 경계를 끌어 비율 조절 (비율은 localStorage에 기억됨) */}

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { Box } from 'lucide-react';
 
-import SearchBar, { SearchItem } from '@/components/common/SearchBar';
+import SearchBar, { SearchItem, SearchText } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import { invApi } from '@/api/invApi';
 import { LOC_TYPE_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
@@ -117,47 +117,11 @@ export default function StockStatus() {
             </div>
 
             {/* 검색 조건 */}
-            <SearchBar label="검색" onSearch={fetchList}>
-                <SearchItem label="상품 코드">
-                    <input
-                        type="text"
-                        value={cond.prodCd}
-                        onChange={(e) => setCond(prev => ({ ...prev, prodCd: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="PROD-0001"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="상품명">
-                    <input
-                        type="text"
-                        value={cond.prodNm}
-                        onChange={(e) => setCond(prev => ({ ...prev, prodNm: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="상품명 일부"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="로케이션">
-                    <input
-                        type="text"
-                        value={cond.locCd}
-                        onChange={(e) => setCond(prev => ({ ...prev, locCd: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="DRY-A-01-01"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="Lot번호">
-                    <input
-                        type="text"
-                        value={cond.lotNo}
-                        onChange={(e) => setCond(prev => ({ ...prev, lotNo: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="LOT-260722-001"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
+            <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
+                <SearchText name="prodCd" label="상품 코드" placeholder="PROD-0001" />
+                <SearchText name="prodNm" label="상품명" placeholder="상품명 일부" />
+                <SearchText name="locCd" label="로케이션" placeholder="DRY-A-01-01" />
+                <SearchText name="lotNo" label="Lot번호" placeholder="LOT-260722-001" />
                 <SearchItem label="온도대">
                     <DropdownSelect
                         value={cond.tmpZon}

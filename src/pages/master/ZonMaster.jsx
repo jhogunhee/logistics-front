@@ -4,7 +4,7 @@ import { Download, LayoutGrid, Plus, Save, Trash2, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 
-import SearchBar, { SearchItem } from '@/components/common/SearchBar';
+import SearchBar, { SearchItem, SearchText } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import { zonApi } from '@/api/zonApi';
 import { BIZ_DVSN_META, STRG_TYP_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
@@ -265,17 +265,8 @@ export default function ZonMaster() {
             </div>
 
             {/* 검색 조건 */}
-            <SearchBar label="검색" onSearch={fetchList}>
-                <SearchItem label="존코드">
-                    <input
-                        type="text"
-                        value={cond.zonCd}
-                        onChange={(e) => setCond(prev => ({ ...prev, zonCd: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="DRY"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
+            <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
+                <SearchText name="zonCd" label="존코드" placeholder="DRY" />
                 <SearchItem label="온도구분">
                     <DropdownSelect
                         value={cond.tmpZon}

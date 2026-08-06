@@ -3,7 +3,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { ArrowRight, Ban, ClipboardList } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchItem } from '@/components/common/SearchBar';
+import SearchBar, { SearchItem, SearchText } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import { invMovApi } from '@/api/invMovApi';
 import { INV_MOV_DVSN_META, INV_MOV_STATUS_META } from '@/constants/badgeMeta';
@@ -156,47 +156,11 @@ export default function StockMoveTaskList() {
             </div>
 
             {/* 검색 조건 */}
-            <SearchBar label="검색" onSearch={() => fetchList()}>
-                <SearchItem label="지시번호">
-                    <input
-                        type="text"
-                        value={cond.invMovNo}
-                        onChange={(e) => setCond(prev => ({ ...prev, invMovNo: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="MV-20260803-001"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="상품 코드">
-                    <input
-                        type="text"
-                        value={cond.prodCd}
-                        onChange={(e) => setCond(prev => ({ ...prev, prodCd: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="PROD-0001"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="출발지">
-                    <input
-                        type="text"
-                        value={cond.fromLocCd}
-                        onChange={(e) => setCond(prev => ({ ...prev, fromLocCd: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="DRY-A-01-01"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="도착지">
-                    <input
-                        type="text"
-                        value={cond.toLocCd}
-                        onChange={(e) => setCond(prev => ({ ...prev, toLocCd: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="DRY-B-01-01"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
+            <SearchBar cond={cond} setCond={setCond} onSearch={() => fetchList()}>
+                <SearchText name="invMovNo" label="지시번호" placeholder="MV-20260803-001" />
+                <SearchText name="prodCd" label="상품 코드" placeholder="PROD-0001" />
+                <SearchText name="fromLocCd" label="출발지" placeholder="DRY-A-01-01" />
+                <SearchText name="toLocCd" label="도착지" placeholder="DRY-B-01-01" />
                 <SearchItem label="이동구분">
                     <DropdownSelect
                         value={cond.movDvsn}

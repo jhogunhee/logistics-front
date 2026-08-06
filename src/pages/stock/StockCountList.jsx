@@ -3,7 +3,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { ClipboardCheck, Plus, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchItem } from '@/components/common/SearchBar';
+import SearchBar, { SearchItem, SearchText, SearchDateRange } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import ProdPickerModal from '@/components/common/ProdPickerModal';
 import { invStktkApi } from '@/api/invStktkApi';
@@ -136,17 +136,8 @@ export default function StockCountList({ onOpen }) {
             </div>
 
             {/* 검색 조건 */}
-            <SearchBar label="검색" onSearch={fetchList}>
-                <SearchItem label="조사번호">
-                    <input
-                        type="text"
-                        value={cond.stktkNo}
-                        onChange={(e) => setCond(prev => ({ ...prev, stktkNo: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="ST-260803-001"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
+            <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
+                <SearchText name="stktkNo" label="조사번호" placeholder="ST-260803-001" />
                 <SearchItem label="상태">
                     <DropdownSelect
                         value={cond.status}
@@ -163,33 +154,8 @@ export default function StockCountList({ onOpen }) {
                         placeholder="전체"
                     />
                 </SearchItem>
-                <SearchItem label="상품 코드">
-                    <input
-                        type="text"
-                        value={cond.prodCd}
-                        onChange={(e) => setCond(prev => ({ ...prev, prodCd: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="PROD-0001"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="생성일자" wide>
-                    <div className="flex items-center gap-1 w-full">
-                        <input
-                            type="date"
-                            value={cond.fromDe}
-                            onChange={(e) => setCond(prev => ({ ...prev, fromDe: e.target.value }))}
-                            className="input-base flex-1"
-                        />
-                        <span className="text-slate-300">~</span>
-                        <input
-                            type="date"
-                            value={cond.toDe}
-                            onChange={(e) => setCond(prev => ({ ...prev, toDe: e.target.value }))}
-                            className="input-base flex-1"
-                        />
-                    </div>
-                </SearchItem>
+                <SearchText name="prodCd" label="상품 코드" placeholder="PROD-0001" />
+                <SearchDateRange from="fromDe" to="toDe" label="생성일자" />
             </SearchBar>
 
             <div className="flex-1 min-h-0 flex flex-col gap-3">

@@ -3,7 +3,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { Tags, Save, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchItem } from '@/components/common/SearchBar';
+import SearchBar, { SearchText, SearchDateRange } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import { lotAttrChngApi, ETC_RSN_CD, LOT_ATTR_RSN_GRP } from '@/api/lotAttrChngApi';
 import { codeApi } from '@/api/codeApi';
@@ -148,55 +148,11 @@ export default function StockAttrChange() {
             </div>
 
             {/* 검색 조건 */}
-            <SearchBar label="검색" onSearch={() => fetchTargets()}>
-                <SearchItem label="상품 코드">
-                    <input
-                        type="text"
-                        value={cond.prodCd}
-                        onChange={(e) => setCond(prev => ({ ...prev, prodCd: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchTargets()}
-                        placeholder="PROD-0001"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="상품명">
-                    <input
-                        type="text"
-                        value={cond.prodNm}
-                        onChange={(e) => setCond(prev => ({ ...prev, prodNm: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchTargets()}
-                        placeholder="상품명 일부"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="Lot번호">
-                    <input
-                        type="text"
-                        value={cond.lotNo}
-                        onChange={(e) => setCond(prev => ({ ...prev, lotNo: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchTargets()}
-                        placeholder="LOT-260722-001"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                {/* 날짜 두 개는 한 칸에 들어가지 않는다 — 두 칸을 쓰고, 입력은 줄어들 수 있게 min-w-0 */}
-                <SearchItem label="유통기한" wide>
-                    <div className="flex items-center gap-2">
-                        <input
-                            type="date"
-                            value={cond.expiryFrom}
-                            onChange={(e) => setCond(prev => ({ ...prev, expiryFrom: e.target.value }))}
-                            className="flex-1 min-w-0 input-base"
-                        />
-                        <span className="text-slate-400 shrink-0">~</span>
-                        <input
-                            type="date"
-                            value={cond.expiryTo}
-                            onChange={(e) => setCond(prev => ({ ...prev, expiryTo: e.target.value }))}
-                            className="flex-1 min-w-0 input-base"
-                        />
-                    </div>
-                </SearchItem>
+            <SearchBar cond={cond} setCond={setCond} onSearch={() => fetchTargets()}>
+                <SearchText name="prodCd" label="상품 코드" placeholder="PROD-0001" />
+                <SearchText name="prodNm" label="상품명" placeholder="상품명 일부" />
+                <SearchText name="lotNo" label="Lot번호" placeholder="LOT-260722-001" />
+                <SearchDateRange from="expiryFrom" to="expiryTo" label="유통기한" />
             </SearchBar>
 
             <div className="flex-1 min-h-0 flex flex-col gap-3">

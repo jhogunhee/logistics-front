@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchItem } from '@/components/common/SearchBar';
+import SearchBar, { SearchItem, SearchText, SearchDateRange } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import ExecutionHistory from '@/components/strategy/ExecutionHistory';
@@ -96,15 +96,19 @@ const WAVE_ORDER_COLUMN_DEFS = [
  * 실제 편성을 만드는 업무 처리이기 때문이다 (호출 API도 업무 도메인에 있다).
  */
 export default function Wave() {
+    // ── 검색 조건 — 한 검색바지만 웨이브 조회와 주문 조회로 나뉘어 들어간다 ──
+    const [cond, setCond] = useState({
+        wavNo: '', wavStatus: '',
+        outbNo: '', outbTyp: '', vhclFltno: '', dateFrom: '', dateTo: '',
+    });
+
     // ── 웨이브 목록 ──────────────────────────────────────────
-    const [waveCond, setWaveCond] = useState({ wavNo: '', status: '' });
     const [waves, setWaves] = useState([]);
     const [selectedWave, setSelectedWave] = useState(null);
     const waveGridRef = useRef(null);
     const pendingWaveRef = useRef(null); // 재조회 후 같은 웨이브를 다시 선택하기 위한 wavId
 
     // ── 주문 목록 (좌: 미편성 / 우: 선택 웨이브 소속) ────────
-    const [orderCond, setOrderCond] = useState({ outbNo: '', outbTyp: '', vhclFltno: '', dateFrom: '', dateTo: '' });
     const [unassigned, setUnassigned] = useState([]);
     const [waveOrders, setWaveOrders] = useState([]);
     const unassignedGridRef = useRef(null);
@@ -135,17 +139,29 @@ export default function Wave() {
     }), [outbTyps, vhclFltnos, strategies]);
 
     // ── 조회 ─────────────────────────────────────────────────
+    // 조건을 통째로 넘기지 않고 조회마다 쓸 것만 골라 보낸다 — 웨이브 조건이 주문 API로,
+    // 주문 조건이 웨이브 API로 새는 것을 막는다 (status는 양쪽에서 의미가 다르다)
+    const waveParams = () => ({ wavNo: cond.wavNo, status: cond.wavStatus });
+
     const fetchWaves = async (keepSelection = true) => {
         pendingWaveRef.current = keepSelection ? selectedWave?.wavId ?? null : null;
         if (!keepSelection) {
             setSelectedWave(null);
             setWaveOrders([]);
         }
-        setWaves(await outbWaveApi.list(waveCond));
+        setWaves(await outbWaveApi.list(waveParams()));
     };
 
     const fetchUnassigned = async () => {
-        setUnassigned(await outbOrderApi.list({ ...orderCond, status: 'CREATED', unassigned: true }));
+        setUnassigned(await outbOrderApi.list({
+            outbNo: cond.outbNo,
+            outbTyp: cond.outbTyp,
+            vhclFltno: cond.vhclFltno,
+            dateFrom: cond.dateFrom,
+            dateTo: cond.dateTo,
+            status: 'CREATED',
+            unassigned: true,
+        }));
     };
 
     const fetchWaveOrders = async (wavId) => {
@@ -192,7 +208,7 @@ export default function Wave() {
             const wavId = await outbWaveApi.create([]);
             toast.success('빈 웨이브를 만들었습니다 — 주문을 담아 편성하세요.');
             pendingWaveRef.current = wavId;
-            setWaves(await outbWaveApi.list(waveCond));
+            setWaves(await outbWaveApi.list(waveParams()));
         } catch (e) {
             toast.error(e.message || '웨이브 생성에 실패했습니다.');
         }
@@ -318,21 +334,12 @@ export default function Wave() {
             </div>
 
             {/* 검색 조건 — 웨이브 목록(위)과 미편성 후보(아래)에 함께 적용된다 */}
-            <SearchBar label="검색" onSearch={search}>
-                <SearchItem label="웨이브번호">
-                    <input
-                        type="text"
-                        value={waveCond.wavNo}
-                        onChange={(e) => setWaveCond(prev => ({ ...prev, wavNo: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && search()}
-                        placeholder="WV-20260803-001"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
+            <SearchBar cond={cond} setCond={setCond} onSearch={search}>
+                <SearchText name="wavNo" label="웨이브번호" placeholder="WV-20260803-001" />
                 <SearchItem label="웨이브상태">
                     <DropdownSelect
-                        value={waveCond.status}
-                        onChange={(v) => setWaveCond(prev => ({ ...prev, status: v }))}
+                        value={cond.wavStatus}
+                        onChange={(v) => setCond(prev => ({ ...prev, wavStatus: v }))}
                         options={[
                             { value: '', label: '전체' },
                             { value: 'PLANNED', label: '편성중' },
@@ -341,39 +348,20 @@ export default function Wave() {
                         placeholder="전체"
                     />
                 </SearchItem>
-                <SearchItem label="출고번호">
-                    <input
-                        type="text"
-                        value={orderCond.outbNo}
-                        onChange={(e) => setOrderCond(prev => ({ ...prev, outbNo: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && search()}
-                        placeholder="OB-20260803-001"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="주문일" wide>
-                    <div className="flex items-center gap-2">
-                        <input type="date" value={orderCond.dateFrom}
-                               onChange={(e) => setOrderCond(prev => ({ ...prev, dateFrom: e.target.value }))}
-                               className="flex-1 min-w-0 input-base" />
-                        <span className="text-slate-400 shrink-0">~</span>
-                        <input type="date" value={orderCond.dateTo}
-                               onChange={(e) => setOrderCond(prev => ({ ...prev, dateTo: e.target.value }))}
-                               className="flex-1 min-w-0 input-base" />
-                    </div>
-                </SearchItem>
+                <SearchText name="outbNo" label="출고번호" placeholder="OB-20260803-001" />
+                <SearchDateRange from="dateFrom" to="dateTo" label="주문일" />
                 <SearchItem label="출고유형">
                     <DropdownSelect
-                        value={orderCond.outbTyp}
-                        onChange={(v) => setOrderCond(prev => ({ ...prev, outbTyp: v }))}
+                        value={cond.outbTyp}
+                        onChange={(v) => setCond(prev => ({ ...prev, outbTyp: v }))}
                         options={toSearchOptions(outbTyps)}
                         placeholder="전체"
                     />
                 </SearchItem>
                 <SearchItem label="차량편수">
                     <DropdownSelect
-                        value={orderCond.vhclFltno}
-                        onChange={(v) => setOrderCond(prev => ({ ...prev, vhclFltno: v }))}
+                        value={cond.vhclFltno}
+                        onChange={(v) => setCond(prev => ({ ...prev, vhclFltno: v }))}
                         options={toSearchOptions(vhclFltnos)}
                         placeholder="전체"
                     />

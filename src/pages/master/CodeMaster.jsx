@@ -4,7 +4,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { ListTree, Plus, Save, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchItem } from '@/components/common/SearchBar';
+import SearchBar, { SearchText } from '@/components/common/SearchBar';
 import { codeApi } from '@/api/codeApi';
 import { RowStatusCell } from '@/components/common/Badge';
 import { fmtDe } from '@/utils/format';
@@ -315,27 +315,9 @@ export default function CodeMaster() {
             </div>
 
             {/* 검색 조건은 하단(코드)에만 걸린다 — 그룹은 5건 남짓이라 검색할 대상이 아니다 */}
-            <SearchBar label="코드 검색" onSearch={() => fetchCodes()}>
-                <SearchItem label="코드">
-                    <input
-                        type="text"
-                        value={cond.codeCd}
-                        onChange={(e) => setCond(prev => ({ ...prev, codeCd: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchCodes()}
-                        placeholder="DRY"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="코드명">
-                    <input
-                        type="text"
-                        value={cond.codeNm}
-                        onChange={(e) => setCond(prev => ({ ...prev, codeNm: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchCodes()}
-                        placeholder="상온"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
+            <SearchBar label="코드 검색" cond={cond} setCond={setCond} onSearch={() => fetchCodes()}>
+                <SearchText name="codeCd" label="코드" placeholder="DRY" />
+                <SearchText name="codeNm" label="코드명" placeholder="상온" />
             </SearchBar>
 
             {/* 저장 확인 모달 */}

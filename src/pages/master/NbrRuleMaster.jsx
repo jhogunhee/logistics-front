@@ -3,7 +3,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { Hash, ListOrdered, Plus, Save, Trash2, X, Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchItem } from '@/components/common/SearchBar';
+import SearchBar, { SearchText } from '@/components/common/SearchBar';
 import { nbrRuleApi } from '@/api/nbrRuleApi';
 import { DYNC_KY_TYP_META } from '@/constants/badgeMeta';
 import { Badge, RowStatusCell } from '@/components/common/Badge';
@@ -264,27 +264,9 @@ export default function NbrRuleMaster() {
             </div>
 
             {/* 검색 조건 */}
-            <SearchBar label="검색" onSearch={fetchList}>
-                <SearchItem label="규칙코드">
-                    <input
-                        type="text"
-                        value={cond.ruleCd}
-                        onChange={(e) => setCond(prev => ({ ...prev, ruleCd: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="PROD_CD"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="규칙명">
-                    <input
-                        type="text"
-                        value={cond.ruleNm}
-                        onChange={(e) => setCond(prev => ({ ...prev, ruleNm: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="규칙명 검색"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
+            <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
+                <SearchText name="ruleCd" label="규칙코드" placeholder="PROD_CD" />
+                <SearchText name="ruleNm" label="규칙명" placeholder="규칙명 검색" />
             </SearchBar>
 
             {/* 그리드 툴바 */}
