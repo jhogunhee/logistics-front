@@ -112,20 +112,17 @@ export default function Dashboard() {
     const [recentHist, setRecentHist] = useState([]);
 
     useEffect(() => {
-        let ignore = false;
         Promise.all([
             asnApi.list(),
             putawayApi.lines(),
             prodApi.list(),
             invHistApi.list(),
         ]).then(([asnData, putawayData, prodData, histData]) => {
-            if (ignore) return;
             setAsns(asnData);
             setPutawayPending(putawayData);
             setProdCount(prodData.length);
             setRecentHist(histData.slice(0, 8));
         });
-        return () => { ignore = true; };
     }, []);
 
     const todayAsnCount = asns.filter(a => a.expctDe === todayStr()).length;

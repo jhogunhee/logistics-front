@@ -106,12 +106,7 @@ export default function CodeMaster() {
 
     // 그룹 목록을 받고 첫 그룹을 바로 연다 — 빈 화면으로 시작하지 않게 한다
     useEffect(() => {
-        let ignore = false;
-        codeApi.groups().then(list => {
-            if (ignore) return;
-            setGroups(list);
-        });
-        return () => { ignore = true; };
+        codeApi.groups().then(setGroups);
     }, []);
 
     // 그룹 데이터가 처음 그려질 때 첫 행을 골라 둔다 (선택 이벤트가 하단 조회까지 이어진다).

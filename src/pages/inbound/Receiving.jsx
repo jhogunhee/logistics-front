@@ -89,11 +89,9 @@ export default function Receiving() {
 
     // 최초 1회 조회 (검색조건 기본값 = 오늘 ~ +7일)
     useEffect(() => {
-        let ignore = false;
         asnApi.list(cond).then(data => {
-            if (!ignore) setRowData(data.filter(a => ['SCHEDULED', 'RECEIVING', 'RECEIVED'].includes(a.status)));
+            setRowData(data.filter(a => ['SCHEDULED', 'RECEIVING', 'RECEIVED'].includes(a.status)));
         });
-        return () => { ignore = true; };
     }, []);
 
     // 헤더 행 선택 시 라인 조회 + 검수 입력 컬럼 초기화

@@ -127,11 +127,9 @@ export default function OutbOrderList() {
 
     // 최초 1회 조회 (검색조건 기본값 = 오늘 ~ +7일)
     useEffect(() => {
-        let ignore = false;
-        outbOrderApi.list(cond).then(data => { if (!ignore) setRowData(data); }).catch(() => {});
+        outbOrderApi.list(cond).then(setRowData).catch(() => {});
         codeApi.list('OUTB_TYP').then(setOutbTyps).catch(() => {});
         codeApi.list('VHCL_FLTNO').then(setVhclFltnos).catch(() => {});
-        return () => { ignore = true; };
     }, []);
 
     // 헤더 행 선택 시 라인 조회

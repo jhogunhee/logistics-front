@@ -148,10 +148,8 @@ export default function UomMaster() {
     };
 
     useEffect(() => {
-        let ignore = false;
-        prodApi.list().then(data => { if (!ignore) setProds(data); });
-        codeApi.list(GRP_CD).then(codes => { if (!ignore) setUomCodes(codes); });
-        return () => { ignore = true; };
+        prodApi.list().then(setProds);
+        codeApi.list(GRP_CD).then(setUomCodes);
     }, []);
 
     // 상품이 바뀌면 그 상품의 포장을 복사해 편집판을 만든다. 복사하는 이유는 취소(되돌리기)를

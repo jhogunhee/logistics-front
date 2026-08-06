@@ -137,10 +137,8 @@ export default function OutboundOrderList() {
     const [storePickerOpen, setStorePickerOpen] = useState(false);
 
     useEffect(() => {
-        let ignore = false;
-        codeApi.list('OUTB_TYP').then(codes => { if (!ignore) setOutbTypCodes(codes); });
-        codeApi.list('VHCL_FLTNO').then(codes => { if (!ignore) setVhclFltnoCodes(codes); });
-        return () => { ignore = true; };
+        codeApi.list('OUTB_TYP').then(setOutbTypCodes);
+        codeApi.list('VHCL_FLTNO').then(setVhclFltnoCodes);
     }, []);
 
     const nmOf = (codes, cd) => codes.find(c => c.codeCd === cd)?.codeNm;
@@ -154,9 +152,7 @@ export default function OutboundOrderList() {
 
     // 최초 1회 조회 (검색조건 기본값 = 오늘 ~ 7일 뒤)
     useEffect(() => {
-        let ignore = false;
-        omsOutbOrderApi.list(cond).then(data => { if (!ignore) setRowData(data); });
-        return () => { ignore = true; };
+        omsOutbOrderApi.list(cond).then(setRowData);
     }, []);
 
     // 행 클릭 시 라인 조회 — 체크박스(일괄 처리 대상)와 역할을 분리한다.

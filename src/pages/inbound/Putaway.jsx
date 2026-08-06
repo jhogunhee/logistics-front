@@ -71,9 +71,7 @@ export default function Putaway() {
     };
 
     useEffect(() => {
-        let ignore = false;
-        putawayApi.lines().then(data => { if (!ignore) setRowData(data); });
-        return () => { ignore = true; };
+        putawayApi.lines().then(setRowData);
     }, []);
 
     // 배치 선택 시 전략 추천 + 대상 로케이션 후보 조회 + 수량 기본값(전량)

@@ -88,24 +88,18 @@ export default function ZonMaster() {
 
     // 최초 1회 조회 (이후엔 조회 버튼으로 재조회) + 세 구분의 공통코드 조회
     useEffect(() => {
-        let ignore = false;
-        zonApi.list().then(data => { if (!ignore) setRowData(data); });
+        zonApi.list().then(setRowData);
         codeApi.list('TEMP_ZONE').then(codes => {
-            if (!ignore) {
-                setTmpZonOptions(toSearchOptions(codes));
-                setTmpZonCodes(codes.map(c => c.codeCd));
-            }
+            setTmpZonOptions(toSearchOptions(codes));
+            setTmpZonCodes(codes.map(c => c.codeCd));
         });
         codeApi.list('STRG_TYP').then(codes => {
-            if (!ignore) setStrgTypCodes(codes.map(c => c.codeCd));
+            setStrgTypCodes(codes.map(c => c.codeCd));
         });
         codeApi.list('BIZ_DVSN').then(codes => {
-            if (!ignore) {
-                setBizDvsnOptions(toSearchOptions(codes));
-                setBizDvsnCodes(codes.map(c => c.codeCd));
-            }
+            setBizDvsnOptions(toSearchOptions(codes));
+            setBizDvsnCodes(codes.map(c => c.codeCd));
         });
-        return () => { ignore = true; };
     }, []);
 
     // 셀 수정 시 행 상태를 U(수정)로 표시 (신규 C는 유지)

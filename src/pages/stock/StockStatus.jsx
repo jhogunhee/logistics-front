@@ -84,9 +84,7 @@ export default function StockStatus() {
     };
 
     useEffect(() => {
-        let ignore = false;
-        invApi.list(cond).then(data => { if (!ignore) setRowData(data); });
-        return () => { ignore = true; };
+        invApi.list(cond).then(setRowData);
     }, []);
 
     // 요약 지표는 조회 결과에서 파생 (별도 API 없이 화면에서 집계)

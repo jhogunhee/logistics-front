@@ -70,9 +70,7 @@ export default function AsnList() {
 
     // 최초 1회 조회 (검색조건 기본값 = 오늘)
     useEffect(() => {
-        let ignore = false;
-        asnApi.list(cond).then(data => { if (!ignore) setRowData(data); });
-        return () => { ignore = true; };
+        asnApi.list(cond).then(setRowData);
     }, []);
 
     // 헤더 행 선택 시 라인 조회

@@ -64,9 +64,7 @@ export default function InvHistory() {
     };
 
     useEffect(() => {
-        let ignore = false;
-        invHistApi.list().then(data => { if (!ignore) setRowData(data); });
-        return () => { ignore = true; };
+        invHistApi.list().then(setRowData);
     }, []);
 
     return (

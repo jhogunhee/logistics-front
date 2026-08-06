@@ -80,12 +80,10 @@ export default function StockCountList({ onOpen }) {
     };
 
     useEffect(() => {
-        let ignore = false;
-        invStktkApi.list(cond).then(data => { if (!ignore) setRowData(data); });
-        zonApi.list().then(zons => { if (!ignore) setZonCodes(zons); });
+        invStktkApi.list(cond).then(setRowData);
+        zonApi.list().then(setZonCodes);
         // 조사 대상은 보관 재고뿐이라 범위 로케이션도 보관만 고른다
-        locApi.list({ locTyp: 'STORAGE' }).then(locs => { if (!ignore) setStorageLocs(locs); });
-        return () => { ignore = true; };
+        locApi.list({ locTyp: 'STORAGE' }).then(setStorageLocs);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 

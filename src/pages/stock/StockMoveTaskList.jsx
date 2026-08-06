@@ -95,9 +95,7 @@ export default function StockMoveTaskList() {
     };
 
     useEffect(() => {
-        let ignore = false;
-        invMovApi.list().then(data => { if (!ignore) setRowData(data); });
-        return () => { ignore = true; };
+        invMovApi.list().then(setRowData);
     }, []);
 
     const onSelectionChanged = (e) => {

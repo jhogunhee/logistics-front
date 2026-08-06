@@ -62,10 +62,8 @@ export default function InspectionPolicy() {
     const fetchPolicy = () => strategyApi.inspectionPolicy.get().then(applyPolicy);
 
     useEffect(() => {
-        let ignore = false;
-        strategyApi.meta.inspectionRules().then(d => { if (!ignore) setDescriptors(d); });
-        strategyApi.inspectionPolicy.get().then(data => { if (!ignore) applyPolicy(data); });
-        return () => { ignore = true; };
+        strategyApi.meta.inspectionRules().then(setDescriptors);
+        strategyApi.inspectionPolicy.get().then(applyPolicy);
     }, []);  // eslint-disable-line react-hooks/exhaustive-deps -- 최초 1회 로드 (applyPolicy는 안정적)
 
     // 편집 중(dirty) 새로고침/탭 닫기 확인.

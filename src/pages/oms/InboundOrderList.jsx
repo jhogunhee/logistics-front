@@ -137,11 +137,9 @@ export default function InboundOrderList() {
     const [vendorPickerOpen, setVendorPickerOpen] = useState(false);
 
     useEffect(() => {
-        let ignore = false;
         codeApi.list('ODR_DVSN').then(codes => {
-            if (!ignore) setOdrDvsnNmByCd(Object.fromEntries(codes.map(c => [c.codeCd, c.codeNm])));
+            setOdrDvsnNmByCd(Object.fromEntries(codes.map(c => [c.codeCd, c.codeNm])));
         });
-        return () => { ignore = true; };
     }, []);
 
     const fetchList = async () => {
@@ -153,9 +151,7 @@ export default function InboundOrderList() {
 
     // 최초 1회 조회 (검색조건 기본값 = 오늘)
     useEffect(() => {
-        let ignore = false;
-        omsIbOrderApi.list(cond).then(data => { if (!ignore) setRowData(data); });
-        return () => { ignore = true; };
+        omsIbOrderApi.list(cond).then(setRowData);
     }, []);
 
     // 행 클릭 시 라인 조회 — 체크박스(일괄 처리 대상)와 역할을 분리한다.

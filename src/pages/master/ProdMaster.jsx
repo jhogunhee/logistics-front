@@ -109,21 +109,15 @@ export default function ProdMaster() {
 
     // 최초 1회 조회 (이후엔 조회 버튼으로 재조회) + 공통코드 2종(온도대·단위) 조회
     useEffect(() => {
-        let ignore = false;
-        prodApi.list().then(data => { if (!ignore) setRowData(data); });
+        prodApi.list().then(setRowData);
         codeApi.list('TEMP_ZONE').then(codes => {
-            if (!ignore) {
-                setTempZoneOptions(toSearchOptions(codes));
-                setTempZoneCodes(codes.map(c => c.codeCd));
-            }
+            setTempZoneOptions(toSearchOptions(codes));
+            setTempZoneCodes(codes.map(c => c.codeCd));
         });
         codeApi.list('UOM').then(codes => {
-            if (!ignore) {
-                setUomCodes(codes.map(c => c.codeCd));
-                setUomLabelMap(Object.fromEntries(codes.map(c => [c.codeCd, c.codeNm])));
-            }
+            setUomCodes(codes.map(c => c.codeCd));
+            setUomLabelMap(Object.fromEntries(codes.map(c => [c.codeCd, c.codeNm])));
         });
-        return () => { ignore = true; };
     }, []);
 
     // 셀 수정 시 행 상태를 U(수정)로 표시 (신규 C는 유지)

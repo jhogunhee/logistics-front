@@ -53,10 +53,8 @@ export default function OutboundOrder() {
     const navigate = useNavigate();
 
     useEffect(() => {
-        let ignore = false;
-        codeApi.list('OUTB_TYP').then(codes => { if (!ignore) setOutbTypCodes(codes); });
-        codeApi.list('VHCL_FLTNO').then(codes => { if (!ignore) setVhclFltnoCodes(codes); });
-        return () => { ignore = true; };
+        codeApi.list('OUTB_TYP').then(setOutbTypCodes);
+        codeApi.list('VHCL_FLTNO').then(setVhclFltnoCodes);
     }, []);
 
     // 수정 진입 시 주문을 불러온다. 헤더는 목록 API에서, 라인은 라인 API에서 가져온다 —

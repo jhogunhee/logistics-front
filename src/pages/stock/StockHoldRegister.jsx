@@ -71,10 +71,8 @@ export default function StockHoldRegister() {
     };
 
     useEffect(() => {
-        let ignore = false;
-        invApi.list({ locTyp: 'STORAGE' }).then(data => { if (!ignore) setRowData(data.filter(r => r.avalQty > 0)); });
-        codeApi.list('HLD_RSN').then(codes => { if (!ignore) setRsnCodes(codes); });
-        return () => { ignore = true; };
+        invApi.list({ locTyp: 'STORAGE' }).then(data => setRowData(data.filter(r => r.avalQty > 0)));
+        codeApi.list('HLD_RSN').then(setRsnCodes);
     }, []);
 
     const rsnOptions = useMemo(() => rsnCodes.map(c => ({ value: c.codeCd, label: c.codeNm })), [rsnCodes]);

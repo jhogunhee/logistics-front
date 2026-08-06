@@ -127,9 +127,7 @@ export default function NbrRuleMaster() {
 
     // 최초 1회 조회 (이후엔 조회 버튼으로 재조회)
     useEffect(() => {
-        let ignore = false;
-        nbrRuleApi.list().then(data => { if (!ignore) setRowData(data); });
-        return () => { ignore = true; };
+        nbrRuleApi.list().then(setRowData);
     }, []);
 
     // 셀 수정 시 행 상태를 U(수정)로 표시 (신규 C는 유지)

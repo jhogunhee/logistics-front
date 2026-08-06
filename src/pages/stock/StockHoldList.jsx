@@ -92,11 +92,9 @@ export default function StockHoldList() {
     };
 
     useEffect(() => {
-        let ignore = false;
-        invHldApi.list().then(data => { if (!ignore) setRowData(data); });
-        codeApi.list('HLD_RSN').then(codes => { if (!ignore) setRsnCodes(codes); });
-        codeApi.list('HLD_RLZ_RSN').then(codes => { if (!ignore) setRlzRsnCodes(codes); });
-        return () => { ignore = true; };
+        invHldApi.list().then(setRowData);
+        codeApi.list('HLD_RSN').then(setRsnCodes);
+        codeApi.list('HLD_RLZ_RSN').then(setRlzRsnCodes);
     }, []);
 
     const rlzRsnOptions = useMemo(() => rlzRsnCodes.map(c => ({ value: c.codeCd, label: c.codeNm })), [rlzRsnCodes]);

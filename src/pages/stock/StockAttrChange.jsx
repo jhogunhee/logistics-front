@@ -68,10 +68,8 @@ export default function StockAttrChange() {
     };
 
     useEffect(() => {
-        let ignore = false;
-        lotAttrChngApi.listTargets({ onlyInStock: true }).then(data => { if (!ignore) setRowData(data); });
-        codeApi.list(LOT_ATTR_RSN_GRP).then(codes => { if (!ignore) setRsnCodes(codes); });
-        return () => { ignore = true; };
+        lotAttrChngApi.listTargets({ onlyInStock: true }).then(setRowData);
+        codeApi.list(LOT_ATTR_RSN_GRP).then(setRsnCodes);
     }, []);
 
     const rsnOptions = useMemo(() => rsnCodes.map(c => ({ value: c.codeCd, label: c.codeNm })), [rsnCodes]);

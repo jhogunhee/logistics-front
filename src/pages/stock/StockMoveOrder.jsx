@@ -70,10 +70,8 @@ export default function StockMoveOrder() {
     };
 
     useEffect(() => {
-        let ignore = false;
-        invApi.list({ locTyp: 'STORAGE' }).then(data => { if (!ignore) setRowData(data.filter(r => r.avalQty > 0)); });
-        locApi.list({ locTyp: 'STORAGE' }).then(locs => { if (!ignore) setStorageLocs(locs); });
-        return () => { ignore = true; };
+        invApi.list({ locTyp: 'STORAGE' }).then(data => setRowData(data.filter(r => r.avalQty > 0)));
+        locApi.list({ locTyp: 'STORAGE' }).then(setStorageLocs);
     }, []);
 
     // 같은 재고 행을 장바구니에 여러 번 담을 수 있으므로, 남은 가용 = 가용 - 담긴 수량 합

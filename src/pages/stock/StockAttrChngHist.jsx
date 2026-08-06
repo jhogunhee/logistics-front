@@ -33,10 +33,8 @@ export default function StockAttrChngHist() {
     const fetchList = async () => setRowData(await lotAttrChngApi.listChngs(cond));
 
     useEffect(() => {
-        let ignore = false;
-        lotAttrChngApi.listChngs({}).then(data => { if (!ignore) setRowData(data); });
-        codeApi.list(LOT_ATTR_RSN_GRP).then(codes => { if (!ignore) setRsnCodes(codes); });
-        return () => { ignore = true; };
+        lotAttrChngApi.listChngs({}).then(setRowData);
+        codeApi.list(LOT_ATTR_RSN_GRP).then(setRsnCodes);
     }, []);
 
     const rsnNm = (cd) => rsnCodes.find(c => c.codeCd === cd)?.codeNm ?? cd;
