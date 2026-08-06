@@ -3,8 +3,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { ArrowRight, Ban, ClipboardList } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchItem, SearchText } from '@/components/common/SearchBar';
-import DropdownSelect from '@/components/common/DropdownSelect';
+import SearchBar, { SearchText, SearchSelect } from '@/components/common/SearchBar';
 import { invMovApi } from '@/api/invMovApi';
 import { INV_MOV_DVSN_META, INV_MOV_STATUS_META } from '@/constants/badgeMeta';
 import { Badge } from '@/components/common/Badge';
@@ -161,22 +160,8 @@ export default function StockMoveTaskList() {
                 <SearchText name="prodCd" label="상품 코드" placeholder="PROD-0001" />
                 <SearchText name="fromLocCd" label="출발지" placeholder="DRY-A-01-01" />
                 <SearchText name="toLocCd" label="도착지" placeholder="DRY-B-01-01" />
-                <SearchItem label="이동구분">
-                    <DropdownSelect
-                        value={cond.movDvsn}
-                        onChange={(v) => setCond(prev => ({ ...prev, movDvsn: v }))}
-                        options={DVSN_OPTIONS}
-                        placeholder="전체"
-                    />
-                </SearchItem>
-                <SearchItem label="상태">
-                    <DropdownSelect
-                        value={cond.status}
-                        onChange={(v) => setCond(prev => ({ ...prev, status: v }))}
-                        options={STATUS_OPTIONS}
-                        placeholder="전체"
-                    />
-                </SearchItem>
+                <SearchSelect name="movDvsn" label="이동구분" options={DVSN_OPTIONS} />
+                <SearchSelect name="status" label="상태" options={STATUS_OPTIONS} />
             </SearchBar>
 
             <div className="flex-1 min-h-0 flex flex-col gap-3">

@@ -3,8 +3,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { PackageCheck } from 'lucide-react';
 
-import SearchBar, { SearchItem, SearchText, SearchDateRange } from '@/components/common/SearchBar';
-import DropdownSelect from '@/components/common/DropdownSelect';
+import SearchBar, { SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
 import { Badge } from '@/components/common/Badge';
 import { outbOrderApi } from '@/api/outbOrderApi';
 import { codeApi, toSearchOptions } from '@/api/codeApi';
@@ -158,30 +157,9 @@ export default function OutbOrderList() {
             {/* 검색 조건 */}
             <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
                 <SearchText name="outbNo" label="출고번호" placeholder="OB-20260803-001" />
-                <SearchItem label="출고진행상태">
-                    <DropdownSelect
-                        value={cond.status}
-                        onChange={(v) => setCond(prev => ({ ...prev, status: v }))}
-                        options={OUTB_STATUS_OPTIONS}
-                        placeholder="전체"
-                    />
-                </SearchItem>
-                <SearchItem label="출고유형">
-                    <DropdownSelect
-                        value={cond.outbTyp}
-                        onChange={(v) => setCond(prev => ({ ...prev, outbTyp: v }))}
-                        options={toSearchOptions(outbTyps)}
-                        placeholder="전체"
-                    />
-                </SearchItem>
-                <SearchItem label="차량편수">
-                    <DropdownSelect
-                        value={cond.vhclFltno}
-                        onChange={(v) => setCond(prev => ({ ...prev, vhclFltno: v }))}
-                        options={toSearchOptions(vhclFltnos)}
-                        placeholder="전체"
-                    />
-                </SearchItem>
+                <SearchSelect name="status" label="출고진행상태" options={OUTB_STATUS_OPTIONS} />
+                <SearchSelect name="outbTyp" label="출고유형" options={toSearchOptions(outbTyps)} />
+                <SearchSelect name="vhclFltno" label="차량편수" options={toSearchOptions(vhclFltnos)} />
                 {/* 기간은 출고예정일이다 — 주문일이 아니다. 웨이브도 같은 기준으로 대상을 좁힌다 */}
                 <SearchDateRange from="dateFrom" to="dateTo" label="출고예정일" />
             </SearchBar>

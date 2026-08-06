@@ -4,8 +4,7 @@ import { Download, LayoutGrid, Plus, Save, Trash2, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 
-import SearchBar, { SearchItem, SearchText } from '@/components/common/SearchBar';
-import DropdownSelect from '@/components/common/DropdownSelect';
+import SearchBar, { SearchText, SearchSelect } from '@/components/common/SearchBar';
 import { zonApi } from '@/api/zonApi';
 import { BIZ_DVSN_META, STRG_TYP_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { codeApi, toSearchOptions } from '@/api/codeApi';
@@ -267,22 +266,8 @@ export default function ZonMaster() {
             {/* 검색 조건 */}
             <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
                 <SearchText name="zonCd" label="존코드" placeholder="DRY" />
-                <SearchItem label="온도구분">
-                    <DropdownSelect
-                        value={cond.tmpZon}
-                        onChange={(v) => setCond(prev => ({ ...prev, tmpZon: v }))}
-                        options={tmpZonOptions}
-                        placeholder="전체"
-                    />
-                </SearchItem>
-                <SearchItem label="업무구분">
-                    <DropdownSelect
-                        value={cond.bizDvsn}
-                        onChange={(v) => setCond(prev => ({ ...prev, bizDvsn: v }))}
-                        options={bizDvsnOptions}
-                        placeholder="전체"
-                    />
-                </SearchItem>
+                <SearchSelect name="tmpZon" label="온도구분" options={tmpZonOptions} />
+                <SearchSelect name="bizDvsn" label="업무구분" options={bizDvsnOptions} />
             </SearchBar>
 
             {/* 그리드 툴바 */}

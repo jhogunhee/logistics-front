@@ -2,8 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { Box } from 'lucide-react';
 
-import SearchBar, { SearchItem, SearchText } from '@/components/common/SearchBar';
-import DropdownSelect from '@/components/common/DropdownSelect';
+import SearchBar, { SearchText, SearchSelect } from '@/components/common/SearchBar';
 import { invApi } from '@/api/invApi';
 import { LOC_TYPE_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { Badge } from '@/components/common/Badge';
@@ -122,22 +121,8 @@ export default function StockStatus() {
                 <SearchText name="prodNm" label="상품명" placeholder="상품명 일부" />
                 <SearchText name="locCd" label="로케이션" placeholder="DRY-A-01-01" />
                 <SearchText name="lotNo" label="Lot번호" placeholder="LOT-260722-001" />
-                <SearchItem label="온도대">
-                    <DropdownSelect
-                        value={cond.tmpZon}
-                        onChange={(v) => setCond(prev => ({ ...prev, tmpZon: v }))}
-                        options={TEMP_ZONE_OPTIONS}
-                        placeholder="전체"
-                    />
-                </SearchItem>
-                <SearchItem label="구분">
-                    <DropdownSelect
-                        value={cond.locTyp}
-                        onChange={(v) => setCond(prev => ({ ...prev, locTyp: v }))}
-                        options={LOC_TYPE_OPTIONS}
-                        placeholder="전체"
-                    />
-                </SearchItem>
+                <SearchSelect name="tmpZon" label="온도대" options={TEMP_ZONE_OPTIONS} />
+                <SearchSelect name="locTyp" label="구분" options={LOC_TYPE_OPTIONS} />
             </SearchBar>
 
             <div className="flex-1 min-h-0 flex flex-col gap-2">

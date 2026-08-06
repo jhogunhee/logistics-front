@@ -3,7 +3,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { ListChecks, PlayCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchItem, SearchText } from '@/components/common/SearchBar';
+import SearchBar, { SearchText, SearchSelect } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import { invHldApi, ETC_RSN_CD } from '@/api/invHldApi';
 import { INV_HLD_STATUS_META } from '@/constants/badgeMeta';
@@ -160,22 +160,8 @@ export default function StockHoldList() {
                 <SearchText name="hldNo" label="보류번호" placeholder="HD-20260803-001" />
                 <SearchText name="prodCd" label="상품 코드" placeholder="PROD-0001" />
                 <SearchText name="locCd" label="로케이션" placeholder="DRY-A-01-01" />
-                <SearchItem label="보류사유">
-                    <DropdownSelect
-                        value={cond.rsnCd}
-                        onChange={(v) => setCond(prev => ({ ...prev, rsnCd: v }))}
-                        options={toSearchOptions(rsnCodes)}
-                        placeholder="전체"
-                    />
-                </SearchItem>
-                <SearchItem label="상태">
-                    <DropdownSelect
-                        value={cond.status}
-                        onChange={(v) => setCond(prev => ({ ...prev, status: v }))}
-                        options={STATUS_OPTIONS}
-                        placeholder="전체"
-                    />
-                </SearchItem>
+                <SearchSelect name="rsnCd" label="보류사유" options={toSearchOptions(rsnCodes)} />
+                <SearchSelect name="status" label="상태" options={STATUS_OPTIONS} />
             </SearchBar>
 
             <div className="flex-1 min-h-0 flex flex-col gap-3">

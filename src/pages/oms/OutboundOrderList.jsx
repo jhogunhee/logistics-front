@@ -5,8 +5,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { CheckCircle2, FilePlus, Search, Trash2, Undo2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchItem, SearchText, SearchDateRange } from '@/components/common/SearchBar';
-import DropdownSelect from '@/components/common/DropdownSelect';
+import SearchBar, { SearchItem, SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
 import StorePickerModal from '@/components/common/StorePickerModal';
 import { omsOutbOrderApi } from '@/api/omsOutbOrderApi';
 import { codeApi, toSearchOptions } from '@/api/codeApi';
@@ -283,30 +282,9 @@ export default function OutboundOrderList() {
                             : <Search size={13} className="shrink-0 text-slate-400" />}
                     </button>
                 </SearchItem>
-                <SearchItem label="주문상태">
-                    <DropdownSelect
-                        value={cond.status}
-                        onChange={(v) => setCond(prev => ({ ...prev, status: v }))}
-                        options={OMS_OUTB_STATUS_OPTIONS}
-                        placeholder="전체"
-                    />
-                </SearchItem>
-                <SearchItem label="출고유형">
-                    <DropdownSelect
-                        value={cond.outbTyp}
-                        onChange={(v) => setCond(prev => ({ ...prev, outbTyp: v }))}
-                        options={toSearchOptions(outbTypCodes)}
-                        placeholder="전체"
-                    />
-                </SearchItem>
-                <SearchItem label="편수">
-                    <DropdownSelect
-                        value={cond.vhclFltno}
-                        onChange={(v) => setCond(prev => ({ ...prev, vhclFltno: v }))}
-                        options={toSearchOptions(vhclFltnoCodes)}
-                        placeholder="전체"
-                    />
-                </SearchItem>
+                <SearchSelect name="status" label="주문상태" options={OMS_OUTB_STATUS_OPTIONS} />
+                <SearchSelect name="outbTyp" label="출고유형" options={toSearchOptions(outbTypCodes)} />
+                <SearchSelect name="vhclFltno" label="편수" options={toSearchOptions(vhclFltnoCodes)} />
             </SearchBar>
 
             {/* 상하 분할 + 드래그 스플리터 (비율은 localStorage에 기억됨) */}

@@ -4,8 +4,7 @@ import { Barcode, Download, Plus, Save, Trash2, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 
-import SearchBar, { SearchItem, SearchText } from '@/components/common/SearchBar';
-import DropdownSelect from '@/components/common/DropdownSelect';
+import SearchBar, { SearchText, SearchSelect } from '@/components/common/SearchBar';
 import SelectCellEditor from '@/components/common/SelectCellEditor';
 import { prodApi } from '@/api/prodApi';
 import { TEMP_ZONE_META } from '@/constants/badgeMeta';
@@ -339,14 +338,7 @@ export default function ProdMaster() {
             <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
                 <SearchText name="prodCd" label="상품 코드" placeholder="PROD-0001" />
                 <SearchText name="prodNm" label="상품명" placeholder="상품명 검색" />
-                <SearchItem label="온도대">
-                    <DropdownSelect
-                        value={cond.tmpZon}
-                        onChange={(v) => setCond(prev => ({ ...prev, tmpZon: v }))}
-                        options={tempZoneOptions}
-                        placeholder="전체"
-                    />
-                </SearchItem>
+                <SearchSelect name="tmpZon" label="온도대" options={tempZoneOptions} />
             </SearchBar>
 
             {/* 그리드 툴바 */}

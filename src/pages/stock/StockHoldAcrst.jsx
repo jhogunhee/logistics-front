@@ -2,8 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { History } from 'lucide-react';
 
-import SearchBar, { SearchItem, SearchText } from '@/components/common/SearchBar';
-import DropdownSelect from '@/components/common/DropdownSelect';
+import SearchBar, { SearchText, SearchSelect } from '@/components/common/SearchBar';
 import { invHldApi } from '@/api/invHldApi';
 import { codeApi, toSearchOptions } from '@/api/codeApi';
 import { fmtDt, num } from '@/utils/format';
@@ -93,14 +92,7 @@ export default function StockHoldAcrst() {
                 <SearchText name="hldNo" label="보류번호" placeholder="HD-20260803-001" />
                 <SearchText name="prodCd" label="상품 코드" placeholder="PROD-0001" />
                 <SearchText name="locCd" label="로케이션" placeholder="DRY-A-01-01" />
-                <SearchItem label="사유">
-                    <DropdownSelect
-                        value={cond.rsnCd}
-                        onChange={(v) => setCond(prev => ({ ...prev, rsnCd: v }))}
-                        options={toSearchOptions(rsnCodes)}
-                        placeholder="전체"
-                    />
-                </SearchItem>
+                <SearchSelect name="rsnCd" label="사유" options={toSearchOptions(rsnCodes)} />
             </SearchBar>
 
             <div className="flex-1 min-h-0 flex flex-col gap-3">

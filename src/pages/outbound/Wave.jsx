@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchItem, SearchText, SearchDateRange } from '@/components/common/SearchBar';
+import SearchBar, { SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import ExecutionHistory from '@/components/strategy/ExecutionHistory';
@@ -336,36 +336,19 @@ export default function Wave() {
             {/* 검색 조건 — 웨이브 목록(위)과 미편성 후보(아래)에 함께 적용된다 */}
             <SearchBar cond={cond} setCond={setCond} onSearch={search}>
                 <SearchText name="wavNo" label="웨이브번호" placeholder="WV-20260803-001" />
-                <SearchItem label="웨이브상태">
-                    <DropdownSelect
-                        value={cond.wavStatus}
-                        onChange={(v) => setCond(prev => ({ ...prev, wavStatus: v }))}
-                        options={[
-                            { value: '', label: '전체' },
-                            { value: 'PLANNED', label: '편성중' },
-                            { value: 'ISSUED', label: '지시발행' },
-                        ]}
-                        placeholder="전체"
-                    />
-                </SearchItem>
+                <SearchSelect
+                    name="wavStatus"
+                    label="웨이브상태"
+                    options={[
+                        { value: '', label: '전체' },
+                        { value: 'PLANNED', label: '편성중' },
+                        { value: 'ISSUED', label: '지시발행' },
+                    ]}
+                />
                 <SearchText name="outbNo" label="출고번호" placeholder="OB-20260803-001" />
                 <SearchDateRange from="dateFrom" to="dateTo" label="주문일" />
-                <SearchItem label="출고유형">
-                    <DropdownSelect
-                        value={cond.outbTyp}
-                        onChange={(v) => setCond(prev => ({ ...prev, outbTyp: v }))}
-                        options={toSearchOptions(outbTyps)}
-                        placeholder="전체"
-                    />
-                </SearchItem>
-                <SearchItem label="차량편수">
-                    <DropdownSelect
-                        value={cond.vhclFltno}
-                        onChange={(v) => setCond(prev => ({ ...prev, vhclFltno: v }))}
-                        options={toSearchOptions(vhclFltnos)}
-                        placeholder="전체"
-                    />
-                </SearchItem>
+                <SearchSelect name="outbTyp" label="출고유형" options={toSearchOptions(outbTyps)} />
+                <SearchSelect name="vhclFltno" label="차량편수" options={toSearchOptions(vhclFltnos)} />
             </SearchBar>
 
             {/* 전략 실행 — 조건에 맞는 미편성 주문을 전략별 웨이브로 자동 편성한다 */}

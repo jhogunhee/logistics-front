@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { History } from 'lucide-react';
 
-import SearchBar, { SearchItem, SearchText, SearchDateRange } from '@/components/common/SearchBar';
-import DropdownSelect from '@/components/common/DropdownSelect';
+import SearchBar, { SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
 import { invHistApi } from '@/api/invHistApi';
 import { TEMP_ZONE_META, TX_TYPE_META } from '@/constants/badgeMeta';
 import { TX_TYPE_OPTIONS } from '@/constants/codeOptions';
@@ -81,14 +80,7 @@ export default function InvHistory() {
                 <SearchText name="prodCd" label="상품 코드" placeholder="PROD-0001" />
                 <SearchText name="prodNm" label="상품명" placeholder="상품명 일부" />
                 <SearchText name="locCd" label="로케이션" placeholder="RCV-STAGE" />
-                <SearchItem label="유형">
-                    <DropdownSelect
-                        value={cond.txTyp}
-                        onChange={(v) => setCond(prev => ({ ...prev, txTyp: v }))}
-                        options={TX_TYPE_OPTIONS}
-                        placeholder="전체"
-                    />
-                </SearchItem>
+                <SearchSelect name="txTyp" label="유형" options={TX_TYPE_OPTIONS} />
                 <SearchText name="rfnDocNo" label="Ref No." placeholder="IB-20260717-001" />
                 <SearchDateRange from="dateFrom" to="dateTo" label="생성일자" />
             </SearchBar>

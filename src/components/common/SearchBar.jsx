@@ -1,5 +1,6 @@
 import React, { createContext, useContext } from 'react';
 import { Search } from "lucide-react";
+import DropdownSelect from './DropdownSelect';
 
 const SearchBarCtx = createContext(null);
 
@@ -65,6 +66,23 @@ export function SearchText({ name, label, placeholder, required, wide }) {
                 onKeyDown={(e) => e.key === 'Enter' && onSearch()}
                 placeholder={placeholder}
                 className="w-full input-base"
+            />
+        </SearchItem>
+    );
+}
+
+/**
+ * 검색 조건 선택 (SearchBar의 cond[name]에 바인딩)
+ */
+export function SearchSelect({ name, label, options, placeholder = '전체', required, wide }) {
+    const { cond, setCond } = useContext(SearchBarCtx);
+    return (
+        <SearchItem label={label} required={required} wide={wide}>
+            <DropdownSelect
+                value={cond[name]}
+                onChange={(v) => setCond(prev => ({ ...prev, [name]: v }))}
+                options={options}
+                placeholder={placeholder}
             />
         </SearchItem>
     );

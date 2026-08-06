@@ -2,8 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { History } from 'lucide-react';
 
-import SearchBar, { SearchItem, SearchText, SearchDateRange } from '@/components/common/SearchBar';
-import DropdownSelect from '@/components/common/DropdownSelect';
+import SearchBar, { SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
 import { lotAttrChngApi, LOT_ATTR_RSN_GRP } from '@/api/lotAttrChngApi';
 import { codeApi, toSearchOptions } from '@/api/codeApi';
 import { fmtDt } from '@/utils/format';
@@ -81,14 +80,7 @@ export default function StockAttrChngHist() {
                 <SearchText name="prodCd" label="상품 코드" placeholder="PROD-0001" />
                 <SearchText name="lotNo" label="Lot번호" placeholder="LOT-260722-001" />
                 <SearchDateRange from="chngFrom" to="chngTo" label="정정일" />
-                <SearchItem label="사유">
-                    <DropdownSelect
-                        value={cond.rsnCd}
-                        onChange={(v) => setCond(prev => ({ ...prev, rsnCd: v }))}
-                        options={toSearchOptions(rsnCodes)}
-                        placeholder="전체"
-                    />
-                </SearchItem>
+                <SearchSelect name="rsnCd" label="사유" options={toSearchOptions(rsnCodes)} />
             </SearchBar>
 
             <div className="flex-1 min-h-0 flex flex-col gap-3">

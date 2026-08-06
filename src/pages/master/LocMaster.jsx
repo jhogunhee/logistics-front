@@ -4,8 +4,7 @@ import { Download, MapPin, Plus, Save, Trash2, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 
-import SearchBar, { SearchItem, SearchText } from '@/components/common/SearchBar';
-import DropdownSelect from '@/components/common/DropdownSelect';
+import SearchBar, { SearchText, SearchSelect } from '@/components/common/SearchBar';
 import { locApi } from '@/api/locApi';
 import { zonApi } from '@/api/zonApi';
 import { LOC_TYPE_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
@@ -301,22 +300,8 @@ export default function LocMaster() {
             {/* 검색 조건 */}
             <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
                 <SearchText name="locCd" label="로케이션" placeholder="DRY-A-01-01" />
-                <SearchItem label="존">
-                    <DropdownSelect
-                        value={cond.zonCd}
-                        onChange={(v) => setCond(prev => ({ ...prev, zonCd: v }))}
-                        options={zonOptions}
-                        placeholder="전체"
-                    />
-                </SearchItem>
-                <SearchItem label="유형">
-                    <DropdownSelect
-                        value={cond.locTyp}
-                        onChange={(v) => setCond(prev => ({ ...prev, locTyp: v }))}
-                        options={locTypeOptions}
-                        placeholder="전체"
-                    />
-                </SearchItem>
+                <SearchSelect name="zonCd" label="존" options={zonOptions} />
+                <SearchSelect name="locTyp" label="유형" options={locTypeOptions} />
             </SearchBar>
 
             {/* 그리드 툴바 */}
