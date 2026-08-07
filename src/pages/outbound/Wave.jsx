@@ -15,7 +15,8 @@ import { outbWaveApi } from '@/api/outbWaveApi';
 import { outbOrderApi } from '@/api/outbOrderApi';
 import { WAVE_STATUS_META, WAV_REG_TYP_META } from '@/constants/badgeMeta';
 import { strategyApi } from '@/api/strategyApi';
-import { codeApi, toSearchOptions } from '@/api/codeApi';
+import { codeApi } from '@/api/codeApi';
+import { toSearchOptions } from '@/constants/codeOptions';
 import { Badge } from '@/components/common/Badge';
 import { fmtDt, num } from '@/utils/format';
 

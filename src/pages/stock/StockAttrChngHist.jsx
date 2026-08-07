@@ -3,8 +3,10 @@ import { AgGridReact } from 'ag-grid-react';
 import { History } from 'lucide-react';
 
 import SearchBar, { SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
-import { lotAttrChngApi, LOT_ATTR_RSN_GRP } from '@/api/lotAttrChngApi';
-import { codeApi, toSearchOptions } from '@/api/codeApi';
+import { lotAttrChngApi } from '@/api/lotAttrChngApi';
+import { codeApi } from '@/api/codeApi';
+import { toSearchOptions } from '@/constants/codeOptions';
+import { LOT_ATTR_RSN_GRP } from '@/constants/rsnCodes';
 import { fmtDt } from '@/utils/format';
 
 /** 전 → 후 셀. 값이 그대로면 흐리게, 바뀌었으면 강조 — 한 행에서 무엇이 움직였는지 바로 보이게 */

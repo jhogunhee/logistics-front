@@ -4,7 +4,8 @@ import { History } from 'lucide-react';
 
 import SearchBar, { SearchText, SearchSelect } from '@/components/common/SearchBar';
 import { invHldApi } from '@/api/invHldApi';
-import { codeApi, toSearchOptions } from '@/api/codeApi';
+import { codeApi } from '@/api/codeApi';
+import { toSearchOptions } from '@/constants/codeOptions';
 import { fmtDt, num } from '@/utils/format';
 
 

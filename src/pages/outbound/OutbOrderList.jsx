@@ -6,9 +6,9 @@ import { PackageCheck } from 'lucide-react';
 import SearchBar, { SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
 import { Badge } from '@/components/common/Badge';
 import { outbOrderApi } from '@/api/outbOrderApi';
-import { codeApi, toSearchOptions } from '@/api/codeApi';
+import { codeApi } from '@/api/codeApi';
 import { OUTB_STATUS_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
-import { OUTB_STATUS_OPTIONS } from '@/constants/codeOptions';
+import { OUTB_STATUS_OPTIONS, toSearchOptions } from '@/constants/codeOptions';
 import { daysAheadStr, num, todayStr } from '@/utils/format';
 
 const centered = { display: 'flex', alignItems: 'center', justifyContent: 'center' };

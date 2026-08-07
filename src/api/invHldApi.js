@@ -34,6 +34,3 @@ export const invHldApi = {
         return api.get('/inventory/holds/rlz-acrsts', { params });
     },
 };
-
-/** 「기타」 사유코드 — 이 코드일 때만 자유 텍스트 입력을 받는다 */
-export const ETC_RSN_CD = 'ETC';

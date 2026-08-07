@@ -5,8 +5,9 @@ import toast from 'react-hot-toast';
 
 import SearchBar, { SearchText, SearchDateRange } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
-import { lotAttrChngApi, ETC_RSN_CD, LOT_ATTR_RSN_GRP } from '@/api/lotAttrChngApi';
+import { lotAttrChngApi } from '@/api/lotAttrChngApi';
 import { codeApi } from '@/api/codeApi';
+import { ETC_RSN_CD, LOT_ATTR_RSN_GRP } from '@/constants/rsnCodes';
 import { num } from '@/utils/format';
 
 /**

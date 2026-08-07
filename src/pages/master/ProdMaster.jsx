@@ -8,7 +8,8 @@ import SearchBar, { SearchText, SearchSelect } from '@/components/common/SearchB
 import SelectCellEditor from '@/components/common/SelectCellEditor';
 import { prodApi } from '@/api/prodApi';
 import { TEMP_ZONE_META } from '@/constants/badgeMeta';
-import { codeApi, toSearchOptions } from '@/api/codeApi';
+import { codeApi } from '@/api/codeApi';
+import { toSearchOptions } from '@/constants/codeOptions';
 import { Badge } from '@/components/common/Badge';
 import { RowStatusCell } from '@/components/common/Badge';
 import { fmtDe } from '@/utils/format';

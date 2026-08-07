@@ -31,9 +31,3 @@ export const lotAttrChngApi = {
         return api.get('/inventory/lot-attrs/chngs', { params });
     },
 };
-
-/** 「기타」 사유코드 — 이 코드일 때만 자유 텍스트 입력을 받는다 (보류·재고조사와 같은 규칙) */
-export const ETC_RSN_CD = 'ETC';
-
-/** 정정 사유 공통코드 그룹. 정정 유형이 하나뿐이라 유형 선택 없이 단일 그룹이다 */
-export const LOT_ATTR_RSN_GRP = 'LOT_ATTR_RSN';

@@ -5,9 +5,11 @@ import toast from 'react-hot-toast';
 
 import SearchBar, { SearchText, SearchSelect } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
-import { invHldApi, ETC_RSN_CD } from '@/api/invHldApi';
+import { invHldApi } from '@/api/invHldApi';
+import { ETC_RSN_CD } from '@/constants/rsnCodes';
 import { INV_HLD_STATUS_META } from '@/constants/badgeMeta';
-import { codeApi, toSearchOptions } from '@/api/codeApi';
+import { codeApi } from '@/api/codeApi';
+import { toSearchOptions } from '@/constants/codeOptions';
 import { Badge } from '@/components/common/Badge';
 import { fmtDt, num } from '@/utils/format';
 

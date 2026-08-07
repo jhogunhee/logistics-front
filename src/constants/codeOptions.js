@@ -1,10 +1,17 @@
 /**
- * 검색 드롭다운 옵션 — `[{ value, label }]` 배열. 뱃지 메타에서 라벨만 뽑아 「전체」를 앞에 붙인 형태다.
+ * 검색 드롭다운 옵션 — `[{ value, label }]` 배열. 라벨만 뽑아 「전체」를 앞에 붙인 형태다.
+ * 값이 고정된 것(뱃지 메타 기반)은 아래 상수로, 공통코드에서 받아오는 것은 toSearchOptions로 만든다.
  * 뱃지 메타와 형태가 다르고 소비처도 DropdownSelect라 파일을 나눈다.
  */
 import {
     ASN_STATUS_META, OMS_IB_STATUS_META, OMS_OUTB_STATUS_META, OUTB_STATUS_META, TX_TYPE_META,
 } from '@/constants/badgeMeta';
+
+/** 공통코드 목록 → 검색 콤보 옵션 ('전체' 포함) */
+export const toSearchOptions = (codes) => [
+    { value: '', label: '전체' },
+    ...codes.map(c => ({ value: c.codeCd, label: c.codeNm })),
+];
 
 /** ASN 상태 검색 드롭다운 옵션 */
 export const ASN_STATUS_OPTIONS = [

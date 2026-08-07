@@ -8,7 +8,8 @@ import SearchBar, { SearchText, SearchSelect } from '@/components/common/SearchB
 import { locApi } from '@/api/locApi';
 import { zonApi } from '@/api/zonApi';
 import { LOC_TYPE_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
-import { codeApi, toSearchOptions } from '@/api/codeApi';
+import { codeApi } from '@/api/codeApi';
+import { toSearchOptions } from '@/constants/codeOptions';
 import { Badge } from '@/components/common/Badge';
 import { RowStatusCell } from '@/components/common/Badge';
 import { fmtDe } from '@/utils/format';

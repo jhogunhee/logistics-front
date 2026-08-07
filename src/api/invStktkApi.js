@@ -53,9 +53,6 @@ export const invStktkApi = {
     },
 };
 
-/** 「기타」 사유코드 — 이 코드일 때만 자유 텍스트 입력을 받는다 (보류와 같은 규칙) */
-export const ETC_RSN_CD = 'ETC';
-
 /**
  * 조정수량 = 실사수량 − 전산수량. 확정 후에는 확정시점 전산수량(cfmSysQty)이,
  * 확정 전에는 현재 전산수량(nowSysQty)이 기준이다 — 확정이 그 시점 값을 다시 읽기 때문이다.
