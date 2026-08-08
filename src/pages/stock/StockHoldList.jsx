@@ -8,8 +8,7 @@ import DropdownSelect from '@/components/common/DropdownSelect';
 import { invHldApi } from '@/api/invHldApi';
 import { ETC_RSN_CD } from '@/constants/rsnCodes';
 import { INV_HLD_STATUS_META } from '@/constants/badgeMeta';
-import { codeApi } from '@/api/codeApi';
-import { toSearchOptions } from '@/constants/codeOptions';
+import { useCodes } from '@/hooks/useCodes';
 import { Badge } from '@/components/common/Badge';
 import { fmtDt, num } from '@/utils/format';
 
@@ -22,8 +21,6 @@ const STATUS_OPTIONS = [
 export default function StockHoldList() {
     const [rowData, setRowData] = useState([]);
     const [cond, setCond] = useState({ hldNo: '', prodCd: '', locCd: '', rsnCd: '', status: '' });
-    const [rsnCodes, setRsnCodes] = useState([]);       // 보류사유 (조회 필터 + 그리드 표시)
-    const [rlzRsnCodes, setRlzRsnCodes] = useState([]); // 해제사유 (해제 입력)
     const [selected, setSelected] = useState(null);
     const [qty, setQty] = useState('');
     const [rlzRsnCd, setRlzRsnCd] = useState('');
@@ -31,8 +28,8 @@ export default function StockHoldList() {
     const [releaseTarget, setReleaseTarget] = useState(null); // 해제 확인 모달 대상
     const gridRef = useRef(null);
     const pendingSelectRef = useRef(null); // 재조회 후 같은 건을 다시 선택 (부분 해제 시 유지)
-
-    const rsnNm = (cd) => rsnCodes.find(c => c.codeCd === cd)?.codeNm ?? cd;
+    const hldRsn = useCodes('HLD_RSN');     // 보류사유 (조회 필터 + 그리드 표시)
+    const rlzRsn = useCodes('HLD_RLZ_RSN'); // 해제사유 (해제 입력)
 
     // 사유코드 → 사유명 매핑이 그리드 표시에 필요해 컬럼 정의를 컴포넌트 안에 둔다
     const columnDefs = useMemo(() => [
@@ -51,7 +48,7 @@ export default function StockHoldList() {
             field: 'rsnCd', headerName: '보류사유', width: 130,
             cellRenderer: (p) => (
                 <span className="text-xs">
-                    <b className="text-rose-600">{rsnNm(p.value)}</b>
+                    <b className="text-rose-600">{hldRsn.nm(p.value)}</b>
                     {p.data.rsnDscr && <span className="text-slate-400"> — {p.data.rsnDscr}</span>}
                 </span>
             ),
@@ -73,7 +70,7 @@ export default function StockHoldList() {
         },
         { field: 'createdAt', headerName: '등록일시', width: 140, valueFormatter: (p) => fmtDt(p.value), cellClass: 'text-slate-500' },
         { field: 'rlzDt', headerName: '해제일시', width: 140, valueFormatter: (p) => fmtDt(p.value), cellClass: 'text-slate-500' },
-    ], [rsnCodes]);
+    ], [hldRsn]);
 
     const fetchList = async (keepSelection = false) => {
         if (keepSelection) {
@@ -95,12 +92,7 @@ export default function StockHoldList() {
 
     useEffect(() => {
         invHldApi.list().then(setRowData);
-        codeApi.list('HLD_RSN').then(setRsnCodes);
-        codeApi.list('HLD_RLZ_RSN').then(setRlzRsnCodes);
     }, []);
-
-    const rlzRsnOptions = useMemo(() => rlzRsnCodes.map(c => ({ value: c.codeCd, label: c.codeNm })), [rlzRsnCodes]);
-    const rlzRsnNm = (cd) => rlzRsnCodes.find(c => c.codeCd === cd)?.codeNm ?? cd;
 
     const onSelectionChanged = (e) => {
         const node = e.api.getSelectedNodes()[0];
@@ -162,7 +154,7 @@ export default function StockHoldList() {
                 <SearchText name="hldNo" label="보류번호" placeholder="HD-20260803-001" />
                 <SearchText name="prodCd" label="상품 코드" placeholder="PROD-0001" />
                 <SearchText name="locCd" label="로케이션" placeholder="DRY-A-01-01" />
-                <SearchSelect name="rsnCd" label="보류사유" options={toSearchOptions(rsnCodes)} />
+                <SearchSelect name="rsnCd" label="보류사유" options={hldRsn.searchOptions} />
                 <SearchSelect name="status" label="상태" options={STATUS_OPTIONS} />
             </SearchBar>
 
@@ -196,7 +188,7 @@ export default function StockHoldList() {
                             <div className="flex items-center gap-2 text-sm flex-1 min-w-0">
                                 <span className="font-bold text-slate-700 truncate">{selected.hldNo}</span>
                                 <span className="text-xs text-slate-400 shrink-0">
-                                    {selected.prodCd} · <span className="font-mono">{selected.locCd}</span> · {selected.lotNo} · {rsnNm(selected.rsnCd)} · 잔량 {num(selected.remainingQty)}개
+                                    {selected.prodCd} · <span className="font-mono">{selected.locCd}</span> · {selected.lotNo} · {hldRsn.nm(selected.rsnCd)} · 잔량 {num(selected.remainingQty)}개
                                 </span>
                             </div>
                             <div className="flex flex-col gap-1 w-28 shrink-0">
@@ -215,7 +207,7 @@ export default function StockHoldList() {
                                 <DropdownSelect
                                     value={rlzRsnCd}
                                     onChange={setRlzRsnCd}
-                                    options={rlzRsnOptions}
+                                    options={rlzRsn.selectOptions}
                                     placeholder="사유 선택"
                                 />
                             </div>
@@ -251,7 +243,7 @@ export default function StockHoldList() {
                             {releaseTarget.prodCd} {releaseTarget.prodNm} · <b className="text-emerald-600">{num(releaseTarget.qty)}개</b>가 가용재고로 복귀합니다.
                         </p>
                         <p className="text-xs text-slate-400">
-                            해제사유: <b>{rlzRsnNm(releaseTarget.rlzRsnCd)}</b>{releaseTarget.rlzRsnDscr && ` — ${releaseTarget.rlzRsnDscr}`}
+                            해제사유: <b>{rlzRsn.nm(releaseTarget.rlzRsnCd)}</b>{releaseTarget.rlzRsnDscr && ` — ${releaseTarget.rlzRsnDscr}`}
                         </p>
                         {releaseTarget.qty < releaseTarget.remainingQty && (
                             <p className="text-xs text-amber-600">부분 해제 — 잔량 {num(releaseTarget.remainingQty - releaseTarget.qty)}개는 보류 상태로 남습니다.</p>

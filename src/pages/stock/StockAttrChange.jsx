@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import SearchBar, { SearchItem, SearchText, SearchDateRange } from '@/components/common/SearchBar';
 import SelectCellEditor from '@/components/common/SelectCellEditor';
 import { lotAttrChngApi } from '@/api/lotAttrChngApi';
-import { codeApi } from '@/api/codeApi';
+import { useCodes } from '@/hooks/useCodes';
 import { ETC_RSN_CD, LOT_ATTR_RSN_GRP } from '@/constants/rsnCodes';
 import { num } from '@/utils/format';
 
@@ -53,9 +53,9 @@ const listParams = (cond) => ({ ...cond, onlyInStock: cond.onlyInStock || undefi
 export default function StockAttrChange() {
     const [rowData, setRowData] = useState([]);
     const [cond, setCond] = useState(INIT_COND);
-    const [rsnCodes, setRsnCodes] = useState([]);
     const [confirmTargets, setConfirmTargets] = useState(null);
     const gridRef = useRef(null);
+    const rsn = useCodes(LOT_ATTR_RSN_GRP);
 
     const fetchTargets = async () => {
         const data = await lotAttrChngApi.listTargets(listParams(cond));
@@ -64,7 +64,6 @@ export default function StockAttrChange() {
 
     useEffect(() => {
         lotAttrChngApi.listTargets(listParams(INIT_COND)).then(d => setRowData(d.map(toEditableRow)));
-        codeApi.list(LOT_ATTR_RSN_GRP).then(setRsnCodes);
     }, []);
 
     // 이 화면의 셀은 제 값이 아니라 다른 값을 보고 칠해진다 — 날짜 셀은 정정 전 값(_mfgDt0·_expiryDt0)을,
@@ -75,8 +74,6 @@ export default function StockAttrChange() {
     useEffect(() => {
         gridRef.current?.api?.refreshCells({ force: true });
     }, [rowData]);
-
-    const rsnNmByCd = Object.fromEntries(rsnCodes.map(c => [c.codeCd, c.codeNm]));
 
     const changedCnt = useMemo(() => rowData.filter(isChanged).length, [rowData]);
 
@@ -115,7 +112,7 @@ export default function StockAttrChange() {
             field: 'rsnCd', headerName: '정정사유', width: 130, editable: true,
             headerTooltip: '날짜를 바꾼 행만 필수. 정정 1건마다 사유가 따로 남는다',
             cellEditor: SelectCellEditor,
-            cellEditorParams: { values: rsnCodes.map(c => c.codeCd), labelMap: rsnNmByCd, placeholder: '사유 선택' },
+            cellEditorParams: { values: rsn.values, labelMap: rsn.nmByCd, placeholder: '사유 선택' },
             cellClass: 'bg-indigo-50',
             cellRenderer: (p) => {
                 if (!p.value) {
@@ -123,7 +120,7 @@ export default function StockAttrChange() {
                         ? <span className="text-rose-500 font-bold">사유 필요</span>
                         : <span className="text-slate-300">—</span>;
                 }
-                return <span>{rsnNmByCd[p.value] ?? p.value}</span>;
+                return <span>{rsn.nm(p.value)}</span>;
             },
         },
         {
@@ -146,7 +143,7 @@ export default function StockAttrChange() {
             cellClass: (p) => `ag-right-aligned-cell font-bold ${p.value > 0 ? 'text-emerald-600' : 'text-slate-300'}`,
             valueFormatter: (p) => num(p.value),
         },
-    ], [rsnCodes]);
+    ], [rsn]);
 
     /**
      * 제조일자를 바꾸면 유통기한 기본값(제조일자 + 유통기한일수)을 제안한다.
@@ -315,7 +312,7 @@ export default function StockAttrChange() {
                                     </div>
                                     <div className="flex gap-2">
                                         <span className="w-16 text-slate-400 font-bold">사유</span>
-                                        <b className="text-slate-600">{rsnNmByCd[r.rsnCd] ?? r.rsnCd}</b>
+                                        <b className="text-slate-600">{rsn.nm(r.rsnCd)}</b>
                                         {r.rsnCd === ETC_RSN_CD && <span className="text-slate-400 truncate">— {r.rsnDscr}</span>}
                                     </div>
                                     {/* 영향 범위 — Lot 단위 정정이라 로케이션이 달라도 전부에 일괄 반영된다 */}
