@@ -9,7 +9,7 @@ import ProdPickerModal from '@/components/common/ProdPickerModal';
 import SelectCellEditor from '@/components/common/SelectCellEditor';
 import { Badge } from '@/components/common/Badge';
 import { adjQtyOf, invStktkApi } from '@/api/invStktkApi';
-import { codeApi } from '@/api/codeApi';
+import { useCodes } from '@/hooks/useCodes';
 import { ETC_RSN_CD } from '@/constants/rsnCodes';
 import { locApi } from '@/api/locApi';
 import { lotApi } from '@/api/lotApi';
@@ -22,7 +22,7 @@ const baseQtyOf = (ln) => ln.cfmSysQty ?? ln.nowSysQty;
 export default function StockCountDetail({ stktkId, onBack }) {
     const [head, setHead] = useState(null);
     const [lines, setLines] = useState([]);
-    const [rsnCodes, setRsnCodes] = useState([]);
+    const rsn = useCodes('ADJ_RSN');
     const [selectedLn, setSelectedLn] = useState(null);
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [cancelOpen, setCancelOpen] = useState(false);
@@ -62,15 +62,9 @@ export default function StockCountDetail({ stktkId, onBack }) {
             snapshotPristine(data.lines);
             setSelectedLn(null);
         });
-        codeApi.list('ADJ_RSN').then(codes => { if (!ignore) setRsnCodes(codes); });
         locApi.list({ locTyp: 'STORAGE' }).then(locs => { if (!ignore) setStorageLocs(locs); });
         return () => { ignore = true; };
     }, [stktkId]);
-
-    const rsnNmByCd = useMemo(
-        () => Object.fromEntries(rsnCodes.map(c => [c.codeCd, c.codeNm])),
-        [rsnCodes],
-    );
 
     // 화면 요약 — 상태가 아니라 수량에서 파생한다 (「부분입력」 같은 상태를 두지 않는 것과 같은 이유)
     const summary = useMemo(() => {
@@ -153,7 +147,7 @@ export default function StockCountDetail({ stktkId, onBack }) {
             field: 'rsnCd', headerName: '조정사유', width: 120, editable,
             headerTooltip: '차이가 있는 라인만 필수. 차이 0 라인은 조정 자체가 없어 사유도 없다',
             cellEditor: SelectCellEditor,
-            cellEditorParams: { values: rsnCodes.map(c => c.codeCd), labelMap: rsnNmByCd, placeholder: '사유 선택' },
+            cellEditorParams: { values: rsn.values, labelMap: rsn.nmByCd, placeholder: '사유 선택' },
             cellClass: editable ? 'bg-indigo-50' : '',
             cellRenderer: (p) => {
                 const adj = adjQtyOf(p.data);
@@ -162,7 +156,7 @@ export default function StockCountDetail({ stktkId, onBack }) {
                         ? <span className="text-rose-500 font-bold">사유 필요</span>
                         : <span className="text-slate-300">—</span>;
                 }
-                return <span>{rsnNmByCd[p.value] ?? p.value}</span>;
+                return <span>{rsn.nm(p.value)}</span>;
             },
         },
         {
@@ -174,7 +168,7 @@ export default function StockCountDetail({ stktkId, onBack }) {
                 ? (p.value || <span className="text-rose-500 font-bold">내용 필요</span>)
                 : <span className="text-slate-300">—</span>,
         },
-    ], [editable, head?.status, rsnCodes, rsnNmByCd]);
+    ], [editable, head?.status, rsn]);
 
     // 그리드 편집 결과를 상태로 끌어올린다 — 요약(차이·사유 누락)이 즉시 갱신되도록
     const onCellValueChanged = (e) => {

@@ -4,8 +4,7 @@ import { History } from 'lucide-react';
 
 import SearchBar, { SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
 import { lotAttrChngApi } from '@/api/lotAttrChngApi';
-import { codeApi } from '@/api/codeApi';
-import { toSearchOptions } from '@/constants/codeOptions';
+import { useCodes } from '@/hooks/useCodes';
 import { LOT_ATTR_RSN_GRP } from '@/constants/rsnCodes';
 import { fmtDt } from '@/utils/format';
 
@@ -29,16 +28,13 @@ const DiffCell = ({ before, after }) => {
 export default function StockAttrChngHist() {
     const [rowData, setRowData] = useState([]);
     const [cond, setCond] = useState({ prodCd: '', lotNo: '', rsnCd: '', chngFrom: '', chngTo: '' });
-    const [rsnCodes, setRsnCodes] = useState([]);
+    const rsn = useCodes(LOT_ATTR_RSN_GRP);
 
     const fetchList = async () => setRowData(await lotAttrChngApi.listChngs(cond));
 
     useEffect(() => {
         lotAttrChngApi.listChngs({}).then(setRowData);
-        codeApi.list(LOT_ATTR_RSN_GRP).then(setRsnCodes);
     }, []);
-
-    const rsnNm = (cd) => rsnCodes.find(c => c.codeCd === cd)?.codeNm ?? cd;
 
     const columnDefs = useMemo(() => [
         { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
@@ -58,13 +54,13 @@ export default function StockAttrChngHist() {
             field: 'rsnCd', headerName: '사유', width: 170,
             cellRenderer: (p) => (
                 <span className="text-xs">
-                    <b>{rsnNm(p.value)}</b>
+                    <b>{rsn.nm(p.value)}</b>
                     {p.data.rsnDscr && <span className="text-slate-400"> — {p.data.rsnDscr}</span>}
                 </span>
             ),
         },
         { field: 'createdBy', headerName: '정정자', width: 100, cellClass: 'text-slate-500' },
-    ], [rsnCodes]);
+    ], [rsn]);
 
     return (
         <div className="flex flex-col gap-4 h-full">
@@ -82,7 +78,7 @@ export default function StockAttrChngHist() {
                 <SearchText name="prodCd" label="상품 코드" placeholder="PROD-0001" />
                 <SearchText name="lotNo" label="Lot번호" placeholder="LOT-260722-001" />
                 <SearchDateRange from="chngFrom" to="chngTo" label="정정일" />
-                <SearchSelect name="rsnCd" label="사유" options={toSearchOptions(rsnCodes)} />
+                <SearchSelect name="rsnCd" label="사유" options={rsn.searchOptions} />
             </SearchBar>
 
             <div className="flex-1 min-h-0 flex flex-col gap-3">

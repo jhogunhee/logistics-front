@@ -8,7 +8,7 @@ import SearchBar, { SearchText } from '@/components/common/SearchBar';
 import SelectCellEditor from '@/components/common/SelectCellEditor';
 import { prodUomApi } from '@/api/prodUomApi';
 import { prodApi } from '@/api/prodApi';
-import { codeApi } from '@/api/codeApi';
+import { useCodes } from '@/hooks/useCodes';
 import { RowStatusCell } from '@/components/common/Badge';
 import ConfirmModal from '@/components/common/ConfirmModal';
 
@@ -45,7 +45,7 @@ const RoleRadio = ({ node, field, onPick }) => (
 export default function UomMaster() {
     const [prods, setProds] = useState([]);
     const [cond, setCond] = useState({ prodCd: '', prodNm: '' });
-    const [uomCodes, setUomCodes] = useState([]);          // 공통코드 UOM — 단위 콤보 편집기용
+    const uomCodes = useCodes(GRP_CD);                     // 공통코드 UOM — 단위 콤보 편집기용
     const [selectedProdId, setSelectedProdId] = useState(null);
     const [uomRows, setUomRows] = useState([]);            // 선택 상품의 포장 (편집용 복사본)
     const [saveConfirm, setSaveConfirm] = useState(null);  // 저장 확인 모달 대상 행들 (null이면 닫힘)
@@ -64,11 +64,6 @@ export default function UomMaster() {
         () => Object.fromEntries(prods.map(p => [p.prodCd, p])),
         [prods]
     );
-    const uomNmByCd = useMemo(
-        () => Object.fromEntries(uomCodes.map(c => [c.codeCd, c.codeNm])),
-        [uomCodes]
-    );
-
     // 삭제(D) 표시된 행은 편집을 막는다
     const notDeleted = (p) => p.data._status !== 'D';
     // 단위는 (상품, 단위) 유일키의 일부라 등록 후 변경 불가 — 신규(C) 행에서만 고른다
@@ -93,14 +88,14 @@ export default function UomMaster() {
             editable: isNew,
             cellEditor: SelectCellEditor,
             cellEditorParams: {
-                values: uomCodes.map(c => c.codeCd),
-                labelMap: uomNmByCd,
+                values: uomCodes.values,
+                labelMap: uomCodes.nmByCd,
                 placeholder: '단위 선택',
             },
             headerTooltip: '공통코드 UOM 그룹에서 가져옵니다. 등록 후에는 바꿀 수 없습니다',
-            valueFormatter: (p) => (p.value ? `${p.value} ${uomNmByCd[p.value] ?? ''}`.trim() : ''),
+            valueFormatter: (p) => (p.value ? `${p.value} ${uomCodes.nmByCd[p.value] ?? ''}`.trim() : ''),
             cellRenderer: (p) => p.value
-                ? `${p.value} ${uomNmByCd[p.value] ?? ''}`.trim()
+                ? `${p.value} ${uomCodes.nmByCd[p.value] ?? ''}`.trim()
                 : <span className="text-slate-400">(선택)</span>,
         },
         {
@@ -149,7 +144,6 @@ export default function UomMaster() {
 
     useEffect(() => {
         prodApi.list().then(setProds);
-        codeApi.list(GRP_CD).then(setUomCodes);
     }, []);
 
     // 상품이 바뀌면 그 상품의 포장을 복사해 편집판을 만든다. 복사하는 이유는 취소(되돌리기)를
@@ -289,7 +283,7 @@ export default function UomMaster() {
 
         const codeSheet = XLSX.utils.json_to_sheet([
             ...prods.map(p => ({ '구분': '상품', '코드': p.prodCd, '이름': p.prodNm })),
-            ...uomCodes.map(c => ({ '구분': '단위', '코드': c.codeCd, '이름': c.codeNm })),
+            ...uomCodes.codes.map(c => ({ '구분': '단위', '코드': c.codeCd, '이름': c.codeNm })),
         ]);
         codeSheet['!cols'] = [{ wch: 8 }, { wch: 14 }, { wch: 30 }];
 
@@ -312,7 +306,7 @@ export default function UomMaster() {
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const raw = XLSX.utils.sheet_to_json(sheet, { defval: null });
 
-        const codeSet = new Set(uomCodes.map(c => c.codeCd));
+        const codeSet = new Set(uomCodes.values);
         const rows = [];
         const badLines = [];
         const dupLines = [];

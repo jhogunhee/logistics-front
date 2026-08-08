@@ -7,7 +7,7 @@ import SearchBar, { SearchText } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import { invApi } from '@/api/invApi';
 import { invHldApi } from '@/api/invHldApi';
-import { codeApi } from '@/api/codeApi';
+import { useCodes } from '@/hooks/useCodes';
 import { ETC_RSN_CD } from '@/constants/rsnCodes';
 import { TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { Badge } from '@/components/common/Badge';
@@ -57,7 +57,7 @@ const COLUMN_DEFS = [
 export default function StockHoldRegister() {
     const [rowData, setRowData] = useState([]);
     const [cond, setCond] = useState({ prodCd: '', prodNm: '', locCd: '', lotNo: '' });
-    const [rsnCodes, setRsnCodes] = useState([]); // 보류사유 공통코드 (HLD_RSN)
+    const rsn = useCodes('HLD_RSN'); // 보류사유
     const [selected, setSelected] = useState(null);
     const [qty, setQty] = useState('');
     const [rsnCd, setRsnCd] = useState('');
@@ -73,11 +73,7 @@ export default function StockHoldRegister() {
 
     useEffect(() => {
         invApi.list({ locTyp: 'STORAGE' }).then(data => setRowData(data.filter(r => r.avalQty > 0)));
-        codeApi.list('HLD_RSN').then(setRsnCodes);
     }, []);
-
-    const rsnOptions = useMemo(() => rsnCodes.map(c => ({ value: c.codeCd, label: c.codeNm })), [rsnCodes]);
-    const rsnNm = (cd) => rsnCodes.find(c => c.codeCd === cd)?.codeNm ?? cd;
 
     // 같은 재고 행을 장바구니에 여러 번 담을 수 있으므로, 남은 가용 = 가용 - 담긴 수량 합
     const cartQtyByInv = useMemo(() => {
@@ -216,7 +212,7 @@ export default function StockHoldRegister() {
                                 <DropdownSelect
                                     value={rsnCd}
                                     onChange={setRsnCd}
-                                    options={rsnOptions}
+                                    options={rsn.selectOptions}
                                     placeholder="사유 선택"
                                 />
                             </div>
@@ -271,7 +267,7 @@ export default function StockHoldRegister() {
                                             <td className="py-1.5 pr-2 font-mono text-xs text-slate-500">{c.locCd}</td>
                                             <td className="py-1.5 pr-2 font-mono text-xs text-slate-500">{c.lotNo}</td>
                                             <td className="py-1.5 pr-2 text-xs">
-                                                <b className="text-rose-600">{rsnNm(c.rsnCd)}</b>
+                                                <b className="text-rose-600">{rsn.nm(c.rsnCd)}</b>
                                                 {c.rsnDscr && <span className="text-slate-400"> — {c.rsnDscr}</span>}
                                             </td>
                                             <td className="py-1.5 pr-2 text-right font-bold">{num(c.qty)}</td>
@@ -303,7 +299,7 @@ export default function StockHoldRegister() {
                         <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
                             {cart.map((c, i) => (
                                 <span key={i} className="text-xs text-slate-500">
-                                    {c.prodCd} · <span className="font-mono">{c.locCd}</span> · {c.lotNo} · {rsnNm(c.rsnCd)} <b>{num(c.qty)}개</b>
+                                    {c.prodCd} · <span className="font-mono">{c.locCd}</span> · {c.lotNo} · {rsn.nm(c.rsnCd)} <b>{num(c.qty)}개</b>
                                 </span>
                             ))}
                         </div>

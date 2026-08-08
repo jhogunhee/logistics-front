@@ -15,8 +15,7 @@ import { outbWaveApi } from '@/api/outbWaveApi';
 import { outbOrderApi } from '@/api/outbOrderApi';
 import { WAVE_STATUS_META, WAV_REG_TYP_META } from '@/constants/badgeMeta';
 import { strategyApi } from '@/api/strategyApi';
-import { codeApi } from '@/api/codeApi';
-import { toSearchOptions } from '@/constants/codeOptions';
+import { useCodes } from '@/hooks/useCodes';
 import { Badge } from '@/components/common/Badge';
 import { fmtDt, num } from '@/utils/format';
 
@@ -129,13 +128,12 @@ export default function Wave() {
     const [confirmUnassign, setConfirmUnassign] = useState(null);
 
     // 공통코드 (출고유형 · 차량편수) — 조건 기준값의 주인은 코드관리라 화면에 하드코딩하지 않는다
-    const [outbTyps, setOutbTyps] = useState([]);
-    const [vhclFltnos, setVhclFltnos] = useState([]);
+    const outbTyps = useCodes('OUTB_TYP');
+    const vhclFltnos = useCodes('VHCL_FLTNO');
 
-    const codeNm = (list, cd) => list.find(c => c.codeCd === cd)?.codeNm;
     const gridContext = useMemo(() => ({
-        outbTypNm: (cd) => codeNm(outbTyps, cd),
-        vhclFltnoNm: (cd) => codeNm(vhclFltnos, cd),
+        outbTypNm: (cd) => outbTyps.nmByCd[cd],
+        vhclFltnoNm: (cd) => vhclFltnos.nmByCd[cd],
         stgyNm: (id) => strategies.find(s => s.wavStgyId === id)?.stgyNm,
     }), [outbTyps, vhclFltnos, strategies]);
 
@@ -183,8 +181,6 @@ export default function Wave() {
         outbWaveApi.list({}).then(setWaves).catch(() => {});
         outbOrderApi.list({ status: 'CREATED', unassigned: true }).then(setUnassigned).catch(() => {});
         strategyApi.waveStrategies.list().then(setStrategies).catch(() => {});
-        codeApi.list('OUTB_TYP').then(setOutbTyps).catch(() => {});
-        codeApi.list('VHCL_FLTNO').then(setVhclFltnos).catch(() => {});
     }, []);
 
     // 재조회 뒤 같은 웨이브를 다시 선택 — 담기/빼기 후에도 작업하던 웨이브가 풀리지 않게
@@ -348,8 +344,8 @@ export default function Wave() {
                 />
                 <SearchText name="outbNo" label="출고번호" placeholder="OB-20260803-001" />
                 <SearchDateRange from="dateFrom" to="dateTo" label="주문일" />
-                <SearchSelect name="outbTyp" label="출고유형" options={toSearchOptions(outbTyps)} />
-                <SearchSelect name="vhclFltno" label="차량편수" options={toSearchOptions(vhclFltnos)} />
+                <SearchSelect name="outbTyp" label="출고유형" options={outbTyps.searchOptions} />
+                <SearchSelect name="vhclFltno" label="차량편수" options={vhclFltnos.searchOptions} />
             </SearchBar>
 
             {/* 전략 실행 — 조건에 맞는 미편성 주문을 전략별 웨이브로 자동 편성한다 */}

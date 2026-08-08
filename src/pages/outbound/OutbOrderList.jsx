@@ -6,9 +6,9 @@ import { PackageCheck } from 'lucide-react';
 import SearchBar, { SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
 import { Badge } from '@/components/common/Badge';
 import { outbOrderApi } from '@/api/outbOrderApi';
-import { codeApi } from '@/api/codeApi';
+import { useCodes } from '@/hooks/useCodes';
 import { OUTB_STATUS_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
-import { OUTB_STATUS_OPTIONS, toSearchOptions } from '@/constants/codeOptions';
+import { OUTB_STATUS_OPTIONS } from '@/constants/codeOptions';
 import { daysAheadStr, num, todayStr } from '@/utils/format';
 
 const centered = { display: 'flex', alignItems: 'center', justifyContent: 'center' };
@@ -108,13 +108,12 @@ export default function OutbOrderList() {
     const gridRef = useRef(null);
 
     // 공통코드 (출고유형 · 차량편수) — 값 목록의 주인은 코드관리라 화면에 하드코딩하지 않는다
-    const [outbTyps, setOutbTyps] = useState([]);
-    const [vhclFltnos, setVhclFltnos] = useState([]);
+    const outbTyps = useCodes('OUTB_TYP');
+    const vhclFltnos = useCodes('VHCL_FLTNO');
 
-    const codeNm = (list, cd) => list.find(c => c.codeCd === cd)?.codeNm;
     const gridContext = useMemo(() => ({
-        outbTypNm: (cd) => codeNm(outbTyps, cd),
-        vhclFltnoNm: (cd) => codeNm(vhclFltnos, cd),
+        outbTypNm: (cd) => outbTyps.nmByCd[cd],
+        vhclFltnoNm: (cd) => vhclFltnos.nmByCd[cd],
     }), [outbTyps, vhclFltnos]);
 
     const fetchList = async () => {
@@ -127,8 +126,6 @@ export default function OutbOrderList() {
     // 최초 1회 조회 (검색조건 기본값 = 오늘 ~ +7일)
     useEffect(() => {
         outbOrderApi.list(cond).then(setRowData).catch(() => {});
-        codeApi.list('OUTB_TYP').then(setOutbTyps).catch(() => {});
-        codeApi.list('VHCL_FLTNO').then(setVhclFltnos).catch(() => {});
     }, []);
 
     // 헤더 행 선택 시 라인 조회
@@ -158,8 +155,8 @@ export default function OutbOrderList() {
             <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
                 <SearchText name="outbNo" label="출고번호" placeholder="OB-20260803-001" />
                 <SearchSelect name="status" label="출고진행상태" options={OUTB_STATUS_OPTIONS} />
-                <SearchSelect name="outbTyp" label="출고유형" options={toSearchOptions(outbTyps)} />
-                <SearchSelect name="vhclFltno" label="차량편수" options={toSearchOptions(vhclFltnos)} />
+                <SearchSelect name="outbTyp" label="출고유형" options={outbTyps.searchOptions} />
+                <SearchSelect name="vhclFltno" label="차량편수" options={vhclFltnos.searchOptions} />
                 {/* 기간은 출고예정일이다 — 주문일이 아니다. 웨이브도 같은 기준으로 대상을 좁힌다 */}
                 <SearchDateRange from="dateFrom" to="dateTo" label="출고예정일" />
             </SearchBar>

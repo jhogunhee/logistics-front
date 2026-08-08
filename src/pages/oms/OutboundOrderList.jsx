@@ -8,9 +8,9 @@ import toast from 'react-hot-toast';
 import SearchBar, { SearchItem, SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
 import StorePickerModal from '@/components/common/StorePickerModal';
 import { omsOutbOrderApi } from '@/api/omsOutbOrderApi';
-import { codeApi } from '@/api/codeApi';
+import { useCodes } from '@/hooks/useCodes';
 import { OMS_OUTB_STATUS_META, OUTB_STATUS_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
-import { OMS_OUTB_STATUS_OPTIONS, toSearchOptions } from '@/constants/codeOptions';
+import { OMS_OUTB_STATUS_OPTIONS } from '@/constants/codeOptions';
 import { Badge } from '@/components/common/Badge';
 import { daysAheadStr, todayStr } from '@/utils/format';
 
@@ -129,18 +129,11 @@ export default function OutboundOrderList() {
     const [deleteTarget, setDeleteTarget] = useState(null);               // 삭제 확인 모달 대상
     const gridRef = useRef(null);
     const navigate = useNavigate();
-    const [outbTypCodes, setOutbTypCodes] = useState([]);
-    const [vhclFltnoCodes, setVhclFltnoCodes] = useState([]);
+    const outbTypCodes = useCodes('OUTB_TYP');
+    const vhclFltnoCodes = useCodes('VHCL_FLTNO');
     // 납품처 검색은 자유 입력 대신 등록 화면과 같은 팝업에서 고른다 —
     // 서버 검색 파라미터가 storeNm(contains)이라 값은 id가 아니라 이름 그대로 보낸다.
     const [storePickerOpen, setStorePickerOpen] = useState(false);
-
-    useEffect(() => {
-        codeApi.list('OUTB_TYP').then(setOutbTypCodes);
-        codeApi.list('VHCL_FLTNO').then(setVhclFltnoCodes);
-    }, []);
-
-    const nmOf = (codes, cd) => codes.find(c => c.codeCd === cd)?.codeNm;
 
     const fetchList = async () => {
         const data = await omsOutbOrderApi.list(cond);
@@ -283,8 +276,8 @@ export default function OutboundOrderList() {
                     </button>
                 </SearchItem>
                 <SearchSelect name="status" label="주문상태" options={OMS_OUTB_STATUS_OPTIONS} />
-                <SearchSelect name="outbTyp" label="출고유형" options={toSearchOptions(outbTypCodes)} />
-                <SearchSelect name="vhclFltno" label="편수" options={toSearchOptions(vhclFltnoCodes)} />
+                <SearchSelect name="outbTyp" label="출고유형" options={outbTypCodes.searchOptions} />
+                <SearchSelect name="vhclFltno" label="편수" options={vhclFltnoCodes.searchOptions} />
             </SearchBar>
 
             {/* 상하 분할 + 드래그 스플리터 (비율은 localStorage에 기억됨) */}
@@ -320,8 +313,8 @@ export default function OutboundOrderList() {
                             columnDefs={HEADER_COLUMN_DEFS}
                             context={{
                                 openOrder: (o) => navigate(`/oms/outbound-order/${o.omsOutbOrderId}`),
-                                outbTypNm: (cd) => nmOf(outbTypCodes, cd),
-                                vhclFltnoNm: (cd) => nmOf(vhclFltnoCodes, cd),
+                                outbTypNm: (cd) => outbTypCodes.nmByCd[cd],
+                                vhclFltnoNm: (cd) => vhclFltnoCodes.nmByCd[cd],
                             }}
                             rowHeight={34}
                             headerHeight={38}

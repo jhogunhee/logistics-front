@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 import SearchBar, { SearchItem, SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
 import VendorPickerModal from '@/components/common/VendorPickerModal';
 import { omsIbOrderApi } from '@/api/omsIbOrderApi';
-import { codeApi } from '@/api/codeApi';
+import { useCodes } from '@/hooks/useCodes';
 import { ASN_STATUS_META, OMS_IB_STATUS_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { OMS_IB_STATUS_OPTIONS } from '@/constants/codeOptions';
 import { Badge } from '@/components/common/Badge';
@@ -130,16 +130,10 @@ export default function InboundOrderList() {
     const [deleteTarget, setDeleteTarget] = useState(null);   // 삭제 확인 모달 대상
     const gridRef = useRef(null);
     const navigate = useNavigate();
-    const [odrDvsnNmByCd, setOdrDvsnNmByCd] = useState({});
+    const odrDvsnCodes = useCodes('ODR_DVSN');
     // 벤더 검색은 자유 입력 대신 등록 화면과 같은 팝업(VendorPickerModal)에서 고른다 —
     // 서버 검색 파라미터가 vndrNm(contains)이라 값은 id가 아니라 이름 그대로 보낸다.
     const [vendorPickerOpen, setVendorPickerOpen] = useState(false);
-
-    useEffect(() => {
-        codeApi.list('ODR_DVSN').then(codes => {
-            setOdrDvsnNmByCd(Object.fromEntries(codes.map(c => [c.codeCd, c.codeNm])));
-        });
-    }, []);
 
     const fetchList = async () => {
         const data = await omsIbOrderApi.list(cond);
@@ -320,7 +314,7 @@ export default function InboundOrderList() {
                             columnDefs={HEADER_COLUMN_DEFS}
                             context={{
                                 openOrder: (o) => navigate(`/oms/inbound-order/${o.omsIbOrderId}`),
-                                odrDvsnNm: (cd) => odrDvsnNmByCd[cd],
+                                odrDvsnNm: (cd) => odrDvsnCodes.nmByCd[cd],
                             }}
                             rowHeight={34}
                             headerHeight={38}
