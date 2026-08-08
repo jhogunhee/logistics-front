@@ -63,8 +63,11 @@ export default function StockAttrChange() {
         codeApi.list(LOT_ATTR_RSN_GRP).then(setRsnCodes);
     }, []);
 
-    // 셀 색은 값이 아니라 「정정 전 값과 다른가」로 정해지는데, 그리드는 값이 바뀐 셀만 다시 그린다.
-    // 그래서 저장 후 재조회하면 방금 정정한 값이 그대로라 앰버 강조가 남는다 — 행이 갈릴 때마다 강제로 다시 그린다
+    // 이 화면의 셀은 제 값이 아니라 다른 값을 보고 칠해진다 — 날짜 셀은 정정 전 값(_mfgDt0·_expiryDt0)을,
+    // 사유 셀은 isChanged를, 기타 사유 셀은 rsnCd를 본다. 그런데 그리드는 제 값이 바뀐 셀만 다시 그리니
+    // 「값은 그대로인데 칠할 모습만 달라진」 경우를 놓친다 — 저장 후 재조회하면 서버가 돌려준 값도 새
+    // _mfgDt0도 방금 정정한 값이라, 셀 값이 안 바뀌어 앰버 강조가 남는 것이 그 예다.
+    // 그래서 행이 갈릴 때마다 강제로 다시 그린다.
     useEffect(() => {
         gridRef.current?.api?.refreshCells({ force: true });
     }, [rowData]);
@@ -153,10 +156,12 @@ export default function StockAttrChange() {
         if (e.colDef.field === 'mfgDt' && e.newValue && e.data.shelfLifeDays != null) {
             e.node.setDataValue('expiryDt', addDays(e.newValue, e.data.shelfLifeDays));
         }
-        // setDataValue가 e.data를 먼저 고치므로 아래 한 줄이 두 날짜를 함께 반영한다.
-        // 제안값이 원래 값과 같으면 그리드가 변경 이벤트를 다시 내지 않으니 여기서 끝내야 한다
-        // 이 setRowData가 위의 「강제 다시 그리기」까지 태운다 — 날짜를 고친 행의 사유 셀에
-        // 「사유 필요」가 바로 뜨는 것도 그 덕이다 (사유 셀은 제 값이 안 바뀌어 그냥은 다시 안 그려진다)
+        // setDataValue가 e.data를 먼저 고쳐 두므로, 아래 한 줄이 두 날짜를 함께 반영한다.
+        // setDataValue는 expiryDt로 이 핸들러를 한 번 더 부르지만 그 중첩 호출에 반영을 맡기면 안 된다 —
+        // 제안값이 기존 유통기한과 같으면 그리드가 이벤트를 내지 않아 제조일자 변경까지 함께 누락된다.
+        // 이 setRowData가 rowData를 갈아 위 useEffect를 태우고, 거기서 셀을 「강제로 다시 그린다」.
+        // 사유 셀은 제 값(rsnCd)이 아니라 isChanged를 보고 「사유 필요」를 띄우므로, 그렇게 태우지 않으면
+        // 날짜를 고쳐도 다시 그려지지 않는다.
         setRowData(prev => prev.map(r => (r.lotId === e.data.lotId ? { ...r, ...e.data } : r)));
     };
 
@@ -247,7 +252,7 @@ export default function StockAttrChange() {
                         재고 있는 Lot만
                     </label>
                     <span className="text-[11px] text-slate-400">
-                        파란 컬럼을 그리드에서 직접 고쳐 정정합니다 · 유통기한 미관리 상품의 Lot은 두 날짜가 항상 비어 있는 것이 정의라 목록에 없습니다
+                        유통기한 미관리 상품의 Lot은 두 날짜가 항상 비어 있는 것이 정의라 목록에 없습니다
                     </span>
                     <div className="ml-auto flex items-center gap-2 shrink-0">
                         <span className={`text-xs font-bold ${changedCnt > 0 ? 'text-amber-600' : 'text-slate-400'}`}>
