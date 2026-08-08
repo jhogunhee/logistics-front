@@ -3,7 +3,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { Tags, Save, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchText, SearchDateRange } from '@/components/common/SearchBar';
+import SearchBar, { SearchItem, SearchText, SearchDateRange } from '@/components/common/SearchBar';
 import SelectCellEditor from '@/components/common/SelectCellEditor';
 import { lotAttrChngApi } from '@/api/lotAttrChngApi';
 import { codeApi } from '@/api/codeApi';
@@ -39,6 +39,11 @@ const toEditableRow = (r) => ({
 
 const isChanged = (r) => r.mfgDt !== r._mfgDt0 || r.expiryDt !== r._expiryDt0;
 
+const INIT_COND = { prodCd: '', prodNm: '', lotNo: '', expiryFrom: '', expiryTo: '', onlyInStock: true };
+
+// API가 거르는 것은 ''·null뿐이라, 체크를 풀었으면 여기서 조건 자체를 빼야 한다
+const listParams = (cond) => ({ ...cond, onlyInStock: cond.onlyInStock || undefined });
+
 /**
  * Lot 속성 정정. 재고는 움직이지 않고 lot 행만 갱신되며, 정정의 원장은 lot_attr_chng 1행이다.
  *
@@ -47,19 +52,18 @@ const isChanged = (r) => r.mfgDt !== r._mfgDt0 || r.expiryDt !== r._expiryDt0;
  */
 export default function StockAttrChange() {
     const [rowData, setRowData] = useState([]);
-    const [cond, setCond] = useState({ prodCd: '', prodNm: '', lotNo: '', expiryFrom: '', expiryTo: '' });
-    const [onlyInStock, setOnlyInStock] = useState(true);
+    const [cond, setCond] = useState(INIT_COND);
     const [rsnCodes, setRsnCodes] = useState([]);
     const [confirmTargets, setConfirmTargets] = useState(null);
     const gridRef = useRef(null);
 
-    const fetchTargets = async (inStock = onlyInStock) => {
-        const data = await lotAttrChngApi.listTargets({ ...cond, onlyInStock: inStock || undefined });
+    const fetchTargets = async () => {
+        const data = await lotAttrChngApi.listTargets(listParams(cond));
         setRowData(data.map(toEditableRow));
     };
 
     useEffect(() => {
-        lotAttrChngApi.listTargets({ onlyInStock: true }).then(d => setRowData(d.map(toEditableRow)));
+        lotAttrChngApi.listTargets(listParams(INIT_COND)).then(d => setRowData(d.map(toEditableRow)));
         codeApi.list(LOT_ATTR_RSN_GRP).then(setRsnCodes);
     }, []);
 
@@ -235,6 +239,17 @@ export default function StockAttrChange() {
                 <SearchText name="prodNm" label="상품명" placeholder="상품명 일부" />
                 <SearchText name="lotNo" label="Lot번호" placeholder="LOT-260722-001" />
                 <SearchDateRange from="expiryFrom" to="expiryTo" label="유통기한" />
+                <SearchItem label="조회 범위">
+                    <label className="flex items-center gap-1.5 text-sm text-slate-600 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={cond.onlyInStock}
+                            onChange={(e) => setCond(prev => ({ ...prev, onlyInStock: e.target.checked }))}
+                            className="accent-indigo-600"
+                        />
+                        재고 있는 Lot만
+                    </label>
+                </SearchItem>
             </SearchBar>
 
             <div className="flex-1 min-h-0 flex flex-col gap-3">
@@ -242,15 +257,6 @@ export default function StockAttrChange() {
                     <span className="text-xs text-slate-500 font-medium">
                         유통기한 관리 상품의 Lot {rowData.length}건
                     </span>
-                    <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
-                        <input
-                            type="checkbox"
-                            checked={onlyInStock}
-                            onChange={(e) => { setOnlyInStock(e.target.checked); fetchTargets(e.target.checked); }}
-                            className="accent-indigo-600"
-                        />
-                        재고 있는 Lot만
-                    </label>
                     <span className="text-[11px] text-slate-400">
                         유통기한 미관리 상품의 Lot은 두 날짜가 항상 비어 있는 것이 정의라 목록에 없습니다
                     </span>
