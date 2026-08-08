@@ -76,10 +76,7 @@ export default function StockAttrChange() {
         gridRef.current?.api?.refreshCells({ force: true });
     }, [rowData]);
 
-    const rsnNmByCd = useMemo(
-        () => Object.fromEntries(rsnCodes.map(c => [c.codeCd, c.codeNm])),
-        [rsnCodes],
-    );
+    const rsnNmByCd = Object.fromEntries(rsnCodes.map(c => [c.codeCd, c.codeNm]));
 
     const changedCnt = useMemo(() => rowData.filter(isChanged).length, [rowData]);
 
@@ -149,7 +146,7 @@ export default function StockAttrChange() {
             cellClass: (p) => `ag-right-aligned-cell font-bold ${p.value > 0 ? 'text-emerald-600' : 'text-slate-300'}`,
             valueFormatter: (p) => num(p.value),
         },
-    ], [rsnCodes, rsnNmByCd]);
+    ], [rsnCodes]);
 
     /**
      * 제조일자를 바꾸면 유통기한 기본값(제조일자 + 유통기한일수)을 제안한다.
