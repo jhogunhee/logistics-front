@@ -16,13 +16,17 @@ export const lotAttrChngApi = {
     },
 
     /**
-     * Lot 속성 정정. 두 날짜는 「바꿀 값」이 아니라 정정 후의 최종 값이라 한쪽만 고쳐도 둘 다 보낸다.
+     * Lot 속성 정정. 그리드에서 고친 Lot들을 한 번에 보낸다 — 서버가 한 트랜잭션으로 처리해
+     * **한 건이라도 거부되면 전량 롤백된다** (정정은 취소 경로가 없어서 절반만 반영된 상태를 만들지 않는다).
+     * items: [{ lotId, mfgDt, expiryDt, rsnCd, rsnDscr }] — 사유는 정정 건마다 따로다.
+     *
+     * 두 날짜는 「바꿀 값」이 아니라 정정 후의 최종 값이라 한쪽만 고쳐도 둘 다 보낸다.
      * 서버가 거부하는 경우: 미관리 상품 Lot · 날짜 미입력 · 제조일자 > 입고일자 ·
-     * 유통기한 < 제조일자 · 전후 값 동일 · 배치 재사용 키(상품+입고일자+제조일자) 충돌.
+     * 유통기한 < 제조일자 · 전후 값 동일 · 같은 Lot 중복 · 배치 재사용 키(상품+입고일자+제조일자) 충돌.
      * rsnDscr는 사유코드가 ETC(기타)일 때만 필수 — 그 외 코드에서는 서버가 무시한다.
      */
-    change(lotId, { mfgDt, expiryDt, rsnCd, rsnDscr }) {
-        return api.put(`/inventory/lot-attrs/${lotId}`, { mfgDt, expiryDt, rsnCd, rsnDscr });
+    change(items) {
+        return api.put('/inventory/lot-attrs', { items });
     },
 
     /** 정정 이력 조회 (append-only 로그 — 되돌리는 정정도 새 행이라 왕복이 그대로 남는다) */
