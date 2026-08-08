@@ -4,8 +4,7 @@ import { History } from 'lucide-react';
 
 import SearchBar, { SearchText, SearchSelect } from '@/components/common/SearchBar';
 import { invHldApi } from '@/api/invHldApi';
-import { codeApi } from '@/api/codeApi';
-import { toSearchOptions } from '@/constants/codeOptions';
+import { useCodes } from '@/hooks/useCodes';
 import { fmtDt, num } from '@/utils/format';
 
 
@@ -15,6 +14,8 @@ const KINDS = [
     { key: 'release', label: '해제 실적', qtyHeader: '해제수량', rsnGrp: 'HLD_RLZ_RSN', qtyClass: 'text-emerald-600' },
 ];
 
+const INIT_COND = { hldNo: '', prodCd: '', locCd: '', rsnCd: '' };
+
 /**
  * 보류/해제 실적 조회 (append-only 로그). 물리 이동이 아니라 재고 이력 조회(inv_hist)에는
  * 나오지 않는 유일한 처리라, 전용 실적 테이블을 여기서 조회한다. 부분 해제 N번이면 해제 실적 N행.
@@ -22,27 +23,31 @@ const KINDS = [
 export default function StockHoldAcrst() {
     const [kind, setKind] = useState('hold');
     const [rowData, setRowData] = useState([]);
-    const [cond, setCond] = useState({ hldNo: '', prodCd: '', locCd: '', rsnCd: '' });
-    const [rsnCodes, setRsnCodes] = useState([]); // 현재 종류의 사유 코드 (필터 + 표시)
+    const [cond, setCond] = useState(INIT_COND);
 
     const meta = KINDS.find(k => k.key === kind);
+    const rsn = useCodes(meta.rsnGrp); // 종류마다 사유 그룹이 다르다 (등록 사유 ≠ 해제 사유)
 
     const fetchList = async (kindKey = kind, condOverride = cond) => {
         const api = kindKey === 'hold' ? invHldApi.listAcrst : invHldApi.listRlzAcrst;
         setRowData(await api(condOverride));
     };
 
-    // 종류 전환 시 사유 그룹이 다르므로(등록 사유 ≠ 해제 사유) 필터를 초기화하고 다시 조회한다
+    // 마운트 조회는 fetchList를 부르지 않고 API를 직접 호출한다 — 이펙트가 컴포넌트 함수를
+    // 의존성으로 잡게 되어 react-hooks 규칙에 걸린다 (Lot 속성 정정 화면과 같은 형태)
     useEffect(() => {
-        let ignore = false;
-        const next = { hldNo: '', prodCd: '', locCd: '', rsnCd: '' };
-        setCond(next);
-        fetchList(kind, next);
-        codeApi.list(meta.rsnGrp).then(codes => { if (!ignore) setRsnCodes(codes); });
-        return () => { ignore = true; };
-    }, [kind]); // eslint-disable-line react-hooks/exhaustive-deps
+        invHldApi.listAcrst(INIT_COND).then(setRowData);
+    }, []);
 
-    const rsnNm = (cd) => rsnCodes.find(c => c.codeCd === cd)?.codeNm ?? cd;
+    // 종류 전환은 이펙트가 아니라 여기서 처리한다. kind를 바꾸는 곳이 토글 버튼 하나뿐이라
+    // 「kind가 바뀌면」을 이펙트로 뒤쫓을 이유가 없다 — 이펙트에 두면 렌더 중 setCond가 돌아
+    // 연쇄 렌더가 된다. 사유 그룹이 갈리므로(등록 사유 ≠ 해제 사유) 필터를 초기화하고 다시 조회한다.
+    const switchKind = (key) => {
+        if (key === kind) return;
+        setKind(key);
+        setCond(INIT_COND);
+        fetchList(key, INIT_COND);
+    };
 
     const columnDefs = useMemo(() => [
         { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
@@ -60,13 +65,13 @@ export default function StockHoldAcrst() {
             field: 'rsnCd', headerName: '사유', width: 160,
             cellRenderer: (p) => (
                 <span className="text-xs">
-                    <b>{rsnNm(p.value)}</b>
+                    <b>{rsn.nm(p.value)}</b>
                     {p.data.rsnDscr && <span className="text-slate-400"> — {p.data.rsnDscr}</span>}
                 </span>
             ),
         },
         { field: 'createdAt', headerName: '실적일시', width: 150, valueFormatter: (p) => fmtDt(p.value), cellClass: 'text-slate-500' },
-    ], [meta, rsnCodes]);
+    ], [meta, rsn]);
 
     return (
         <div className="flex flex-col gap-4 h-full">
@@ -79,7 +84,7 @@ export default function StockHoldAcrst() {
                     {KINDS.map(k => (
                         <button
                             key={k.key}
-                            onClick={() => setKind(k.key)}
+                            onClick={() => switchKind(k.key)}
                             className={`px-3 py-1 rounded-md text-xs font-bold transition-colors
                                 ${kind === k.key ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
                             {k.label}
@@ -93,7 +98,7 @@ export default function StockHoldAcrst() {
                 <SearchText name="hldNo" label="보류번호" placeholder="HD-20260803-001" />
                 <SearchText name="prodCd" label="상품 코드" placeholder="PROD-0001" />
                 <SearchText name="locCd" label="로케이션" placeholder="DRY-A-01-01" />
-                <SearchSelect name="rsnCd" label="사유" options={toSearchOptions(rsnCodes)} />
+                <SearchSelect name="rsnCd" label="사유" options={rsn.searchOptions} />
             </SearchBar>
 
             <div className="flex-1 min-h-0 flex flex-col gap-3">
