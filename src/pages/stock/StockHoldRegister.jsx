@@ -92,7 +92,7 @@ export default function StockHoldRegister() {
         },
         {
             field: 'rsnCd', headerName: '보류사유', width: 130, editable: true,
-            headerTooltip: '수량을 입력한 행만 필수. 같은 재고라도 사유가 다르면 보류가 병존한다',
+            headerTooltip: '수량을 입력한 행만 필수. 같은 재고에 사유가 같은 보류도 여러 건 병존한다',
             cellEditor: SelectCellEditor,
             cellEditorParams: { values: rsn.values, labelMap: rsn.nmByCd, placeholder: '사유 선택' },
             cellClass: 'bg-indigo-50',
