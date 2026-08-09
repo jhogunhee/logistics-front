@@ -206,7 +206,7 @@ export default function StockHoldList() {
             <div className="flex-1 min-h-0 flex flex-col gap-3">
                 <div className="flex items-center gap-3 flex-wrap">
                     <span className="text-xs text-slate-500 font-medium">{rowData.length}건</span>
-                    <span className="text-[11px] text-slate-400">해제수량·해제사유를 행에서 바로 입력한 뒤 해제 — 보류중인 건만 입력할 수 있고, 전체가 한 트랜잭션입니다</span>
+                    <span className="text-[11px] text-slate-400">해제수량·해제사유를 행에서 바로 입력한 뒤 해제</span>
                     <div className="ml-auto flex items-center gap-2 shrink-0">
                         <span className={`text-xs font-bold ${entered.length > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
                             입력 {num(entered.length)}건 · 총 {num(totalQty)}개
@@ -241,9 +241,6 @@ export default function StockHoldList() {
                         <h3 className="text-lg font-bold text-slate-800">보류를 해제하시겠습니까?</h3>
                         <p className="text-sm text-slate-500">
                             {confirmTargets.length}건 · 총 <b className="text-emerald-600">{num(confirmTargets.reduce((s, t) => s + Number(t._rlzQty), 0))}개</b>가 가용재고로 복귀합니다.
-                        </p>
-                        <p className="text-xs text-slate-400">
-                            전체가 한 트랜잭션입니다 — 한 건이라도 실패하면 전량 취소됩니다.
                         </p>
                         <div className="flex flex-col gap-2 max-h-72 overflow-y-auto">
                             {confirmTargets.map(t => (

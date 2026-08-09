@@ -193,7 +193,7 @@ export default function StockHoldRegister() {
             <div className="flex-1 min-h-0 flex flex-col gap-3">
                 <div className="flex items-center gap-3 flex-wrap">
                     <span className="text-xs text-slate-500 font-medium">보관 재고 {rowData.length}건 (가용 &gt; 0)</span>
-                    <span className="text-[11px] text-slate-400">보류수량·보류사유를 행에서 바로 입력한 뒤 등록 — 전체가 한 트랜잭션이라 한 건이라도 실패하면 전량 취소됩니다</span>
+                    <span className="text-[11px] text-slate-400">보류수량·보류사유를 행에서 바로 입력한 뒤 등록</span>
                     <div className="ml-auto flex items-center gap-2 shrink-0">
                         <span className={`text-xs font-bold ${entered.length > 0 ? 'text-rose-600' : 'text-slate-400'}`}>
                             입력 {num(entered.length)}건 · 총 {num(totalQty)}개
