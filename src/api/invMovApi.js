@@ -16,9 +16,12 @@ export const invMovApi = {
         return api.get('/inventory/moves', { params });
     },
 
-    /** 이동확정 (부분확정 허용 — 잔여수량 이내) */
-    confirm(id, qty) {
-        return api.post(`/inventory/moves/${id}/confirm`, { qty });
+    /**
+     * 이동확정. items: [{ taskId, qty }] — 등록과 같이 전체가 한 트랜잭션이라
+     * 한 건이라도 검증에 걸리면 전량 롤백된다. 건마다 잔여수량 이내의 부분확정을 허용한다.
+     */
+    confirm(items) {
+        return api.post('/inventory/moves/confirm', { items });
     },
 
     /** 이동취소 (잔량 예약 해제 — 실적 없으면 CANCELLED, 부분확정 후면 지시수량 차감 후 DONE) */

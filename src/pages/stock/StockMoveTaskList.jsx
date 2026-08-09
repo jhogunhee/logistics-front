@@ -150,24 +150,20 @@ export default function StockMoveTaskList() {
         setConfirmTargets(targets);
     };
 
-    /**
-     * 확정 API는 지시 1건당 1호출이라 여러 건은 순차 실행이다 — 한 트랜잭션이 아니다.
-     * 그래서 도중에 실패하면 앞선 건은 이미 확정된 채로 남는다. 몇 건까지 됐는지 알리고
-     * 무조건 재조회해, 화면이 서버 상태와 어긋나지 않게 한다.
-     */
     const doConfirm = async (targets) => {
-        let done = 0;
         try {
-            for (const t of targets) {
-                await invMovApi.confirm(t.invMovTaskId, Number(t.cnfmQty));
-                done += 1;
-            }
+            await invMovApi.confirm(targets.map(t => ({
+                taskId: t.invMovTaskId,
+                qty: Number(t.cnfmQty),
+            })));
             const qtySum = targets.reduce((s, t) => s + Number(t.cnfmQty), 0);
             toast.success(`${targets.length}건 · ${num(qtySum)}개 이동을 확정했습니다.`);
+            fetchList(); // 잔여·상태가 움직인 목록으로 갱신 + 입력 초기화
         } catch (e) {
-            toast.error(`${done}건 확정 후 실패: ${e.message || '이동확정에 실패했습니다.'}`);
+            // 실패하면 재조회하지 않는다 — 전량 롤백이라 서버 값은 그대로이고,
+            // 입력을 살려둬야 지적된 행만 고쳐서 다시 시도할 수 있다
+            toast.error(e.message || '이동확정에 실패했습니다.');
         }
-        fetchList();
     };
 
     const doCancel = async (target) => {
@@ -240,7 +236,7 @@ export default function StockMoveTaskList() {
                             {confirmTargets.length}건 · 총 <b className="text-emerald-600">{num(confirmTargets.reduce((s, t) => s + Number(t.cnfmQty), 0))}개</b>의 실물 이동이 반영됩니다.
                         </p>
                         <p className="text-xs text-slate-400">
-                            지시 1건씩 순차로 처리합니다 — 도중에 실패하면 앞선 건은 확정된 채로 남습니다.
+                            전체가 한 트랜잭션입니다 — 한 건이라도 걸리면 전량 반영되지 않습니다.
                         </p>
                         <div className="flex flex-col gap-2 max-h-72 overflow-y-auto">
                             {confirmTargets.map(t => (
