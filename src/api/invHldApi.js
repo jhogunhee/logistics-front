@@ -17,9 +17,13 @@ export const invHldApi = {
         return api.get('/inventory/holds', { params });
     },
 
-    /** 보류 해제 (부분 허용 — 잔량 이내). 오등록 취소도 이 경로다 (사유: 오등록) */
-    release(id, { qty, rsnCd, rsnDscr }) {
-        return api.post(`/inventory/holds/${id}/release`, { qty, rsnCd, rsnDscr });
+    /**
+     * 보류 해제. items: [{ hldId, qty, rsnCd, rsnDscr }] — 등록과 같이 전체가 한 트랜잭션이라
+     * 한 건이라도 검증에 걸리면 전량 롤백된다. 건마다 잔량 이내의 부분 해제를 허용한다.
+     * 오등록 취소도 이 경로다 (사유: 오등록).
+     */
+    release(items) {
+        return api.post('/inventory/holds/release', { items });
     },
 
     /** 보류 실적 조회 (등록 append-only 로그) */
