@@ -5,7 +5,7 @@ export const invStktkApi = {
     /**
      * 조사 생성. scope: { zonCd, locId, prodId } — 모두 선택이고, 전부 비면 전 보관 로케이션이 대상이다.
      * 범위에 걸리는 보관 재고로 라인이 자동 생성되며 각 라인에 전산수량이 스냅샷된다.
-     * 발급된 조사번호를 돌려받는다.
+     * { invStktkId, stktkNo }를 돌려받는다 — PK는 상세 이동용, 조사번호는 안내용.
      */
     create(scope = {}) {
         return api.post('/inventory/stocktakes', scope);

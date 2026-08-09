@@ -103,17 +103,15 @@ export default function StockCountList({ onOpen }) {
 
     const doCreate = async () => {
         try {
-            const stktkNo = await invStktkApi.create({
+            const { invStktkId, stktkNo } = await invStktkApi.create({
                 zonCd: scope.zonCd || null,
                 locId: scope.locId ? Number(scope.locId) : null,
                 prodId: scope.prod?.prodId ?? null,
             });
             toast.success(`재고조사 ${stktkNo}를 생성했습니다. 실사수량을 입력하세요.`);
             setCreateOpen(false);
-            const list = await invStktkApi.list(cond);
-            setRowData(list);
-            const created = list.find(s => s.stktkNo === stktkNo);
-            if (created) onOpen(created.invStktkId);
+            await fetchList();
+            onOpen(invStktkId);
         } catch (e) {
             toast.error(e.message || '조사 생성에 실패했습니다.');
         }
