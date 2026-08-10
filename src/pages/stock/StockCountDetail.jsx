@@ -128,7 +128,7 @@ export default function StockCountDetail({ stktkId, onBack }) {
         {
             field: 'stktkQty', headerName: '실사수량', width: 100, editable,
             headerTooltip: '실물을 센 수량. 비우면 「미조사」로 확정에서 건너뛴다 (0 = 실물 없음과 다르다)',
-            cellClass: (p) => `ag-right-aligned-cell font-bold ${editable ? 'bg-indigo-50' : ''}`,
+            cellClass: `ag-right-aligned-cell font-bold ${editable ? 'bg-indigo-50' : ''}`,
             cellRenderer: (p) => p.value == null || p.value === ''
                 ? <span className="text-slate-300">미조사</span>
                 : num(p.value),
