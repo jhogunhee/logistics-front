@@ -24,6 +24,31 @@ export const fmtDtSec = (v) => (v ? String(v).replace('T', ' ').slice(0, 19) : '
 export const num = (v) => (v == null || String(v).trim() === '' ? '' : Number(v).toLocaleString());
 
 /**
+ * 낱개(EA)로 저장된 수량을 「입고단위 (낱개)」로 표시 — "2 BOX (48)".
+ *
+ * 괄호에 낱개를 같이 적는 이유: 입고예정 목록의 헤더 합계는 EA로 낸다(상품마다 입고단위가
+ * 달라 붙일 단위가 낱개뿐이다). 라인이 "2 BOX"만 보이면 헤더의 48과 안 맞아 보이는데,
+ * 괄호가 그 대조를 그 자리에서 끝낸다.
+ *
+ * 규칙 셋:
+ *   - 0과 빈 값은 빈 칸이다. "0 BOX (0)"은 아직 시작 안 한 라인마다 찍혀 시야만 어지럽힌다.
+ *   - 입고단위가 낱개인 상품(eaPerUnit === 1)은 같은 숫자가 두 번 나오므로 괄호를 생략한다.
+ *   - 입고단위로 딱 안 떨어지면 낱개로만 적는다 — "42.5 BOX"는 업무상 없는 수량이다.
+ *     검수·적치를 입고단위 배수로만 받도록 정리하는 중이라 원칙적으로 안 나오는 값이고,
+ *     그래서 소수로 뭉개는 대신 단위를 낱개로 떨어뜨려 "박스로 안 맞는 건"임을 드러낸다.
+ *
+ * @param eaQty     낱개 저장값
+ * @param eaPerUnit 입고단위 1개의 낱개 수 (api/prodApi의 eaQtyPerInbUomOf)
+ * @param uomCd     입고단위 코드 ("BOX" 등)
+ */
+export const fmtInbQty = (eaQty, eaPerUnit, uomCd) => {
+    if (eaQty == null || Number(eaQty) === 0) return '';
+    if (!eaPerUnit || eaPerUnit <= 1) return `${num(eaQty)} ${uomCd || 'EA'}`;
+    if (eaQty % eaPerUnit !== 0) return `${num(eaQty)} EA`;
+    return `${num(eaQty / eaPerUnit)} ${uomCd} (${num(eaQty)})`;
+};
+
+/**
  * 로컬 기준 "YYYY-MM-DD". `toISOString().slice(0, 10)`을 쓰지 않는 이유는 그게 UTC로
  * 변환하기 때문이다 — KST 오전 9시 이전에는 하루 전 날짜가 나온다. 6개 화면이 전부
  * 그 형태였고, 기간 검색의 기본값이 매일 아침 9시간 동안 하루씩 밀고 있었다.

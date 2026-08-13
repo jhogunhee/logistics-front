@@ -3,9 +3,9 @@ import api from '@/utils/axios';
 
 export const asnApi = {
     /** 헤더 목록 조회. cond: { ibNo, status, dateFrom, dateTo } — 빈 값 조건은 빼고 보낸다.
-     *  lineCount/cmplLineCount와 수량 합계(expct/rcvd/ptawy)는 서버가 라인에서 파생시켜 내려준다.
-     *  cmplLineCount는 착수한 라인이 아니라 전량 검수를 마친 라인 수이고,
-     *  화면의 잔량·미적치는 이 합계들의 뺄셈이라 별도 필드로 받지 않는다. */
+     *  lineCount/cmplLineCount와 수량 합계는 서버가 라인에서 파생시켜 내려준다
+     *  (cmplLineCount는 착수한 라인이 아니라 전량 검수를 마친 라인 수 — 입고검수 화면이 쓴다).
+     *  inspDt는 라인 검수일시의 최댓값(inv_hist RECEIVE 기준)이고, cfmDt는 ib_order.cfm_dt다. */
     list(cond = {}) {
         const params = Object.fromEntries(Object.entries(cond).filter(([, v]) => v));
         return api.get('/inbound/asns', { params });

@@ -9,7 +9,11 @@ import { asnApi } from '@/api/asnApi';
 import { ASN_STATUS_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { ASN_STATUS_OPTIONS } from '@/constants/codeOptions';
 import { Badge } from '@/components/common/Badge';
-import { daysAheadStr, num, todayStr } from '@/utils/format';
+import { eaQtyPerInbUomOf } from '@/api/prodApi';
+import { daysAheadStr, fmtDt, fmtInbQty, num, todayStr } from '@/utils/format';
+
+/** 라인 수량 셀 — 저장값은 낱개(EA)이고 표시는 「입고단위 (낱개)」다 */
+const inbQtyFmt = (p) => fmtInbQty(p.value, eaQtyPerInbUomOf(p.data), p.data?.inbUomCd);
 
 // 오늘 날짜 "YYYY-MM-DD" (검색 기본값)
 
@@ -25,36 +29,29 @@ const HEADER_COLUMN_DEFS = [
     { field: 'vndrNm', headerName: '벤더', flex: 1, minWidth: 110 },
     { field: 'expctDe', headerName: '입고 예정일', width: 120 },
     {
-        headerName: '검수 진행', width: 100, cellClass: 'ag-right-aligned-cell',
-        headerTooltip: '전량 검수된 라인 / 전체 라인 (부분 검수중인 라인은 제외)',
-        valueGetter: (p) => `${num(p.data.cmplLineCount)} / ${num(p.data.lineCount)}`,
+        field: 'totalExpctQty', headerName: '예정수량(EA)', width: 110,
+        // 단위를 못 붙인 게 아니라 EA로 통일한 것이다 — 한 입고건에 BOX 상품과 EA 상품이
+        // 섞이면 합계에 붙일 단위가 낱개밖에 없다. 라벨에 박아둬야 사용자가 박스로 오해하지 않는다.
+        // 상품이 하나로 확정되는 라인 그리드에는 이 제약이 없다
+        headerTooltip: '라인 예정수량의 합계. 상품마다 입고단위가 달라 낱개(EA)로 통일해 더한다',
+        cellClass: 'ag-right-aligned-cell', valueFormatter: (p) => num(p.value),
     },
-    { field: 'totalExpctQty', headerName: '예정수량', width: 100, cellClass: 'ag-right-aligned-cell', valueFormatter: (p) => num(p.value) },
-    // 검수수량 컬럼은 두지 않는다 — 예정 − 잔량이라 셋 중 둘이면 충분하다.
-    // (라인 그리드는 셋을 다 둔다. 거기는 실제로 작업하는 단위라 「얼마나 받았나」를 직접
-    //  보는 게 자연스럽고, 적치완료와 나란히 놔야 검수↔적치 대조가 된다)
+    // 헤더가 드는 수량은 예정수량 하나뿐이다. 진행은 수량이 아니라 「언제」로 표현한다 —
+    // 상태 뱃지가 단계를, 아래 두 일시가 시작과 끝을 말한다.
     //
-    // 헤더가 드는 두 수량은 「남은 일」 둘이다 — 아직 안 온 것(잔량)과 와서 쌓여만 있는 것(미적치).
-    // 「검수 진행」은 완료된 라인만 세므로 한 라인이 99% 찼는지 1% 찼는지 구분하지 못한다.
-    // 분할검수·분할적치의 크기는 이 두 컬럼이 맡는다
+    // 수량 진행(검수/적치 누계·잔량)을 헤더에 두지 않는 이유: 여러 상품이 섞인 합계는 단위가
+    // 낱개(EA)밖에 될 수 없어(입고단위는 상품 속성이라 헤더에 붙일 라벨이 없다) 진행 파악에
+    // 도움이 안 된다. 「얼마나 왔나」는 단위가 확정되는 라인 그리드가 맡는다 —
+    // 입고검수 화면이 같은 이유로 헤더 합계를 두지 않은 것과 같은 판단이다
     {
-        headerName: '잔량', width: 90,
-        headerTooltip: '예정 − 검수수량 합계 — 아직 도착하지 않은 수량 (음수 = 과입고)',
-        valueGetter: (p) => p.data.totalExpctQty - p.data.totalRcvdQty,
-        valueFormatter: (p) => num(p.value),
-        cellClass: (p) => p.value < 0
-            ? 'ag-right-aligned-cell text-red-500 font-bold'
-            : 'ag-right-aligned-cell',
+        field: 'inspDt', headerName: '검수일시', width: 150,
+        headerTooltip: '최종 검수일시 — 라인들의 검수일시 중 가장 늦은 것. 마지막으로 검수가 움직인 때',
+        cellRenderer: (p) => (p.value ? fmtDt(p.value) : <span className="text-slate-300">—</span>),
     },
     {
-        headerName: '미적치', width: 90,
-        headerTooltip: '검수 − 적치 합계 — RCV-STAGE에 쌓여 있는 수량',
-        valueGetter: (p) => p.data.totalRcvdQty - p.data.totalPtawyQty,
-        valueFormatter: (p) => num(p.value),
-        // ck_ib_line_qty(ptawy <= rcvd)가 막으므로 음수는 나올 수 없다 — 나오면 그 자체가 신호다
-        cellClass: (p) => p.value < 0
-            ? 'ag-right-aligned-cell text-red-500 font-bold'
-            : 'ag-right-aligned-cell',
+        field: 'cfmDt', headerName: '확정일시', width: 150,
+        headerTooltip: '입고가 확정(마감)된 시각. 비어 있으면 아직 진행 중이다',
+        cellRenderer: (p) => (p.value ? fmtDt(p.value) : <span className="text-slate-300">—</span>),
     },
 ];
 
@@ -67,16 +64,28 @@ const LINE_COLUMN_DEFS = [
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
         cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
     },
-    { field: 'expctQty', headerName: '예정수량', width: 100, cellClass: 'ag-right-aligned-cell', valueFormatter: (p) => num(p.value) },
-    { field: 'rcvdQty', headerName: '검수수량', width: 100, cellClass: 'ag-right-aligned-cell', valueFormatter: (p) => num(p.value) },
     {
-        headerName: '잔량', width: 90,
-        headerTooltip: '예정 - 검수수량 (음수 = 과입고)',
-        valueGetter: (p) => p.data.expctQty - p.data.rcvdQty,
-        valueFormatter: (p) => num(p.value),
-        cellClass: (p) => p.value < 0 ? 'ag-right-aligned-cell text-red-500 font-bold' : 'ag-right-aligned-cell',
+        // 라인에도 진행상태를 둔다 — 수량 셋을 눈으로 비교해야 알던 것을 뱃지 하나로 읽는다.
+        // 서버가 수량에서 파생시켜 내려주는 값이고(IbLine#progressStatus) 저장된 컬럼이 아니다.
+        // 헤더와 같은 IbStatus라 뱃지 메타를 그대로 쓴다 — 헤더 상태가 왜 그 값인지 여기서 보인다.
+        field: 'status', headerName: '입고진행상태', width: 130,
+        headerTooltip: '예정·검수·적치 수량에서 파생. 검수 축을 먼저 본다 — 덜 왔으면(검수 < 예정) 온 것을 다 적치했어도 검수중이다',
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+        cellRenderer: (p) => <Badge meta={ASN_STATUS_META} value={p.value} show="label" />,
     },
-    { field: 'ptawyQty', headerName: '적치완료', width: 100, cellClass: 'ag-right-aligned-cell', valueFormatter: (p) => num(p.value) },
+    // 잔량(예정−검수) 컬럼은 두지 않는다 — 이 그리드는 입고·적치 두 축이 함께 나오는 유일한
+    // 자리라 「잔량」이 어느 쪽에서 빼는 값인지 위치로 오해된다. 예정과 검수가 나란히 있으니
+    // 차이는 그 자리에서 읽힌다. 잔량을 이름 그대로 쓰는 곳은 축이 하나뿐인 화면들이다
+    // (Receiving = 예정−검수, Allocation = 주문−할당, Putaway = 미적치)
+    // 세 수량은 「입고단위 (낱개)」로 보여준다 — 라인은 상품이 하나라 입고단위가 확정된다.
+    // 헤더 합계가 EA인 것과 어긋나 보이지 않게 괄호에 낱개를 늘 같이 적는다 (utils/format의 fmtInbQty)
+    { field: 'expctQty', headerName: '예정수량', width: 140, cellClass: 'ag-right-aligned-cell', valueFormatter: inbQtyFmt },
+    { field: 'rcvdQty', headerName: '검수수량', width: 140, cellClass: 'ag-right-aligned-cell', valueFormatter: inbQtyFmt },
+    { field: 'ptawyQty', headerName: '적치완료', width: 140, cellClass: 'ag-right-aligned-cell', valueFormatter: inbQtyFmt },
+    // 라인 검수일시 컬럼은 두지 않는다 — 「언제」는 헤더 몫이고 여기는 「무엇이 얼마나」를 맡는다.
+    // 한 입고건은 보통 한 자리에서 한 번에 검수하므로 라인마다 헤더와 거의 같은 시각이 반복될 뿐이고,
+    // 값이 실제로 갈리는 분할입고에서는 오히려 칸 하나로 부족하다 (마지막 시각만 남아 몇 번에
+    // 나눠 왔는지가 사라진다). 그건 검수 이력이 답할 일이다 — asnApi.receipts()
 ];
 
 export default function AsnList() {

@@ -57,7 +57,7 @@ export const OMS_IB_STATUS_META = {
 export const ASN_STATUS_META = {
     SCHEDULED: { label: '입고예정', badge: 'bg-slate-100 text-slate-600' },
     RECEIVING: { label: '검수중',   badge: 'bg-amber-100 text-amber-700' },
-    RECEIVED:  { label: '입고마감', badge: 'bg-sky-100 text-sky-700' },
+    RECEIVED:  { label: '입고확정', badge: 'bg-sky-100 text-sky-700' },
     COMPLETED: { label: '적치완료', badge: 'bg-emerald-100 text-emerald-700' },
 };
 
