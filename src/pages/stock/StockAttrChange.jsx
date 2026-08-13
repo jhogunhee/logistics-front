@@ -223,7 +223,7 @@ export default function StockAttrChange() {
                 <Tags size={18} className="text-indigo-600" />
                 <h2 className="text-lg font-bold text-slate-800">Lot 속성 정정</h2>
                 <span className="text-xs text-slate-400 mt-0.5">
-                    제조일자·유통기한 오입력 정정 · 재고 수량은 변하지 않는다 · 정정 즉시 이후 FEFO 할당에 반영(기존 할당은 불변)
+                    Lot의 날짜를 고칩니다 — 재고와 Lot번호는 그대로 · <b>재고를 다른 Lot으로 옮기려면 → 재고 로트변경</b>
                 </span>
             </div>
 
@@ -252,7 +252,7 @@ export default function StockAttrChange() {
                         유통기한 관리 상품의 Lot {num(rowData.length)}건
                     </span>
                     <span className="text-[11px] text-slate-400">
-                        유통기한 미관리 상품의 Lot은 두 날짜가 항상 비어 있는 것이 정의라 목록에 없습니다
+                        유통기한을 관리하지 않는 상품은 목록에 없습니다
                     </span>
                     <div className="ml-auto flex items-center gap-2 shrink-0">
                         <span className={`text-xs font-bold ${changedCnt > 0 ? 'text-amber-600' : 'text-slate-400'}`}>
@@ -289,7 +289,8 @@ export default function StockAttrChange() {
                             Lot 속성 {confirmTargets.length}건을 정정하시겠습니까?
                         </h3>
                         <p className="text-sm text-slate-500">
-                            수량은 변하지 않고, <b>취소 경로가 없어</b> 되돌리려면 반대 방향 정정을 다시 해야 합니다.
+                            <b>이 Lot의 모든 재고</b>에 한 번에 적용됩니다. 취소는 없습니다 — 되돌리려면 반대로 다시 정정합니다.
+                            일부 수량만 고치려면 <b>재고 로트변경</b>을 쓰세요.
                         </p>
                         <div className="flex flex-col gap-2 max-h-72 overflow-y-auto">
                             {confirmTargets.map(r => (
