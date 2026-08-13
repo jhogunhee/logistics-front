@@ -10,20 +10,11 @@ import ConditionBuilder from '@/components/strategy/ConditionBuilder';
 import ExecutionHistory from '@/components/strategy/ExecutionHistory';
 import RevisionHistory from '@/components/strategy/RevisionHistory';
 import SortableList from '@/components/strategy/SortableList';
+import SortCriteriaEditor from '@/components/strategy/SortCriteriaEditor';
 import { useOptions } from '@/components/strategy/useOptions';
 import { strategyApi } from '@/api/strategyApi';
 import { putawayApi } from '@/api/putawayApi';
 import { num } from '@/utils/format';
-
-const SORT_FIELD_OPTIONS = [
-    { value: 'PIKNG_PRTY', label: '피킹순위' },
-    { value: 'PTAWY_PRTY', label: '적치순서' },
-    { value: 'LOC_CD', label: '로케이션코드' },
-];
-const SORT_DIR_OPTIONS = [
-    { value: 'ASC', label: '오름차순' },
-    { value: 'DESC', label: '내림차순' },
-];
 
 const emptyDefinition = () => ({
     stgyNm: '', odrDvsn: null, untSpltYn: false, locSrt: [], stages: [],
@@ -41,9 +32,10 @@ export default function PutawayStrategy() {
     const [def, setDef] = useState(emptyDefinition());
     const [baseline, setBaseline] = useState('');        // 마지막 저장 상태 스냅샷 — dirty 판정 기준
 
-    // 메타 (방식·조건 필드·적용대상 선택지)
+    // 메타 (방식·조건 필드·정렬 기준·적용대상 선택지)
     const [methods, setMethods] = useState([]);
     const [targetFields, setTargetFields] = useState([]);   // 단계 조건 필드
+    const [sortFields, setSortFields] = useState([]);       // 후보 정렬 기준 (loc_srt)
     const odrOptions = useOptions('odrDvsns');              // 적용대상 발주구분 (정상/긴급)
     const odrLabel = (v) => v == null || v === '' ? '전체' : (odrOptions.find(o => o.value === v)?.label ?? v);
 
@@ -68,6 +60,7 @@ export default function PutawayStrategy() {
     useEffect(() => {
         strategyApi.meta.putawayMethods().then(setMethods);
         strategyApi.meta.fields('putaway-target').then(setTargetFields);
+        strategyApi.meta.sortFields('putaway-loc').then(setSortFields);
         fetchList();
     }, []);
 
@@ -384,25 +377,10 @@ export default function PutawayStrategy() {
                         </label>
 
                         <div className="flex flex-col gap-2">
-                            <span className="text-[11px] font-bold text-slate-500">후보 정렬 (비우면 피킹순위 → 로케이션코드 오름차순 · 드래그로 우선순위 변경)</span>
-                            <SortableList items={def.locSrt} className="flex flex-col gap-2"
-                                          onReorder={(locSrt) => setDef(prev => ({ ...prev, locSrt }))}
-                                          renderItem={(s, idx, { handle }) => (
-                                <div className="flex items-center gap-2">
-                                    {handle}
-                                    <span className="text-xs text-slate-400 w-4">{idx + 1}.</span>
-                                    <div className="w-40"><DropdownSelect value={s.field} options={SORT_FIELD_OPTIONS}
-                                        onChange={(field) => setDef(prev => ({ ...prev, locSrt: prev.locSrt.map((x, i) => i === idx ? { ...x, field } : x) }))} /></div>
-                                    <div className="w-32"><DropdownSelect value={s.dir} options={SORT_DIR_OPTIONS}
-                                        onChange={(dir) => setDef(prev => ({ ...prev, locSrt: prev.locSrt.map((x, i) => i === idx ? { ...x, dir } : x) }))} /></div>
-                                    <button onClick={() => setDef(prev => ({ ...prev, locSrt: prev.locSrt.filter((_, i) => i !== idx) }))}
-                                            className="p-1.5 text-slate-300 hover:text-rose-500"><Trash2 size={14} /></button>
-                                </div>
-                            )} />
-                            <button onClick={() => setDef(prev => ({ ...prev, locSrt: [...prev.locSrt, { field: 'PIKNG_PRTY', dir: 'ASC' }] }))}
-                                    className="self-start flex items-center gap-1 px-2 py-1 text-[12px] font-bold text-indigo-600 hover:bg-indigo-50 rounded-lg">
-                                <Plus size={13} /> 정렬 기준
-                            </button>
+                            <span className="text-[11px] font-bold text-slate-500">후보 정렬 (드래그로 우선순위 변경)</span>
+                            <SortCriteriaEditor fields={sortFields} value={def.locSrt}
+                                                onChange={(locSrt) => setDef(prev => ({ ...prev, locSrt }))}
+                                                emptyHint="기준이 없으면 기본값(피킹순위 → 로케이션코드 오름차순)으로 정렬합니다." />
                         </div>
                     </div>
                 </div>

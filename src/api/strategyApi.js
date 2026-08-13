@@ -20,7 +20,7 @@ export const strategyApi = {
         allocationComponents(slotTyp) {
             return api.get(`/strategy/meta/allocation-components/${slotTyp}`);
         },
-        /** 정렬 기준 목록. domain: 'allocation-invn'(재고) | 'allocation-order'(주문). [{ value, label }] */
+        /** 정렬 기준 목록. domain: 'allocation-invn'(재고) | 'allocation-order'(주문) | 'putaway-loc'(적치 후보). [{ value, label }] */
         sortFields(domain) {
             return api.get(`/strategy/meta/sort-fields/${domain}`);
         },
