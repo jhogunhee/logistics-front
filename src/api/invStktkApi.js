@@ -52,14 +52,3 @@ export const invStktkApi = {
         return api.post(`/inventory/stocktakes/${id}/cancel`);
     },
 };
-
-/**
- * 조정수량 = 실사수량 − 전산수량. 확정 후에는 확정시점 전산수량(cfmSysQty)이,
- * 확정 전에는 현재 전산수량(nowSysQty)이 기준이다 — 확정이 그 시점 값을 다시 읽기 때문이다.
- * 실사수량 미입력(null)이면 조정 자체가 없다.
- */
-export const adjQtyOf = (ln) => {
-    if (ln.stktkQty == null) return null;
-    const base = ln.cfmSysQty ?? ln.nowSysQty;
-    return ln.stktkQty - base;
-};
