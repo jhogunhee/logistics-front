@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Building2, Search, X } from 'lucide-react';
 
 import { vendorApi } from '@/api/vendorApi';
+import { num } from '@/utils/format';
 
 /**
  * 벤더(납품처) 선택 팝업.
@@ -111,7 +112,7 @@ export default function VendorPickerModal({ open, onClose, onSelect }) {
                 {/* 푸터 */}
                 <div className="flex items-center justify-between px-6 py-3 border-t border-slate-200">
                     <span className="text-xs text-slate-400">
-                        거래중 벤더 {filtered.length}건
+                        거래중 벤더 {num(filtered.length)}건
                     </span>
                     <button
                         onClick={onClose}

@@ -12,7 +12,7 @@ import { useCodes } from '@/hooks/useCodes';
 import { ASN_STATUS_META, OMS_IB_STATUS_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { OMS_IB_STATUS_OPTIONS } from '@/constants/codeOptions';
 import { Badge } from '@/components/common/Badge';
-import { daysAheadStr, todayStr } from '@/utils/format';
+import { daysAheadStr, num, todayStr } from '@/utils/format';
 
 // 오늘 날짜 "YYYY-MM-DD" (검색 기본값)
 
@@ -60,16 +60,16 @@ const HEADER_COLUMN_DEFS = [
         field: 'picNm', headerName: '담당자', width: 90,
         cellRenderer: (p) => p.value || <span className="text-slate-300">-</span>,
     },
-    { field: 'lineCount', headerName: '라인수', width: 80, cellClass: 'ag-right-aligned-cell' },
+    { field: 'lineCount', headerName: '라인수', width: 80, cellClass: 'ag-right-aligned-cell', valueFormatter: (p) => num(p.value) },
     {
         field: 'totalOrderQty', headerName: '총 발주수량', width: 120, cellClass: 'ag-right-aligned-cell',
         headerTooltip: '라인 발주수량(발주단위 기준)의 합',
-        valueFormatter: (p) => p.value?.toLocaleString(),
+        valueFormatter: (p) => num(p.value),
     },
     {
         field: 'totalCnvrQty', headerName: '총 환산수량', width: 130, cellClass: 'ag-right-aligned-cell',
         headerTooltip: '발주 수량을 낱개(EA)로 환산한 합계',
-        valueFormatter: (p) => p.value?.toLocaleString(),
+        valueFormatter: (p) => num(p.value),
     },
     {
         field: 'ibNo', headerName: '입고번호', width: 140,
@@ -98,7 +98,7 @@ const LINE_COLUMN_DEFS = [
         headerTooltip: '발주단위(벤더에게 주문한 단위) 기준',
         cellRenderer: (p) => (
             <>
-                {p.value?.toLocaleString()}
+                {num(p.value)}
                 {' '}<span className="text-[11px] font-bold text-slate-400">{p.data.inbUomCd}</span>
             </>
         ),
@@ -106,14 +106,14 @@ const LINE_COLUMN_DEFS = [
     {
         field: 'inbEaQty', headerName: '입수량', width: 90, cellClass: 'ag-right-aligned-cell',
         headerTooltip: '발주단위 1개당 입수량(낱개 기준) — 단위 관리의 낱개수량과 같은 값',
-        valueFormatter: (p) => p.value?.toLocaleString(),
+        valueFormatter: (p) => num(p.value),
     },
     {
         field: 'cnvrQty', headerName: '환산수량', width: 130, cellClass: 'ag-right-aligned-cell',
         headerTooltip: '발주 수량을 낱개(EA)로 환산한 수량',
         cellRenderer: (p) => (
             <>
-                {p.value?.toLocaleString()}
+                {num(p.value)}
                 {' '}<span className="text-[11px] font-bold text-slate-400">EA</span>
             </>
         ),
@@ -285,7 +285,7 @@ export default function InboundOrderList() {
             <PanelGroup direction="vertical" autoSaveId="oms-ib-order-split-v1" className="flex-1 min-h-0">
                 <Panel defaultSize={60} minSize={20} className="flex flex-col gap-2 min-h-0">
                     <div className="flex items-center justify-between">
-                        <span className="text-xs text-slate-500 font-medium">{rowData.length}건</span>
+                        <span className="text-xs text-slate-500 font-medium">{num(rowData.length)}건</span>
                         <div className="flex gap-2">
                             <button
                                 onClick={handleDeleteClick}
@@ -350,8 +350,8 @@ export default function InboundOrderList() {
                         </h3>
                         <p className="text-sm text-slate-500">
                             {summarize(confirmTarget.targets)} ·
-                            {' '}라인 {confirmTarget.targets.reduce((s, o) => s + o.lineCount, 0)}건 ·
-                            {' '}환산 {confirmTarget.targets.reduce((s, o) => s + o.totalCnvrQty, 0).toLocaleString()}
+                            {' '}라인 {num(confirmTarget.targets.reduce((s, o) => s + o.lineCount, 0))}건 ·
+                            {' '}환산 {num(confirmTarget.targets.reduce((s, o) => s + o.totalCnvrQty, 0))}
                         </p>
                         <p className="text-xs text-slate-600 bg-slate-50 rounded-lg px-3 py-2 leading-relaxed">
                             확정하면 입고예정(ASN)이 생성되어 창고 작업이 시작됩니다.

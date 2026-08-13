@@ -12,6 +12,7 @@ import SortCriteriaEditor from '@/components/strategy/SortCriteriaEditor';
 import SortableList from '@/components/strategy/SortableList';
 import { useFields } from '@/components/strategy/useOptions';
 import { strategyApi } from '@/api/strategyApi';
+import { num } from '@/utils/format';
 
 const emptyDefinition = () => ({ stgyNm: '', prty: 0, tgtCond: [], slots: [] });
 
@@ -307,7 +308,7 @@ export default function AllocationStrategy() {
                                     <td className="px-4 py-2.5 text-right text-slate-600">
                                         {r.tgtCondCount === 0
                                             ? <span className="text-slate-400" title="조건이 없으면 무조건 매칭 — 폴백 전략입니다">전체</span>
-                                            : `${r.tgtCondCount}건`}
+                                            : `${num(r.tgtCondCount)}건`}
                                     </td>
                                     <td className="px-4 py-2.5">
                                         <div className="flex flex-wrap gap-1">
@@ -505,9 +506,9 @@ export default function AllocationStrategy() {
                                            ? [...prev, w.wavId]
                                            : prev.filter(id => id !== w.wavId))} />
                                 <span className="font-mono">{w.wavNo}</span>
-                                <span className="text-slate-400">주문 {w.orderCount}건</span>
+                                <span className="text-slate-400">주문 {num(w.orderCount)}건</span>
                                 <span className="ml-auto text-slate-400">
-                                    요청 {w.odrQty} · 할당 {w.alocQty} · 잔량 {w.remainQty}
+                                    요청 {num(w.odrQty)} · 할당 {num(w.alocQty)} · 잔량 {num(w.remainQty)}
                                 </span>
                             </label>
                         ))}
@@ -523,11 +524,11 @@ export default function AllocationStrategy() {
                     {previewResult && (
                         <>
                             <div className="flex items-center gap-3 text-xs bg-slate-50 rounded-lg px-3 py-2">
-                                <span className="text-slate-500">라인 <b className="text-slate-700">{previewResult.lineCount}</b>건</span>
-                                <span className="text-slate-500">요청 <b className="text-slate-700">{previewResult.reqQty}</b></span>
-                                <span className="text-slate-500">배정 <b className="text-slate-700">{previewResult.asgnQty}</b></span>
+                                <span className="text-slate-500">라인 <b className="text-slate-700">{num(previewResult.lineCount)}</b>건</span>
+                                <span className="text-slate-500">요청 <b className="text-slate-700">{num(previewResult.reqQty)}</b></span>
+                                <span className="text-slate-500">배정 <b className="text-slate-700">{num(previewResult.asgnQty)}</b></span>
                                 {previewResult.shortQty > 0 && (
-                                    <span className="font-bold text-rose-600">미충족 {previewResult.shortQty}</span>
+                                    <span className="font-bold text-rose-600">미충족 {num(previewResult.shortQty)}</span>
                                 )}
                                 <span className="ml-auto text-[11px] text-amber-600">
                                     예상값 — 실행 시점의 가용재고는 다를 수 있습니다

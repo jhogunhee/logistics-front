@@ -13,6 +13,7 @@ import SortableList from '@/components/strategy/SortableList';
 import { useOptions } from '@/components/strategy/useOptions';
 import { strategyApi } from '@/api/strategyApi';
 import { putawayApi } from '@/api/putawayApi';
+import { num } from '@/utils/format';
 
 const SORT_FIELD_OPTIONS = [
     { value: 'PIKNG_PRTY', label: '피킹순위' },
@@ -216,7 +217,7 @@ export default function PutawayStrategy() {
 
     const batchOptions = batches.map(b => ({
         value: `${b.ibLineId}-${b.lotId}`,
-        label: `${b.ibNo} · ${b.prodCd} · ${b.lotNo} (미적치 ${b.pendingQty})`,
+        label: `${b.ibNo} · ${b.prodCd} · ${b.lotNo} (미적치 ${num(b.pendingQty)})`,
     }));
 
     // ─────────────────────────────────────────────────────────
@@ -264,7 +265,7 @@ export default function PutawayStrategy() {
                                         }`}>{odrLabel(r.odrDvsn)}</span>
                                     </td>
                                     <td className="px-4 py-2.5 font-bold text-slate-700">{r.stgyNm}</td>
-                                    <td className="px-4 py-2.5 text-right text-slate-600">{r.stageCount}</td>
+                                    <td className="px-4 py-2.5 text-right text-slate-600">{num(r.stageCount)}</td>
                                     <td className="px-4 py-2.5 text-xs text-slate-400">{r.updatedAt?.replace('T', ' ').slice(0, 16)}</td>
                                 </tr>
                             ))}
@@ -455,9 +456,9 @@ export default function PutawayStrategy() {
                     {previewResult && (
                         <div className="flex flex-col gap-2.5 mt-1">
                             <div className="flex items-center gap-3 text-sm">
-                                <span className="font-bold text-slate-700">배정 {previewResult.asgnQty} / 요청 {previewResult.reqQty}</span>
+                                <span className="font-bold text-slate-700">배정 {num(previewResult.asgnQty)} / 요청 {num(previewResult.reqQty)}</span>
                                 {previewResult.remainQty > 0 && (
-                                    <span className="text-xs font-bold text-rose-600">미배정 {previewResult.remainQty}</span>
+                                    <span className="text-xs font-bold text-rose-600">미배정 {num(previewResult.remainQty)}</span>
                                 )}
                             </div>
                             {previewResult.assignments.length > 0 && (
@@ -465,7 +466,7 @@ export default function PutawayStrategy() {
                                     {previewResult.assignments.map((a, i) => (
                                         <div key={i} className="px-3 py-1.5 flex items-center justify-between text-sm border-t border-slate-100 first:border-t-0">
                                             <span className="font-mono text-slate-600">{a.locCd}</span>
-                                            <span className="font-bold text-emerald-600">{a.qty}</span>
+                                            <span className="font-bold text-emerald-600">{num(a.qty)}</span>
                                         </div>
                                     ))}
                                 </div>
@@ -482,7 +483,7 @@ export default function PutawayStrategy() {
                                         <div key={li} className="px-3 py-1 border-t border-slate-100 flex items-center justify-between text-[11px]">
                                             <span className="font-mono text-slate-500">{l.locCd}</span>
                                             <span className="text-slate-400">
-                                                가능 {l.avalQty} · 배정 <b className={l.asgnQty > 0 ? 'text-emerald-600' : 'text-slate-400'}>{l.asgnQty}</b>
+                                                가능 {num(l.avalQty)} · 배정 <b className={l.asgnQty > 0 ? 'text-emerald-600' : 'text-slate-400'}>{num(l.asgnQty)}</b>
                                                 {l.skip && <span className="text-rose-400 ml-1">({l.skip})</span>}
                                             </span>
                                         </div>

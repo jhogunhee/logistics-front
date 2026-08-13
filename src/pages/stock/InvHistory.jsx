@@ -7,7 +7,7 @@ import { invHistApi } from '@/api/invHistApi';
 import { TEMP_ZONE_META, TX_TYPE_META } from '@/constants/badgeMeta';
 import { TX_TYPE_OPTIONS } from '@/constants/codeOptions';
 import { Badge } from '@/components/common/Badge';
-import { fmtDt } from '@/utils/format';
+import { fmtDt, num } from '@/utils/format';
 
 
 const REF_DOC_TYPE_LABEL = { INBOUND: '입고', OUTBOUND: '출고' };
@@ -37,7 +37,7 @@ const COLUMN_DEFS = [
     {
         field: 'qty', headerName: '수량', width: 90,
         cellClass: (p) => `ag-right-aligned-cell font-bold ${p.value < 0 ? 'text-red-500' : 'text-emerald-600'}`,
-        valueFormatter: (p) => (p.value > 0 ? `+${p.value}` : `${p.value}`),
+        valueFormatter: (p) => (p.value > 0 ? `+${num(p.value)}` : num(p.value)),
     },
     {
         headerName: 'Ref No.', width: 200,
@@ -86,7 +86,7 @@ export default function InvHistory() {
             </SearchBar>
 
             <div className="flex-1 min-h-0 flex flex-col gap-2">
-                <span className="text-xs text-slate-500 font-medium">{rowData.length}건</span>
+                <span className="text-xs text-slate-500 font-medium">{num(rowData.length)}건</span>
                 <div className="flex-1 min-h-0">
                     <AgGridReact
                         rowData={rowData}

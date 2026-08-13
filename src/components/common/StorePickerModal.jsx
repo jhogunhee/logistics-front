@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Store, Search, X } from 'lucide-react';
 
 import { storeApi } from '@/api/storeApi';
+import { num } from '@/utils/format';
 
 /**
  * 점포(납품처) 선택 팝업.
@@ -108,7 +109,7 @@ export default function StorePickerModal({ open, onClose, onSelect }) {
 
                 {/* 푸터 */}
                 <div className="flex items-center justify-between px-6 py-3 border-t border-slate-200">
-                    <span className="text-xs text-slate-400">점포 {filtered.length}건</span>
+                    <span className="text-xs text-slate-400">점포 {num(filtered.length)}건</span>
                     <button onClick={onClose} className="btn-modal-cancel">
                         닫기
                     </button>

@@ -9,7 +9,7 @@ import { zonApi } from '@/api/zonApi';
 import { BIZ_DVSN_META, STRG_TYP_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { useCodes } from '@/hooks/useCodes';
 import { Badge, RowStatusCell } from '@/components/common/Badge';
-import { fmtDe } from '@/utils/format';
+import { fmtDe, num } from '@/utils/format';
 import ConfirmModal from '@/components/common/ConfirmModal';
 
 export default function ZonMaster() {
@@ -259,7 +259,7 @@ export default function ZonMaster() {
 
             {/* 그리드 툴바 */}
             <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-500 font-medium">{rowCount}건</span>
+                <span className="text-xs text-slate-500 font-medium">{num(rowCount)}건</span>
                 <div className="flex gap-2">
                     <input
                         ref={fileInputRef}

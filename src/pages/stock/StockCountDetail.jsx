@@ -241,7 +241,7 @@ export default function StockCountDetail({ stktkId, onBack }) {
     const doConfirm = async () => {
         try {
             await invStktkApi.confirm(stktkId);
-            toast.success(`${head.stktkNo} — 조사를 확정했습니다. 차이 ${summary.diffCnt}건이 조정으로 반영되었습니다.`);
+            toast.success(`${head.stktkNo} — 조사를 확정했습니다. 차이 ${num(summary.diffCnt)}건이 조정으로 반영되었습니다.`);
             reload();
         } catch (e) {
             toast.error(e.message || '확정에 실패했습니다.');

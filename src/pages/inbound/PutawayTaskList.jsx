@@ -181,7 +181,7 @@ export default function PutawayTaskList() {
             </SearchBar>
 
             <div className="flex-1 min-h-0 flex flex-col gap-3">
-                <span className="text-xs text-slate-500 font-medium">{rowData.length}건</span>
+                <span className="text-xs text-slate-500 font-medium">{num(rowData.length)}건</span>
                 <div className="flex-1 min-h-0">
                     <AgGridReact
                         rowData={rowData}

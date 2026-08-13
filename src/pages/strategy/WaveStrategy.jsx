@@ -9,6 +9,7 @@ import ExecutionHistory from '@/components/strategy/ExecutionHistory';
 import RevisionHistory from '@/components/strategy/RevisionHistory';
 import WaveOrderTrace from '@/components/strategy/WaveOrderTrace';
 import { strategyApi } from '@/api/strategyApi';
+import { num } from '@/utils/format';
 
 const emptyDefinition = () => ({ stgyNm: '', prty: 0, condGrp: [] });
 
@@ -225,8 +226,8 @@ export default function WaveStrategy() {
                                     className="border-t border-slate-100 hover:bg-indigo-50/40 cursor-pointer">
                                     <td className="px-4 py-2.5 text-right font-mono text-slate-500">{r.prty}</td>
                                     <td className="px-4 py-2.5 font-bold text-slate-700">{r.stgyNm}</td>
-                                    <td className="px-4 py-2.5 text-right text-slate-600">{r.grpCount}</td>
-                                    <td className="px-4 py-2.5 text-right text-slate-600">{r.condCount}</td>
+                                    <td className="px-4 py-2.5 text-right text-slate-600">{num(r.grpCount)}</td>
+                                    <td className="px-4 py-2.5 text-right text-slate-600">{num(r.condCount)}</td>
                                     <td className="px-4 py-2.5 text-xs text-slate-400">{r.updatedAt?.replace('T', ' ').slice(0, 16)}</td>
                                 </tr>
                             ))}
@@ -361,11 +362,11 @@ export default function WaveStrategy() {
                         <div className="flex flex-col gap-2 mt-1">
                             <div className="flex items-center gap-3 text-sm">
                                 <span className="font-bold text-slate-700">
-                                    편입 {previewResult.matchedCount} / 대상 {previewResult.tgtCount}
+                                    편입 {num(previewResult.matchedCount)} / 대상 {num(previewResult.tgtCount)}
                                 </span>
                                 {previewResult.tgtCount - previewResult.matchedCount > 0 && (
                                     <span className="text-xs font-bold text-slate-400">
-                                        제외 {previewResult.tgtCount - previewResult.matchedCount}
+                                        제외 {num(previewResult.tgtCount - previewResult.matchedCount)}
                                     </span>
                                 )}
                             </div>

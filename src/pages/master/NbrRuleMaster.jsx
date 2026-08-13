@@ -7,7 +7,7 @@ import SearchBar, { SearchText } from '@/components/common/SearchBar';
 import { nbrRuleApi } from '@/api/nbrRuleApi';
 import { DYNC_KY_TYP_META } from '@/constants/badgeMeta';
 import { Badge, RowStatusCell } from '@/components/common/Badge';
-import { fmtDe, fmtDtSec } from '@/utils/format';
+import { fmtDe, fmtDtSec, num } from '@/utils/format';
 import ConfirmModal from '@/components/common/ConfirmModal';
 
 
@@ -271,7 +271,7 @@ export default function NbrRuleMaster() {
 
             {/* 그리드 툴바 */}
             <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-500 font-medium">{rowCount}건</span>
+                <span className="text-xs text-slate-500 font-medium">{num(rowCount)}건</span>
                 <div className="flex gap-2">
                     <button
                         onClick={handlePreview}

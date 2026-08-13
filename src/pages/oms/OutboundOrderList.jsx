@@ -12,7 +12,7 @@ import { useCodes } from '@/hooks/useCodes';
 import { OMS_OUTB_STATUS_META, OUTB_STATUS_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { OMS_OUTB_STATUS_OPTIONS } from '@/constants/codeOptions';
 import { Badge } from '@/components/common/Badge';
-import { daysAheadStr, todayStr } from '@/utils/format';
+import { daysAheadStr, num, todayStr } from '@/utils/format';
 
 const centered = { display: 'flex', alignItems: 'center', justifyContent: 'center' };
 
@@ -65,11 +65,11 @@ const HEADER_COLUMN_DEFS = [
         field: 'picNm', headerName: '담당자', width: 90,
         cellRenderer: (p) => p.value || <span className="text-slate-300">-</span>,
     },
-    { field: 'lineCount', headerName: '라인수', width: 80, cellClass: 'ag-right-aligned-cell' },
+    { field: 'lineCount', headerName: '라인수', width: 80, cellClass: 'ag-right-aligned-cell', valueFormatter: (p) => num(p.value) },
     {
         field: 'totalOrderQty', headerName: '총 주문수량', width: 120, cellClass: 'ag-right-aligned-cell',
         headerTooltip: '라인 주문수량(출고단위 = 주문서 단위)의 합',
-        valueFormatter: (p) => p.value?.toLocaleString(),
+        valueFormatter: (p) => num(p.value),
     },
     {
         field: 'outbNo', headerName: '출고번호', width: 140,
@@ -103,7 +103,7 @@ const LINE_COLUMN_DEFS = [
         headerTooltip: '출고단위(주문서 단위) 기준 — 확정 시 낱개(EA)로 환산돼 창고로 넘어간다',
         cellRenderer: (p) => (
             <>
-                {p.value?.toLocaleString()}
+                {num(p.value)}
                 {' '}<span className="text-[11px] font-bold text-slate-400">{p.data.outbUomCd}</span>
             </>
         ),
@@ -112,7 +112,7 @@ const LINE_COLUMN_DEFS = [
         field: 'shelfLifeDays', headerName: '유통기한', width: 100, cellClass: 'ag-right-aligned-cell',
         cellRenderer: (p) => (p.value == null
             ? <span className="text-slate-300">미관리</span>
-            : `${p.value}일`),
+            : `${num(p.value)}일`),
     },
 ];
 
@@ -284,7 +284,7 @@ export default function OutboundOrderList() {
             <PanelGroup direction="vertical" autoSaveId="oms-outb-order-split-v1" className="flex-1 min-h-0">
                 <Panel defaultSize={60} minSize={20} className="flex flex-col gap-2 min-h-0">
                     <div className="flex items-center justify-between">
-                        <span className="text-xs text-slate-500 font-medium">{rowData.length}건</span>
+                        <span className="text-xs text-slate-500 font-medium">{num(rowData.length)}건</span>
                         <div className="flex gap-2">
                             <button
                                 onClick={handleDeleteClick}
@@ -350,8 +350,8 @@ export default function OutboundOrderList() {
                         </h3>
                         <p className="text-sm text-slate-500">
                             {summarize(confirmTarget.targets)} ·
-                            {' '}라인 {confirmTarget.targets.reduce((s, o) => s + o.lineCount, 0)}건 ·
-                            {' '}수량 {confirmTarget.targets.reduce((s, o) => s + o.totalOrderQty, 0).toLocaleString()}
+                            {' '}라인 {num(confirmTarget.targets.reduce((s, o) => s + o.lineCount, 0))}건 ·
+                            {' '}수량 {num(confirmTarget.targets.reduce((s, o) => s + o.totalOrderQty, 0))}
                         </p>
                         <p className="text-xs text-slate-600 bg-slate-50 rounded-lg px-3 py-2 leading-relaxed">
                             확정하면 창고 출고주문이 생성되어 웨이브 편성 대상이 됩니다.

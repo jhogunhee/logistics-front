@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 import SearchBar, { SearchText } from '@/components/common/SearchBar';
 import { codeApi } from '@/api/codeApi';
 import { RowStatusCell } from '@/components/common/Badge';
-import { fmtDe } from '@/utils/format';
+import { fmtDe, num } from '@/utils/format';
 import ConfirmModal from '@/components/common/ConfirmModal';
 
 
@@ -414,7 +414,7 @@ export default function CodeMaster() {
                             <span className="text-sm font-bold text-slate-700">코드</span>
                             <span className="text-xs text-slate-400">
                                 {selectedGroup
-                                    ? `${selectedGroup.grpNm} (${selectedGroup.grpCd}) · ${rowCount}건`
+                                    ? `${selectedGroup.grpNm} (${selectedGroup.grpCd}) · ${num(rowCount)}건`
                                     : '위에서 그룹을 선택하세요'}
                             </span>
                         </div>

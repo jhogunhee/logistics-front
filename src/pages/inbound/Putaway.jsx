@@ -9,6 +9,7 @@ import { putawayApi } from '@/api/putawayApi';
 import { TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { Badge } from '@/components/common/Badge';
 import ConfirmModal from '@/components/common/ConfirmModal';
+import { num } from '@/utils/format';
 
 
 const COLUMN_DEFS = [
@@ -33,6 +34,7 @@ const COLUMN_DEFS = [
         field: 'pendingQty', headerName: '미적치', width: 100,
         headerTooltip: 'RCV-STAGE에 남아있는, 아직 보관 로케이션으로 옮기지 않은 이 배치(Lot)의 수량',
         cellClass: 'ag-right-aligned-cell text-amber-600 font-bold',
+        valueFormatter: (p) => num(p.value),
     },
 ];
 
@@ -113,7 +115,7 @@ export default function Putaway() {
                 await putawayApi.putaway(selected.ibLineId, { lotId: selected.lotId, qty: a.qty, targetLocId: a.locId });
                 done += 1;
             }
-            toast.success(`추천대로 ${rec.asgnQty}개를 ${rec.assignments.length}개 로케이션에 적치했습니다.`);
+            toast.success(`추천대로 ${num(rec.asgnQty)}개를 ${rec.assignments.length}개 로케이션에 적치했습니다.`);
         } catch (e) {
             // 추천과 실행 사이 재고·용량이 변했을 수 있다 — 실패 지점부터 중단하고 재조회
             toast.error(`${done}건 실행 후 실패: ${e.message || '적치에 실패했습니다.'}`);
@@ -145,7 +147,7 @@ export default function Putaway() {
     const doPutaway = async (target) => {
         try {
             await putawayApi.putaway(target.ibLineId, { lotId: target.lotId, qty: target.qty, targetLocId: Number(target.targetLocId) });
-            toast.success(`${target.prodCd} ${target.qty}개를 적치했습니다.`);
+            toast.success(`${target.prodCd} ${num(target.qty)}개를 적치했습니다.`);
             fetchList(target.qty < target.pendingQty); // 잔량이 남았으면 같은 배치 선택 유지
         } catch (e) {
             toast.error(e.message || '적치에 실패했습니다.');
@@ -173,7 +175,7 @@ export default function Putaway() {
             </SearchBar>
 
             <div className="flex-1 min-h-0 flex flex-col gap-3">
-                <span className="text-xs text-slate-500 font-medium">{rowData.length}건</span>
+                <span className="text-xs text-slate-500 font-medium">{num(rowData.length)}건</span>
                 <div className="flex-1 min-h-0">
                     <AgGridReact
                         ref={gridRef}
@@ -196,7 +198,7 @@ export default function Putaway() {
                             <div className="flex items-center gap-2 text-sm">
                                 <span className="font-bold text-slate-700">{selected.prodCd} {selected.prodNm}</span>
                                 <Badge meta={TEMP_ZONE_META} value={selected.tmpZon} />
-                                <span className="text-xs text-slate-400">{selected.ibNo} · {selected.lotNo} · 미적치 {selected.pendingQty}개</span>
+                                <span className="text-xs text-slate-400">{selected.ibNo} · {selected.lotNo} · 미적치 {num(selected.pendingQty)}개</span>
                             </div>
 
                             {/* 전략 추천 — 전략 미설정이면 이 블록이 없고 아래 수동 선택만 남는다 */}
@@ -205,10 +207,10 @@ export default function Putaway() {
                                     <div className="flex items-center gap-2">
                                         <Wand2 size={14} className="text-indigo-600" />
                                         <span className="text-xs font-bold text-indigo-700">
-                                            전략 추천 — {recommend.stgyNm} · 배정 {recommend.asgnQty} / 요청 {recommend.reqQty}
+                                            전략 추천 — {recommend.stgyNm} · 배정 {num(recommend.asgnQty)} / 요청 {num(recommend.reqQty)}
                                         </span>
                                         {recommend.remainQty > 0 && (
-                                            <span className="text-[11px] font-bold text-rose-600">미배정 {recommend.remainQty} (수동 처리 필요)</span>
+                                            <span className="text-[11px] font-bold text-rose-600">미배정 {num(recommend.remainQty)} (수동 처리 필요)</span>
                                         )}
                                         <button onClick={() => fetchRecommend(selected, qty)}
                                                 className="ml-auto flex items-center gap-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-800"
@@ -220,7 +222,7 @@ export default function Putaway() {
                                         {recommend.assignments.map((a, i) => (
                                             <span key={i} className="px-2.5 py-1 bg-white border border-indigo-200 rounded-lg text-[12px]">
                                                 <span className="font-mono text-slate-600">{a.locCd}</span>
-                                                <b className="text-indigo-700 ml-1.5">{a.qty}</b>
+                                                <b className="text-indigo-700 ml-1.5">{num(a.qty)}</b>
                                             </span>
                                         ))}
                                         {recommend.assignments.length > 0 && (
@@ -275,17 +277,17 @@ export default function Putaway() {
                     <div className="bg-white rounded-2xl shadow-xl p-6 w-[420px] flex flex-col gap-4">
                         <h3 className="text-lg font-bold text-slate-800">추천대로 적치하시겠습니까?</h3>
                         <p className="text-sm text-slate-500">
-                            {selected?.prodCd} {selected?.prodNm} · 총 <b className="text-emerald-600">{confirmRecommend.asgnQty}개</b>
+                            {selected?.prodCd} {selected?.prodNm} · 총 <b className="text-emerald-600">{num(confirmRecommend.asgnQty)}개</b>
                         </p>
                         <div className="flex flex-col gap-1">
                             {confirmRecommend.assignments.map((a, i) => (
                                 <span key={i} className="text-xs text-slate-500">
-                                    RCV-STAGE → <span className="font-mono">{a.locCd}</span> <b>{a.qty}개</b>
+                                    RCV-STAGE → <span className="font-mono">{a.locCd}</span> <b>{num(a.qty)}개</b>
                                 </span>
                             ))}
                         </div>
                         {confirmRecommend.remainQty > 0 && (
-                            <p className="text-xs text-rose-500">미배정 {confirmRecommend.remainQty}개는 남습니다 — 실행 후 수동으로 처리하세요.</p>
+                            <p className="text-xs text-rose-500">미배정 {num(confirmRecommend.remainQty)}개는 남습니다 — 실행 후 수동으로 처리하세요.</p>
                         )}
                         <div className="flex gap-2 justify-end">
                             <button
@@ -312,7 +314,7 @@ export default function Putaway() {
                     onConfirm={() => { doPutaway(confirmTarget); setConfirmTarget(null); }}
                 >
                     <p className="text-sm text-slate-500">
-                        {confirmTarget.prodCd} {confirmTarget.prodNm} · <b className="text-emerald-600">{confirmTarget.qty}개</b>
+                        {confirmTarget.prodCd} {confirmTarget.prodNm} · <b className="text-emerald-600">{num(confirmTarget.qty)}개</b>
                     </p>
                     <p className="text-xs text-slate-400">
                         RCV-STAGE → {targetLocLabel(confirmTarget.targetLocId)}

@@ -39,12 +39,15 @@ const HEADER_COLUMN_DEFS = [
     { field: 'expctDe', headerName: '입고 예정일', width: 120 },
     {
         headerName: '검수 진행', width: 100, cellClass: 'ag-right-aligned-cell',
-        headerTooltip: '검수된 라인 / 전체 라인',
-        valueGetter: (p) => `${p.data.rcvdLineCount} / ${p.data.lineCount}`,
+        headerTooltip: '전량 검수된 라인 / 전체 라인 (부분 검수중인 라인은 제외)',
+        valueGetter: (p) => `${num(p.data.cmplLineCount)} / ${num(p.data.lineCount)}`,
     },
     // 예정수량·검수수량 합계 컬럼은 두지 않는다 — 저장 단위가 낱개(EA)로 통일돼 합산 자체는
     // 성립하지만, 생수 2박스와 김밥 3개가 섞인 낱개 합계는 진행 파악에 도움이 안 된다.
-    // 수량은 단위와 함께 라인(디테일) 그리드가 보여주고, 헤더는 「검수 진행(라인 수)」이 맡는다
+    // 수량은 단위와 함께 라인(디테일) 그리드가 보여준다 — 이 화면은 한 입고건을 붙잡고
+    // 검수하는 자리라 라인별 잔량이 곧 남은 일이고, 헤더 합계는 볼 일이 없다.
+    // 헤더의 「검수 진행」이 세는 것은 착수한 라인이 아니라 전량 검수를 마친 라인이다
+    // (분할검수 중인 라인은 끝날 때까지 세지 않는다)
     {
         field: 'createdAt', headerName: '등록시간', width: 150,
         valueFormatter: (p) => fmtDt(p.value),
@@ -202,7 +205,7 @@ export default function Receiving() {
         {
             field: 'shelfLifeDays', headerName: '유통기한', width: 95, cellClass: 'ag-right-aligned-cell',
             headerTooltip: '유통기한 일수. 서버가 제조일자 + 이 일수로 유통기한을 계산해 Lot에 기록',
-            cellRenderer: (p) => p.value == null ? <span className="text-slate-400">미관리</span> : p.value,
+            cellRenderer: (p) => p.value == null ? <span className="text-slate-400">미관리</span> : num(p.value),
         },
         {
             field: 'tmpZon', headerName: '온도대', width: 90,
@@ -342,7 +345,7 @@ export default function Receiving() {
             <PanelGroup direction="vertical" autoSaveId="wms-receiving-split-v3" className="flex-1 min-h-0">
                 <Panel defaultSize={40} minSize={20} className="flex flex-col gap-2 min-h-0">
                     <div className="flex items-center">
-                        <span className="text-xs text-slate-500 font-medium">{rowData.length}건</span>
+                        <span className="text-xs text-slate-500 font-medium">{num(rowData.length)}건</span>
                     </div>
                     <div className="flex-1 min-h-0">
                         <AgGridReact
@@ -420,7 +423,7 @@ export default function Receiving() {
                     onConfirm={() => { doReceive(receiveConfirm); setReceiveConfirm(null); }}
                 >
                     <p className="text-sm text-slate-500">
-                        {receiveConfirm.length}개 라인 · 총 검수수량 <b className="text-emerald-600">{receiveSummary(receiveConfirm).toLocaleString()}</b> 낱개
+                        {receiveConfirm.length}개 라인 · 총 검수수량 <b className="text-emerald-600">{num(receiveSummary(receiveConfirm))}</b> 낱개
                     </p>
                     <p className="text-xs text-slate-400">검수수량은 RCV-STAGE 재고로 즉시 반영됩니다.</p>
                 </ConfirmModal>

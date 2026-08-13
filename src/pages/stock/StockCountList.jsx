@@ -143,7 +143,7 @@ export default function StockCountList({ onOpen }) {
             </SearchBar>
 
             <div className="flex-1 min-h-0 flex flex-col gap-3">
-                <span className="text-xs text-slate-500 font-medium">{rowData.length}건 · 행을 클릭하면 실사 입력 화면으로 이동합니다</span>
+                <span className="text-xs text-slate-500 font-medium">{num(rowData.length)}건 · 행을 클릭하면 실사 입력 화면으로 이동합니다</span>
                 <div className="flex-1 min-h-0">
                     <AgGridReact
                         rowData={rowData}

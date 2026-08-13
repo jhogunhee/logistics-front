@@ -6,7 +6,7 @@ import { putawayApi } from '@/api/putawayApi';
 import { prodApi } from '@/api/prodApi';
 import { invHistApi } from '@/api/invHistApi';
 import { ASN_STATUS_META, TX_TYPE_META } from '@/constants/badgeMeta';
-import { fmtDt, todayStr } from '@/utils/format';
+import { fmtDt, num, todayStr } from '@/utils/format';
 
 
 
@@ -60,7 +60,7 @@ const StatusDistribution = ({ asns }) => {
                         key={c.status}
                         className={STATUS_BAR_COLOR[c.status]}
                         style={{ width: `${(c.count / total) * 100}%` }}
-                        title={`${ASN_STATUS_META[c.status].label} ${c.count}건`}
+                        title={`${ASN_STATUS_META[c.status].label} ${num(c.count)}건`}
                     />
                 ))}
             </div>
@@ -69,7 +69,7 @@ const StatusDistribution = ({ asns }) => {
                     <div key={c.status} className="flex items-center gap-1.5 text-xs">
                         <span className={`w-2 h-2 rounded-full ${STATUS_BAR_COLOR[c.status]}`} />
                         <span className="text-slate-500">{ASN_STATUS_META[c.status].label}</span>
-                        <span className="font-bold text-slate-700">{c.count}</span>
+                        <span className="font-bold text-slate-700">{num(c.count)}</span>
                     </div>
                 ))}
             </div>
@@ -95,7 +95,7 @@ const RecentHistory = ({ items }) => {
                             {h.locCd}{h.pairedLocCd ? ` → ${h.pairedLocCd}` : ''}
                         </span>
                         <span className={`font-bold shrink-0 w-12 text-right ${h.qty < 0 ? 'text-red-500' : 'text-emerald-600'}`}>
-                            {h.qty > 0 ? `+${h.qty}` : h.qty}
+                            {h.qty > 0 ? `+${num(h.qty)}` : num(h.qty)}
                         </span>
                         <span className="text-slate-400 shrink-0 w-28 text-right">{fmtDt(h.createdAt)}</span>
                     </div>
@@ -133,10 +133,10 @@ export default function Dashboard() {
             <h2 className="text-lg font-bold text-slate-800">대시보드</h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard title="금일 입고예정" value={`${todayAsnCount}건`} icon={Truck} hint={todayStr()} />
-                <StatCard title="검수중" value={`${receivingCount}건`} icon={ClipboardCheck} hint="입고예정(ASN) 기준" />
-                <StatCard title="적치대기 배치" value={`${putawayPending.length}건`} icon={PackageOpen} hint="RCV-STAGE 미적치" />
-                <StatCard title="등록 상품" value={`${prodCount}종`} icon={Barcode} hint="마스터 기준" />
+                <StatCard title="금일 입고예정" value={`${num(todayAsnCount)}건`} icon={Truck} hint={todayStr()} />
+                <StatCard title="검수중" value={`${num(receivingCount)}건`} icon={ClipboardCheck} hint="입고예정(ASN) 기준" />
+                <StatCard title="적치대기 배치" value={`${num(putawayPending.length)}건`} icon={PackageOpen} hint="RCV-STAGE 미적치" />
+                <StatCard title="등록 상품" value={`${num(prodCount)}종`} icon={Barcode} hint="마스터 기준" />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

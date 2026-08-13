@@ -11,7 +11,7 @@ import { TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { useCodes } from '@/hooks/useCodes';
 import { Badge } from '@/components/common/Badge';
 import { RowStatusCell } from '@/components/common/Badge';
-import { fmtDe } from '@/utils/format';
+import { fmtDe, num } from '@/utils/format';
 import ConfirmModal from '@/components/common/ConfirmModal';
 
 
@@ -81,7 +81,7 @@ export default function ProdMaster() {
             cellClass: 'ag-right-aligned-cell',
             cellRenderer: (p) => (p.value == null || p.value === '')
                 ? <span className="text-slate-400">미관리</span>
-                : p.value,
+                : num(p.value),
         },
         {
             field: '_status', headerName: '상태', width: 70,
@@ -333,7 +333,7 @@ export default function ProdMaster() {
 
             {/* 그리드 툴바 */}
             <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-500 font-medium">{rowCount}건</span>
+                <span className="text-xs text-slate-500 font-medium">{num(rowCount)}건</span>
                 <div className="flex gap-2">
                     <input
                         ref={fileInputRef}

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ChevronDown, ChevronRight, ScrollText, X } from 'lucide-react';
 
 import { strategyApi } from '@/api/strategyApi';
-import { fmtDt } from '@/utils/format';
+import { fmtDt, num } from '@/utils/format';
 import AllocPlanTrace from './AllocPlanTrace';
 import WaveOrderTrace from './WaveOrderTrace';
 
@@ -114,7 +114,7 @@ function Trace({ stgyTyp, trace }) {
     if (stgyTyp === 'PTAWY' && trace.stages) {
         return (
             <div className="flex flex-col gap-1.5">
-                <span className="text-[11px] font-bold text-slate-600">요청 {trace.reqQty} · 배정 {trace.asgnQty}</span>
+                <span className="text-[11px] font-bold text-slate-600">요청 {num(trace.reqQty)} · 배정 {num(trace.asgnQty)}</span>
                 {trace.stages.map((st, si) => (
                     <div key={si} className="bg-white border border-slate-200 rounded-lg overflow-hidden">
                         <div className="px-2.5 py-1 text-[11px] bg-slate-50 flex items-center gap-2">
@@ -125,7 +125,7 @@ function Trace({ stgyTyp, trace }) {
                             <div key={li} className="px-2.5 py-1 border-t border-slate-100 flex items-center justify-between text-[11px]">
                                 <span className="font-mono text-slate-500">{l.locCd}</span>
                                 <span className="text-slate-400">
-                                    가능 {l.avalQty} · 배정 <b className={l.asgnQty > 0 ? 'text-emerald-600' : 'text-slate-400'}>{l.asgnQty}</b>
+                                    가능 {num(l.avalQty)} · 배정 <b className={l.asgnQty > 0 ? 'text-emerald-600' : 'text-slate-400'}>{num(l.asgnQty)}</b>
                                     {l.skip && <span className="text-rose-400 ml-1">({l.skip})</span>}
                                 </span>
                             </div>
@@ -141,7 +141,7 @@ function Trace({ stgyTyp, trace }) {
         return (
             <div className="flex flex-col gap-1.5">
                 <span className="text-[11px] font-bold text-slate-600">
-                    대상 {trace.tgtCount} · 편입 {trace.matchedCount}
+                    대상 {num(trace.tgtCount)} · 편입 {num(trace.matchedCount)}
                 </span>
                 {trace.orders.map((o, oi) => <WaveOrderTrace key={oi} order={o} />)}
             </div>

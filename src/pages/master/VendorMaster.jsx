@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import SearchBar, { SearchText } from '@/components/common/SearchBar';
 import { vendorApi } from '@/api/vendorApi';
 import { RowStatusCell } from '@/components/common/Badge';
-import { fmtDe } from '@/utils/format';
+import { fmtDe, num } from '@/utils/format';
 import ConfirmModal from '@/components/common/ConfirmModal';
 
 
@@ -149,7 +149,7 @@ export default function VendorMaster() {
 
             {/* 그리드 툴바 */}
             <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-500 font-medium">{rowCount}건</span>
+                <span className="text-xs text-slate-500 font-medium">{num(rowCount)}건</span>
                 <div className="flex gap-2">
                     <button
                         onClick={handleDeleteRows}

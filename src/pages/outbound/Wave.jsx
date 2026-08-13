@@ -67,7 +67,7 @@ const orderColumns = () => [
             : <span className="text-slate-400">배차미정</span>),
     },
     { field: 'expctDe', headerName: '출고예정일', width: 105 },
-    { field: 'lineCount', headerName: '라인', width: 70, cellClass: 'ag-right-aligned-cell text-slate-500' },
+    { field: 'lineCount', headerName: '라인', width: 70, cellClass: 'ag-right-aligned-cell text-slate-500', valueFormatter: (p) => num(p.value) },
     {
         field: 'totalOrderQty', headerName: '주문수량', width: 100,
         cellClass: 'ag-right-aligned-cell', valueFormatter: (p) => num(p.value),
@@ -293,9 +293,9 @@ export default function Wave() {
             setExecResult(res);
             const created = res.results.filter(r => r.wavId != null);
             if (created.length === 0) {
-                toast(`대상 ${res.tgtCount}건 중 편입 0건 — 만들어진 웨이브가 없습니다.`);
+                toast(`대상 ${num(res.tgtCount)}건 중 편입 0건 — 만들어진 웨이브가 없습니다.`);
             } else {
-                toast.success(`웨이브 ${created.length}개 생성 · 주문 ${res.assignedCount}건 편성`);
+                toast.success(`웨이브 ${created.length}개 생성 · 주문 ${num(res.assignedCount)}건 편성`);
             }
             await Promise.all([fetchWaves(), fetchUnassigned()]);
             if (selectedWave) fetchWaveOrders(selectedWave.wavId);
@@ -544,7 +544,7 @@ export default function Wave() {
                     onConfirm={() => { doDisband(confirmDisband); setConfirmDisband(null); }}
                 >
                     <p className="text-sm text-slate-500">
-                        <b>{confirmDisband.wavNo}</b> · 소속 주문 {confirmDisband.orderCount}건
+                        <b>{confirmDisband.wavNo}</b> · 소속 주문 {num(confirmDisband.orderCount)}건
                     </p>
                     <p className="text-xs text-slate-400">
                         웨이브 행이 삭제되고 소속 주문은 전부 미편성으로 돌아갑니다. 주문 자체는 지워지지 않습니다.
@@ -568,7 +568,7 @@ export default function Wave() {
                                 <Rocket size={16} className="text-emerald-600" />
                                 <h3 className="text-lg font-bold text-slate-800">전략 실행 결과</h3>
                                 <span className="text-xs text-slate-400">
-                                    대상 {execResult.tgtCount}건 · 편성 {execResult.assignedCount}건
+                                    대상 {num(execResult.tgtCount)}건 · 편성 {num(execResult.assignedCount)}건
                                 </span>
                             </div>
                             <button onClick={() => setExecResult(null)} className="text-slate-400 hover:text-slate-600">
@@ -583,7 +583,7 @@ export default function Wave() {
                                         : <span className="font-bold text-slate-400 shrink-0">— 미생성</span>}
                                     <span className="font-bold text-slate-700 shrink-0">{r.stgyNm}</span>
                                     {r.wavId != null
-                                        ? <span className="text-slate-500 font-mono">{r.wavNo} · 편입 {r.assignedCount}건</span>
+                                        ? <span className="text-slate-500 font-mono">{r.wavNo} · 편입 {num(r.assignedCount)}건</span>
                                         : <span className="text-slate-400">{r.skipRsn}</span>}
                                 </div>
                             ))}
@@ -610,7 +610,7 @@ export default function Wave() {
                                 <Play size={16} className="text-indigo-600" />
                                 <h3 className="text-lg font-bold text-slate-800">미리보기 — {execStgyNm()}</h3>
                                 <span className="text-xs text-slate-400">
-                                    편입 {previewResult.matchedCount} / 대상 {previewResult.tgtCount} · DB 변경 없음
+                                    편입 {num(previewResult.matchedCount)} / 대상 {num(previewResult.tgtCount)} · DB 변경 없음
                                 </span>
                             </div>
                             <button onClick={() => setPreviewResult(null)} className="text-slate-400 hover:text-slate-600">

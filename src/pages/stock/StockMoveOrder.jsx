@@ -198,7 +198,7 @@ export default function StockMoveOrder() {
 
             <div className="flex-1 min-h-0 flex flex-col gap-3">
                 <div className="flex items-center gap-3 flex-wrap">
-                    <span className="text-xs text-slate-500 font-medium">보관 재고 {rowData.length}건 (가용 &gt; 0)</span>
+                    <span className="text-xs text-slate-500 font-medium">보관 재고 {num(rowData.length)}건 (가용 &gt; 0)</span>
                     <span className="text-[11px] text-slate-400">이동수량·도착 로케이션을 행에서 바로 입력한 뒤 등록</span>
                     <div className="ml-auto flex items-center gap-2 shrink-0">
                         <span className={`text-xs font-bold ${entered.length > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>

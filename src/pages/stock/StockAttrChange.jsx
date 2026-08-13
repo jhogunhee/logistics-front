@@ -249,7 +249,7 @@ export default function StockAttrChange() {
             <div className="flex-1 min-h-0 flex flex-col gap-3">
                 <div className="flex items-center gap-3 flex-wrap">
                     <span className="text-xs text-slate-500 font-medium">
-                        유통기한 관리 상품의 Lot {rowData.length}건
+                        유통기한 관리 상품의 Lot {num(rowData.length)}건
                     </span>
                     <span className="text-[11px] text-slate-400">
                         유통기한 미관리 상품의 Lot은 두 날짜가 항상 비어 있는 것이 정의라 목록에 없습니다

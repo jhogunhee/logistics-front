@@ -6,7 +6,7 @@ import SearchBar, { SearchText, SearchSelect, SearchDateRange } from '@/componen
 import { lotAttrChngApi } from '@/api/lotAttrChngApi';
 import { useCodes } from '@/hooks/useCodes';
 import { LOT_ATTR_RSN_GRP } from '@/constants/rsnCodes';
-import { fmtDt } from '@/utils/format';
+import { fmtDt, num } from '@/utils/format';
 
 /** 전 → 후 셀. 값이 그대로면 흐리게, 바뀌었으면 강조 — 한 행에서 무엇이 움직였는지 바로 보이게 */
 const DiffCell = ({ before, after }) => {
@@ -82,7 +82,7 @@ export default function StockAttrChngHist() {
             </SearchBar>
 
             <div className="flex-1 min-h-0 flex flex-col gap-3">
-                <span className="text-xs text-slate-500 font-medium">정정 이력 {rowData.length}건</span>
+                <span className="text-xs text-slate-500 font-medium">정정 이력 {num(rowData.length)}건</span>
                 <div className="flex-1 min-h-0">
                     <AgGridReact
                         rowData={rowData}

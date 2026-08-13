@@ -8,7 +8,7 @@ import StorePickerModal from '@/components/common/StorePickerModal';
 import { omsOutbOrderApi } from '@/api/omsOutbOrderApi';
 import { useCodes } from '@/hooks/useCodes';
 import { TEMP_ZONE_META } from '@/constants/badgeMeta';
-import { todayStr } from '@/utils/format';
+import { num, todayStr } from '@/utils/format';
 
 const EMPTY_FORM = () => ({
     storeId: '', expctDe: todayStr(),
@@ -296,7 +296,7 @@ export default function OutboundOrder() {
                         <span className="text-xs font-bold text-slate-600">출고 상품</span>
                         <span className="text-[11px] text-slate-400">
                             {form.lines.length}건
-                            {form.lines.length > 0 && ` · 합계 ${totalQty.toLocaleString()}`}
+                            {form.lines.length > 0 && ` · 합계 ${num(totalQty)}`}
                             {' · 수량은 출고단위 기준입니다 (확정 시 낱개로 환산)'}
                         </span>
                     </div>
@@ -389,7 +389,7 @@ export default function OutboundOrder() {
                 {/* 합계 — 주문서 단위(출고단위) 기준. 낱개 환산은 확정 시 서버 몫이다 */}
                 <div className="flex items-center gap-3 px-4 py-2 bg-slate-50 border-t border-slate-200 text-xs font-bold text-slate-600 shrink-0">
                     <span className="flex-1 text-right">합계</span>
-                    <span className="w-40 shrink-0 text-right pr-11">{totalQty.toLocaleString()}</span>
+                    <span className="w-40 shrink-0 text-right pr-11">{num(totalQty)}</span>
                     <span className="w-16 shrink-0" />
                 </div>
             </section>

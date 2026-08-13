@@ -52,7 +52,7 @@ const HEADER_COLUMN_DEFS = [
     {
         headerName: '할당 진행', width: 90, cellClass: 'ag-right-aligned-cell',
         headerTooltip: '할당이 붙은 라인 / 전체 라인',
-        valueGetter: (p) => `${p.data.alocLineCount} / ${p.data.lineCount}`,
+        valueGetter: (p) => `${num(p.data.alocLineCount)} / ${num(p.data.lineCount)}`,
     },
     {
         field: 'totalOrderQty', headerName: '주문수량', width: 95,
@@ -165,7 +165,7 @@ export default function OutbOrderList() {
             <PanelGroup direction="vertical" autoSaveId="outb-order-split-v1" className="flex-1 min-h-0">
                 <Panel defaultSize={60} minSize={20} className="flex flex-col gap-2 min-h-0">
                     <div className="flex items-center justify-between">
-                        <span className="text-xs text-slate-500 font-medium">{rowData.length}건</span>
+                        <span className="text-xs text-slate-500 font-medium">{num(rowData.length)}건</span>
                         <span className="text-[11px] text-slate-400">
                             출고예정의 생성·취소는 OMS 출고주문 관리에서 합니다
                         </span>

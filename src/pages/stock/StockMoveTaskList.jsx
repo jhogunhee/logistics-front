@@ -198,7 +198,7 @@ export default function StockMoveTaskList() {
 
             <div className="flex-1 min-h-0 flex flex-col gap-3">
                 <div className="flex items-center gap-3 flex-wrap">
-                    <span className="text-xs text-slate-500 font-medium">{rowData.length}건</span>
+                    <span className="text-xs text-slate-500 font-medium">{num(rowData.length)}건</span>
                     <span className="text-[11px] text-slate-400">확정수량을 행에서 바로 입력한 뒤 확정 · 잔량 취소는 행별 버튼</span>
                     <div className="ml-auto flex items-center gap-2 shrink-0">
                         <span className={`text-xs font-bold ${entered.length > 0 ? 'text-indigo-600' : 'text-slate-400'}`}>

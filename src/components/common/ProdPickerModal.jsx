@@ -241,7 +241,7 @@ function ProdPickerBody({ prods, onClose, onSelect, multiple, excludeIds, uomRol
                 {/* 푸터 */}
                 <div className="flex items-center justify-between px-6 py-3 border-t border-slate-200">
                     <span className="text-xs text-slate-400">
-                        {selectableCount}건 선택 가능
+                        {num(selectableCount)}건 선택 가능
                         {multiple && checked.size > 0 && ` · ${checked.size}건 선택됨`}
                     </span>
                     <div className="flex gap-2">

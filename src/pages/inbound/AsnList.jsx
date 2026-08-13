@@ -9,7 +9,7 @@ import { asnApi } from '@/api/asnApi';
 import { ASN_STATUS_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { ASN_STATUS_OPTIONS } from '@/constants/codeOptions';
 import { Badge } from '@/components/common/Badge';
-import { daysAheadStr, todayStr } from '@/utils/format';
+import { daysAheadStr, num, todayStr } from '@/utils/format';
 
 // 오늘 날짜 "YYYY-MM-DD" (검색 기본값)
 
@@ -26,11 +26,36 @@ const HEADER_COLUMN_DEFS = [
     { field: 'expctDe', headerName: '입고 예정일', width: 120 },
     {
         headerName: '검수 진행', width: 100, cellClass: 'ag-right-aligned-cell',
-        headerTooltip: '검수된 라인 / 전체 라인',
-        valueGetter: (p) => `${p.data.rcvdLineCount} / ${p.data.lineCount}`,
+        headerTooltip: '전량 검수된 라인 / 전체 라인 (부분 검수중인 라인은 제외)',
+        valueGetter: (p) => `${num(p.data.cmplLineCount)} / ${num(p.data.lineCount)}`,
     },
-    { field: 'totalExpctQty', headerName: '예정수량', width: 100, cellClass: 'ag-right-aligned-cell' },
-    { field: 'totalRcvdQty', headerName: '검수수량', width: 100, cellClass: 'ag-right-aligned-cell' },
+    { field: 'totalExpctQty', headerName: '예정수량', width: 100, cellClass: 'ag-right-aligned-cell', valueFormatter: (p) => num(p.value) },
+    // 검수수량 컬럼은 두지 않는다 — 예정 − 잔량이라 셋 중 둘이면 충분하다.
+    // (라인 그리드는 셋을 다 둔다. 거기는 실제로 작업하는 단위라 「얼마나 받았나」를 직접
+    //  보는 게 자연스럽고, 적치완료와 나란히 놔야 검수↔적치 대조가 된다)
+    //
+    // 헤더가 드는 두 수량은 「남은 일」 둘이다 — 아직 안 온 것(잔량)과 와서 쌓여만 있는 것(미적치).
+    // 「검수 진행」은 완료된 라인만 세므로 한 라인이 99% 찼는지 1% 찼는지 구분하지 못한다.
+    // 분할검수·분할적치의 크기는 이 두 컬럼이 맡는다
+    {
+        headerName: '잔량', width: 90,
+        headerTooltip: '예정 − 검수수량 합계 — 아직 도착하지 않은 수량 (음수 = 과입고)',
+        valueGetter: (p) => p.data.totalExpctQty - p.data.totalRcvdQty,
+        valueFormatter: (p) => num(p.value),
+        cellClass: (p) => p.value < 0
+            ? 'ag-right-aligned-cell text-red-500 font-bold'
+            : 'ag-right-aligned-cell',
+    },
+    {
+        headerName: '미적치', width: 90,
+        headerTooltip: '검수 − 적치 합계 — RCV-STAGE에 쌓여 있는 수량',
+        valueGetter: (p) => p.data.totalRcvdQty - p.data.totalPtawyQty,
+        valueFormatter: (p) => num(p.value),
+        // ck_ib_line_qty(ptawy <= rcvd)가 막으므로 음수는 나올 수 없다 — 나오면 그 자체가 신호다
+        cellClass: (p) => p.value < 0
+            ? 'ag-right-aligned-cell text-red-500 font-bold'
+            : 'ag-right-aligned-cell',
+    },
 ];
 
 const LINE_COLUMN_DEFS = [
@@ -42,15 +67,16 @@ const LINE_COLUMN_DEFS = [
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
         cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
     },
-    { field: 'expctQty', headerName: '예정수량', width: 100, cellClass: 'ag-right-aligned-cell' },
-    { field: 'rcvdQty', headerName: '검수수량', width: 100, cellClass: 'ag-right-aligned-cell' },
+    { field: 'expctQty', headerName: '예정수량', width: 100, cellClass: 'ag-right-aligned-cell', valueFormatter: (p) => num(p.value) },
+    { field: 'rcvdQty', headerName: '검수수량', width: 100, cellClass: 'ag-right-aligned-cell', valueFormatter: (p) => num(p.value) },
     {
         headerName: '잔량', width: 90,
         headerTooltip: '예정 - 검수수량 (음수 = 과입고)',
         valueGetter: (p) => p.data.expctQty - p.data.rcvdQty,
+        valueFormatter: (p) => num(p.value),
         cellClass: (p) => p.value < 0 ? 'ag-right-aligned-cell text-red-500 font-bold' : 'ag-right-aligned-cell',
     },
-    { field: 'ptawyQty', headerName: '적치완료', width: 100, cellClass: 'ag-right-aligned-cell' },
+    { field: 'ptawyQty', headerName: '적치완료', width: 100, cellClass: 'ag-right-aligned-cell', valueFormatter: (p) => num(p.value) },
 ];
 
 export default function AsnList() {
@@ -110,7 +136,7 @@ export default function AsnList() {
             <PanelGroup direction="vertical" autoSaveId="wms-asn-split-v2" className="flex-1 min-h-0">
                 <Panel defaultSize={60} minSize={20} className="flex flex-col gap-2 min-h-0">
                     <div className="flex items-center justify-between">
-                        <span className="text-xs text-slate-500 font-medium">{rowData.length}건</span>
+                        <span className="text-xs text-slate-500 font-medium">{num(rowData.length)}건</span>
                         <span className="text-[11px] text-slate-400">
                             입고예정의 생성·취소는 OMS 입고주문 관리에서 합니다
                         </span>

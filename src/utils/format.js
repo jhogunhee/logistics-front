@@ -17,8 +17,11 @@ export const fmtDt = (v) => (v ? String(v).replace('T', ' ').slice(0, 16) : '');
 /** 일시 + 초 — "2026-07-16 14:03:21". 채번 카운터처럼 같은 분에 여러 건이 쌓이는 곳에서만 쓴다 */
 export const fmtDtSec = (v) => (v ? String(v).replace('T', ' ').slice(0, 19) : '');
 
-/** 수량 — 천 단위 구분. null/undefined는 빈 칸 (0과 구분해야 한다) */
-export const num = (v) => (v == null ? '' : Number(v).toLocaleString());
+/**
+ * 수량 — 천 단위 구분. null/undefined는 빈 칸 (0과 구분해야 한다).
+ * 빈 문자열도 빈 칸이다 — 편집 중 비운 셀은 Number('')가 0이라 지우자마자 "0"이 찍힌다.
+ */
+export const num = (v) => (v == null || String(v).trim() === '' ? '' : Number(v).toLocaleString());
 
 /**
  * 로컬 기준 "YYYY-MM-DD". `toISOString().slice(0, 10)`을 쓰지 않는 이유는 그게 UTC로

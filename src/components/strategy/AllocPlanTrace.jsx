@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 
+import { num } from '@/utils/format';
+
 /**
  * 상품 그룹 1건의 할당 산정 근거. 미리보기 패널과 실행 이력 모달이 함께 쓴다 —
  * 둘이 보는 데이터가 같은 구조이기 때문이다(미리보기 groups[].trace = 실행 로그 dcsnTrc.groups[]).
@@ -25,10 +27,10 @@ export default function AllocPlanTrace({ trace, lines }) {
                 {open ? <ChevronDown size={14} className="text-slate-400" /> : <ChevronRight size={14} className="text-slate-400" />}
                 <span className="text-sm font-bold text-slate-700">{trace.prodCd}</span>
                 <span className="text-xs text-slate-500">
-                    요청 {trace.reqQty} · 배정 {trace.asgnQty}
+                    요청 {num(trace.reqQty)} · 배정 {num(trace.asgnQty)}
                 </span>
                 {short > 0 && (
-                    <span className="text-xs font-bold text-rose-600">미충족 {short}</span>
+                    <span className="text-xs font-bold text-rose-600">미충족 {num(short)}</span>
                 )}
             </button>
 
@@ -49,7 +51,7 @@ export default function AllocPlanTrace({ trace, lines }) {
                                 <span className="text-[11px] font-bold text-indigo-600">계층 {tier.seq}</span>
                                 <span className="text-[11px] text-slate-500 font-mono">{tier.cond}</span>
                                 <span className="ml-auto text-[11px] text-slate-500">
-                                    후보 {tier.cndtCnt}건 · 가용 {tier.avalQty} / 요청 {tier.reqQty}
+                                    후보 {num(tier.cndtCnt)}건 · 가용 {num(tier.avalQty)} / 요청 {num(tier.reqQty)}
                                 </span>
                             </div>
                             {tier.result && <span className="text-[11px] text-slate-400">{tier.result}</span>}
@@ -63,7 +65,7 @@ export default function AllocPlanTrace({ trace, lines }) {
                                     </span>
                                     <span className="text-slate-400 font-mono">{slot.cond}</span>
                                     <span className="ml-auto text-slate-500">
-                                        {slot.result ?? `대상 ${slot.tgtLineCnt}라인 · 배분 ${slot.asgnQty}`}
+                                        {slot.result ?? `대상 ${num(slot.tgtLineCnt)}라인 · 배분 ${num(slot.asgnQty)}`}
                                     </span>
                                 </div>
                             ))}
@@ -91,10 +93,10 @@ export default function AllocPlanTrace({ trace, lines }) {
                                         <tr key={line.outbLineId} className="border-t border-slate-100">
                                             <td className="px-2 py-1 font-mono text-slate-600">{line.outbNo}</td>
                                             <td className="px-2 py-1 text-slate-500">{line.storeCd}</td>
-                                            <td className="px-2 py-1 text-right text-slate-600">{line.reqQty}</td>
-                                            <td className="px-2 py-1 text-right font-bold text-slate-700">{line.asgnQty}</td>
+                                            <td className="px-2 py-1 text-right text-slate-600">{num(line.reqQty)}</td>
+                                            <td className="px-2 py-1 text-right font-bold text-slate-700">{num(line.asgnQty)}</td>
                                             <td className={`px-2 py-1 text-right font-bold ${lineShort > 0 ? 'text-rose-600' : 'text-slate-300'}`}>
-                                                {lineShort}
+                                                {num(lineShort)}
                                             </td>
                                         </tr>
                                     );

@@ -11,6 +11,7 @@ import { prodApi } from '@/api/prodApi';
 import { useCodes } from '@/hooks/useCodes';
 import { RowStatusCell } from '@/components/common/Badge';
 import ConfirmModal from '@/components/common/ConfirmModal';
+import { num } from '@/utils/format';
 
 // 단위 코드 목록의 주인은 공통코드 UOM 그룹이다 (온도대·보관유형과 같은 API를 쓴다)
 const GRP_CD = 'UOM';
@@ -78,6 +79,7 @@ export default function UomMaster() {
             headerName: '포장', width: 60,
             cellClass: 'ag-right-aligned-cell text-slate-400',
             valueGetter: (p) => p.data.uoms?.length ?? 0,
+            valueFormatter: (p) => num(p.value),
         },
     ];
 
@@ -104,6 +106,7 @@ export default function UomMaster() {
             field: 'eaQty', headerName: '낱개수량', width: 100, editable: notDeleted,
             type: 'numericColumn',
             cellEditor: 'agNumberCellEditor',
+            valueFormatter: (p) => num(p.value),
             headerTooltip: '이 단위 1개가 낱개 몇 개인가 (예: BOX 1개 = 24). 낱개 그 자체면 1. 검수 입력·재고 수량이 이 배수로 움직입니다',
         },
         {
@@ -113,7 +116,7 @@ export default function UomMaster() {
             headerTooltip: '포장재 무게를 포함한 실측 중량. 재지 않았으면 비워둡니다',
             cellRenderer: (p) => (p.value == null || p.value === '')
                 ? <span className="text-slate-400">미측정</span>
-                : p.value,
+                : num(p.value),
         },
         {
             // field를 두는 이유 — setDataValue로 값을 바꾸면 ag-grid가 그 셀만 알아서 다시 그린다.
