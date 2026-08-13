@@ -18,6 +18,7 @@ import {
     LayoutGrid,
     ListChecks,
     ListTree,
+    LogOut,
     MapPin,
     PackageCheck,
     PackageOpen,
@@ -234,13 +235,24 @@ export default function Sidebar() {
                 )}
             </nav>
 
-            {/* 하단 사용자 정보 */}
+            {/* 하단 사용자 정보 + 로그아웃 (상단바를 없애면서 여기로 옮겼다) */}
             <div className="p-4 bg-slate-50 border-t border-slate-200">
                 <div className="flex items-center gap-3 px-2 py-2">
                     <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
                         A
                     </div>
-                    <span className="text-sm font-semibold text-slate-700">관리자</span>
+                    <span className="flex-1 text-sm font-semibold text-slate-700">관리자</span>
+                    {/* 로그아웃 (인증 붙이기 전까지는 로그인 화면 이동만) */}
+                    <button
+                        onClick={() => {
+                            sessionStorage.removeItem("loginUser");
+                            window.location.href = "/login";
+                        }}
+                        title="로그아웃"
+                        className="p-2 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                    >
+                        <LogOut size={16} />
+                    </button>
                 </div>
             </div>
         </aside>
