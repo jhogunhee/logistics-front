@@ -183,6 +183,11 @@ export default function Putaway() {
                         columnDefs={COLUMN_DEFS}
                         rowHeight={34}
                         headerHeight={38}
+                        // 행 식별자를 주지 않으면 목록이 다시 올 때 ag-grid가 전부 새 행으로 보고 선택을 버린다.
+                        // 그러면 후보 로케이션을 기다리는 사이(onSelectionChanged의 await) 선택이 풀려
+                        // selected가 null이 되고, 배치는 떠 있는데 적치 실행 영역이 잠긴다.
+                        // 배치의 키는 입고라인+Lot이다 (onModelUpdated의 재선택 조건과 같은 기준)
+                        getRowId={(p) => `${p.data.ibLineId}:${p.data.lotId}`}
                         rowSelection={{ mode: 'singleRow', checkboxes: false, enableClickSelection: true }}
                         onSelectionChanged={onSelectionChanged}
                         onModelUpdated={onModelUpdated}

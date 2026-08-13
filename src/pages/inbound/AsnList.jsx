@@ -157,6 +157,8 @@ export default function AsnList() {
                             columnDefs={HEADER_COLUMN_DEFS}
                             rowHeight={34}
                             headerHeight={38}
+                            // 행 식별자가 없으면 목록이 다시 올 때 선택이 풀린다 (입고검수 화면과 같은 이유)
+                            getRowId={(p) => p.data.ibNo}
                             rowSelection={{ mode: 'singleRow', checkboxes: false, enableClickSelection: true }}
                             onSelectionChanged={onSelectionChanged}
                         />
