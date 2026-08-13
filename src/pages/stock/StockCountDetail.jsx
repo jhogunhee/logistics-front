@@ -7,7 +7,7 @@ import ConfirmModal from '@/components/common/ConfirmModal';
 import SelectCellEditor from '@/components/common/SelectCellEditor';
 import StockCountAddLineModal from '@/components/stock/StockCountAddLineModal';
 import { Badge } from '@/components/common/Badge';
-import { adjQtyOf, invStktkApi } from '@/api/invStktkApi';
+import { invStktkApi } from '@/api/invStktkApi';
 import { useCodes } from '@/hooks/useCodes';
 import { ETC_RSN_CD } from '@/constants/rsnCodes';
 import { INV_STKTK_STATUS_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
@@ -15,6 +15,9 @@ import { fmtDt, num } from '@/utils/format';
 
 /** 전산수량 기준값 — 확정 후에는 확정시점 값이 고정 기준이다 */
 const baseQtyOf = (ln) => ln.cfmSysQty ?? ln.nowSysQty;
+
+/** 조정수량 = 실사수량 − 전산수량 기준값. 실사수량 미입력(null)이면 조정 자체가 없다 */
+const adjQtyOf = (ln) => (ln.stktkQty == null ? null : ln.stktkQty - baseQtyOf(ln));
 
 export default function StockCountDetail({ stktkId, onBack }) {
     const [head, setHead] = useState(null);
