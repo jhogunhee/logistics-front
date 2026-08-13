@@ -6,8 +6,9 @@ import toast from 'react-hot-toast';
 import ProdPickerModal from '@/components/common/ProdPickerModal';
 import VendorPickerModal from '@/components/common/VendorPickerModal';
 import { omsIbOrderApi } from '@/api/omsIbOrderApi';
-import { codeApi } from '@/api/codeApi';
-import { eaQtyPerInbUomOf, TEMP_ZONE_META } from '@/api/prodApi';
+import { useCodes } from '@/hooks/useCodes';
+import { eaQtyPerInbUomOf } from '@/api/prodApi';
+import { TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { todayStr } from '@/utils/format';
 
 // 오늘 날짜 "YYYY-MM-DD" (입고 예정일 기본값)
@@ -46,15 +47,11 @@ export default function InboundOrder() {
     const [form, setForm] = useState(EMPTY_FORM);
     const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(isEdit);
-    const [odrDvsnCodes, setOdrDvsnCodes] = useState([]);
+    const odrDvsnCodes = useCodes('ODR_DVSN');
     // null이면 닫힘 / 'add'면 다중 추가 / 숫자면 그 인덱스 라인의 상품 교체
     const [pickerFor, setPickerFor] = useState(null);
     const [vendorPickerOpen, setVendorPickerOpen] = useState(false);
     const navigate = useNavigate();
-
-    useEffect(() => {
-        codeApi.list('ODR_DVSN').then(setOdrDvsnCodes);
-    }, []);
 
     // 수정 진입 시 주문을 불러온다. 헤더는 목록 API에서, 라인은 라인 API에서 가져온다 —
     // 단건 조회 엔드포인트가 없어서 목록을 주문번호로 좁혀 한 건만 받는다.
@@ -228,8 +225,8 @@ export default function InboundOrder() {
                             onChange={(e) => setForm(prev => ({ ...prev, odrDvsn: e.target.value }))}
                             disabled={readOnly}
                             className={inputCls + ' disabled:bg-slate-50 disabled:cursor-not-allowed'}>
-                            {odrDvsnCodes.map(c => (
-                                <option key={c.codeCd} value={c.codeCd}>{c.codeNm}</option>
+                            {odrDvsnCodes.selectOptions.map(o => (
+                                <option key={o.value} value={o.value}>{o.label}</option>
                             ))}
                         </select>
                     </Field>

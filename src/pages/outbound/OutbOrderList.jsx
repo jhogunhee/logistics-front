@@ -3,19 +3,13 @@ import { AgGridReact } from 'ag-grid-react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { PackageCheck } from 'lucide-react';
 
-import SearchBar, { SearchItem } from '@/components/common/SearchBar';
-import DropdownSelect from '@/components/common/DropdownSelect';
-import { TempZoneBadge } from '@/components/common/Badge';
-import { outbOrderApi, OUTB_STATUS_META, OUTB_STATUS_OPTIONS } from '@/api/outbOrderApi';
-import { codeApi, toSearchOptions } from '@/api/codeApi';
+import SearchBar, { SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
+import { Badge } from '@/components/common/Badge';
+import { outbOrderApi } from '@/api/outbOrderApi';
+import { useCodes } from '@/hooks/useCodes';
+import { OUTB_STATUS_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
+import { OUTB_STATUS_OPTIONS } from '@/constants/codeOptions';
 import { daysAheadStr, num, todayStr } from '@/utils/format';
-
-/** 라벨만 보여주는 뱃지 — 웨이브 편성 화면의 MetaBadge와 같은 형태 */
-const MetaBadge = ({ meta, value }) => {
-    const m = meta[value];
-    if (!m) return null;
-    return <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${m.badge}`}>{m.label}</span>;
-};
 
 const centered = { display: 'flex', alignItems: 'center', justifyContent: 'center' };
 
@@ -24,7 +18,7 @@ const HEADER_COLUMN_DEFS = [
     { field: 'outbNo', headerName: '출고번호', width: 160, cellClass: 'font-bold text-slate-700' },
     {
         field: 'status', headerName: '출고진행상태', width: 120, cellStyle: centered,
-        cellRenderer: (p) => <MetaBadge meta={OUTB_STATUS_META} value={p.value} />,
+        cellRenderer: (p) => <Badge meta={OUTB_STATUS_META} value={p.value} show="label" />,
     },
     // 점포명은 긴 것이 많아 이 폭에서는 잘린다 — 전체 이름은 툴팁과 하단 라인 패널 머리글에서 본다
     { field: 'storeNm', headerName: '점포', flex: 1, minWidth: 100, tooltipField: 'storeNm' },
@@ -76,7 +70,7 @@ const LINE_COLUMN_DEFS = [
     { field: 'prodNm', headerName: '상품명', flex: 1, minWidth: 200 },
     {
         field: 'tmpZon', headerName: '온도대', width: 120, cellStyle: centered,
-        cellRenderer: (p) => <TempZoneBadge value={p.value} />,
+        cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
     },
     { field: 'odrQty', headerName: '주문수량', width: 100, cellClass: 'ag-right-aligned-cell', valueFormatter: (p) => num(p.value) },
     { field: 'alocQty', headerName: '할당수량', width: 100, cellClass: 'ag-right-aligned-cell', valueFormatter: (p) => num(p.value) },
@@ -114,13 +108,12 @@ export default function OutbOrderList() {
     const gridRef = useRef(null);
 
     // 공통코드 (출고유형 · 차량편수) — 값 목록의 주인은 코드관리라 화면에 하드코딩하지 않는다
-    const [outbTyps, setOutbTyps] = useState([]);
-    const [vhclFltnos, setVhclFltnos] = useState([]);
+    const outbTyps = useCodes('OUTB_TYP');
+    const vhclFltnos = useCodes('VHCL_FLTNO');
 
-    const codeNm = (list, cd) => list.find(c => c.codeCd === cd)?.codeNm;
     const gridContext = useMemo(() => ({
-        outbTypNm: (cd) => codeNm(outbTyps, cd),
-        vhclFltnoNm: (cd) => codeNm(vhclFltnos, cd),
+        outbTypNm: (cd) => outbTyps.nmByCd[cd],
+        vhclFltnoNm: (cd) => vhclFltnos.nmByCd[cd],
     }), [outbTyps, vhclFltnos]);
 
     const fetchList = async () => {
@@ -132,11 +125,7 @@ export default function OutbOrderList() {
 
     // 최초 1회 조회 (검색조건 기본값 = 오늘 ~ +7일)
     useEffect(() => {
-        let ignore = false;
-        outbOrderApi.list(cond).then(data => { if (!ignore) setRowData(data); }).catch(() => {});
-        codeApi.list('OUTB_TYP').then(setOutbTyps).catch(() => {});
-        codeApi.list('VHCL_FLTNO').then(setVhclFltnos).catch(() => {});
-        return () => { ignore = true; };
+        outbOrderApi.list(cond).then(setRowData).catch(() => {});
     }, []);
 
     // 헤더 행 선택 시 라인 조회
@@ -163,59 +152,13 @@ export default function OutbOrderList() {
             </div>
 
             {/* 검색 조건 */}
-            <SearchBar label="검색" onSearch={fetchList}>
-                <SearchItem label="출고번호">
-                    <input
-                        type="text"
-                        value={cond.outbNo}
-                        onChange={(e) => setCond(prev => ({ ...prev, outbNo: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="OB-20260803-001"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="출고진행상태">
-                    <DropdownSelect
-                        value={cond.status}
-                        onChange={(v) => setCond(prev => ({ ...prev, status: v }))}
-                        options={OUTB_STATUS_OPTIONS}
-                        placeholder="전체"
-                    />
-                </SearchItem>
-                <SearchItem label="출고유형">
-                    <DropdownSelect
-                        value={cond.outbTyp}
-                        onChange={(v) => setCond(prev => ({ ...prev, outbTyp: v }))}
-                        options={toSearchOptions(outbTyps)}
-                        placeholder="전체"
-                    />
-                </SearchItem>
-                <SearchItem label="차량편수">
-                    <DropdownSelect
-                        value={cond.vhclFltno}
-                        onChange={(v) => setCond(prev => ({ ...prev, vhclFltno: v }))}
-                        options={toSearchOptions(vhclFltnos)}
-                        placeholder="전체"
-                    />
-                </SearchItem>
+            <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
+                <SearchText name="outbNo" label="출고번호" placeholder="OB-20260803-001" />
+                <SearchSelect name="status" label="출고진행상태" options={OUTB_STATUS_OPTIONS} />
+                <SearchSelect name="outbTyp" label="출고유형" options={outbTyps.searchOptions} />
+                <SearchSelect name="vhclFltno" label="차량편수" options={vhclFltnos.searchOptions} />
                 {/* 기간은 출고예정일이다 — 주문일이 아니다. 웨이브도 같은 기준으로 대상을 좁힌다 */}
-                <SearchItem label="출고예정일" wide>
-                    <div className="flex items-center gap-2">
-                        <input
-                            type="date"
-                            value={cond.dateFrom}
-                            onChange={(e) => setCond(prev => ({ ...prev, dateFrom: e.target.value }))}
-                            className="flex-1 min-w-0 input-base"
-                        />
-                        <span className="text-slate-400 shrink-0">~</span>
-                        <input
-                            type="date"
-                            value={cond.dateTo}
-                            onChange={(e) => setCond(prev => ({ ...prev, dateTo: e.target.value }))}
-                            className="flex-1 min-w-0 input-base"
-                        />
-                    </div>
-                </SearchItem>
+                <SearchDateRange from="dateFrom" to="dateTo" label="출고예정일" />
             </SearchBar>
 
             {/* 상하 분할 + 드래그 스플리터 — 경계를 끌어 비율 조절 (비율은 localStorage에 기억됨) */}

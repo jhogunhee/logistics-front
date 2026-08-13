@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Check, Package, Search, X } from 'lucide-react';
 
 import DropdownSelect from '@/components/common/DropdownSelect';
-import { eaQtyPerInbUomOf, prodApi, TEMP_ZONE_META } from '@/api/prodApi';
+import { eaQtyPerInbUomOf, prodApi } from '@/api/prodApi';
+import { TEMP_ZONE_META } from '@/constants/badgeMeta';
 
 const TEMP_ZONE_OPTIONS = [
     { value: '', label: '전체' },
@@ -50,20 +51,32 @@ const UomFlow = ({ prod, uomRole }) => {
  */
 export default function ProdPickerModal({ open, onClose, onSelect, multiple = false, excludeIds = [], uomRole = 'inb' }) {
     const [prods, setProds] = useState(null); // null = 아직 안 받아옴
-    const [cond, setCond] = useState({ prodCd: '', prodNm: '', tmpZon: '' });
-    const [checked, setChecked] = useState(new Set());
 
-    // 열릴 때마다 선택 상태는 비우고, 목록은 한 번만 받아온다
+    // 목록은 처음 열 때 한 번만 받아온다
     useEffect(() => {
-        if (!open) return;
-        setChecked(new Set());
-        setCond({ prodCd: '', prodNm: '', tmpZon: '' });
-        if (prods !== null) return;
-
+        if (!open || prods !== null) return;
         let ignore = false;
         prodApi.list().then(data => { if (!ignore) setProds(data); });
         return () => { ignore = true; };
-    }, [open]);
+    }, [open, prods]);
+
+    if (!open) return null;
+    return (
+        <ProdPickerBody
+            prods={prods}
+            onClose={onClose}
+            onSelect={onSelect}
+            multiple={multiple}
+            excludeIds={excludeIds}
+            uomRole={uomRole}
+        />
+    );
+}
+
+// 닫히면 언마운트되므로 검색 조건·체크 상태는 열 때마다 새로 시작한다
+function ProdPickerBody({ prods, onClose, onSelect, multiple, excludeIds, uomRole }) {
+    const [cond, setCond] = useState({ prodCd: '', prodNm: '', tmpZon: '' });
+    const [checked, setChecked] = useState(new Set());
 
     const excluded = useMemo(() => new Set(excludeIds), [excludeIds]);
 
@@ -77,8 +90,6 @@ export default function ProdPickerModal({ open, onClose, onSelect, multiple = fa
             (!cond.tmpZon || s.tmpZon === cond.tmpZon)
         );
     }, [prods, cond]);
-
-    if (!open) return null;
 
     const toggle = (prodId) => {
         setChecked(prev => {

@@ -2,10 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { History } from 'lucide-react';
 
-import SearchBar, { SearchItem } from '@/components/common/SearchBar';
-import DropdownSelect from '@/components/common/DropdownSelect';
-import { lotAttrChngApi, LOT_ATTR_RSN_GRP } from '@/api/lotAttrChngApi';
-import { codeApi, toSearchOptions } from '@/api/codeApi';
+import SearchBar, { SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
+import { lotAttrChngApi } from '@/api/lotAttrChngApi';
+import { useCodes } from '@/hooks/useCodes';
+import { LOT_ATTR_RSN_GRP } from '@/constants/rsnCodes';
 import { fmtDt } from '@/utils/format';
 
 /** 전 → 후 셀. 값이 그대로면 흐리게, 바뀌었으면 강조 — 한 행에서 무엇이 움직였는지 바로 보이게 */
@@ -28,18 +28,13 @@ const DiffCell = ({ before, after }) => {
 export default function StockAttrChngHist() {
     const [rowData, setRowData] = useState([]);
     const [cond, setCond] = useState({ prodCd: '', lotNo: '', rsnCd: '', chngFrom: '', chngTo: '' });
-    const [rsnCodes, setRsnCodes] = useState([]);
+    const rsn = useCodes(LOT_ATTR_RSN_GRP);
 
     const fetchList = async () => setRowData(await lotAttrChngApi.listChngs(cond));
 
     useEffect(() => {
-        let ignore = false;
-        lotAttrChngApi.listChngs({}).then(data => { if (!ignore) setRowData(data); });
-        codeApi.list(LOT_ATTR_RSN_GRP).then(codes => { if (!ignore) setRsnCodes(codes); });
-        return () => { ignore = true; };
+        lotAttrChngApi.listChngs({}).then(setRowData);
     }, []);
-
-    const rsnNm = (cd) => rsnCodes.find(c => c.codeCd === cd)?.codeNm ?? cd;
 
     const columnDefs = useMemo(() => [
         { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
@@ -59,13 +54,13 @@ export default function StockAttrChngHist() {
             field: 'rsnCd', headerName: '사유', width: 170,
             cellRenderer: (p) => (
                 <span className="text-xs">
-                    <b>{rsnNm(p.value)}</b>
+                    <b>{rsn.nm(p.value)}</b>
                     {p.data.rsnDscr && <span className="text-slate-400"> — {p.data.rsnDscr}</span>}
                 </span>
             ),
         },
         { field: 'createdBy', headerName: '정정자', width: 100, cellClass: 'text-slate-500' },
-    ], [rsnCodes]);
+    ], [rsn]);
 
     return (
         <div className="flex flex-col gap-4 h-full">
@@ -79,52 +74,11 @@ export default function StockAttrChngHist() {
             </div>
 
             {/* 검색 조건 */}
-            <SearchBar label="검색" onSearch={fetchList}>
-                <SearchItem label="상품 코드">
-                    <input
-                        type="text"
-                        value={cond.prodCd}
-                        onChange={(e) => setCond(prev => ({ ...prev, prodCd: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="PROD-0001"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="Lot번호">
-                    <input
-                        type="text"
-                        value={cond.lotNo}
-                        onChange={(e) => setCond(prev => ({ ...prev, lotNo: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="LOT-260722-001"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="정정일">
-                    <div className="flex items-center gap-1">
-                        <input
-                            type="date"
-                            value={cond.chngFrom}
-                            onChange={(e) => setCond(prev => ({ ...prev, chngFrom: e.target.value }))}
-                            className="w-full input-base"
-                        />
-                        <span className="text-slate-300">~</span>
-                        <input
-                            type="date"
-                            value={cond.chngTo}
-                            onChange={(e) => setCond(prev => ({ ...prev, chngTo: e.target.value }))}
-                            className="w-full input-base"
-                        />
-                    </div>
-                </SearchItem>
-                <SearchItem label="사유">
-                    <DropdownSelect
-                        value={cond.rsnCd}
-                        onChange={(v) => setCond(prev => ({ ...prev, rsnCd: v }))}
-                        options={toSearchOptions(rsnCodes)}
-                        placeholder="전체"
-                    />
-                </SearchItem>
+            <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
+                <SearchText name="prodCd" label="상품 코드" placeholder="PROD-0001" />
+                <SearchText name="lotNo" label="Lot번호" placeholder="LOT-260722-001" />
+                <SearchDateRange from="chngFrom" to="chngTo" label="정정일" />
+                <SearchSelect name="rsnCd" label="사유" options={rsn.searchOptions} />
             </SearchBar>
 
             <div className="flex-1 min-h-0 flex flex-col gap-3">

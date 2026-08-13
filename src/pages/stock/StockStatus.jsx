@@ -2,12 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { Box } from 'lucide-react';
 
-import SearchBar, { SearchItem } from '@/components/common/SearchBar';
-import DropdownSelect from '@/components/common/DropdownSelect';
+import SearchBar, { SearchText, SearchSelect } from '@/components/common/SearchBar';
 import { invApi } from '@/api/invApi';
-import { TEMP_ZONE_META } from '@/api/prodApi';
-import { LOC_TYPE_META } from '@/api/locApi';
-import { TempZoneBadge } from '@/components/common/Badge';
+import { LOC_TYPE_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
+import { Badge } from '@/components/common/Badge';
 import { num } from '@/utils/format';
 
 
@@ -22,16 +20,6 @@ const LOC_TYPE_OPTIONS = [
 ];
 
 
-const LocTypeBadge = ({ value }) => {
-    const meta = LOC_TYPE_META[value];
-    if (!meta) return null;
-    return (
-        <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${meta.badge}`}>
-            {meta.label}
-        </span>
-    );
-};
-
 const COLUMN_DEFS = [
     { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
     { field: 'prodCd', headerName: '상품 코드', width: 115 },
@@ -39,13 +27,13 @@ const COLUMN_DEFS = [
     {
         field: 'tmpZon', headerName: '온도대', width: 100,
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-        cellRenderer: (p) => <TempZoneBadge value={p.value} />,
+        cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
     },
     { field: 'locCd', headerName: '로케이션', width: 130 },
     {
         field: 'locTyp', headerName: '구분', width: 90,
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-        cellRenderer: (p) => <LocTypeBadge value={p.value} />,
+        cellRenderer: (p) => <Badge meta={LOC_TYPE_META} value={p.value} show="label" />,
     },
     { field: 'lotNo', headerName: 'Lot번호', width: 130 },
     {
@@ -95,9 +83,7 @@ export default function StockStatus() {
     };
 
     useEffect(() => {
-        let ignore = false;
-        invApi.list(cond).then(data => { if (!ignore) setRowData(data); });
-        return () => { ignore = true; };
+        invApi.list(cond).then(setRowData);
     }, []);
 
     // 요약 지표는 조회 결과에서 파생 (별도 API 없이 화면에서 집계)
@@ -130,63 +116,13 @@ export default function StockStatus() {
             </div>
 
             {/* 검색 조건 */}
-            <SearchBar label="검색" onSearch={fetchList}>
-                <SearchItem label="상품 코드">
-                    <input
-                        type="text"
-                        value={cond.prodCd}
-                        onChange={(e) => setCond(prev => ({ ...prev, prodCd: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="PROD-0001"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="상품명">
-                    <input
-                        type="text"
-                        value={cond.prodNm}
-                        onChange={(e) => setCond(prev => ({ ...prev, prodNm: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="상품명 일부"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="로케이션">
-                    <input
-                        type="text"
-                        value={cond.locCd}
-                        onChange={(e) => setCond(prev => ({ ...prev, locCd: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="DRY-A-01-01"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="Lot번호">
-                    <input
-                        type="text"
-                        value={cond.lotNo}
-                        onChange={(e) => setCond(prev => ({ ...prev, lotNo: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="LOT-260722-001"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="온도대">
-                    <DropdownSelect
-                        value={cond.tmpZon}
-                        onChange={(v) => setCond(prev => ({ ...prev, tmpZon: v }))}
-                        options={TEMP_ZONE_OPTIONS}
-                        placeholder="전체"
-                    />
-                </SearchItem>
-                <SearchItem label="구분">
-                    <DropdownSelect
-                        value={cond.locTyp}
-                        onChange={(v) => setCond(prev => ({ ...prev, locTyp: v }))}
-                        options={LOC_TYPE_OPTIONS}
-                        placeholder="전체"
-                    />
-                </SearchItem>
+            <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
+                <SearchText name="prodCd" label="상품 코드" placeholder="PROD-0001" />
+                <SearchText name="prodNm" label="상품명" placeholder="상품명 일부" />
+                <SearchText name="locCd" label="로케이션" placeholder="DRY-A-01-01" />
+                <SearchText name="lotNo" label="Lot번호" placeholder="LOT-260722-001" />
+                <SearchSelect name="tmpZon" label="온도대" options={TEMP_ZONE_OPTIONS} />
+                <SearchSelect name="locTyp" label="구분" options={LOC_TYPE_OPTIONS} />
             </SearchBar>
 
             <div className="flex-1 min-h-0 flex flex-col gap-2">

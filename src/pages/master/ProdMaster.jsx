@@ -4,12 +4,12 @@ import { Barcode, Download, Plus, Save, Trash2, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 
-import SearchBar, { SearchItem } from '@/components/common/SearchBar';
-import DropdownSelect from '@/components/common/DropdownSelect';
+import SearchBar, { SearchText, SearchSelect } from '@/components/common/SearchBar';
 import SelectCellEditor from '@/components/common/SelectCellEditor';
-import { prodApi, TEMP_ZONE_META } from '@/api/prodApi';
-import { codeApi, toSearchOptions } from '@/api/codeApi';
-import { TempZoneBadge } from '@/components/common/Badge';
+import { prodApi } from '@/api/prodApi';
+import { TEMP_ZONE_META } from '@/constants/badgeMeta';
+import { useCodes } from '@/hooks/useCodes';
+import { Badge } from '@/components/common/Badge';
 import { RowStatusCell } from '@/components/common/Badge';
 import { fmtDe } from '@/utils/format';
 import ConfirmModal from '@/components/common/ConfirmModal';
@@ -19,10 +19,8 @@ import ConfirmModal from '@/components/common/ConfirmModal';
 export default function ProdMaster() {
     const [rowData, setRowData] = useState([]);
     const [cond, setCond] = useState({ prodCd: '', prodNm: '', tmpZon: '' });
-    const [tempZoneOptions, setTempZoneOptions] = useState([{ value: '', label: '전체' }]);
-    const [tempZoneCodes, setTempZoneCodes] = useState([]); // 공통코드(TEMP_ZONE)의 코드값 목록
-    const [uomCodes, setUomCodes] = useState([]); // 공통코드(UOM)의 코드값 목록 — 입고/출고단위 콤보박스
-    const [uomLabelMap, setUomLabelMap] = useState({}); // 코드 → 코드명. 콤보에 "BOX 박스"로 보여준다
+    const tempZoneCodes = useCodes('TEMP_ZONE');
+    const uomCodes = useCodes('UOM'); // 입고/출고단위 콤보박스 — 콤보에 "BOX 박스"로 보여준다
     const [rowCount, setRowCount] = useState(0); // 행추가분은 rowData 상태에 없으므로 건수는 그리드 기준으로 센다
     const [saveConfirm, setSaveConfirm] = useState(null); // 저장 확인 모달에 넘길 대상 행들 (null이면 닫힘)
     const gridRef = useRef(null); // 그리드 api 호출용 (applyTransaction 등)
@@ -50,13 +48,13 @@ export default function ProdMaster() {
             field: 'tmpZon', headerName: '온도대', width: 100, editable: notDeleted,
             cellEditor: SelectCellEditor,
             cellEditorParams: {
-                values: tempZoneCodes,
+                values: tempZoneCodes.values,
                 labelMap: Object.fromEntries(
                     Object.entries(TEMP_ZONE_META).map(([cd, meta]) => [cd, meta.label])
                 ),
             },
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-            cellRenderer: (p) => <TempZoneBadge value={p.value} />,
+            cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
         },
         {
             // 신규 행(C)에서만 연다. 등록 후에는 못 고치고 변경은 단위 관리 화면의 라디오가 맡는다 —
@@ -66,7 +64,7 @@ export default function ProdMaster() {
             // 그 1이 실제 입수량과 다른 건은 저장 후 토스트로 단위 관리 화면 입력을 안내한다.
             field: 'inbUomCd', headerName: '입고단위', width: 100, editable: isNewRow,
             cellEditor: SelectCellEditor,
-            cellEditorParams: { values: uomCodes, labelMap: uomLabelMap },
+            cellEditorParams: { values: uomCodes.values, labelMap: uomCodes.nmByCd },
             // 잠긴 기존 행만 흐리게 — 열린 칸과 눈으로 구분된다
             cellClass: (p) => (isNewRow(p) ? undefined : 'text-slate-500'),
             headerTooltip: '벤더에게 발주하고 납품받는 단위. 신규 등록 시에만 지정할 수 있고, 등록 후 변경은 단위 관리 화면에서 합니다',
@@ -74,7 +72,7 @@ export default function ProdMaster() {
         {
             field: 'outbUomCd', headerName: '출고단위', width: 100, editable: isNewRow,
             cellEditor: SelectCellEditor,
-            cellEditorParams: { values: uomCodes, labelMap: uomLabelMap },
+            cellEditorParams: { values: uomCodes.values, labelMap: uomCodes.nmByCd },
             cellClass: (p) => (isNewRow(p) ? undefined : 'text-slate-500'),
             headerTooltip: '출고주문서에 쓰는 단위입니다. 재고·창고 수량은 전부 낱개(EA)로 저장되고, 확정 시 이 단위에서 낱개로 환산됩니다. 신규 등록 시에만 지정할 수 있고, 등록 후 변경은 단위 관리 화면에서 합니다',
         },
@@ -106,23 +104,9 @@ export default function ProdMaster() {
         setRowData(data);
     };
 
-    // 최초 1회 조회 (이후엔 조회 버튼으로 재조회) + 공통코드 2종(온도대·단위) 조회
+    // 최초 1회 조회 (이후엔 조회 버튼으로 재조회)
     useEffect(() => {
-        let ignore = false;
-        prodApi.list().then(data => { if (!ignore) setRowData(data); });
-        codeApi.list('TEMP_ZONE').then(codes => {
-            if (!ignore) {
-                setTempZoneOptions(toSearchOptions(codes));
-                setTempZoneCodes(codes.map(c => c.codeCd));
-            }
-        });
-        codeApi.list('UOM').then(codes => {
-            if (!ignore) {
-                setUomCodes(codes.map(c => c.codeCd));
-                setUomLabelMap(Object.fromEntries(codes.map(c => [c.codeCd, c.codeNm])));
-            }
-        });
-        return () => { ignore = true; };
+        prodApi.list().then(setRowData);
     }, []);
 
     // 셀 수정 시 행 상태를 U(수정)로 표시 (신규 C는 유지)
@@ -193,7 +177,7 @@ export default function ProdMaster() {
         // 단위 코드표 시트. 공통코드 UOM 그룹을 그대로 내려주므로 단위를 추가하면 양식에도 따라온다.
         // 낱개수량(BOX 1개 = 몇 낱개)은 상품마다 달라서 여기 담을 수 없다 — 단위 관리 화면에서 넣는다.
         const uomSheet = XLSX.utils.json_to_sheet(
-            uomCodes.map(cd => ({ '단위 코드': cd, '비고': '빈 칸이면 EA(낱개)로 등록됩니다' }))
+            uomCodes.values.map(cd => ({ '단위 코드': cd, '비고': '빈 칸이면 EA(낱개)로 등록됩니다' }))
         );
         uomSheet['!cols'] = [{ wch: 12 }, { wch: 34 }];
 
@@ -226,7 +210,7 @@ export default function ProdMaster() {
         raw.forEach((r, i) => {
             const prodNm = String(r['상품명'] ?? '').trim();
             const tempRaw = String(r['온도대'] ?? '').trim();
-            const tmpZon = tempZoneCodes.includes(tempRaw.toUpperCase())
+            const tmpZon = tempZoneCodes.values.includes(tempRaw.toUpperCase())
                 ? tempRaw.toUpperCase()
                 : nameToCode[tempRaw];
             const inbUomCd = String(r['입고단위'] ?? '').trim().toUpperCase() || 'EA';
@@ -236,7 +220,7 @@ export default function ProdMaster() {
                 return;
             }
             // 없는 단위 코드는 저장 시점이 아니라 여기서 잡는다 — 서버는 문자열을 그대로 받는다
-            if (!uomCodes.includes(inbUomCd) || !uomCodes.includes(outbUomCd)) {
+            if (!uomCodes.values.includes(inbUomCd) || !uomCodes.values.includes(outbUomCd)) {
                 badUomLines.push(i + 2);
                 return;
             }
@@ -341,35 +325,10 @@ export default function ProdMaster() {
             </div>
 
             {/* 검색 조건 */}
-            <SearchBar label="검색" onSearch={fetchList}>
-                <SearchItem label="상품 코드">
-                    <input
-                        type="text"
-                        value={cond.prodCd}
-                        onChange={(e) => setCond(prev => ({ ...prev, prodCd: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="PROD-0001"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="상품명">
-                    <input
-                        type="text"
-                        value={cond.prodNm}
-                        onChange={(e) => setCond(prev => ({ ...prev, prodNm: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="상품명 검색"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="온도대">
-                    <DropdownSelect
-                        value={cond.tmpZon}
-                        onChange={(v) => setCond(prev => ({ ...prev, tmpZon: v }))}
-                        options={tempZoneOptions}
-                        placeholder="전체"
-                    />
-                </SearchItem>
+            <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
+                <SearchText name="prodCd" label="상품 코드" placeholder="PROD-0001" />
+                <SearchText name="prodNm" label="상품명" placeholder="상품명 검색" />
+                <SearchSelect name="tmpZon" label="온도대" options={tempZoneCodes.searchOptions} />
             </SearchBar>
 
             {/* 그리드 툴바 */}

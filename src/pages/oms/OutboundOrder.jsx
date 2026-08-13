@@ -6,8 +6,8 @@ import toast from 'react-hot-toast';
 import ProdPickerModal from '@/components/common/ProdPickerModal';
 import StorePickerModal from '@/components/common/StorePickerModal';
 import { omsOutbOrderApi } from '@/api/omsOutbOrderApi';
-import { codeApi } from '@/api/codeApi';
-import { TEMP_ZONE_META } from '@/api/prodApi';
+import { useCodes } from '@/hooks/useCodes';
+import { TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { todayStr } from '@/utils/format';
 
 const EMPTY_FORM = () => ({
@@ -45,19 +45,12 @@ export default function OutboundOrder() {
     const [form, setForm] = useState(EMPTY_FORM);
     const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(isEdit);
-    const [outbTypCodes, setOutbTypCodes] = useState([]);
-    const [vhclFltnoCodes, setVhclFltnoCodes] = useState([]);
+    const outbTypCodes = useCodes('OUTB_TYP');
+    const vhclFltnoCodes = useCodes('VHCL_FLTNO');
     // null이면 닫힘 / 'add'면 다중 추가 / 숫자면 그 인덱스 라인의 상품 교체
     const [pickerFor, setPickerFor] = useState(null);
     const [storePickerOpen, setStorePickerOpen] = useState(false);
     const navigate = useNavigate();
-
-    useEffect(() => {
-        let ignore = false;
-        codeApi.list('OUTB_TYP').then(codes => { if (!ignore) setOutbTypCodes(codes); });
-        codeApi.list('VHCL_FLTNO').then(codes => { if (!ignore) setVhclFltnoCodes(codes); });
-        return () => { ignore = true; };
-    }, []);
 
     // 수정 진입 시 주문을 불러온다. 헤더는 목록 API에서, 라인은 라인 API에서 가져온다 —
     // 단건 조회 엔드포인트가 없어서 목록을 받아 한 건만 골라낸다.
@@ -228,8 +221,8 @@ export default function OutboundOrder() {
                             onChange={(e) => setForm(prev => ({ ...prev, outbTyp: e.target.value }))}
                             disabled={readOnly}
                             className={inputCls + ' disabled:bg-slate-50 disabled:cursor-not-allowed'}>
-                            {outbTypCodes.map(c => (
-                                <option key={c.codeCd} value={c.codeCd}>{c.codeNm}</option>
+                            {outbTypCodes.selectOptions.map(o => (
+                                <option key={o.value} value={o.value}>{o.label}</option>
                             ))}
                         </select>
                     </Field>
@@ -287,8 +280,8 @@ export default function OutboundOrder() {
                             disabled={readOnly}
                             className={inputCls + ' disabled:bg-slate-50 disabled:cursor-not-allowed'}>
                             <option value="">배차 미정</option>
-                            {vhclFltnoCodes.map(c => (
-                                <option key={c.codeCd} value={c.codeCd}>{c.codeNm}</option>
+                            {vhclFltnoCodes.selectOptions.map(o => (
+                                <option key={o.value} value={o.value}>{o.label}</option>
                             ))}
                         </select>
                     </Field>

@@ -3,12 +3,14 @@ import { AgGridReact } from 'ag-grid-react';
 import { ClipboardCheck, Plus, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchItem } from '@/components/common/SearchBar';
+import SearchBar, { SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import ProdPickerModal from '@/components/common/ProdPickerModal';
-import { invStktkApi, INV_STKTK_STATUS_META } from '@/api/invStktkApi';
+import { invStktkApi } from '@/api/invStktkApi';
+import { INV_STKTK_STATUS_META } from '@/constants/badgeMeta';
 import { locApi } from '@/api/locApi';
 import { zonApi } from '@/api/zonApi';
+import { Badge } from '@/components/common/Badge';
 import { daysAheadStr, fmtDt, num, todayStr } from '@/utils/format';
 
 const STATUS_OPTIONS = [
@@ -16,19 +18,13 @@ const STATUS_OPTIONS = [
     ...Object.entries(INV_STKTK_STATUS_META).map(([value, m]) => ({ value, label: m.label })),
 ];
 
-const StatusBadge = ({ value }) => {
-    const meta = INV_STKTK_STATUS_META[value];
-    if (!meta) return null;
-    return <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${meta.badge}`}>{meta.label}</span>;
-};
-
 const COLUMN_DEFS = [
     { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
     { field: 'stktkNo', headerName: '조사번호', width: 150 },
     {
         field: 'status', headerName: '상태', width: 90,
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-        cellRenderer: (p) => <StatusBadge value={p.value} />,
+        cellRenderer: (p) => <Badge meta={INV_STKTK_STATUS_META} value={p.value} show="label" />,
     },
     {
         headerName: '조사 범위', flex: 1, minWidth: 240,
@@ -84,12 +80,10 @@ export default function StockCountList({ onOpen }) {
     };
 
     useEffect(() => {
-        let ignore = false;
-        invStktkApi.list(cond).then(data => { if (!ignore) setRowData(data); });
-        zonApi.list().then(zons => { if (!ignore) setZonCodes(zons); });
+        invStktkApi.list(cond).then(setRowData);
+        zonApi.list().then(setZonCodes);
         // 조사 대상은 보관 재고뿐이라 범위 로케이션도 보관만 고른다
-        locApi.list({ locTyp: 'STORAGE' }).then(locs => { if (!ignore) setStorageLocs(locs); });
-        return () => { ignore = true; };
+        locApi.list({ locTyp: 'STORAGE' }).then(setStorageLocs);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -109,17 +103,15 @@ export default function StockCountList({ onOpen }) {
 
     const doCreate = async () => {
         try {
-            const stktkNo = await invStktkApi.create({
+            const { invStktkId, stktkNo } = await invStktkApi.create({
                 zonCd: scope.zonCd || null,
                 locId: scope.locId ? Number(scope.locId) : null,
                 prodId: scope.prod?.prodId ?? null,
             });
             toast.success(`재고조사 ${stktkNo}를 생성했습니다. 실사수량을 입력하세요.`);
             setCreateOpen(false);
-            const list = await invStktkApi.list(cond);
-            setRowData(list);
-            const created = list.find(s => s.stktkNo === stktkNo);
-            if (created) onOpen(created.invStktkId);
+            await fetchList();
+            onOpen(invStktkId);
         } catch (e) {
             toast.error(e.message || '조사 생성에 실패했습니다.');
         }
@@ -142,60 +134,12 @@ export default function StockCountList({ onOpen }) {
             </div>
 
             {/* 검색 조건 */}
-            <SearchBar label="검색" onSearch={fetchList}>
-                <SearchItem label="조사번호">
-                    <input
-                        type="text"
-                        value={cond.stktkNo}
-                        onChange={(e) => setCond(prev => ({ ...prev, stktkNo: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="ST-260803-001"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="상태">
-                    <DropdownSelect
-                        value={cond.status}
-                        onChange={(v) => setCond(prev => ({ ...prev, status: v }))}
-                        options={STATUS_OPTIONS}
-                        placeholder="전체"
-                    />
-                </SearchItem>
-                <SearchItem label="존">
-                    <DropdownSelect
-                        value={cond.zonCd}
-                        onChange={(v) => setCond(prev => ({ ...prev, zonCd: v }))}
-                        options={zonOptions}
-                        placeholder="전체"
-                    />
-                </SearchItem>
-                <SearchItem label="상품 코드">
-                    <input
-                        type="text"
-                        value={cond.prodCd}
-                        onChange={(e) => setCond(prev => ({ ...prev, prodCd: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="PROD-0001"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="생성일자" wide>
-                    <div className="flex items-center gap-1 w-full">
-                        <input
-                            type="date"
-                            value={cond.fromDe}
-                            onChange={(e) => setCond(prev => ({ ...prev, fromDe: e.target.value }))}
-                            className="input-base flex-1"
-                        />
-                        <span className="text-slate-300">~</span>
-                        <input
-                            type="date"
-                            value={cond.toDe}
-                            onChange={(e) => setCond(prev => ({ ...prev, toDe: e.target.value }))}
-                            className="input-base flex-1"
-                        />
-                    </div>
-                </SearchItem>
+            <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
+                <SearchText name="stktkNo" label="조사번호" placeholder="ST-260803-001" />
+                <SearchSelect name="status" label="상태" options={STATUS_OPTIONS} />
+                <SearchSelect name="zonCd" label="존" options={zonOptions} />
+                <SearchText name="prodCd" label="상품 코드" placeholder="PROD-0001" />
+                <SearchDateRange from="fromDe" to="toDe" label="생성일자" />
             </SearchBar>
 
             <div className="flex-1 min-h-0 flex flex-col gap-3">

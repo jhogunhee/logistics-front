@@ -4,34 +4,20 @@ import { Download, LayoutGrid, Plus, Save, Trash2, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 
-import SearchBar, { SearchItem } from '@/components/common/SearchBar';
-import DropdownSelect from '@/components/common/DropdownSelect';
-import { zonApi, STRG_TYP_META, BIZ_DVSN_META } from '@/api/zonApi';
-import { TEMP_ZONE_META } from '@/api/prodApi';
-import { codeApi, toSearchOptions } from '@/api/codeApi';
-import { RowStatusCell } from '@/components/common/Badge';
+import SearchBar, { SearchText, SearchSelect } from '@/components/common/SearchBar';
+import { zonApi } from '@/api/zonApi';
+import { BIZ_DVSN_META, STRG_TYP_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
+import { useCodes } from '@/hooks/useCodes';
+import { Badge, RowStatusCell } from '@/components/common/Badge';
 import { fmtDe } from '@/utils/format';
 import ConfirmModal from '@/components/common/ConfirmModal';
-
-
-const Badge = ({ meta, value, withCode }) => {
-    const m = meta[value];
-    if (!m) return null;
-    return (
-        <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${m.badge}`}>
-            {m.label}{withCode ? ` ${value}` : ''}
-        </span>
-    );
-};
 
 export default function ZonMaster() {
     const [rowData, setRowData] = useState([]);
     const [cond, setCond] = useState({ zonCd: '', tmpZon: '', bizDvsn: '' });
-    const [tmpZonOptions, setTmpZonOptions] = useState([{ value: '', label: '전체' }]);
-    const [bizDvsnOptions, setBizDvsnOptions] = useState([{ value: '', label: '전체' }]);
-    const [tmpZonCodes, setTmpZonCodes] = useState([]); // 공통코드(TEMP_ZONE)의 코드값 목록
-    const [strgTypCodes, setStrgTypCodes] = useState([]); // 공통코드(STRG_TYP)의 코드값 목록
-    const [bizDvsnCodes, setBizDvsnCodes] = useState([]); // 공통코드(BIZ_DVSN)의 코드값 목록
+    const tmpZonCodes = useCodes('TEMP_ZONE');
+    const strgTypCodes = useCodes('STRG_TYP');
+    const bizDvsnCodes = useCodes('BIZ_DVSN');
     const [rowCount, setRowCount] = useState(0); // 행추가분은 rowData 상태에 없으므로 건수는 그리드 기준으로 센다
     const [saveConfirm, setSaveConfirm] = useState(null); // 저장 확인 모달에 넘길 대상 행들 (null이면 닫힘)
     const gridRef = useRef(null); // 그리드 api 호출용 (applyTransaction 등)
@@ -58,23 +44,23 @@ export default function ZonMaster() {
         {
             field: 'tmpZon', headerName: '온도구분', width: 110, editable: notDeleted,
             cellEditor: 'agSelectCellEditor',
-            cellEditorParams: { values: tmpZonCodes },
+            cellEditorParams: { values: tmpZonCodes.values },
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-            cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} withCode />,
+            cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
         },
         {
             field: 'strgTyp', headerName: '보관유형', width: 100, editable: notDeleted,
             cellEditor: 'agSelectCellEditor',
-            cellEditorParams: { values: strgTypCodes },
+            cellEditorParams: { values: strgTypCodes.values },
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-            cellRenderer: (p) => <Badge meta={STRG_TYP_META} value={p.value} />,
+            cellRenderer: (p) => <Badge meta={STRG_TYP_META} value={p.value} show="label" />,
         },
         {
             field: 'bizDvsn', headerName: '업무구분', width: 110, editable: notDeleted,
             cellEditor: 'agSelectCellEditor',
-            cellEditorParams: { values: bizDvsnCodes },
+            cellEditorParams: { values: bizDvsnCodes.values },
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-            cellRenderer: (p) => <Badge meta={BIZ_DVSN_META} value={p.value} />,
+            cellRenderer: (p) => <Badge meta={BIZ_DVSN_META} value={p.value} show="label" />,
         },
         {
             field: '_status', headerName: '상태', width: 70,
@@ -97,26 +83,9 @@ export default function ZonMaster() {
         setRowData(data);
     };
 
-    // 최초 1회 조회 (이후엔 조회 버튼으로 재조회) + 세 구분의 공통코드 조회
+    // 최초 1회 조회 (이후엔 조회 버튼으로 재조회)
     useEffect(() => {
-        let ignore = false;
-        zonApi.list().then(data => { if (!ignore) setRowData(data); });
-        codeApi.list('TEMP_ZONE').then(codes => {
-            if (!ignore) {
-                setTmpZonOptions(toSearchOptions(codes));
-                setTmpZonCodes(codes.map(c => c.codeCd));
-            }
-        });
-        codeApi.list('STRG_TYP').then(codes => {
-            if (!ignore) setStrgTypCodes(codes.map(c => c.codeCd));
-        });
-        codeApi.list('BIZ_DVSN').then(codes => {
-            if (!ignore) {
-                setBizDvsnOptions(toSearchOptions(codes));
-                setBizDvsnCodes(codes.map(c => c.codeCd));
-            }
-        });
-        return () => { ignore = true; };
+        zonApi.list().then(setRowData);
     }, []);
 
     // 셀 수정 시 행 상태를 U(수정)로 표시 (신규 C는 유지)
@@ -175,9 +144,9 @@ export default function ZonMaster() {
         sheet['!cols'] = [{ wch: 16 }, { wch: 18 }, { wch: 10 }, { wch: 10 }, { wch: 12 }]; // 열 너비
 
         const codeSheet = XLSX.utils.json_to_sheet([
-            ...tmpZonCodes.map(cd => ({ '구분': '온도구분', '코드': cd, '이름': TEMP_ZONE_META[cd]?.label ?? '' })),
-            ...strgTypCodes.map(cd => ({ '구분': '보관유형', '코드': cd, '이름': STRG_TYP_META[cd]?.label ?? '' })),
-            ...bizDvsnCodes.map(cd => ({ '구분': '업무구분', '코드': cd, '이름': BIZ_DVSN_META[cd]?.label ?? '' })),
+            ...tmpZonCodes.values.map(cd => ({ '구분': '온도구분', '코드': cd, '이름': TEMP_ZONE_META[cd]?.label ?? '' })),
+            ...strgTypCodes.values.map(cd => ({ '구분': '보관유형', '코드': cd, '이름': STRG_TYP_META[cd]?.label ?? '' })),
+            ...bizDvsnCodes.values.map(cd => ({ '구분': '업무구분', '코드': cd, '이름': BIZ_DVSN_META[cd]?.label ?? '' })),
         ]);
         codeSheet['!cols'] = [{ wch: 10 }, { wch: 12 }, { wch: 12 }];
 
@@ -212,9 +181,9 @@ export default function ZonMaster() {
         raw.forEach((r, i) => {
             const zonCd = String(r['존코드'] ?? '').trim();
             const zonNm = String(r['존명'] ?? '').trim();
-            const tmpZon = resolve(r['온도구분'], tmpZonCodes, TEMP_ZONE_META);
-            const strgTyp = resolve(r['보관유형'], strgTypCodes, STRG_TYP_META);
-            const bizDvsn = resolve(r['업무구분'], bizDvsnCodes, BIZ_DVSN_META);
+            const tmpZon = resolve(r['온도구분'], tmpZonCodes.values, TEMP_ZONE_META);
+            const strgTyp = resolve(r['보관유형'], strgTypCodes.values, STRG_TYP_META);
+            const bizDvsn = resolve(r['업무구분'], bizDvsnCodes.values, BIZ_DVSN_META);
             if (!zonCd || !zonNm || !tmpZon || !strgTyp || !bizDvsn) {
                 badLines.push(i + 2); // 엑셀 행 번호 (헤더 1행 + 1-base)
                 return;
@@ -282,33 +251,10 @@ export default function ZonMaster() {
             </div>
 
             {/* 검색 조건 */}
-            <SearchBar label="검색" onSearch={fetchList}>
-                <SearchItem label="존코드">
-                    <input
-                        type="text"
-                        value={cond.zonCd}
-                        onChange={(e) => setCond(prev => ({ ...prev, zonCd: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="DRY"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="온도구분">
-                    <DropdownSelect
-                        value={cond.tmpZon}
-                        onChange={(v) => setCond(prev => ({ ...prev, tmpZon: v }))}
-                        options={tmpZonOptions}
-                        placeholder="전체"
-                    />
-                </SearchItem>
-                <SearchItem label="업무구분">
-                    <DropdownSelect
-                        value={cond.bizDvsn}
-                        onChange={(v) => setCond(prev => ({ ...prev, bizDvsn: v }))}
-                        options={bizDvsnOptions}
-                        placeholder="전체"
-                    />
-                </SearchItem>
+            <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
+                <SearchText name="zonCd" label="존코드" placeholder="DRY" />
+                <SearchSelect name="tmpZon" label="온도구분" options={tmpZonCodes.searchOptions} />
+                <SearchSelect name="bizDvsn" label="업무구분" options={bizDvsnCodes.searchOptions} />
             </SearchBar>
 
             {/* 그리드 툴바 */}

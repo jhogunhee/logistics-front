@@ -3,25 +3,15 @@ import { AgGridReact } from 'ag-grid-react';
 import { Hash, ListOrdered, Plus, Save, Trash2, X, Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchItem } from '@/components/common/SearchBar';
-import { nbrRuleApi, DYNC_KY_TYP_META } from '@/api/nbrRuleApi';
-import { RowStatusCell } from '@/components/common/Badge';
+import SearchBar, { SearchText } from '@/components/common/SearchBar';
+import { nbrRuleApi } from '@/api/nbrRuleApi';
+import { DYNC_KY_TYP_META } from '@/constants/badgeMeta';
+import { Badge, RowStatusCell } from '@/components/common/Badge';
 import { fmtDe, fmtDtSec } from '@/utils/format';
 import ConfirmModal from '@/components/common/ConfirmModal';
 
 
 const DLMT_OPTIONS = ['-', '_', ''];
-
-
-const Badge = ({ meta, value }) => {
-    const m = meta[value];
-    if (!m) return null;
-    return (
-        <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${m.badge}`}>
-            {m.label}
-        </span>
-    );
-};
 
 export default function NbrRuleMaster() {
     const [rowData, setRowData] = useState([]);
@@ -96,7 +86,7 @@ export default function NbrRuleMaster() {
             cellEditor: 'agSelectCellEditor',
             cellEditorParams: { values: ['NONE', 'YEAR', 'MONTH', 'DAY'] },
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-            cellRenderer: (p) => <Badge meta={DYNC_KY_TYP_META} value={p.value} />,
+            cellRenderer: (p) => <Badge meta={DYNC_KY_TYP_META} value={p.value} show="label" />,
             headerTooltip: '고정=카운터 전역 공유 / 연도별·월별·일자별=발급 시 넘긴 날짜 기준으로 리셋 단위 분리. 등록 후 변경 불가',
         },
         {
@@ -137,9 +127,7 @@ export default function NbrRuleMaster() {
 
     // 최초 1회 조회 (이후엔 조회 버튼으로 재조회)
     useEffect(() => {
-        let ignore = false;
-        nbrRuleApi.list().then(data => { if (!ignore) setRowData(data); });
-        return () => { ignore = true; };
+        nbrRuleApi.list().then(setRowData);
     }, []);
 
     // 셀 수정 시 행 상태를 U(수정)로 표시 (신규 C는 유지)
@@ -276,27 +264,9 @@ export default function NbrRuleMaster() {
             </div>
 
             {/* 검색 조건 */}
-            <SearchBar label="검색" onSearch={fetchList}>
-                <SearchItem label="규칙코드">
-                    <input
-                        type="text"
-                        value={cond.ruleCd}
-                        onChange={(e) => setCond(prev => ({ ...prev, ruleCd: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="PROD_CD"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="규칙명">
-                    <input
-                        type="text"
-                        value={cond.ruleNm}
-                        onChange={(e) => setCond(prev => ({ ...prev, ruleNm: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="규칙명 검색"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
+            <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
+                <SearchText name="ruleCd" label="규칙코드" placeholder="PROD_CD" />
+                <SearchText name="ruleNm" label="규칙명" placeholder="규칙명 검색" />
             </SearchBar>
 
             {/* 그리드 툴바 */}

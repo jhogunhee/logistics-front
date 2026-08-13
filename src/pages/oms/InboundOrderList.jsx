@@ -5,25 +5,16 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { CheckCircle2, ClipboardList, Search, Trash2, Undo2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchItem } from '@/components/common/SearchBar';
-import DropdownSelect from '@/components/common/DropdownSelect';
+import SearchBar, { SearchItem, SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
 import VendorPickerModal from '@/components/common/VendorPickerModal';
-import { omsIbOrderApi, OMS_IB_STATUS_META, OMS_IB_STATUS_OPTIONS } from '@/api/omsIbOrderApi';
-import { ASN_STATUS_META } from '@/api/asnApi';
-import { codeApi } from '@/api/codeApi';
-import { TempZoneBadge } from '@/components/common/Badge';
+import { omsIbOrderApi } from '@/api/omsIbOrderApi';
+import { useCodes } from '@/hooks/useCodes';
+import { ASN_STATUS_META, OMS_IB_STATUS_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
+import { OMS_IB_STATUS_OPTIONS } from '@/constants/codeOptions';
+import { Badge } from '@/components/common/Badge';
 import { daysAheadStr, todayStr } from '@/utils/format';
 
 // 오늘 날짜 "YYYY-MM-DD" (검색 기본값)
-
-const Badge = ({ meta }) => {
-    if (!meta) return null;
-    return (
-        <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${meta.badge}`}>
-            {meta.label}
-        </span>
-    );
-};
 
 
 const centered = { display: 'flex', alignItems: 'center', justifyContent: 'center' };
@@ -50,7 +41,7 @@ const HEADER_COLUMN_DEFS = [
     {
         field: 'status', headerName: '주문상태', width: 90,
         cellStyle: centered,
-        cellRenderer: (p) => <Badge meta={OMS_IB_STATUS_META[p.value]} />,
+        cellRenderer: (p) => <Badge meta={OMS_IB_STATUS_META} value={p.value} show="label" />,
     },
     {
         // 표시명은 공통코드에서 받아 context로 넘긴다 (코드값만으론 화면에서 못 읽는다).
@@ -89,7 +80,7 @@ const HEADER_COLUMN_DEFS = [
         field: 'ibStatus', headerName: '창고 진행', width: 95,
         headerTooltip: 'ASN의 입고 진행 상태',
         cellStyle: centered,
-        cellRenderer: (p) => <Badge meta={ASN_STATUS_META[p.value]} />,
+        cellRenderer: (p) => <Badge meta={ASN_STATUS_META} value={p.value} show="label" />,
     },
 ];
 
@@ -100,7 +91,7 @@ const LINE_COLUMN_DEFS = [
     {
         field: 'tmpZon', headerName: '온도대', width: 120,
         cellStyle: centered,
-        cellRenderer: (p) => <TempZoneBadge value={p.value} />,
+        cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
     },
     {
         field: 'odrQty', headerName: '발주수량', width: 120, cellClass: 'ag-right-aligned-cell',
@@ -139,18 +130,10 @@ export default function InboundOrderList() {
     const [deleteTarget, setDeleteTarget] = useState(null);   // 삭제 확인 모달 대상
     const gridRef = useRef(null);
     const navigate = useNavigate();
-    const [odrDvsnNmByCd, setOdrDvsnNmByCd] = useState({});
+    const odrDvsnCodes = useCodes('ODR_DVSN');
     // 벤더 검색은 자유 입력 대신 등록 화면과 같은 팝업(VendorPickerModal)에서 고른다 —
     // 서버 검색 파라미터가 vndrNm(contains)이라 값은 id가 아니라 이름 그대로 보낸다.
     const [vendorPickerOpen, setVendorPickerOpen] = useState(false);
-
-    useEffect(() => {
-        let ignore = false;
-        codeApi.list('ODR_DVSN').then(codes => {
-            if (!ignore) setOdrDvsnNmByCd(Object.fromEntries(codes.map(c => [c.codeCd, c.codeNm])));
-        });
-        return () => { ignore = true; };
-    }, []);
 
     const fetchList = async () => {
         const data = await omsIbOrderApi.list(cond);
@@ -161,9 +144,7 @@ export default function InboundOrderList() {
 
     // 최초 1회 조회 (검색조건 기본값 = 오늘)
     useEffect(() => {
-        let ignore = false;
-        omsIbOrderApi.list(cond).then(data => { if (!ignore) setRowData(data); });
-        return () => { ignore = true; };
+        omsIbOrderApi.list(cond).then(setRowData);
     }, []);
 
     // 행 클릭 시 라인 조회 — 체크박스(일괄 처리 대상)와 역할을 분리한다.
@@ -276,34 +257,9 @@ export default function InboundOrderList() {
             </div>
 
             {/* 검색 조건 */}
-            <SearchBar label="검색" onSearch={fetchList}>
-                <SearchItem label="주문번호">
-                    <input
-                        type="text"
-                        value={cond.omsIbNo}
-                        onChange={(e) => setCond(prev => ({ ...prev, omsIbNo: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="PO-20260723-001"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="입고예정일" wide>
-                    <div className="flex items-center gap-2">
-                        <input
-                            type="date"
-                            value={cond.dateFrom}
-                            onChange={(e) => setCond(prev => ({ ...prev, dateFrom: e.target.value }))}
-                            className="flex-1 min-w-0 input-base"
-                        />
-                        <span className="text-slate-400 shrink-0">~</span>
-                        <input
-                            type="date"
-                            value={cond.dateTo}
-                            onChange={(e) => setCond(prev => ({ ...prev, dateTo: e.target.value }))}
-                            className="flex-1 min-w-0 input-base"
-                        />
-                    </div>
-                </SearchItem>
+            <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
+                <SearchText name="omsIbNo" label="주문번호" placeholder="PO-20260723-001" />
+                <SearchDateRange from="dateFrom" to="dateTo" label="입고예정일" />
                 <SearchItem label="벤더">
                     <button
                         type="button"
@@ -322,14 +278,7 @@ export default function InboundOrderList() {
                             : <Search size={13} className="shrink-0 text-slate-400" />}
                     </button>
                 </SearchItem>
-                <SearchItem label="주문상태">
-                    <DropdownSelect
-                        value={cond.status}
-                        onChange={(v) => setCond(prev => ({ ...prev, status: v }))}
-                        options={OMS_IB_STATUS_OPTIONS}
-                        placeholder="전체"
-                    />
-                </SearchItem>
+                <SearchSelect name="status" label="주문상태" options={OMS_IB_STATUS_OPTIONS} />
             </SearchBar>
 
             {/* 상하 분할 + 드래그 스플리터 (비율은 localStorage에 기억됨) */}
@@ -365,7 +314,7 @@ export default function InboundOrderList() {
                             columnDefs={HEADER_COLUMN_DEFS}
                             context={{
                                 openOrder: (o) => navigate(`/oms/inbound-order/${o.omsIbOrderId}`),
-                                odrDvsnNm: (cd) => odrDvsnNmByCd[cd],
+                                odrDvsnNm: (cd) => odrDvsnCodes.nmByCd[cd],
                             }}
                             rowHeight={34}
                             headerHeight={38}

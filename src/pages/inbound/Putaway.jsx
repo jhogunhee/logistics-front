@@ -1,193 +1,159 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
-import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
-import { ArrowRight, Layers, PackageOpen } from 'lucide-react';
+import { ArrowRight, PackageOpen, RefreshCw, Wand2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchItem } from '@/components/common/SearchBar';
-import ConfirmModal from '@/components/common/ConfirmModal';
-import { TempZoneBadge } from '@/components/common/Badge';
+import SearchBar, { SearchText, SearchDateRange } from '@/components/common/SearchBar';
+import DropdownSelect from '@/components/common/DropdownSelect';
 import { putawayApi } from '@/api/putawayApi';
-import { fmtDe, num } from '@/utils/format';
+import { TEMP_ZONE_META } from '@/constants/badgeMeta';
+import { Badge } from '@/components/common/Badge';
+import ConfirmModal from '@/components/common/ConfirmModal';
 
 
-// 상단: 상품별 집계 — 작업자가 스테이징에서 집어 드는 단위가 상품이라 이 축으로 묶는다
-const PROD_COLUMN_DEFS = [
+const COLUMN_DEFS = [
+    { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
+    { field: 'ibNo', headerName: '입고번호', width: 170 },
+    { field: 'vndrNm', headerName: '벤더', width: 110 },
     { field: 'prodCd', headerName: '상품 코드', width: 115 },
-    { field: 'prodNm', headerName: '상품명', flex: 1, minWidth: 180 },
+    { field: 'prodNm', headerName: '상품명', flex: 1, minWidth: 200 },
     {
-        field: 'tmpZon', headerName: '온도대', width: 90,
+        field: 'tmpZon', headerName: '온도대', width: 100,
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-        cellRenderer: (p) => <TempZoneBadge value={p.value} />,
+        cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
     },
-    {
-        field: 'taskCount', headerName: '지시 건수', width: 100,
-        headerTooltip: '이 상품에 걸린 미완료 지시 수. 2건 이상이면 로케이션이 나뉘어 있다는 뜻',
-        cellClass: (p) => `ag-right-aligned-cell tabular-nums ${p.value > 1 ? 'text-indigo-600 font-bold' : 'text-slate-500'}`,
-    },
-    {
-        field: 'locCount', headerName: '로케이션', width: 100,
-        headerTooltip: '이 상품이 들어갈 서로 다른 보관 로케이션 수',
-        cellClass: 'ag-right-aligned-cell tabular-nums text-slate-500',
-    },
-    {
-        field: 'remainingQty', headerName: '잔여수량', width: 110,
-        headerTooltip: '이 상품에 남은 적치 대상 총량',
-        cellClass: 'ag-right-aligned-cell tabular-nums font-bold text-amber-600',
-        valueFormatter: (p) => num(p.value),
-    },
-    {
-        field: 'nearestExpiryDt', headerName: '최단 유통기한', width: 130,
-        headerTooltip: '이 상품 지시 중 가장 임박한 유통기한. 목록은 이 값 순서라 위에서부터 처리하면 FEFO가 지켜진다',
-        cellRenderer: (p) => (p.value ? fmtDe(p.value) : <span className="text-slate-400">미관리</span>),
-    },
-];
-
-// 하단: 선택 상품의 지시들 — 어디에 얼마씩 넣는지가 한눈에 보여야 한 번 들고 나가 나눠 넣는다
-const TASK_COLUMN_DEFS = [
-    { field: 'ibNo', headerName: '입고번호', width: 165 },
-    { field: 'lotNo', headerName: 'Lot번호', width: 140 },
+    { field: 'lotNo', headerName: 'Lot번호', width: 130 },
+    { field: 'receiptDt', headerName: '입고일자', width: 110 },
     {
         field: 'expiryDt', headerName: '유통기한', width: 110,
-        cellRenderer: (p) => (p.value ? fmtDe(p.value) : <span className="text-slate-400">미관리</span>),
+        headerTooltip: '이 Lot의 유통기한. FEFO 정렬(임박 순) 기준값',
+        cellRenderer: (p) => p.value ?? <span className="text-slate-400">미관리</span>,
     },
     {
-        // 이 화면의 핵심 정보 — 작업자는 여기 적힌 로케이션으로만 물건을 넣는다
-        field: 'toLocCd', headerName: '대상 로케이션', width: 160,
-        headerTooltip: '지시된 적치 위치. 다른 곳에 넣으려면 적치지시 화면에서 취소 후 재지시해야 한다',
-        cellClass: 'font-mono font-bold text-indigo-700',
-    },
-    {
-        field: 'drctQty', headerName: '지시수량', width: 100,
-        cellClass: 'ag-right-aligned-cell tabular-nums font-medium', valueFormatter: (p) => num(p.value),
-    },
-    {
-        field: 'cmplQty', headerName: '완료수량', width: 100,
-        cellClass: (p) => `ag-right-aligned-cell tabular-nums ${p.value > 0 ? 'text-emerald-600 font-bold' : 'text-slate-300'}`,
-        valueFormatter: (p) => num(p.value),
-    },
-    {
-        field: 'remainingQty', headerName: '잔여수량', width: 100,
-        headerTooltip: '잔여 = 지시 - 완료. 이번에 실행할 수 있는 상한',
-        cellClass: 'ag-right-aligned-cell tabular-nums font-bold text-amber-600',
-        valueFormatter: (p) => num(p.value),
+        field: 'pendingQty', headerName: '미적치', width: 100,
+        headerTooltip: 'RCV-STAGE에 남아있는, 아직 보관 로케이션으로 옮기지 않은 이 배치(Lot)의 수량',
+        cellClass: 'ag-right-aligned-cell text-amber-600 font-bold',
     },
 ];
 
-/** 지시 목록을 상품별로 접는다 — 서버는 지시 1건씩 주고, 화면의 작업 단위인 상품은 여기서 만든다 */
-const groupByProd = (tasks) => {
-    const byProd = new Map();
-    for (const t of tasks) {
-        const group = byProd.get(t.prodCd) ?? {
-            prodCd: t.prodCd, prodNm: t.prodNm, tmpZon: t.tmpZon,
-            taskCount: 0, remainingQty: 0, nearestExpiryDt: null, locCds: new Set(), tasks: [],
-        };
-        group.taskCount += 1;
-        group.remainingQty += t.remainingQty;
-        group.locCds.add(t.toLocCd);
-        // 서버가 유통기한 순으로 주므로 첫 값이 곧 최단이다 (미관리는 null로 뒤에 온다)
-        if (group.nearestExpiryDt == null) group.nearestExpiryDt = t.expiryDt;
-        group.tasks.push(t);
-        byProd.set(t.prodCd, group);
-    }
-    return [...byProd.values()].map(g => ({ ...g, locCount: g.locCds.size }));
-};
-
 export default function Putaway() {
-    const [tasks, setTasks] = useState([]);
-    const [cond, setCond] = useState({ ibNo: '', prodCd: '', prodNm: '', toLocCd: '' });
-    const [selectedProdCd, setSelectedProdCd] = useState(null);
-    const [selectedTask, setSelectedTask] = useState(null);
+    const [rowData, setRowData] = useState([]);
+    const [selected, setSelected] = useState(null);
+    const [cond, setCond] = useState({ ibNo: '', dateFrom: '', dateTo: '', prodCd: '', prodNm: '' });
+    const [candidateLocs, setCandidateLocs] = useState([]);
     const [qty, setQty] = useState('');
-    const [confirmOne, setConfirmOne] = useState(null);  // 건별 실행 확인 대상
-    const [confirmAll, setConfirmAll] = useState(null);  // 상품 전량 실행 확인 대상 (그룹)
-    const prodGridRef = useRef(null);
-    const pendingProdRef = useRef(null); // 재조회 후 같은 상품을 다시 선택하기 위한 키
+    const [targetLocId, setTargetLocId] = useState('');
+    const [confirmTarget, setConfirmTarget] = useState(null); // 적치 실행 확인 모달 대상
+    const [recommend, setRecommend] = useState(null); // 전략 추천 결과 — strategySelected=false면 수동 선택만 노출
+    const [confirmRecommend, setConfirmRecommend] = useState(null); // 추천대로 실행 확인 모달 대상
+    const gridRef = useRef(null);
+    const pendingSelectRef = useRef(null); // 재조회 후 같은 배치(라인+Lot)를 다시 선택하기 위한 키 (부분 적치 시 유지)
 
-    const prodRows = useMemo(() => groupByProd(tasks), [tasks]);
-    const selectedProd = prodRows.find(g => g.prodCd === selectedProdCd) ?? null;
-
-    const fetchList = async (keepProd = false) => {
-        pendingProdRef.current = keepProd ? selectedProdCd : null;
-        if (!keepProd) {
-            setSelectedProdCd(null);
+    const fetchList = async (keepSelection = false) => {
+        if (keepSelection) {
+            pendingSelectRef.current = selected ? { ibLineId: selected.ibLineId, lotId: selected.lotId } : null;
+        } else {
+            setSelected(null);
+            setCandidateLocs([]);
+            setQty('');
+            setTargetLocId('');
+            setRecommend(null);
         }
-        setSelectedTask(null);
-        setQty('');
-        try {
-            setTasks(await putawayApi.tasks({ status: 'DIRECTED', ...cond }));
-        } catch (e) {
-            toast.error(e.message || '조회에 실패했습니다.');
-        }
+        const data = await putawayApi.lines(cond);
+        setRowData(data);
     };
 
-    // 상품 목록이 다시 그려진 뒤 이전 선택을 복구한다 (부분 실행 후에도 자리를 지키도록)
-    const onProdModelUpdated = (p) => {
-        if (pendingProdRef.current == null) return;
-        const prodCd = pendingProdRef.current;
-        pendingProdRef.current = null;
-        p.api.forEachNode(n => { if (n.data.prodCd === prodCd) n.setSelected(true); });
+    const onModelUpdated = (p) => {
+        if (pendingSelectRef.current == null) return;
+        const { ibLineId, lotId } = pendingSelectRef.current;
+        pendingSelectRef.current = null;
+        p.api.forEachNode(n => { if (n.data.ibLineId === ibLineId && n.data.lotId === lotId) n.setSelected(true); });
     };
 
     useEffect(() => {
-        let ignore = false;
-        putawayApi.tasks({ status: 'DIRECTED' }).then(data => { if (!ignore) setTasks(data); }).catch(() => {});
-        return () => { ignore = true; };
+        putawayApi.lines().then(setRowData);
     }, []);
 
-    const onProdSelectionChanged = (e) => {
-        const node = e.api.getSelectedNodes()[0];
-        setSelectedProdCd(node ? node.data.prodCd : null);
-        setSelectedTask(null);
-        setQty('');
-    };
-
-    const onTaskSelectionChanged = (e) => {
+    // 배치 선택 시 전략 추천 + 대상 로케이션 후보 조회 + 수량 기본값(전량)
+    const onSelectionChanged = async (e) => {
         const node = e.api.getSelectedNodes()[0];
         if (!node) {
-            setSelectedTask(null);
+            setSelected(null);
+            setCandidateLocs([]);
             setQty('');
+            setTargetLocId('');
+            setRecommend(null);
             return;
         }
-        setSelectedTask(node.data);
-        setQty(String(node.data.remainingQty));
+        setSelected(node.data);
+        setQty(String(node.data.pendingQty));
+        fetchRecommend(node.data, node.data.pendingQty);
+        const locs = await putawayApi.candidateLocs(node.data.ibLineId);
+        setCandidateLocs(locs);
+        setTargetLocId(locs.length > 0 ? locs[0].locId : '');
     };
 
-    // ── 건별 실행 (부분 가능) ────────────────────────────────
-    const handleExecuteClick = () => {
-        const n = Number(qty);
-        if (!(n > 0) || !Number.isInteger(n)) {
-            toast.error('적치수량은 1 이상 정수여야 합니다.');
-            return;
-        }
-        if (n > selectedTask.remainingQty) {
-            toast.error(`잔여수량을 초과했습니다 (잔여 ${num(selectedTask.remainingQty)}).`);
-            return;
-        }
-        setConfirmOne({ ...selectedTask, qty: n });
-    };
-
-    const doExecuteOne = async (target) => {
+    // 전략 추천. 전략 미설정(strategySelected=false)이면 블록을 숨기고 수동 선택만 남긴다
+    const fetchRecommend = async (batch, recommendQty) => {
+        setRecommend(null);
+        const n = Number(recommendQty);
+        if (!(n > 0)) return;
         try {
-            await putawayApi.execute(target.putawayTaskId, target.qty);
-            toast.success(`${target.prodCd} ${num(target.qty)}개를 ${target.toLocCd}에 적치했습니다.`);
-            fetchList(true);
+            setRecommend(await putawayApi.recommend(batch.ibLineId, { lotId: batch.lotId, qty: n }));
+        } catch (e) {
+            toast.error(e.message || '적치 추천에 실패했습니다.');
+        }
+    };
+
+    // 추천대로 실행 — 추천 (로케이션, 수량) 행별로 기존 적치 API를 순차 호출
+    const doRecommendExecute = async (rec) => {
+        let done = 0;
+        try {
+            for (const a of rec.assignments) {
+                await putawayApi.putaway(selected.ibLineId, { lotId: selected.lotId, qty: a.qty, targetLocId: a.locId });
+                done += 1;
+            }
+            toast.success(`추천대로 ${rec.asgnQty}개를 ${rec.assignments.length}개 로케이션에 적치했습니다.`);
+        } catch (e) {
+            // 추천과 실행 사이 재고·용량이 변했을 수 있다 — 실패 지점부터 중단하고 재조회
+            toast.error(`${done}건 실행 후 실패: ${e.message || '적치에 실패했습니다.'}`);
+        }
+        fetchList(rec.remainQty > 0 || done < rec.assignments.length);
+    };
+
+    const handlePutawayClick = () => {
+        if (!selected) {
+            toast('적치할 배치를 선택하세요.');
+            return;
+        }
+        const n = Number(qty);
+        if (!(n > 0)) {
+            toast.error('적치수량은 1 이상이어야 합니다.');
+            return;
+        }
+        if (n > selected.pendingQty) {
+            toast.error('미적치 잔량을 초과했습니다.');
+            return;
+        }
+        if (!targetLocId) {
+            toast.error('대상 로케이션을 선택하세요.');
+            return;
+        }
+        setConfirmTarget({ ...selected, qty: n, targetLocId });
+    };
+
+    const doPutaway = async (target) => {
+        try {
+            await putawayApi.putaway(target.ibLineId, { lotId: target.lotId, qty: target.qty, targetLocId: Number(target.targetLocId) });
+            toast.success(`${target.prodCd} ${target.qty}개를 적치했습니다.`);
+            fetchList(target.qty < target.pendingQty); // 잔량이 남았으면 같은 배치 선택 유지
         } catch (e) {
             toast.error(e.message || '적치에 실패했습니다.');
         }
     };
 
-    // ── 상품 전량 실행 ───────────────────────────────────────
-    // 지시대로 다 옮기는 것이 대부분이라 이쪽이 주 동선이다. 부분 실행만 아래 건별 패널이 맡는다
-    const doExecuteAll = async (group) => {
-        try {
-            await putawayApi.executeAll(group.tasks.map(t => ({ taskId: t.putawayTaskId, qty: t.remainingQty })));
-            toast.success(`${group.prodCd} ${num(group.remainingQty)}개를 ${group.locCount}개 로케이션에 적치했습니다.`);
-            fetchList(false); // 전량 실행이면 그 상품이 목록에서 빠진다
-        } catch (e) {
-            toast.error(e.message || '일괄 적치에 실패했습니다.');
-        }
-    };
+    const locOptions = candidateLocs.map(l => ({ value: l.locId, label: `${l.locCd} (${l.zonCd})` }));
+    const targetLocLabel = (locId) => candidateLocs.find(l => l.locId === Number(locId))?.locCd ?? '';
 
     return (
         <div className="flex flex-col gap-4 h-full">
@@ -195,194 +161,162 @@ export default function Putaway() {
             <div className="flex items-center gap-2">
                 <PackageOpen size={18} className="text-indigo-600" />
                 <h2 className="text-lg font-bold text-slate-800">적치</h2>
-                <span className="text-xs text-slate-400 mt-0.5">
-                    발행된 적치지시를 실행 — 지시받은 로케이션으로만 적치(부분 실행 허용)
-                </span>
+                <span className="text-xs text-slate-400 mt-0.5">검수는 됐지만 아직 보관 로케이션으로 옮기지 않은 재고 — RCV-STAGE → 보관존 이동</span>
             </div>
 
             {/* 검색 조건 */}
-            <SearchBar label="검색" onSearch={() => fetchList()}>
-                <SearchItem label="상품 코드">
-                    <input
-                        type="text"
-                        value={cond.prodCd}
-                        onChange={(e) => setCond(prev => ({ ...prev, prodCd: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="PROD-0001"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="상품명">
-                    <input
-                        type="text"
-                        value={cond.prodNm}
-                        onChange={(e) => setCond(prev => ({ ...prev, prodNm: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="상품명 일부"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="입고번호">
-                    <input
-                        type="text"
-                        value={cond.ibNo}
-                        onChange={(e) => setCond(prev => ({ ...prev, ibNo: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="IB-20260717-001"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="대상 로케이션">
-                    <input
-                        type="text"
-                        value={cond.toLocCd}
-                        onChange={(e) => setCond(prev => ({ ...prev, toLocCd: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="DRY-A-01-01"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
+            <SearchBar cond={cond} setCond={setCond} onSearch={() => fetchList()}>
+                <SearchText name="ibNo" label="입고번호" placeholder="IB-20260717-001" />
+                <SearchDateRange from="dateFrom" to="dateTo" label="입고일자" />
+                <SearchText name="prodCd" label="상품 코드" placeholder="PROD-0001" />
+                <SearchText name="prodNm" label="상품명" placeholder="상품명 일부" />
             </SearchBar>
 
-            <PanelGroup direction="vertical" autoSaveId="wms-putaway-split-v1" className="flex-1 min-h-0">
-                {/* 상단: 적치할 상품 */}
-                <Panel defaultSize={45} minSize={25} className="flex flex-col gap-2 min-h-0">
-                    <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-slate-700 shrink-0">적치할 상품</span>
-                        <span className="text-xs text-slate-400 truncate">
-                            유통기한 임박순 — 상품을 고르면 아래에 어느 로케이션으로 얼마씩 가는지 나옵니다
-                        </span>
-                        <span className="text-xs text-slate-500 font-medium ml-auto shrink-0">{prodRows.length}개 상품</span>
-                        <button
-                            onClick={() => selectedProd ? setConfirmAll(selectedProd) : toast('적치할 상품을 선택하세요.')}
-                            disabled={!selectedProd}
-                            className="btn-primary shrink-0 disabled:opacity-40"
-                            title="이 상품의 지시를 잔여 전량으로 한 번에 실행합니다">
-                            <Layers size={13} /> 전량 적치
-                        </button>
-                    </div>
-                    <div className="flex-1 min-h-0">
-                        <AgGridReact
-                            ref={prodGridRef}
-                            rowData={prodRows}
-                            columnDefs={PROD_COLUMN_DEFS}
-                            getRowId={(p) => p.data.prodCd}
-                            rowHeight={34}
-                            headerHeight={38}
-                            rowSelection={{ mode: 'singleRow', checkboxes: false, enableClickSelection: true }}
-                            onSelectionChanged={onProdSelectionChanged}
-                            onModelUpdated={onProdModelUpdated}
-                            overlayNoRowsTemplate={'<span class="text-sm text-slate-400">실행할 적치지시가 없습니다 — 「적치지시」 화면에서 먼저 지시를 발행하세요</span>'}
-                        />
-                    </div>
-                </Panel>
+            <div className="flex-1 min-h-0 flex flex-col gap-3">
+                <span className="text-xs text-slate-500 font-medium">{rowData.length}건</span>
+                <div className="flex-1 min-h-0">
+                    <AgGridReact
+                        ref={gridRef}
+                        rowData={rowData}
+                        columnDefs={COLUMN_DEFS}
+                        rowHeight={34}
+                        headerHeight={38}
+                        rowSelection={{ mode: 'singleRow', checkboxes: false, enableClickSelection: true }}
+                        onSelectionChanged={onSelectionChanged}
+                        onModelUpdated={onModelUpdated}
+                    />
+                </div>
 
-                <PanelResizeHandle className="h-2.5 flex items-center justify-center group cursor-row-resize">
-                    <div className="h-1 w-16 rounded-full bg-slate-200 group-hover:bg-indigo-400 group-data-[resize-handle-active]:bg-indigo-500 transition-colors" />
-                </PanelResizeHandle>
+                {/* 적치 실행 영역 */}
+                <div className="border border-slate-200 rounded-xl p-4 bg-white flex flex-col gap-3 shrink-0">
+                    {!selected ? (
+                        <span className="text-xs text-slate-400">위에서 적치할 배치를 선택하세요.</span>
+                    ) : (
+                        <>
+                            <div className="flex items-center gap-2 text-sm">
+                                <span className="font-bold text-slate-700">{selected.prodCd} {selected.prodNm}</span>
+                                <Badge meta={TEMP_ZONE_META} value={selected.tmpZon} />
+                                <span className="text-xs text-slate-400">{selected.ibNo} · {selected.lotNo} · 미적치 {selected.pendingQty}개</span>
+                            </div>
 
-                {/* 하단: 선택 상품의 지시 + 건별 실행 */}
-                <Panel defaultSize={55} minSize={25} className="flex flex-col gap-2 min-h-0">
-                    <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-sm font-bold text-slate-700 shrink-0">적치 위치</span>
-                        <span className="text-xs text-slate-400 truncate">
-                            {selectedProd
-                                ? `${selectedProd.prodCd} ${selectedProd.prodNm} — ${selectedProd.locCount}개 로케이션 · 잔여 ${num(selectedProd.remainingQty)}개`
-                                : '위에서 상품을 선택하세요'}
-                        </span>
-                    </div>
-                    <div className="flex-1 min-h-0">
-                        <AgGridReact
-                            rowData={selectedProd?.tasks ?? []}
-                            columnDefs={TASK_COLUMN_DEFS}
-                            getRowId={(p) => String(p.data.putawayTaskId)}
-                            rowHeight={34}
-                            headerHeight={38}
-                            rowSelection={{ mode: 'singleRow', checkboxes: false, enableClickSelection: true }}
-                            onSelectionChanged={onTaskSelectionChanged}
-                            overlayNoRowsTemplate={'<span class="text-sm text-slate-400">위에서 상품을 선택하세요</span>'}
-                        />
-                    </div>
-
-                    {/* 건별(부분) 실행 — 지시대로 다 못 옮기는 경우에만 쓴다 */}
-                    <div className="border border-slate-200 rounded-xl p-3 bg-white flex flex-col gap-2 shrink-0">
-                        {!selectedTask ? (
-                            <span className="text-xs text-slate-400">
-                                일부만 옮겼다면 위에서 해당 로케이션 행을 골라 수량을 입력하세요 (전량이면 위쪽 「전량 적치」).
-                            </span>
-                        ) : (
-                            <div className="flex items-end gap-3">
-                                <div className="flex items-center gap-2 text-sm flex-1 min-w-0">
-                                    <span className="text-xs text-slate-400 shrink-0">{selectedTask.lotNo}</span>
-                                    <span className="text-sm font-mono shrink-0">
-                                        RCV-STAGE <span className="text-slate-400">→</span> <b className="text-indigo-700">{selectedTask.toLocCd}</b>
-                                    </span>
-                                    <span className="text-xs text-slate-400 shrink-0">잔여 {num(selectedTask.remainingQty)}개</span>
+                            {/* 전략 추천 — 전략 미설정이면 이 블록이 없고 아래 수동 선택만 남는다 */}
+                            {recommend?.strategySelected && (
+                                <div className="border border-indigo-200 bg-indigo-50/50 rounded-xl px-4 py-3 flex flex-col gap-2">
+                                    <div className="flex items-center gap-2">
+                                        <Wand2 size={14} className="text-indigo-600" />
+                                        <span className="text-xs font-bold text-indigo-700">
+                                            전략 추천 — {recommend.stgyNm} · 배정 {recommend.asgnQty} / 요청 {recommend.reqQty}
+                                        </span>
+                                        {recommend.remainQty > 0 && (
+                                            <span className="text-[11px] font-bold text-rose-600">미배정 {recommend.remainQty} (수동 처리 필요)</span>
+                                        )}
+                                        <button onClick={() => fetchRecommend(selected, qty)}
+                                                className="ml-auto flex items-center gap-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-800"
+                                                title="입력한 수량으로 추천 다시 계산">
+                                            <RefreshCw size={12} /> 새로고침
+                                        </button>
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        {recommend.assignments.map((a, i) => (
+                                            <span key={i} className="px-2.5 py-1 bg-white border border-indigo-200 rounded-lg text-[12px]">
+                                                <span className="font-mono text-slate-600">{a.locCd}</span>
+                                                <b className="text-indigo-700 ml-1.5">{a.qty}</b>
+                                            </span>
+                                        ))}
+                                        {recommend.assignments.length > 0 && (
+                                            <button onClick={() => setConfirmRecommend(recommend)}
+                                                    className="btn-primary">
+                                                <ArrowRight size={12} /> 추천대로 실행
+                                            </button>
+                                        )}
+                                        {recommend.assignments.length === 0 && (
+                                            <span className="text-[11px] text-slate-400">배정 가능한 로케이션이 없습니다 — 수동으로 선택하세요.</span>
+                                        )}
+                                    </div>
                                 </div>
-                                <div className="flex flex-col gap-1 w-28 shrink-0">
+                            )}
+                            <div className="flex items-end gap-3">
+                                <div className="flex flex-col gap-1 w-32 shrink-0">
                                     <label className="text-xs font-bold text-slate-500">적치수량</label>
                                     <input
                                         type="number"
                                         min="1"
-                                        max={selectedTask.remainingQty}
+                                        max={selected.pendingQty}
                                         value={qty}
                                         onChange={(e) => setQty(e.target.value)}
                                         className="input-num"
                                     />
                                 </div>
+                                <div className="flex flex-col gap-1 flex-1 min-w-0">
+                                    <label className="text-xs font-bold text-slate-500">
+                                        대상 로케이션 <span className="text-slate-400 font-normal">(수동 선택 — 온도대 일치 보관존)</span>
+                                    </label>
+                                    <DropdownSelect
+                                        value={targetLocId}
+                                        onChange={setTargetLocId}
+                                        options={locOptions}
+                                        placeholder="로케이션 선택"
+                                    />
+                                </div>
                                 <button
-                                    onClick={handleExecuteClick}
+                                    onClick={handlePutawayClick}
                                     className="flex items-center gap-1 px-4 py-2 bg-indigo-600 rounded-lg text-sm font-bold text-white hover:bg-indigo-700 transition-colors shrink-0">
-                                    <ArrowRight size={14} /> 이 건만 적치
+                                    <ArrowRight size={14} /> 적치 실행
                                 </button>
                             </div>
-                        )}
-                    </div>
-                </Panel>
-            </PanelGroup>
+                        </>
+                    )}
+                </div>
+            </div>
 
-            {/* 전량 적치 확인 모달 */}
-            {confirmAll && (
-                <ConfirmModal
-                    title="이 상품을 전량 적치할까요?"
-                    confirmText="적치"
-                    onCancel={() => setConfirmAll(null)}
-                    onConfirm={() => { doExecuteAll(confirmAll); setConfirmAll(null); }}
-                >
-                    <p className="text-sm text-slate-500">
-                        {confirmAll.prodCd} {confirmAll.prodNm} · <b className="text-emerald-600">{num(confirmAll.remainingQty)}개</b>
-                    </p>
-                    <div className="flex flex-col gap-1 text-xs font-mono bg-slate-50 rounded-lg px-3 py-2">
-                        {confirmAll.tasks.map(t => (
-                            <div key={t.putawayTaskId} className="flex justify-between gap-3">
-                                <span className="text-slate-500">RCV-STAGE → <b className="text-indigo-700">{t.toLocCd}</b></span>
-                                <span className="tabular-nums text-slate-700">{num(t.remainingQty)}</span>
-                            </div>
-                        ))}
+            {/* 추천대로 실행 확인 모달 */}
+            {confirmRecommend && (
+                <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 bg-black/20">
+                    <div className="bg-white rounded-2xl shadow-xl p-6 w-[420px] flex flex-col gap-4">
+                        <h3 className="text-lg font-bold text-slate-800">추천대로 적치하시겠습니까?</h3>
+                        <p className="text-sm text-slate-500">
+                            {selected?.prodCd} {selected?.prodNm} · 총 <b className="text-emerald-600">{confirmRecommend.asgnQty}개</b>
+                        </p>
+                        <div className="flex flex-col gap-1">
+                            {confirmRecommend.assignments.map((a, i) => (
+                                <span key={i} className="text-xs text-slate-500">
+                                    RCV-STAGE → <span className="font-mono">{a.locCd}</span> <b>{a.qty}개</b>
+                                </span>
+                            ))}
+                        </div>
+                        {confirmRecommend.remainQty > 0 && (
+                            <p className="text-xs text-rose-500">미배정 {confirmRecommend.remainQty}개는 남습니다 — 실행 후 수동으로 처리하세요.</p>
+                        )}
+                        <div className="flex gap-2 justify-end">
+                            <button
+                                onClick={() => setConfirmRecommend(null)}
+                                className="btn-modal-cancel">
+                                취소
+                            </button>
+                            <button
+                                onClick={() => { doRecommendExecute(confirmRecommend); setConfirmRecommend(null); }}
+                                className="btn-modal-primary">
+                                적치
+                            </button>
+                        </div>
                     </div>
-                    <p className="text-xs text-slate-400">
-                        {confirmAll.taskCount}건이 한 트랜잭션으로 처리됩니다 — 하나라도 실패하면 전부 되돌아갑니다.
-                    </p>
-                </ConfirmModal>
+                </div>
             )}
 
-            {/* 건별 실행 확인 모달 */}
-            {confirmOne && (
+            {/* 적치 확인 모달 */}
+            {confirmTarget && (
                 <ConfirmModal
                     title="적치하시겠습니까?"
                     confirmText="적치"
-                    onCancel={() => setConfirmOne(null)}
-                    onConfirm={() => { doExecuteOne(confirmOne); setConfirmOne(null); }}
+                    onCancel={() => setConfirmTarget(null)}
+                    onConfirm={() => { doPutaway(confirmTarget); setConfirmTarget(null); }}
                 >
                     <p className="text-sm text-slate-500">
-                        {confirmOne.prodCd} {confirmOne.prodNm} · <b className="text-emerald-600">{num(confirmOne.qty)}개</b>
+                        {confirmTarget.prodCd} {confirmTarget.prodNm} · <b className="text-emerald-600">{confirmTarget.qty}개</b>
                     </p>
-                    <p className="text-xs text-slate-400 font-mono">RCV-STAGE → {confirmOne.toLocCd}</p>
-                    {confirmOne.qty < confirmOne.remainingQty && (
-                        <p className="text-xs text-amber-600">
-                            부분 실행 — 잔여 {num(confirmOne.remainingQty - confirmOne.qty)}개는 지시 상태로 남습니다.
-                        </p>
-                    )}
+                    <p className="text-xs text-slate-400">
+                        RCV-STAGE → {targetLocLabel(confirmTarget.targetLocId)}
+                    </p>
                 </ConfirmModal>
             )}
         </div>

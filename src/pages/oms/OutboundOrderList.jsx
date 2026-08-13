@@ -5,23 +5,14 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { CheckCircle2, FilePlus, Search, Trash2, Undo2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchItem } from '@/components/common/SearchBar';
-import DropdownSelect from '@/components/common/DropdownSelect';
+import SearchBar, { SearchItem, SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
 import StorePickerModal from '@/components/common/StorePickerModal';
-import { omsOutbOrderApi, OMS_OUTB_STATUS_META, OMS_OUTB_STATUS_OPTIONS } from '@/api/omsOutbOrderApi';
-import { OUTB_STATUS_META } from '@/api/outbOrderApi';
-import { codeApi, toSearchOptions } from '@/api/codeApi';
-import { TempZoneBadge } from '@/components/common/Badge';
+import { omsOutbOrderApi } from '@/api/omsOutbOrderApi';
+import { useCodes } from '@/hooks/useCodes';
+import { OMS_OUTB_STATUS_META, OUTB_STATUS_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
+import { OMS_OUTB_STATUS_OPTIONS } from '@/constants/codeOptions';
+import { Badge } from '@/components/common/Badge';
 import { daysAheadStr, todayStr } from '@/utils/format';
-
-const Badge = ({ meta }) => {
-    if (!meta) return null;
-    return (
-        <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${meta.badge}`}>
-            {meta.label}
-        </span>
-    );
-};
 
 const centered = { display: 'flex', alignItems: 'center', justifyContent: 'center' };
 
@@ -47,7 +38,7 @@ const HEADER_COLUMN_DEFS = [
     {
         field: 'status', headerName: '주문상태', width: 90,
         cellStyle: centered,
-        cellRenderer: (p) => <Badge meta={OMS_OUTB_STATUS_META[p.value]} />,
+        cellRenderer: (p) => <Badge meta={OMS_OUTB_STATUS_META} value={p.value} show="label" />,
     },
     {
         // 표시명은 공통코드에서 받아 context로 넘긴다 (코드값만으론 화면에서 못 읽는다).
@@ -89,7 +80,7 @@ const HEADER_COLUMN_DEFS = [
         field: 'outbStatus', headerName: '창고 진행', width: 95,
         headerTooltip: '창고 출고주문의 진행 상태',
         cellStyle: centered,
-        cellRenderer: (p) => <Badge meta={OUTB_STATUS_META[p.value]} />,
+        cellRenderer: (p) => <Badge meta={OUTB_STATUS_META} value={p.value} show="label" />,
     },
     {
         field: 'wavNo', headerName: '웨이브', width: 130,
@@ -105,7 +96,7 @@ const LINE_COLUMN_DEFS = [
     {
         field: 'tmpZon', headerName: '온도대', width: 120,
         cellStyle: centered,
-        cellRenderer: (p) => <TempZoneBadge value={p.value} />,
+        cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
     },
     {
         field: 'odrQty', headerName: '주문수량', width: 120, cellClass: 'ag-right-aligned-cell',
@@ -138,20 +129,11 @@ export default function OutboundOrderList() {
     const [deleteTarget, setDeleteTarget] = useState(null);               // 삭제 확인 모달 대상
     const gridRef = useRef(null);
     const navigate = useNavigate();
-    const [outbTypCodes, setOutbTypCodes] = useState([]);
-    const [vhclFltnoCodes, setVhclFltnoCodes] = useState([]);
+    const outbTypCodes = useCodes('OUTB_TYP');
+    const vhclFltnoCodes = useCodes('VHCL_FLTNO');
     // 납품처 검색은 자유 입력 대신 등록 화면과 같은 팝업에서 고른다 —
     // 서버 검색 파라미터가 storeNm(contains)이라 값은 id가 아니라 이름 그대로 보낸다.
     const [storePickerOpen, setStorePickerOpen] = useState(false);
-
-    useEffect(() => {
-        let ignore = false;
-        codeApi.list('OUTB_TYP').then(codes => { if (!ignore) setOutbTypCodes(codes); });
-        codeApi.list('VHCL_FLTNO').then(codes => { if (!ignore) setVhclFltnoCodes(codes); });
-        return () => { ignore = true; };
-    }, []);
-
-    const nmOf = (codes, cd) => codes.find(c => c.codeCd === cd)?.codeNm;
 
     const fetchList = async () => {
         const data = await omsOutbOrderApi.list(cond);
@@ -162,9 +144,7 @@ export default function OutboundOrderList() {
 
     // 최초 1회 조회 (검색조건 기본값 = 오늘 ~ 7일 뒤)
     useEffect(() => {
-        let ignore = false;
-        omsOutbOrderApi.list(cond).then(data => { if (!ignore) setRowData(data); });
-        return () => { ignore = true; };
+        omsOutbOrderApi.list(cond).then(setRowData);
     }, []);
 
     // 행 클릭 시 라인 조회 — 체크박스(일괄 처리 대상)와 역할을 분리한다.
@@ -274,34 +254,9 @@ export default function OutboundOrderList() {
             </div>
 
             {/* 검색 조건 */}
-            <SearchBar label="검색" onSearch={fetchList}>
-                <SearchItem label="주문번호">
-                    <input
-                        type="text"
-                        value={cond.omsOutbNo}
-                        onChange={(e) => setCond(prev => ({ ...prev, omsOutbNo: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="SO-20260803-001"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="출고예정일" wide>
-                    <div className="flex items-center gap-2">
-                        <input
-                            type="date"
-                            value={cond.dateFrom}
-                            onChange={(e) => setCond(prev => ({ ...prev, dateFrom: e.target.value }))}
-                            className="flex-1 min-w-0 input-base"
-                        />
-                        <span className="text-slate-400 shrink-0">~</span>
-                        <input
-                            type="date"
-                            value={cond.dateTo}
-                            onChange={(e) => setCond(prev => ({ ...prev, dateTo: e.target.value }))}
-                            className="flex-1 min-w-0 input-base"
-                        />
-                    </div>
-                </SearchItem>
+            <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
+                <SearchText name="omsOutbNo" label="주문번호" placeholder="SO-20260803-001" />
+                <SearchDateRange from="dateFrom" to="dateTo" label="출고예정일" />
                 <SearchItem label="납품처">
                     <button
                         type="button"
@@ -320,30 +275,9 @@ export default function OutboundOrderList() {
                             : <Search size={13} className="shrink-0 text-slate-400" />}
                     </button>
                 </SearchItem>
-                <SearchItem label="주문상태">
-                    <DropdownSelect
-                        value={cond.status}
-                        onChange={(v) => setCond(prev => ({ ...prev, status: v }))}
-                        options={OMS_OUTB_STATUS_OPTIONS}
-                        placeholder="전체"
-                    />
-                </SearchItem>
-                <SearchItem label="출고유형">
-                    <DropdownSelect
-                        value={cond.outbTyp}
-                        onChange={(v) => setCond(prev => ({ ...prev, outbTyp: v }))}
-                        options={toSearchOptions(outbTypCodes)}
-                        placeholder="전체"
-                    />
-                </SearchItem>
-                <SearchItem label="편수">
-                    <DropdownSelect
-                        value={cond.vhclFltno}
-                        onChange={(v) => setCond(prev => ({ ...prev, vhclFltno: v }))}
-                        options={toSearchOptions(vhclFltnoCodes)}
-                        placeholder="전체"
-                    />
-                </SearchItem>
+                <SearchSelect name="status" label="주문상태" options={OMS_OUTB_STATUS_OPTIONS} />
+                <SearchSelect name="outbTyp" label="출고유형" options={outbTypCodes.searchOptions} />
+                <SearchSelect name="vhclFltno" label="편수" options={vhclFltnoCodes.searchOptions} />
             </SearchBar>
 
             {/* 상하 분할 + 드래그 스플리터 (비율은 localStorage에 기억됨) */}
@@ -379,8 +313,8 @@ export default function OutboundOrderList() {
                             columnDefs={HEADER_COLUMN_DEFS}
                             context={{
                                 openOrder: (o) => navigate(`/oms/outbound-order/${o.omsOutbOrderId}`),
-                                outbTypNm: (cd) => nmOf(outbTypCodes, cd),
-                                vhclFltnoNm: (cd) => nmOf(vhclFltnoCodes, cd),
+                                outbTypNm: (cd) => outbTypCodes.nmByCd[cd],
+                                vhclFltnoNm: (cd) => vhclFltnoCodes.nmByCd[cd],
                             }}
                             rowHeight={34}
                             headerHeight={38}

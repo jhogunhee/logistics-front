@@ -23,11 +23,3 @@ export const nbrRuleApi = {
         return api.post('/master/nbr-rules/preview', { prfx, prfxDlmt, deDlmt, seqDgt, dyncKyTyp });
     },
 };
-
-/** 동적키유형 표시 메타 */
-export const DYNC_KY_TYP_META = {
-    NONE: { label: '고정', badge: 'bg-slate-100 text-slate-600' },
-    YEAR: { label: '연도별', badge: 'bg-sky-100 text-sky-700' },
-    MONTH: { label: '월별', badge: 'bg-sky-100 text-sky-700' },
-    DAY: { label: '일자별', badge: 'bg-sky-100 text-sky-700' },
-};

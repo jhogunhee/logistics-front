@@ -4,23 +4,14 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Truck } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchItem } from '@/components/common/SearchBar';
-import DropdownSelect from '@/components/common/DropdownSelect';
-import { asnApi, ASN_STATUS_META, ASN_STATUS_OPTIONS } from '@/api/asnApi';
-import { TempZoneBadge } from '@/components/common/Badge';
+import SearchBar, { SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
+import { asnApi } from '@/api/asnApi';
+import { ASN_STATUS_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
+import { ASN_STATUS_OPTIONS } from '@/constants/codeOptions';
+import { Badge } from '@/components/common/Badge';
 import { daysAheadStr, todayStr } from '@/utils/format';
 
 // 오늘 날짜 "YYYY-MM-DD" (검색 기본값)
-
-const StatusBadge = ({ value }) => {
-    const meta = ASN_STATUS_META[value];
-    if (!meta) return null;
-    return (
-        <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${meta.badge}`}>
-            {meta.label}
-        </span>
-    );
-};
 
 
 const HEADER_COLUMN_DEFS = [
@@ -29,7 +20,7 @@ const HEADER_COLUMN_DEFS = [
     {
         field: 'status', headerName: '입고진행상태', width: 130,
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-        cellRenderer: (p) => <StatusBadge value={p.value} />,
+        cellRenderer: (p) => <Badge meta={ASN_STATUS_META} value={p.value} show="label" />,
     },
     { field: 'vndrNm', headerName: '벤더', flex: 1, minWidth: 110 },
     { field: 'expctDe', headerName: '입고 예정일', width: 120 },
@@ -49,7 +40,7 @@ const LINE_COLUMN_DEFS = [
     {
         field: 'tmpZon', headerName: '온도대', width: 120,
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-        cellRenderer: (p) => <TempZoneBadge value={p.value} />,
+        cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
     },
     { field: 'expctQty', headerName: '예정수량', width: 100, cellClass: 'ag-right-aligned-cell' },
     { field: 'rcvdQty', headerName: '검수수량', width: 100, cellClass: 'ag-right-aligned-cell' },
@@ -78,9 +69,7 @@ export default function AsnList() {
 
     // 최초 1회 조회 (검색조건 기본값 = 오늘)
     useEffect(() => {
-        let ignore = false;
-        asnApi.list(cond).then(data => { if (!ignore) setRowData(data); });
-        return () => { ignore = true; };
+        asnApi.list(cond).then(setRowData);
     }, []);
 
     // 헤더 행 선택 시 라인 조회
@@ -111,42 +100,10 @@ export default function AsnList() {
             </div>
 
             {/* 검색 조건 */}
-            <SearchBar label="검색" onSearch={fetchList}>
-                <SearchItem label="입고번호">
-                    <input
-                        type="text"
-                        value={cond.ibNo}
-                        onChange={(e) => setCond(prev => ({ ...prev, ibNo: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="IB-20260717-001"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="입고진행상태">
-                    <DropdownSelect
-                        value={cond.status}
-                        onChange={(v) => setCond(prev => ({ ...prev, status: v }))}
-                        options={ASN_STATUS_OPTIONS}
-                        placeholder="전체"
-                    />
-                </SearchItem>
-                <SearchItem label="입고예정일" wide>
-                    <div className="flex items-center gap-2">
-                        <input
-                            type="date"
-                            value={cond.dateFrom}
-                            onChange={(e) => setCond(prev => ({ ...prev, dateFrom: e.target.value }))}
-                            className="flex-1 min-w-0 input-base"
-                        />
-                        <span className="text-slate-400 shrink-0">~</span>
-                        <input
-                            type="date"
-                            value={cond.dateTo}
-                            onChange={(e) => setCond(prev => ({ ...prev, dateTo: e.target.value }))}
-                            className="flex-1 min-w-0 input-base"
-                        />
-                    </div>
-                </SearchItem>
+            <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
+                <SearchText name="ibNo" label="입고번호" placeholder="IB-20260717-001" />
+                <SearchSelect name="status" label="입고진행상태" options={ASN_STATUS_OPTIONS} />
+                <SearchDateRange from="dateFrom" to="dateTo" label="입고예정일" />
             </SearchBar>
 
             {/* 상하 분할 + 드래그 스플리터 — 경계를 끌어 비율 조절 (비율은 localStorage에 기억됨) */}

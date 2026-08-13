@@ -1,24 +1,17 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
-import { ArrowLeft, Ban, CheckCircle2, Plus, RefreshCw, Save, Search, Trash2 } from 'lucide-react';
+import { ArrowLeft, Ban, CheckCircle2, Plus, RefreshCw, Save, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import ConfirmModal from '@/components/common/ConfirmModal';
-import DropdownSelect from '@/components/common/DropdownSelect';
-import ProdPickerModal from '@/components/common/ProdPickerModal';
 import SelectCellEditor from '@/components/common/SelectCellEditor';
-import { TempZoneBadge } from '@/components/common/Badge';
-import { adjQtyOf, invStktkApi, INV_STKTK_STATUS_META, ETC_RSN_CD } from '@/api/invStktkApi';
-import { codeApi } from '@/api/codeApi';
-import { locApi } from '@/api/locApi';
-import { lotApi } from '@/api/lotApi';
+import StockCountAddLineModal from '@/components/stock/StockCountAddLineModal';
+import { Badge } from '@/components/common/Badge';
+import { adjQtyOf, invStktkApi } from '@/api/invStktkApi';
+import { useCodes } from '@/hooks/useCodes';
+import { ETC_RSN_CD } from '@/constants/rsnCodes';
+import { INV_STKTK_STATUS_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { fmtDt, num } from '@/utils/format';
-
-const StatusBadge = ({ value }) => {
-    const meta = INV_STKTK_STATUS_META[value];
-    if (!meta) return null;
-    return <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${meta.badge}`}>{meta.label}</span>;
-};
 
 /** 전산수량 기준값 — 확정 후에는 확정시점 값이 고정 기준이다 */
 const baseQtyOf = (ln) => ln.cfmSysQty ?? ln.nowSysQty;
@@ -26,15 +19,12 @@ const baseQtyOf = (ln) => ln.cfmSysQty ?? ln.nowSysQty;
 export default function StockCountDetail({ stktkId, onBack }) {
     const [head, setHead] = useState(null);
     const [lines, setLines] = useState([]);
-    const [rsnCodes, setRsnCodes] = useState([]);
+    const rsn = useCodes('ADJ_RSN');
     const [selectedLn, setSelectedLn] = useState(null);
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [cancelOpen, setCancelOpen] = useState(false);
     const [addOpen, setAddOpen] = useState(false);
-    const [addForm, setAddForm] = useState({ prod: null, locId: '', lotId: '' });
-    const [addLots, setAddLots] = useState([]);
-    const [storageLocs, setStorageLocs] = useState([]);
-    const [prodPickerOpen, setProdPickerOpen] = useState(false);
+    const [reloadKey, setReloadKey] = useState(0);
     const gridRef = useRef(null);
     // 서버에서 받은 원본 값 (lnId → 입력 3필드). 저장 시 「바뀐 라인만」 보내는 기준이다 —
     // 전 라인을 보내면 둘이 같은 조사를 열었을 때 손대지도 않은 라인까지 낡은 값으로 덮어쓴다.
@@ -49,13 +39,9 @@ export default function StockCountDetail({ stktkId, onBack }) {
         ]));
     };
 
-    const reload = useCallback(async () => {
-        const data = await invStktkApi.detail(stktkId);
-        setHead(data);
-        setLines(data.lines);
-        snapshotPristine(data.lines);
-        setSelectedLn(null);
-    }, [stktkId]);
+    // 상세 조회는 이 effect 한 곳뿐이다 — 재조회는 키를 올려 같은 경로를 다시 태운다
+    // (조회 코드를 두 벌 두지 않고, 늦게 온 응답 무시도 한 번만 처리한다)
+    const reload = () => setReloadKey(k => k + 1);
 
     useEffect(() => {
         let ignore = false;
@@ -66,15 +52,8 @@ export default function StockCountDetail({ stktkId, onBack }) {
             snapshotPristine(data.lines);
             setSelectedLn(null);
         });
-        codeApi.list('ADJ_RSN').then(codes => { if (!ignore) setRsnCodes(codes); });
-        locApi.list({ locTyp: 'STORAGE' }).then(locs => { if (!ignore) setStorageLocs(locs); });
         return () => { ignore = true; };
-    }, [stktkId]);
-
-    const rsnNmByCd = useMemo(
-        () => Object.fromEntries(rsnCodes.map(c => [c.codeCd, c.codeNm])),
-        [rsnCodes],
-    );
+    }, [stktkId, reloadKey]);
 
     // 화면 요약 — 상태가 아니라 수량에서 파생한다 (「부분입력」 같은 상태를 두지 않는 것과 같은 이유)
     const summary = useMemo(() => {
@@ -99,7 +78,7 @@ export default function StockCountDetail({ stktkId, onBack }) {
         {
             field: 'tmpZon', headerName: '온도대', width: 90,
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-            cellRenderer: (p) => <TempZoneBadge value={p.value} />,
+            cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
         },
         { field: 'lotNo', headerName: 'Lot번호', width: 130 },
         {
@@ -138,7 +117,7 @@ export default function StockCountDetail({ stktkId, onBack }) {
         {
             field: 'stktkQty', headerName: '실사수량', width: 100, editable,
             headerTooltip: '실물을 센 수량. 비우면 「미조사」로 확정에서 건너뛴다 (0 = 실물 없음과 다르다)',
-            cellClass: (p) => `ag-right-aligned-cell font-bold ${editable ? 'bg-indigo-50' : ''}`,
+            cellClass: `ag-right-aligned-cell font-bold ${editable ? 'bg-indigo-50' : ''}`,
             cellRenderer: (p) => p.value == null || p.value === ''
                 ? <span className="text-slate-300">미조사</span>
                 : num(p.value),
@@ -157,7 +136,7 @@ export default function StockCountDetail({ stktkId, onBack }) {
             field: 'rsnCd', headerName: '조정사유', width: 120, editable,
             headerTooltip: '차이가 있는 라인만 필수. 차이 0 라인은 조정 자체가 없어 사유도 없다',
             cellEditor: SelectCellEditor,
-            cellEditorParams: { values: rsnCodes.map(c => c.codeCd), labelMap: rsnNmByCd, placeholder: '사유 선택' },
+            cellEditorParams: { values: rsn.values, labelMap: rsn.nmByCd, placeholder: '사유 선택' },
             cellClass: editable ? 'bg-indigo-50' : '',
             cellRenderer: (p) => {
                 const adj = adjQtyOf(p.data);
@@ -166,7 +145,7 @@ export default function StockCountDetail({ stktkId, onBack }) {
                         ? <span className="text-rose-500 font-bold">사유 필요</span>
                         : <span className="text-slate-300">—</span>;
                 }
-                return <span>{rsnNmByCd[p.value] ?? p.value}</span>;
+                return <span>{rsn.nm(p.value)}</span>;
             },
         },
         {
@@ -178,7 +157,7 @@ export default function StockCountDetail({ stktkId, onBack }) {
                 ? (p.value || <span className="text-rose-500 font-bold">내용 필요</span>)
                 : <span className="text-slate-300">—</span>,
         },
-    ], [editable, head?.status, rsnCodes, rsnNmByCd]);
+    ], [editable, head?.status, rsn]);
 
     // 그리드 편집 결과를 상태로 끌어올린다 — 요약(차이·사유 누락)이 즉시 갱신되도록
     const onCellValueChanged = (e) => {
@@ -290,38 +269,6 @@ export default function StockCountDetail({ stktkId, onBack }) {
         }
     };
 
-    const openAdd = () => {
-        setAddForm({ prod: null, locId: '', lotId: '' });
-        setAddLots([]);
-        setAddOpen(true);
-    };
-
-    const pickAddProd = async (prod) => {
-        setAddForm(prev => ({ ...prev, prod, lotId: '' }));
-        setProdPickerOpen(false);
-        const lots = await lotApi.listByProd(prod.prodId);
-        setAddLots(lots);
-    };
-
-    const doAddLine = async () => {
-        if (!addForm.prod || !addForm.locId || !addForm.lotId) {
-            toast.error('상품·로케이션·Lot을 모두 선택하세요.');
-            return;
-        }
-        try {
-            await invStktkApi.addLine(stktkId, {
-                prodId: addForm.prod.prodId,
-                locId: Number(addForm.locId),
-                lotId: Number(addForm.lotId),
-            });
-            toast.success('조사 라인을 추가했습니다.');
-            setAddOpen(false);
-            reload();
-        } catch (e) {
-            toast.error(e.message || '라인 추가에 실패했습니다.');
-        }
-    };
-
     if (!head) {
         return <div className="text-sm text-slate-400">불러오는 중…</div>;
     }
@@ -340,7 +287,7 @@ export default function StockCountDetail({ stktkId, onBack }) {
                     <ArrowLeft size={16} />
                 </button>
                 <h2 className="text-lg font-bold text-slate-800">{head.stktkNo}</h2>
-                <StatusBadge value={head.status} />
+                <Badge meta={INV_STKTK_STATUS_META} value={head.status} show="label" />
                 <span className="text-xs text-slate-400">{scopeText}</span>
                 <span className="text-xs text-slate-400">· 생성 {fmtDt(head.createdAt)}</span>
                 {head.cfmDt && <span className="text-xs text-emerald-600 font-bold">· 확정 {fmtDt(head.cfmDt)}</span>}
@@ -395,7 +342,7 @@ export default function StockCountDetail({ stktkId, onBack }) {
                             <RefreshCw size={14} /> 전산수량 재조회
                         </button>
                         <button
-                            onClick={openAdd}
+                            onClick={() => setAddOpen(true)}
                             title="장부에 없는 재고를 실사에서 발견했을 때 · 기초재고 등록"
                             className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
                             <Plus size={14} /> 라인 추가
@@ -468,74 +415,12 @@ export default function StockCountDetail({ stktkId, onBack }) {
 
             {/* 라인 추가 모달 */}
             {addOpen && (
-                <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 bg-black/20"
-                     onMouseDown={() => setAddOpen(false)}>
-                    <div className="bg-white rounded-2xl shadow-xl p-6 w-[460px] flex flex-col gap-4"
-                         onMouseDown={(e) => e.stopPropagation()}>
-                        <h3 className="text-lg font-bold text-slate-800">조사 라인 추가</h3>
-                        <p className="text-xs text-slate-500">
-                            장부에 없는 재고를 실사에서 발견했을 때 씁니다. 해당 재고 행이 없으면 전산수량 0으로 담기고,
-                            확정 시 (+)조정으로 재고가 새로 생성됩니다. <b>Lot은 이미 있는 것 중에서만</b> 고를 수 있습니다 —
-                            Lot 생성은 검수의 소관입니다.
-                        </p>
-
-                        <div className="flex flex-col gap-3">
-                            <div className="flex items-center gap-3">
-                                <label className="text-xs font-bold text-slate-500 w-20 shrink-0">상품 <span className="text-rose-500">*</span></label>
-                                <div className="flex-1 flex items-center gap-2">
-                                    <span className="text-sm text-slate-700 truncate flex-1">
-                                        {addForm.prod
-                                            ? <>{addForm.prod.prodCd} <span className="text-slate-400">{addForm.prod.prodNm}</span></>
-                                            : <span className="text-slate-400">선택하세요</span>}
-                                    </span>
-                                    <button
-                                        onClick={() => setProdPickerOpen(true)}
-                                        className="p-1.5 rounded border border-slate-200 text-slate-500 hover:bg-slate-50">
-                                        <Search size={14} />
-                                    </button>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <label className="text-xs font-bold text-slate-500 w-20 shrink-0">로케이션 <span className="text-rose-500">*</span></label>
-                                <div className="flex-1">
-                                    <DropdownSelect
-                                        value={addForm.locId}
-                                        onChange={(v) => setAddForm(prev => ({ ...prev, locId: v }))}
-                                        options={storageLocs.map(l => ({ value: String(l.locId), label: `${l.locCd} (${l.zonCd})` }))}
-                                        placeholder="보관 로케이션 선택"
-                                    />
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <label className="text-xs font-bold text-slate-500 w-20 shrink-0">Lot <span className="text-rose-500">*</span></label>
-                                <div className="flex-1">
-                                    <DropdownSelect
-                                        value={addForm.lotId}
-                                        onChange={(v) => setAddForm(prev => ({ ...prev, lotId: v }))}
-                                        options={addLots.map(l => ({
-                                            value: String(l.lotId),
-                                            label: `${l.lotNo}${l.expiryDt ? ` (유통기한 ${l.expiryDt})` : ''}`,
-                                        }))}
-                                        placeholder={addForm.prod ? 'Lot 선택' : '상품을 먼저 선택하세요'}
-                                        disabled={!addForm.prod}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="flex gap-2 justify-end">
-                            <button onClick={() => setAddOpen(false)} className="btn-modal-cancel">취소</button>
-                            <button onClick={doAddLine} className="btn-modal-primary">추가</button>
-                        </div>
-                    </div>
-                </div>
+                <StockCountAddLineModal
+                    stktkId={stktkId}
+                    onClose={() => setAddOpen(false)}
+                    onSaved={reload}
+                />
             )}
-
-            <ProdPickerModal
-                open={prodPickerOpen}
-                onClose={() => setProdPickerOpen(false)}
-                onSelect={pickAddProd}
-            />
         </div>
     );
 }

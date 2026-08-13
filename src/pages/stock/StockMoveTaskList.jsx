@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
-import { ArrowRight, Ban, ClipboardList } from 'lucide-react';
+import { ArrowRight, ClipboardList } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchItem } from '@/components/common/SearchBar';
-import DropdownSelect from '@/components/common/DropdownSelect';
-import { invMovApi, INV_MOV_STATUS_META, INV_MOV_DVSN_META } from '@/api/invMovApi';
+import SearchBar, { SearchText, SearchSelect } from '@/components/common/SearchBar';
+import { invMovApi } from '@/api/invMovApi';
+import { INV_MOV_DVSN_META, INV_MOV_STATUS_META } from '@/constants/badgeMeta';
+import { Badge } from '@/components/common/Badge';
 import { fmtDt, num } from '@/utils/format';
 import ConfirmModal from '@/components/common/ConfirmModal';
 
@@ -20,134 +21,147 @@ const DVSN_OPTIONS = [
     ...Object.entries(INV_MOV_DVSN_META).map(([value, m]) => ({ value, label: m.label })),
 ];
 
-const DvsnBadge = ({ value }) => {
-    const meta = INV_MOV_DVSN_META[value];
-    if (!meta) return null;
-    return (
-        <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${meta.badge}`}>
-            {meta.label}
-        </span>
-    );
-};
+// 확정수량 입력 1필드를 행에 붙인다. 기본값을 잔여로 채우지 않는다 —
+// 채우면 손대지도 않은 행이 전부 일괄 확정 대상이 된다
+const toEditableRow = (r) => ({ ...r, cnfmQty: null });
 
-const StatusBadge = ({ value }) => {
-    const meta = INV_MOV_STATUS_META[value];
-    if (!meta) return null;
-    return (
-        <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${meta.badge}`}>
-            {meta.label}
-        </span>
-    );
-};
+// 이 화면의 확정·취소 대상은 「재고이동 유형 + 지시 상태」뿐 — 적치·피킹 지시는 각자의 화면에서 처리 (서버도 재검증)
+const isActionable = (r) => r.movDvsn === 'INV_MOV' && r.status === 'DIRECTED';
 
-const COLUMN_DEFS = [
-    { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
-    { field: 'invMovNo', headerName: '이동지시번호', width: 150 },
-    {
-        field: 'movDvsn', headerName: '이동구분', width: 100,
-        headerTooltip: '이 화면의 확정·취소는 재고이동 유형만 가능 — 적치·피킹은 각자의 화면에서 처리',
-        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-        cellRenderer: (p) => <DvsnBadge value={p.value} />,
-    },
-    {
-        field: 'status', headerName: '상태', width: 90,
-        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-        cellRenderer: (p) => <StatusBadge value={p.value} />,
-    },
-    { field: 'prodCd', headerName: '상품 코드', width: 115 },
-    { field: 'prodNm', headerName: '상품명', flex: 1, minWidth: 160 },
-    { field: 'lotNo', headerName: 'Lot번호', width: 130 },
-    {
-        headerName: '이동 (FROM → TO)', width: 220,
-        cellRenderer: (p) => (
-            <span className="font-mono text-xs">
-                {p.data.fromLocCd} <span className="text-slate-400">→</span> <b className="text-indigo-700">{p.data.toLocCd}</b>
-            </span>
-        ),
-    },
-    {
-        field: 'drctQty', headerName: '지시', width: 85, cellClass: 'ag-right-aligned-cell font-medium',
-        valueFormatter: (p) => num(p.value),
-    },
-    {
-        field: 'cmplQty', headerName: '완료', width: 85,
-        cellClass: (p) => `ag-right-aligned-cell ${p.value > 0 ? 'text-emerald-600 font-bold' : 'text-slate-300'}`,
-        valueFormatter: (p) => num(p.value),
-    },
-    {
-        field: 'remainingQty', headerName: '잔여', width: 85,
-        headerTooltip: '잔여 = 지시 - 완료. DIRECTED의 잔여가 예약으로 잡혀 있는 수량',
-        cellClass: (p) => `ag-right-aligned-cell font-bold ${p.value > 0 ? 'text-amber-600' : 'text-slate-300'}`,
-        valueFormatter: (p) => num(p.value),
-    },
-    { field: 'createdAt', headerName: '등록일시', width: 140, valueFormatter: (p) => fmtDt(p.value), cellClass: 'text-slate-500' },
-    { field: 'cmplDt', headerName: '완료일시', width: 140, valueFormatter: (p) => fmtDt(p.value), cellClass: 'text-slate-500' },
-];
+const isEntered = (r) => isActionable(r) && r.cnfmQty != null;
 
 export default function StockMoveTaskList() {
     const [rowData, setRowData] = useState([]);
     const [cond, setCond] = useState({ invMovNo: '', movDvsn: '', prodCd: '', fromLocCd: '', toLocCd: '', status: '' });
-    const [selected, setSelected] = useState(null);
-    const [qty, setQty] = useState('');
-    const [confirmTarget, setConfirmTarget] = useState(null); // 확정 확인 모달 대상
-    const [cancelTarget, setCancelTarget] = useState(null);   // 취소 확인 모달 대상
+    const [confirmTargets, setConfirmTargets] = useState(null); // 확정 확인 모달 대상
+    const [cancelTarget, setCancelTarget] = useState(null);     // 취소 확인 모달 대상 (행 단위)
     const gridRef = useRef(null);
-    const pendingSelectRef = useRef(null); // 재조회 후 같은 지시를 다시 선택 (부분확정 시 유지)
 
-    const fetchList = async (keepSelection = false) => {
-        if (keepSelection) {
-            pendingSelectRef.current = selected ? selected.invMovTaskId : null;
-        } else {
-            setSelected(null);
-            setQty('');
-        }
+    const fetchList = async () => {
         const data = await invMovApi.list(cond);
-        setRowData(data);
-    };
-
-    const onModelUpdated = (p) => {
-        if (pendingSelectRef.current == null) return;
-        const taskId = pendingSelectRef.current;
-        pendingSelectRef.current = null;
-        p.api.forEachNode(n => { if (n.data.invMovTaskId === taskId) n.setSelected(true); });
+        setRowData(data.map(toEditableRow));
     };
 
     useEffect(() => {
-        let ignore = false;
-        invMovApi.list().then(data => { if (!ignore) setRowData(data); });
-        return () => { ignore = true; };
+        invMovApi.list().then(d => setRowData(d.map(toEditableRow)));
     }, []);
 
-    const onSelectionChanged = (e) => {
-        const node = e.api.getSelectedNodes()[0];
-        if (!node) {
-            setSelected(null);
-            setQty('');
-            return;
-        }
-        setSelected(node.data);
-        setQty(String(node.data.remainingQty));
+    const entered = useMemo(() => rowData.filter(isEntered), [rowData]);
+    const totalQty = entered.reduce((s, r) => s + (Number(r.cnfmQty) || 0), 0);
+
+    const columnDefs = useMemo(() => [
+        { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
+        { field: 'invMovNo', headerName: '이동지시번호', width: 150 },
+        {
+            field: 'movDvsn', headerName: '이동구분', width: 100,
+            headerTooltip: '이 화면의 확정·취소는 재고이동 유형만 가능 — 적치·피킹은 각자의 화면에서 처리',
+            cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+            cellRenderer: (p) => <Badge meta={INV_MOV_DVSN_META} value={p.value} show="label" />,
+        },
+        {
+            field: 'status', headerName: '상태', width: 90,
+            cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+            cellRenderer: (p) => <Badge meta={INV_MOV_STATUS_META} value={p.value} show="label" />,
+        },
+        { field: 'prodCd', headerName: '상품 코드', width: 115 },
+        { field: 'prodNm', headerName: '상품명', flex: 1, minWidth: 160 },
+        { field: 'lotNo', headerName: 'Lot번호', width: 130 },
+        {
+            headerName: '이동 (FROM → TO)', width: 220,
+            cellRenderer: (p) => (
+                <span className="font-mono text-xs">
+                    {p.data.fromLocCd} <span className="text-slate-400">→</span> <b className="text-indigo-700">{p.data.toLocCd}</b>
+                </span>
+            ),
+        },
+        {
+            field: 'drctQty', headerName: '지시', width: 85, cellClass: 'ag-right-aligned-cell font-medium',
+            valueFormatter: (p) => num(p.value),
+        },
+        {
+            field: 'cmplQty', headerName: '완료', width: 85,
+            cellClass: (p) => `ag-right-aligned-cell ${p.value > 0 ? 'text-emerald-600 font-bold' : 'text-slate-300'}`,
+            valueFormatter: (p) => num(p.value),
+        },
+        {
+            field: 'remainingQty', headerName: '잔여', width: 85,
+            headerTooltip: '잔여 = 지시 - 완료. DIRECTED의 잔여가 예약으로 잡혀 있는 수량',
+            cellClass: (p) => `ag-right-aligned-cell font-bold ${p.value > 0 ? 'text-amber-600' : 'text-slate-300'}`,
+            valueFormatter: (p) => num(p.value),
+        },
+        {
+            field: 'cnfmQty', headerName: '확정수량', width: 100,
+            editable: (p) => isActionable(p.data),
+            headerTooltip: '이번에 확정할 수량 — 잔여가 상한, 부분확정 가능. 재고이동 유형의 지시 상태 행만 입력할 수 있다',
+            cellClass: (p) => `ag-right-aligned-cell font-bold ${isActionable(p.data) ? 'bg-indigo-50' : ''}`,
+            cellRenderer: (p) => {
+                if (!isActionable(p.data)) return <span className="text-slate-300 font-normal">—</span>;
+                return p.value == null ? <span className="text-slate-300 font-normal">—</span> : num(p.value);
+            },
+        },
+        {
+            headerName: '잔량 취소', width: 90,
+            headerTooltip: '잔여수량의 예약을 해제한다. 이미 확정한 수량은 되돌리지 않는다',
+            cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+            cellRenderer: (p) => (
+                <button
+                    onClick={() => setCancelTarget(p.data)}
+                    disabled={!isActionable(p.data)}
+                    className="text-[11px] font-bold text-rose-600 hover:text-rose-800 disabled:text-slate-300 disabled:cursor-not-allowed">
+                    잔량 취소
+                </button>
+            ),
+        },
+        { field: 'createdAt', headerName: '등록일시', width: 140, valueFormatter: (p) => fmtDt(p.value), cellClass: 'text-slate-500' },
+        { field: 'cmplDt', headerName: '완료일시', width: 140, valueFormatter: (p) => fmtDt(p.value), cellClass: 'text-slate-500' },
+    ], []);
+
+    const onCellValueChanged = (e) => {
+        // 기본 텍스트 에디터는 문자열을 남긴다 — 빈 값은 null로, 그 외는 숫자로 맞춰 올린다
+        const raw = e.data.cnfmQty;
+        const cnfmQty = raw === '' || raw == null ? null : Number(raw);
+        setRowData(prev => prev.map(r => (r.invMovTaskId === e.data.invMovTaskId ? { ...r, ...e.data, cnfmQty } : r)));
     };
 
-    const handleConfirmClick = () => {
-        const n = Number(qty);
-        if (!(n > 0)) {
-            toast.error('확정수량은 1 이상이어야 합니다.');
+    const handleSubmit = () => {
+        // 편집 중인 셀은 아직 행에 반영되지 않았다 — 열린 에디터를 닫고 나서 그리드에서 직접 걷는다
+        gridRef.current?.api.stopEditing();
+        const rows = [];
+        gridRef.current?.api.forEachNode(n => rows.push(n.data));
+        const targets = rows.filter(isEntered);
+        if (targets.length === 0) {
+            toast('확정수량을 입력한 행이 없습니다.');
             return;
         }
-        if (n > selected.remainingQty) {
-            toast.error(`잔여수량을 초과했습니다 (잔여 ${num(selected.remainingQty)}).`);
+        // 걸린 행을 하나씩 알리면 고칠 때마다 다음 행이 새로 걸린다 — 한 번에 다 보여준다
+        const errors = [];
+        for (const r of targets) {
+            const n = Number(r.cnfmQty);
+            if (!(n > 0)) {
+                errors.push(`${r.invMovNo}: 확정수량은 1 이상이어야 합니다.`);
+            } else if (n > r.remainingQty) {
+                errors.push(`${r.invMovNo}: 잔여수량(${num(r.remainingQty)})을 초과했습니다.`);
+            }
+        }
+        if (errors.length > 0) {
+            toast.error(errors.join('\n'), { style: { whiteSpace: 'pre-line' } });
             return;
         }
-        setConfirmTarget({ ...selected, qty: n });
+        setConfirmTargets(targets);
     };
 
-    const doConfirm = async (target) => {
+    const doConfirm = async (targets) => {
         try {
-            await invMovApi.confirm(target.invMovTaskId, target.qty);
-            toast.success(`${target.invMovNo} — ${num(target.qty)}개 이동을 확정했습니다.`);
-            fetchList(target.qty < target.remainingQty); // 잔여가 남으면 같은 지시 선택 유지
+            await invMovApi.confirm(targets.map(t => ({
+                taskId: t.invMovTaskId,
+                qty: Number(t.cnfmQty),
+            })));
+            const qtySum = targets.reduce((s, t) => s + Number(t.cnfmQty), 0);
+            toast.success(`${targets.length}건 · ${num(qtySum)}개 이동을 확정했습니다.`);
+            fetchList(); // 잔여·상태가 움직인 목록으로 갱신 + 입력 초기화
         } catch (e) {
+            // 실패하면 재조회하지 않는다 — 전량 롤백이라 서버 값은 그대로이고,
+            // 입력을 살려둬야 지적된 행만 고쳐서 다시 시도할 수 있다
             toast.error(e.message || '이동확정에 실패했습니다.');
         }
     };
@@ -158,13 +172,10 @@ export default function StockMoveTaskList() {
             toast.success(`${target.invMovNo} — 잔여 ${num(target.remainingQty)}개의 예약을 해제했습니다.`);
             fetchList();
         } catch (e) {
+            // 실패하면 재조회하지 않는다 — 서버 값은 그대로인데 다른 행에 입력해 둔 확정수량만 날아간다
             toast.error(e.message || '이동취소에 실패했습니다.');
         }
     };
-
-    // 이 화면의 확정·취소 대상은 「재고이동 유형 + 지시 상태」뿐 — 적치·피킹 지시는 각자의 화면에서 처리 (서버도 재검증)
-    const isInvMov = selected?.movDvsn === 'INV_MOV';
-    const actionable = isInvMov && selected?.status === 'DIRECTED';
 
     return (
         <div className="flex flex-col gap-4 h-full">
@@ -176,177 +187,111 @@ export default function StockMoveTaskList() {
             </div>
 
             {/* 검색 조건 */}
-            <SearchBar label="검색" onSearch={() => fetchList()}>
-                <SearchItem label="지시번호">
-                    <input
-                        type="text"
-                        value={cond.invMovNo}
-                        onChange={(e) => setCond(prev => ({ ...prev, invMovNo: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="MV-20260803-001"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="상품 코드">
-                    <input
-                        type="text"
-                        value={cond.prodCd}
-                        onChange={(e) => setCond(prev => ({ ...prev, prodCd: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="PROD-0001"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="출발지">
-                    <input
-                        type="text"
-                        value={cond.fromLocCd}
-                        onChange={(e) => setCond(prev => ({ ...prev, fromLocCd: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="DRY-A-01-01"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="도착지">
-                    <input
-                        type="text"
-                        value={cond.toLocCd}
-                        onChange={(e) => setCond(prev => ({ ...prev, toLocCd: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="DRY-B-01-01"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="이동구분">
-                    <DropdownSelect
-                        value={cond.movDvsn}
-                        onChange={(v) => setCond(prev => ({ ...prev, movDvsn: v }))}
-                        options={DVSN_OPTIONS}
-                        placeholder="전체"
-                    />
-                </SearchItem>
-                <SearchItem label="상태">
-                    <DropdownSelect
-                        value={cond.status}
-                        onChange={(v) => setCond(prev => ({ ...prev, status: v }))}
-                        options={STATUS_OPTIONS}
-                        placeholder="전체"
-                    />
-                </SearchItem>
+            <SearchBar cond={cond} setCond={setCond} onSearch={() => fetchList()}>
+                <SearchText name="invMovNo" label="지시번호" placeholder="MV-20260803-001" />
+                <SearchText name="prodCd" label="상품 코드" placeholder="PROD-0001" />
+                <SearchText name="fromLocCd" label="출발지" placeholder="DRY-A-01-01" />
+                <SearchText name="toLocCd" label="도착지" placeholder="DRY-B-01-01" />
+                <SearchSelect name="movDvsn" label="이동구분" options={DVSN_OPTIONS} />
+                <SearchSelect name="status" label="상태" options={STATUS_OPTIONS} />
             </SearchBar>
 
             <div className="flex-1 min-h-0 flex flex-col gap-3">
-                <span className="text-xs text-slate-500 font-medium">{rowData.length}건</span>
+                <div className="flex items-center gap-3 flex-wrap">
+                    <span className="text-xs text-slate-500 font-medium">{rowData.length}건</span>
+                    <span className="text-[11px] text-slate-400">확정수량을 행에서 바로 입력한 뒤 확정 · 잔량 취소는 행별 버튼</span>
+                    <div className="ml-auto flex items-center gap-2 shrink-0">
+                        <span className={`text-xs font-bold ${entered.length > 0 ? 'text-indigo-600' : 'text-slate-400'}`}>
+                            입력 {num(entered.length)}건 · 총 {num(totalQty)}개
+                        </span>
+                        <button
+                            onClick={handleSubmit}
+                            className="flex items-center gap-1 px-4 py-2 bg-indigo-600 rounded-lg text-sm font-bold text-white hover:bg-indigo-700 transition-colors">
+                            <ArrowRight size={14} /> 이동확정
+                        </button>
+                    </div>
+                </div>
                 <div className="flex-1 min-h-0">
                     <AgGridReact
                         ref={gridRef}
                         rowData={rowData}
-                        columnDefs={COLUMN_DEFS}
+                        columnDefs={columnDefs}
+                        getRowId={(p) => String(p.data.invMovTaskId)}
                         rowHeight={34}
                         headerHeight={38}
-                        rowSelection={{ mode: 'singleRow', checkboxes: false, enableClickSelection: true }}
-                        onSelectionChanged={onSelectionChanged}
-                        onModelUpdated={onModelUpdated}
+                        stopEditingWhenCellsLoseFocus={true}
+                        onCellValueChanged={onCellValueChanged}
                     />
-                </div>
-
-                {/* 확정/취소 실행 영역 */}
-                <div className="border border-slate-200 rounded-xl p-4 bg-white flex flex-col gap-3 shrink-0">
-                    {!selected ? (
-                        <span className="text-xs text-slate-400">위에서 이동지시를 선택하세요.</span>
-                    ) : !actionable ? (
-                        <div className="flex items-center gap-2 text-sm">
-                            <span className="font-bold text-slate-700">{selected.invMovNo}</span>
-                            <DvsnBadge value={selected.movDvsn} />
-                            <StatusBadge value={selected.status} />
-                            <span className="text-xs text-slate-400">
-                                {!isInvMov
-                                    ? `${INV_MOV_DVSN_META[selected.movDvsn]?.label ?? selected.movDvsn} 유형의 지시는 이 화면에서 확정·취소할 수 없습니다 — 해당 업무 화면에서 처리하세요.`
-                                    : `${INV_MOV_STATUS_META[selected.status]?.label} 상태의 지시는 확정·취소할 수 없습니다.`}
-                            </span>
-                        </div>
-                    ) : (
-                        <div className="flex items-end gap-3">
-                            <div className="flex items-center gap-2 text-sm flex-1 min-w-0">
-                                <span className="font-bold text-slate-700 truncate">{selected.invMovNo}</span>
-                                <span className="text-xs text-slate-400 shrink-0">
-                                    {selected.prodCd} · {selected.lotNo} · <span className="font-mono">{selected.fromLocCd} → {selected.toLocCd}</span> · 잔여 {num(selected.remainingQty)}개
-                                </span>
-                            </div>
-                            <div className="flex flex-col gap-1 w-28 shrink-0">
-                                <label className="text-xs font-bold text-slate-500">확정수량</label>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    max={selected.remainingQty}
-                                    value={qty}
-                                    onChange={(e) => setQty(e.target.value)}
-                                    className="input-num"
-                                />
-                            </div>
-                            <button
-                                onClick={handleConfirmClick}
-                                className="flex items-center gap-1 px-4 py-2 bg-indigo-600 rounded-lg text-sm font-bold text-white hover:bg-indigo-700 transition-colors shrink-0">
-                                <ArrowRight size={14} /> 이동확정
-                            </button>
-                            <button
-                                onClick={() => setCancelTarget(selected)}
-                                className="flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-bold border border-rose-200 text-rose-600 hover:bg-rose-50 transition-colors shrink-0"
-                                title="잔여수량의 예약을 해제합니다. 이미 확정한 수량은 되돌리지 않습니다.">
-                                <Ban size={14} /> 잔량 취소
-                            </button>
-                        </div>
-                    )}
                 </div>
             </div>
 
             {/* 확정 확인 모달 */}
-            {confirmTarget && (
-                <ConfirmModal
-                    title="이동을 확정하시겠습니까?"
-                    confirmText="확정"
-                    onCancel={() => setConfirmTarget(null)}
-                    onConfirm={() => { doConfirm(confirmTarget); setConfirmTarget(null); }}
-                >
-                    <p className="text-sm text-slate-500">
-                        {confirmTarget.prodCd} {confirmTarget.prodNm} · <b className="text-emerald-600">{num(confirmTarget.qty)}개</b>
-                    </p>
-                    <p className="text-xs text-slate-400 font-mono">
-                        {confirmTarget.fromLocCd} → {confirmTarget.toLocCd}
-                    </p>
-                    {confirmTarget.qty < confirmTarget.remainingQty && (
-                        <p className="text-xs text-amber-600">부분확정 — 잔여 {num(confirmTarget.remainingQty - confirmTarget.qty)}개는 지시 상태로 남습니다.</p>
-                    )}
-                </ConfirmModal>
-            )}
-
-            {/* 취소 확인 모달 */}
-            {cancelTarget && (
-                <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 bg-black/20">
-                    <div className="bg-white rounded-2xl shadow-xl p-6 w-96 flex flex-col gap-4">
-                        <h3 className="text-lg font-bold text-slate-800">잔량을 취소하시겠습니까?</h3>
+            {confirmTargets && (
+                <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 bg-black/20"
+                     onMouseDown={() => setConfirmTargets(null)}>
+                    <div className="bg-white rounded-2xl shadow-xl p-6 w-[480px] flex flex-col gap-4"
+                         onMouseDown={(e) => e.stopPropagation()}>
+                        <h3 className="text-lg font-bold text-slate-800">이동을 확정하시겠습니까?</h3>
                         <p className="text-sm text-slate-500">
-                            {cancelTarget.invMovNo} · 잔여 <b className="text-rose-600">{num(cancelTarget.remainingQty)}개</b>의 예약이 해제됩니다.
+                            {confirmTargets.length}건 · 총 <b className="text-emerald-600">{num(confirmTargets.reduce((s, t) => s + Number(t.cnfmQty), 0))}개</b>의 실물 이동이 반영됩니다.
                         </p>
                         <p className="text-xs text-slate-400">
-                            {cancelTarget.cmplQty > 0
-                                ? `이미 확정한 ${num(cancelTarget.cmplQty)}개는 되돌리지 않습니다 — 지시수량이 완료수량으로 차감되고 완료 처리됩니다.`
-                                : '확정 실적이 없으므로 지시가 취소 상태가 됩니다.'}
+                            전체가 한 트랜잭션입니다 — 한 건이라도 걸리면 전량 반영되지 않습니다.
                         </p>
+                        <div className="flex flex-col gap-2 max-h-72 overflow-y-auto">
+                            {confirmTargets.map(t => (
+                                <div key={t.invMovTaskId} className="flex flex-col gap-0.5 text-xs bg-slate-50 rounded-lg p-3">
+                                    <div className="flex items-baseline gap-2 min-w-0">
+                                        <b className="text-slate-700 truncate">{t.invMovNo}</b>
+                                        <span className="text-slate-400 truncate">{t.prodCd} {t.prodNm}</span>
+                                    </div>
+                                    <span className="text-slate-500">
+                                        <span className="font-mono">{t.fromLocCd} → {t.toLocCd}</span>
+                                        {' · '}<b className="text-emerald-600">{num(Number(t.cnfmQty))}개</b>
+                                    </span>
+                                    {Number(t.cnfmQty) < t.remainingQty && (
+                                        <span className="text-amber-600">
+                                            부분확정 — 잔여 {num(t.remainingQty - Number(t.cnfmQty))}개는 지시 상태로 남습니다.
+                                        </span>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
                         <div className="flex gap-2 justify-end">
                             <button
-                                onClick={() => setCancelTarget(null)}
+                                onClick={() => setConfirmTargets(null)}
                                 className="btn-modal-cancel">
-                                닫기
+                                취소
                             </button>
                             <button
-                                onClick={() => { doCancel(cancelTarget); setCancelTarget(null); }}
-                                className="px-4 py-2 text-sm font-bold rounded-lg bg-rose-600 text-white hover:bg-rose-700">
-                                잔량 취소
+                                onClick={() => { const t = confirmTargets; setConfirmTargets(null); doConfirm(t); }}
+                                className="btn-modal-primary">
+                                확정
                             </button>
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* 취소 확인 모달 */}
+            {cancelTarget && (
+                <ConfirmModal
+                    title="잔량을 취소하시겠습니까?"
+                    confirmText="잔량 취소"
+                    cancelText="닫기"
+                    danger
+                    onCancel={() => setCancelTarget(null)}
+                    onConfirm={() => { const t = cancelTarget; setCancelTarget(null); doCancel(t); }}
+                >
+                    <p className="text-sm text-slate-500">
+                        {cancelTarget.invMovNo} · 잔여 <b className="text-rose-600">{num(cancelTarget.remainingQty)}개</b>의 예약이 해제됩니다.
+                    </p>
+                    <p className="text-xs text-slate-400 mt-1">
+                        {cancelTarget.cmplQty > 0
+                            ? `이미 확정한 ${num(cancelTarget.cmplQty)}개는 되돌리지 않습니다 — 지시수량이 완료수량으로 차감되고 완료 처리됩니다.`
+                            : '확정 실적이 없으므로 지시가 취소 상태가 됩니다.'}
+                    </p>
+                </ConfirmModal>
             )}
         </div>
     );

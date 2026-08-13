@@ -4,36 +4,23 @@ import { Download, MapPin, Plus, Save, Trash2, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 
-import SearchBar, { SearchItem } from '@/components/common/SearchBar';
-import DropdownSelect from '@/components/common/DropdownSelect';
-import { locApi, LOC_TYPE_META } from '@/api/locApi';
+import SearchBar, { SearchText, SearchSelect } from '@/components/common/SearchBar';
+import { locApi } from '@/api/locApi';
 import { zonApi } from '@/api/zonApi';
-import { TEMP_ZONE_META } from '@/api/prodApi';
-import { codeApi, toSearchOptions } from '@/api/codeApi';
-import { TempZoneBadge } from '@/components/common/Badge';
+import { LOC_TYPE_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
+import { useCodes } from '@/hooks/useCodes';
+import { Badge } from '@/components/common/Badge';
 import { RowStatusCell } from '@/components/common/Badge';
 import { fmtDe } from '@/utils/format';
 import ConfirmModal from '@/components/common/ConfirmModal';
 
 
-
-const LocTypeBadge = ({ value }) => {
-    const meta = LOC_TYPE_META[value];
-    if (!meta) return null;
-    return (
-        <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${meta.badge}`}>
-            {meta.label}
-        </span>
-    );
-};
-
 export default function LocMaster() {
     const [rowData, setRowData] = useState([]);
     const [cond, setCond] = useState({ locCd: '', zonCd: '', locTyp: '' });
-    const [locTypeOptions, setLocTypeOptions] = useState([{ value: '', label: '전체' }]);
     const [zons, setZons] = useState([]); // 존 마스터 목록 (드롭다운 · 온도대 검증 · 엑셀 코드표의 원천)
-    const [tempZoneCodes, setTempZoneCodes] = useState([]); // 공통코드(TEMP_ZONE)의 코드값 목록
-    const [locTypeCodes, setLocTypeCodes] = useState([]); // 공통코드(LOC_TYPE)의 코드값 목록
+    const tempZoneCodes = useCodes('TEMP_ZONE');
+    const locTypeCodes = useCodes('LOC_TYPE');
     const [rowCount, setRowCount] = useState(0); // 행추가분은 rowData 상태에 없으므로 건수는 그리드 기준으로 센다
     const [saveConfirm, setSaveConfirm] = useState(null); // 저장 확인 모달에 넘길 대상 행들 (null이면 닫힘)
     const gridRef = useRef(null); // 그리드 api 호출용 (applyTransaction 등)
@@ -68,16 +55,16 @@ export default function LocMaster() {
         {
             field: 'tmpZon', headerName: '온도대', width: 100, editable: notDeleted,
             cellEditor: 'agSelectCellEditor',
-            cellEditorParams: { values: tempZoneCodes },
+            cellEditorParams: { values: tempZoneCodes.values },
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-            cellRenderer: (p) => <TempZoneBadge value={p.value} />,
+            cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
         },
         {
             field: 'locTyp', headerName: '유형', width: 100, editable: notDeleted,
             cellEditor: 'agSelectCellEditor',
-            cellEditorParams: { values: locTypeCodes },
+            cellEditorParams: { values: locTypeCodes.values },
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-            cellRenderer: (p) => <LocTypeBadge value={p.value} />,
+            cellRenderer: (p) => <Badge meta={LOC_TYPE_META} value={p.value} show="label" />,
         },
         {
             field: 'pikngPrty', headerName: '피킹 우선순위', width: 120, editable: notDeleted,
@@ -110,21 +97,10 @@ export default function LocMaster() {
         setRowData(data);
     };
 
-    // 최초 1회 조회 (이후엔 조회 버튼으로 재조회) + 존 마스터 · 온도대/유형 공통코드 조회
+    // 최초 1회 조회 (이후엔 조회 버튼으로 재조회) + 존 마스터
     useEffect(() => {
-        let ignore = false;
-        locApi.list().then(data => { if (!ignore) setRowData(data); });
-        zonApi.list().then(data => { if (!ignore) setZons(data); });
-        codeApi.list('TEMP_ZONE').then(codes => {
-            if (!ignore) setTempZoneCodes(codes.map(c => c.codeCd));
-        });
-        codeApi.list('LOC_TYPE').then(codes => {
-            if (!ignore) {
-                setLocTypeOptions(toSearchOptions(codes));
-                setLocTypeCodes(codes.map(c => c.codeCd));
-            }
-        });
-        return () => { ignore = true; };
+        locApi.list().then(setRowData);
+        zonApi.list().then(setZons);
     }, []);
 
     // 셀 수정 시 행 상태를 U(수정)로 표시 (신규 C는 유지)
@@ -223,10 +199,10 @@ export default function LocMaster() {
             const zonCd = String(r['존'] ?? '').trim().toUpperCase();
             const tempRaw = String(r['온도대'] ?? '').trim();
             const typeRaw = String(r['유형'] ?? '').trim();
-            const tmpZon = tempZoneCodes.includes(tempRaw.toUpperCase())
+            const tmpZon = tempZoneCodes.values.includes(tempRaw.toUpperCase())
                 ? tempRaw.toUpperCase()
                 : tempNameToCode[tempRaw];
-            const locTyp = locTypeCodes.includes(typeRaw.toUpperCase())
+            const locTyp = locTypeCodes.values.includes(typeRaw.toUpperCase())
                 ? typeRaw.toUpperCase()
                 : typeNameToCode[typeRaw];
             if (!locCd || !zonCodes.includes(zonCd) || !tmpZon || !locTyp) {
@@ -314,33 +290,10 @@ export default function LocMaster() {
             </div>
 
             {/* 검색 조건 */}
-            <SearchBar label="검색" onSearch={fetchList}>
-                <SearchItem label="로케이션">
-                    <input
-                        type="text"
-                        value={cond.locCd}
-                        onChange={(e) => setCond(prev => ({ ...prev, locCd: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="DRY-A-01-01"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="존">
-                    <DropdownSelect
-                        value={cond.zonCd}
-                        onChange={(v) => setCond(prev => ({ ...prev, zonCd: v }))}
-                        options={zonOptions}
-                        placeholder="전체"
-                    />
-                </SearchItem>
-                <SearchItem label="유형">
-                    <DropdownSelect
-                        value={cond.locTyp}
-                        onChange={(v) => setCond(prev => ({ ...prev, locTyp: v }))}
-                        options={locTypeOptions}
-                        placeholder="전체"
-                    />
-                </SearchItem>
+            <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
+                <SearchText name="locCd" label="로케이션" placeholder="DRY-A-01-01" />
+                <SearchSelect name="zonCd" label="존" options={zonOptions} />
+                <SearchSelect name="locTyp" label="유형" options={locTypeCodes.searchOptions} />
             </SearchBar>
 
             {/* 그리드 툴바 */}

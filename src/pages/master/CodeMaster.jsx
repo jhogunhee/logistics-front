@@ -4,7 +4,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { ListTree, Plus, Save, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchItem } from '@/components/common/SearchBar';
+import SearchBar, { SearchText } from '@/components/common/SearchBar';
 import { codeApi } from '@/api/codeApi';
 import { RowStatusCell } from '@/components/common/Badge';
 import { fmtDe } from '@/utils/format';
@@ -106,12 +106,7 @@ export default function CodeMaster() {
 
     // 그룹 목록을 받고 첫 그룹을 바로 연다 — 빈 화면으로 시작하지 않게 한다
     useEffect(() => {
-        let ignore = false;
-        codeApi.groups().then(list => {
-            if (ignore) return;
-            setGroups(list);
-        });
-        return () => { ignore = true; };
+        codeApi.groups().then(setGroups);
     }, []);
 
     // 그룹 데이터가 처음 그려질 때 첫 행을 골라 둔다 (선택 이벤트가 하단 조회까지 이어진다).
@@ -320,27 +315,9 @@ export default function CodeMaster() {
             </div>
 
             {/* 검색 조건은 하단(코드)에만 걸린다 — 그룹은 5건 남짓이라 검색할 대상이 아니다 */}
-            <SearchBar label="코드 검색" onSearch={() => fetchCodes()}>
-                <SearchItem label="코드">
-                    <input
-                        type="text"
-                        value={cond.codeCd}
-                        onChange={(e) => setCond(prev => ({ ...prev, codeCd: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchCodes()}
-                        placeholder="DRY"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="코드명">
-                    <input
-                        type="text"
-                        value={cond.codeNm}
-                        onChange={(e) => setCond(prev => ({ ...prev, codeNm: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchCodes()}
-                        placeholder="상온"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
+            <SearchBar label="코드 검색" cond={cond} setCond={setCond} onSearch={() => fetchCodes()}>
+                <SearchText name="codeCd" label="코드" placeholder="DRY" />
+                <SearchText name="codeNm" label="코드명" placeholder="상온" />
             </SearchBar>
 
             {/* 저장 확인 모달 */}

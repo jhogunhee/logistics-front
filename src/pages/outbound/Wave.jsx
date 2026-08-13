@@ -6,23 +6,18 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchItem } from '@/components/common/SearchBar';
+import SearchBar, { SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import ExecutionHistory from '@/components/strategy/ExecutionHistory';
 import WaveOrderTrace from '@/components/strategy/WaveOrderTrace';
-import { outbWaveApi, WAVE_STATUS_META } from '@/api/outbWaveApi';
-import { outbOrderApi, WAV_REG_TYP_META } from '@/api/outbOrderApi';
+import { outbWaveApi } from '@/api/outbWaveApi';
+import { outbOrderApi } from '@/api/outbOrderApi';
+import { WAVE_STATUS_META, WAV_REG_TYP_META } from '@/constants/badgeMeta';
 import { strategyApi } from '@/api/strategyApi';
-import { codeApi, toSearchOptions } from '@/api/codeApi';
+import { useCodes } from '@/hooks/useCodes';
+import { Badge } from '@/components/common/Badge';
 import { fmtDt, num } from '@/utils/format';
-
-/** 라벨만 보여주는 뱃지 (공통 Badge는 코드값을 함께 찍는 형태라 상태·출처에는 맞지 않는다) */
-const MetaBadge = ({ meta, value }) => {
-    const m = meta[value];
-    if (!m) return null;
-    return <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${m.badge}`}>{m.label}</span>;
-};
 
 const centered = { display: 'flex', alignItems: 'center', justifyContent: 'center' };
 
@@ -36,7 +31,7 @@ const WAVE_COLUMN_DEFS = [
     {
         field: 'status', headerName: '상태', width: 74, cellStyle: centered,
         headerTooltip: '편성중 = 주문을 담고 뺄 수 있음 / 지시발행 = 피킹지시가 나가 편성이 잠김',
-        cellRenderer: (p) => <MetaBadge meta={WAVE_STATUS_META} value={p.value} />,
+        cellRenderer: (p) => <Badge meta={WAVE_STATUS_META} value={p.value} show="label" />,
     },
     {
         field: 'wavStgyId', headerName: '생성 전략', flex: 1, minWidth: 140,
@@ -86,7 +81,7 @@ const WAVE_ORDER_COLUMN_DEFS = [
     {
         field: 'wavRegTyp', headerName: '편입', width: 80, cellStyle: centered,
         headerTooltip: '전략 실행으로 편입됐는지, 화면에서 수동으로 담았는지. 수동 편입분은 전략 조건과 맞지 않을 수 있다',
-        cellRenderer: (p) => <MetaBadge meta={WAV_REG_TYP_META} value={p.value} />,
+        cellRenderer: (p) => <Badge meta={WAV_REG_TYP_META} value={p.value} show="label" />,
     },
 ];
 
@@ -101,15 +96,19 @@ const WAVE_ORDER_COLUMN_DEFS = [
  * 실제 편성을 만드는 업무 처리이기 때문이다 (호출 API도 업무 도메인에 있다).
  */
 export default function Wave() {
+    // ── 검색 조건 — 한 검색바지만 웨이브 조회와 주문 조회로 나뉘어 들어간다 ──
+    const [cond, setCond] = useState({
+        wavNo: '', wavStatus: '',
+        outbNo: '', outbTyp: '', vhclFltno: '', dateFrom: '', dateTo: '',
+    });
+
     // ── 웨이브 목록 ──────────────────────────────────────────
-    const [waveCond, setWaveCond] = useState({ wavNo: '', status: '' });
     const [waves, setWaves] = useState([]);
     const [selectedWave, setSelectedWave] = useState(null);
     const waveGridRef = useRef(null);
     const pendingWaveRef = useRef(null); // 재조회 후 같은 웨이브를 다시 선택하기 위한 wavId
 
     // ── 주문 목록 (좌: 미편성 / 우: 선택 웨이브 소속) ────────
-    const [orderCond, setOrderCond] = useState({ outbNo: '', outbTyp: '', vhclFltno: '', dateFrom: '', dateTo: '' });
     const [unassigned, setUnassigned] = useState([]);
     const [waveOrders, setWaveOrders] = useState([]);
     const unassignedGridRef = useRef(null);
@@ -129,28 +128,39 @@ export default function Wave() {
     const [confirmUnassign, setConfirmUnassign] = useState(null);
 
     // 공통코드 (출고유형 · 차량편수) — 조건 기준값의 주인은 코드관리라 화면에 하드코딩하지 않는다
-    const [outbTyps, setOutbTyps] = useState([]);
-    const [vhclFltnos, setVhclFltnos] = useState([]);
+    const outbTyps = useCodes('OUTB_TYP');
+    const vhclFltnos = useCodes('VHCL_FLTNO');
 
-    const codeNm = (list, cd) => list.find(c => c.codeCd === cd)?.codeNm;
     const gridContext = useMemo(() => ({
-        outbTypNm: (cd) => codeNm(outbTyps, cd),
-        vhclFltnoNm: (cd) => codeNm(vhclFltnos, cd),
+        outbTypNm: (cd) => outbTyps.nmByCd[cd],
+        vhclFltnoNm: (cd) => vhclFltnos.nmByCd[cd],
         stgyNm: (id) => strategies.find(s => s.wavStgyId === id)?.stgyNm,
     }), [outbTyps, vhclFltnos, strategies]);
 
     // ── 조회 ─────────────────────────────────────────────────
+    // 조건을 통째로 넘기지 않고 조회마다 쓸 것만 골라 보낸다 — 웨이브 조건이 주문 API로,
+    // 주문 조건이 웨이브 API로 새는 것을 막는다 (status는 양쪽에서 의미가 다르다)
+    const waveParams = () => ({ wavNo: cond.wavNo, status: cond.wavStatus });
+
     const fetchWaves = async (keepSelection = true) => {
         pendingWaveRef.current = keepSelection ? selectedWave?.wavId ?? null : null;
         if (!keepSelection) {
             setSelectedWave(null);
             setWaveOrders([]);
         }
-        setWaves(await outbWaveApi.list(waveCond));
+        setWaves(await outbWaveApi.list(waveParams()));
     };
 
     const fetchUnassigned = async () => {
-        setUnassigned(await outbOrderApi.list({ ...orderCond, status: 'CREATED', unassigned: true }));
+        setUnassigned(await outbOrderApi.list({
+            outbNo: cond.outbNo,
+            outbTyp: cond.outbTyp,
+            vhclFltno: cond.vhclFltno,
+            dateFrom: cond.dateFrom,
+            dateTo: cond.dateTo,
+            status: 'CREATED',
+            unassigned: true,
+        }));
     };
 
     const fetchWaveOrders = async (wavId) => {
@@ -171,8 +181,6 @@ export default function Wave() {
         outbWaveApi.list({}).then(setWaves).catch(() => {});
         outbOrderApi.list({ status: 'CREATED', unassigned: true }).then(setUnassigned).catch(() => {});
         strategyApi.waveStrategies.list().then(setStrategies).catch(() => {});
-        codeApi.list('OUTB_TYP').then(setOutbTyps).catch(() => {});
-        codeApi.list('VHCL_FLTNO').then(setVhclFltnos).catch(() => {});
     }, []);
 
     // 재조회 뒤 같은 웨이브를 다시 선택 — 담기/빼기 후에도 작업하던 웨이브가 풀리지 않게
@@ -197,7 +205,7 @@ export default function Wave() {
             const wavId = await outbWaveApi.create([]);
             toast.success('빈 웨이브를 만들었습니다 — 주문을 담아 편성하세요.');
             pendingWaveRef.current = wavId;
-            setWaves(await outbWaveApi.list(waveCond));
+            setWaves(await outbWaveApi.list(waveParams()));
         } catch (e) {
             toast.error(e.message || '웨이브 생성에 실패했습니다.');
         }
@@ -323,66 +331,21 @@ export default function Wave() {
             </div>
 
             {/* 검색 조건 — 웨이브 목록(위)과 미편성 후보(아래)에 함께 적용된다 */}
-            <SearchBar label="검색" onSearch={search}>
-                <SearchItem label="웨이브번호">
-                    <input
-                        type="text"
-                        value={waveCond.wavNo}
-                        onChange={(e) => setWaveCond(prev => ({ ...prev, wavNo: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && search()}
-                        placeholder="WV-20260803-001"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="웨이브상태">
-                    <DropdownSelect
-                        value={waveCond.status}
-                        onChange={(v) => setWaveCond(prev => ({ ...prev, status: v }))}
-                        options={[
-                            { value: '', label: '전체' },
-                            { value: 'PLANNED', label: '편성중' },
-                            { value: 'ISSUED', label: '지시발행' },
-                        ]}
-                        placeholder="전체"
-                    />
-                </SearchItem>
-                <SearchItem label="출고번호">
-                    <input
-                        type="text"
-                        value={orderCond.outbNo}
-                        onChange={(e) => setOrderCond(prev => ({ ...prev, outbNo: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && search()}
-                        placeholder="OB-20260803-001"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="주문일" wide>
-                    <div className="flex items-center gap-2">
-                        <input type="date" value={orderCond.dateFrom}
-                               onChange={(e) => setOrderCond(prev => ({ ...prev, dateFrom: e.target.value }))}
-                               className="flex-1 min-w-0 input-base" />
-                        <span className="text-slate-400 shrink-0">~</span>
-                        <input type="date" value={orderCond.dateTo}
-                               onChange={(e) => setOrderCond(prev => ({ ...prev, dateTo: e.target.value }))}
-                               className="flex-1 min-w-0 input-base" />
-                    </div>
-                </SearchItem>
-                <SearchItem label="출고유형">
-                    <DropdownSelect
-                        value={orderCond.outbTyp}
-                        onChange={(v) => setOrderCond(prev => ({ ...prev, outbTyp: v }))}
-                        options={toSearchOptions(outbTyps)}
-                        placeholder="전체"
-                    />
-                </SearchItem>
-                <SearchItem label="차량편수">
-                    <DropdownSelect
-                        value={orderCond.vhclFltno}
-                        onChange={(v) => setOrderCond(prev => ({ ...prev, vhclFltno: v }))}
-                        options={toSearchOptions(vhclFltnos)}
-                        placeholder="전체"
-                    />
-                </SearchItem>
+            <SearchBar cond={cond} setCond={setCond} onSearch={search}>
+                <SearchText name="wavNo" label="웨이브번호" placeholder="WV-20260803-001" />
+                <SearchSelect
+                    name="wavStatus"
+                    label="웨이브상태"
+                    options={[
+                        { value: '', label: '전체' },
+                        { value: 'PLANNED', label: '편성중' },
+                        { value: 'ISSUED', label: '지시발행' },
+                    ]}
+                />
+                <SearchText name="outbNo" label="출고번호" placeholder="OB-20260803-001" />
+                <SearchDateRange from="dateFrom" to="dateTo" label="주문일" />
+                <SearchSelect name="outbTyp" label="출고유형" options={outbTyps.searchOptions} />
+                <SearchSelect name="vhclFltno" label="차량편수" options={vhclFltnos.searchOptions} />
             </SearchBar>
 
             {/* 전략 실행 — 조건에 맞는 미편성 주문을 전략별 웨이브로 자동 편성한다 */}

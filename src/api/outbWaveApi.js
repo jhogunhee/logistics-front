@@ -46,12 +46,3 @@ export const outbWaveApi = {
         return api.post('/outbound/waves/stgy-exec', payload);
     },
 };
-
-/**
- * 웨이브 상태 표시 메타. 편성/발행 두 단계뿐이다 — 발행 이후 진행(피킹/확정)은
- * 주문 단위로 흐르므로 웨이브는 거기서 역할이 끝난다.
- */
-export const WAVE_STATUS_META = {
-    PLANNED: { label: '편성중',   badge: 'bg-amber-100 text-amber-700' },
-    ISSUED:  { label: '지시발행', badge: 'bg-emerald-100 text-emerald-700' },
-};

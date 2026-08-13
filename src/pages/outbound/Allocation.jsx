@@ -4,7 +4,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Hand, PackageCheck, Rocket, Unlink } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchItem } from '@/components/common/SearchBar';
+import SearchBar, { SearchText, SearchDateRange } from '@/components/common/SearchBar';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import AllocCandidateModal from '@/components/outbound/AllocCandidateModal';
 import { outbAllocApi } from '@/api/outbAllocApi';
@@ -248,42 +248,12 @@ export default function Allocation() {
             </div>
 
             {/* 검색 — 조건은 웨이브를 거른다 */}
-            <SearchBar label="검색" onSearch={search}>
-                <SearchItem label="웨이브번호">
-                    <input type="text" value={cond.wavNo}
-                           onChange={(e) => setCond(p => ({ ...p, wavNo: e.target.value }))}
-                           onKeyDown={(e) => e.key === 'Enter' && search()}
-                           placeholder="WV-20260803-001" className="w-full input-base" />
-                </SearchItem>
-                <SearchItem label="출고번호">
-                    <input type="text" value={cond.outbNo}
-                           onChange={(e) => setCond(p => ({ ...p, outbNo: e.target.value }))}
-                           onKeyDown={(e) => e.key === 'Enter' && search()}
-                           placeholder="OB-20260803-001" className="w-full input-base" />
-                </SearchItem>
-                <SearchItem label="상품코드">
-                    <input type="text" value={cond.prodCd}
-                           onChange={(e) => setCond(p => ({ ...p, prodCd: e.target.value }))}
-                           onKeyDown={(e) => e.key === 'Enter' && search()}
-                           placeholder="PROD-0001" className="w-full input-base" />
-                </SearchItem>
-                <SearchItem label="점포코드">
-                    <input type="text" value={cond.storeCd}
-                           onChange={(e) => setCond(p => ({ ...p, storeCd: e.target.value }))}
-                           onKeyDown={(e) => e.key === 'Enter' && search()}
-                           placeholder="ST-0001" className="w-full input-base" />
-                </SearchItem>
-                <SearchItem label="출고예정일" wide>
-                    <div className="flex items-center gap-2">
-                        <input type="date" value={cond.expctDeFrom}
-                               onChange={(e) => setCond(p => ({ ...p, expctDeFrom: e.target.value }))}
-                               className="flex-1 min-w-0 input-base" />
-                        <span className="text-slate-400 shrink-0">~</span>
-                        <input type="date" value={cond.expctDeTo}
-                               onChange={(e) => setCond(p => ({ ...p, expctDeTo: e.target.value }))}
-                               className="flex-1 min-w-0 input-base" />
-                    </div>
-                </SearchItem>
+            <SearchBar cond={cond} setCond={setCond} onSearch={search}>
+                <SearchText name="wavNo" label="웨이브번호" placeholder="WV-20260803-001" />
+                <SearchText name="outbNo" label="출고번호" placeholder="OB-20260803-001" />
+                <SearchText name="prodCd" label="상품코드" placeholder="PROD-0001" />
+                <SearchText name="storeCd" label="점포코드" placeholder="ST-0001" />
+                <SearchDateRange from="expctDeFrom" to="expctDeTo" label="출고예정일" />
             </SearchBar>
 
             {/* 실행 결과 — 동기 실행이라 결과를 바로 돌려준다 (작업로그를 뒤질 일이 없다) */}
