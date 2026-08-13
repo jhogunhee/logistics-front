@@ -32,7 +32,12 @@ export const asnApi = {
         return api.post(`/inbound/asns/${ibOrderId}/close`);
     },
 
-    /** 라인의 검수 이력(RECEIVE 건, 최근 순) — 검수 취소 대상 선택용 */
+    /** 입고건 전체의 검수 이력(RECEIVE 건, 최근 순) — 검수 화면의 「검수 이력」 탭 */
+    orderReceipts(ibOrderId) {
+        return api.get(`/inbound/asns/${ibOrderId}/receipts`);
+    },
+
+    /** 라인의 검수 이력(RECEIVE 건, 최근 순) — 라인 하나만 볼 때 */
     receipts(ibOrderId, ibLineId) {
         return api.get(`/inbound/asns/${ibOrderId}/lines/${ibLineId}/receipts`);
     },

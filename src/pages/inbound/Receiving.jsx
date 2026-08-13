@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import { ClipboardCheck, History, Search, X } from 'lucide-react';
+import { ClipboardCheck, History, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import SearchBar, { SearchItem, SearchText, SearchDateRange } from '@/components/common/SearchBar';
@@ -63,31 +63,60 @@ export default function Receiving() {
     const [vendorPickerOpen, setVendorPickerOpen] = useState(false);
     const [receiveConfirm, setReceiveConfirm] = useState(null); // 검수 저장 확인 모달 대상 라인들
     const [violations, setViolations] = useState([]); // 검수 제약 위반 목록 — 저장 거부 응답의 violations
-    const [receiptsModal, setReceiptsModal] = useState(null); // { line, receipts } — 검수 이력 모달 대상
+    const [receipts, setReceipts] = useState([]); // 선택한 입고건의 검수 이력 전부 (최근 순)
+    const [tab, setTab] = useState('input'); // 'input' 검수 입력 / 'history' 검수 이력
     const [cancelReceiptTarget, setCancelReceiptTarget] = useState(null); // 검수 취소 확인 대상 (receipt 1건)
     const gridRef = useRef(null);
     const lineGridRef = useRef(null);
-    const pendingSelectRef = useRef(null); // 재조회 후 같은 헤더 행을 다시 선택하기 위한 id
+    // 재조회 후 행을 다시 선택하던 ref는 없앴다 — 헤더 그리드의 getRowId가 선택을 유지한다
 
     const canReceive = !!selectedAsn && ['SCHEDULED', 'RECEIVING'].includes(selectedAsn.status);
 
-    // 검수 작업 화면이므로 검수/취소가 아직 의미 있는 것만 보여준다 (적치까지 끝난 COMPLETED는 제외)
-    const fetchList = async (keepSelection = false) => {
-        if (keepSelection) {
-            pendingSelectRef.current = selectedAsn?.ibOrderId ?? null;
-        } else {
-            setSelectedAsn(null);
-            setLineRows([]);
-        }
-        const data = await asnApi.list(cond);
-        setRowData(data.filter(a => ['SCHEDULED', 'RECEIVING', 'RECEIVED'].includes(a.status)));
+    const clearDetail = () => {
+        setSelectedAsn(null);
+        setLineRows([]);
+        setReceipts([]);
     };
 
-    const onModelUpdated = (p) => {
-        if (pendingSelectRef.current == null) return;
-        const id = pendingSelectRef.current;
-        pendingSelectRef.current = null;
-        p.api.forEachNode(n => { if (n.data.ibOrderId === id) n.setSelected(true); });
+    /**
+     * 선택한 입고건의 라인과 검수 이력을 읽는다.
+     * 선택할 때만이 아니라 검수 저장·취소 뒤에도 직접 부른다 — 헤더 그리드에 getRowId가 붙어
+     * 목록을 다시 읽어도 선택이 유지되므로 selectionChanged가 다시 발생하지 않기 때문이다.
+     */
+    const loadDetail = async (asn) => {
+        setViolations([]);
+        setReceipts(await asnApi.orderReceipts(asn.ibOrderId));
+        const lines = await asnApi.lines(asn.ibOrderId);
+        // 입고일자는 전 라인, 제조일자는 유통기한 관리 상품만 입력
+        // (입고일자만 기본값 오늘 — 제조일자는 거의 항상 과거라 오늘 기본값은 그럴듯한 오답, 직접 입력을 강제한다)
+        setLineRows(lines.map(l => ({
+            ...l,
+            _inspectQty: null, // 숫자 에디터라 빈 값은 ''가 아니라 null (''는 텍스트로 추론돼 에디터가 안 붙는다)
+            _receiptDt: todayStr(),
+            _mfgDt: '',
+        })));
+    };
+
+    // 검수 작업 화면이므로 검수/취소가 아직 의미 있는 것만 보여준다 (적치까지 끝난 COMPLETED는 제외)
+    const fetchList = async (keepSelection = false) => {
+        const data = await asnApi.list(cond);
+        const rows = data.filter(a => ['SCHEDULED', 'RECEIVING', 'RECEIVED'].includes(a.status));
+        setRowData(rows);
+
+        if (!keepSelection) {
+            clearDetail();
+            return;
+        }
+        // 선택한 건의 헤더 값(상태·검수 진행)도 새로 받은 것으로 바꾼다 — 옛 상태를 들고 있으면
+        // 전량 검수로 「입고확정」이 된 뒤에도 입력이 열려 있는 것처럼 보인다
+        const fresh = rows.find(a => a.ibOrderId === selectedAsn?.ibOrderId) ?? null;
+        setSelectedAsn(fresh);
+        if (fresh) {
+            await loadDetail(fresh);
+        } else {
+            setLineRows([]);
+            setReceipts([]);
+        }
     };
 
     // 최초 1회 조회 (검색조건 기본값 = 오늘 ~ +7일)
@@ -101,21 +130,11 @@ export default function Receiving() {
     const onSelectionChanged = async (e) => {
         const node = e.api.getSelectedNodes()[0];
         if (!node) {
-            setSelectedAsn(null);
-            setLineRows([]);
+            clearDetail();
             return;
         }
         setSelectedAsn(node.data);
-        setViolations([]);
-        const lines = await asnApi.lines(node.data.ibOrderId);
-        // 입고일자는 전 라인, 제조일자는 유통기한 관리 상품만 입력
-        // (입고일자만 기본값 오늘 — 제조일자는 거의 항상 과거라 오늘 기본값은 그럴듯한 오답, 직접 입력을 강제한다)
-        setLineRows(lines.map(l => ({
-            ...l,
-            _inspectQty: null, // 숫자 에디터라 빈 값은 ''가 아니라 null (''는 텍스트로 추론돼 에디터가 안 붙는다)
-            _receiptDt: todayStr(),
-            _mfgDt: '',
-        })));
+        await loadDetail(node.data);
     };
 
     // 라인 그리드: 작업 순서대로 [식별 → 단위·예정·잔량 → 입력 3개(파란색, 연속 배치)]를 앞에 두고,
@@ -188,20 +207,8 @@ export default function Receiving() {
                 ? 'ag-right-aligned-cell text-indigo-600 font-bold'
                 : 'ag-right-aligned-cell text-slate-500',
         },
-        // 검수누계 컬럼은 두지 않는다 — 잔량 = 예정 − 누계라 셋 중 둘이면 충분하고,
-        // 건별 누계 확인은 「이력보기」가 맡는다 (rcvdQty 자체는 이력 버튼 활성 조건으로 계속 쓴다)
-        {
-            headerName: '검수이력', width: 90,
-            cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-            cellRenderer: (p) => (
-                <button
-                    onClick={() => openReceiptsModal(p.data)}
-                    disabled={p.data.rcvdQty <= 0}
-                    className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 disabled:text-slate-300 disabled:cursor-not-allowed">
-                    이력보기
-                </button>
-            ),
-        },
+        // 검수누계·검수이력 컬럼은 두지 않는다 — 잔량 = 예정 − 누계라 셋 중 둘이면 충분하고,
+        // 누계 확인과 취소는 「검수 이력」 탭이 통째로 맡는다
         {
             field: 'shelfLifeDays', headerName: '유통기한', width: 95, cellClass: 'ag-right-aligned-cell',
             headerTooltip: '유통기한 일수. 서버가 제조일자 + 이 일수로 유통기한을 계산해 Lot에 기록',
@@ -291,22 +298,60 @@ export default function Receiving() {
         targets.reduce((s, r) => s + Number(r._inspectQty) * eaQtyPerInbUomOf(r), 0);
 
     // ── 검수 이력 / 취소 ─────────────────────────────────────
-    const openReceiptsModal = async (line) => {
-        const receipts = await asnApi.receipts(selectedAsn.ibOrderId, line.ibLineId);
-        setReceiptsModal({ line, receipts });
-    };
+    // 이력은 입고건 단위로 한 번에 받는다. 취소하면 라인 수량이 바뀌므로 목록·라인도 함께 다시 읽는다.
+    const canCancelReceipt = !!selectedAsn && ['RECEIVING', 'RECEIVED'].includes(selectedAsn.status);
 
     const doCancelReceipt = async (receipt) => {
         try {
             await asnApi.cancelReceipt(selectedAsn.ibOrderId, receipt.invHistId);
             toast.success('검수를 취소했습니다.');
-            const receipts = await asnApi.receipts(selectedAsn.ibOrderId, receiptsModal.line.ibLineId);
-            setReceiptsModal(prev => (prev ? { ...prev, receipts } : null));
-            fetchList(true);
+            await fetchList(true); // 라인 수량이 줄어드므로 목록·라인·이력을 함께 다시 읽는다
         } catch (e) {
             toast.error(e.message || '검수 취소에 실패했습니다.');
         }
     };
+
+    // 검수 이력 그리드. 어느 상품인지가 행마다 필요하다 — 입고건 전체를 한 자리에 모으기 때문이다
+    const receiptColumnDefs = [
+        {
+            field: 'createdAt', headerName: '검수일시', width: 150,
+            valueFormatter: (p) => fmtDt(p.value),
+        },
+        { field: 'prodCd', headerName: '상품 코드', width: 105 },
+        { field: 'prodNm', headerName: '상품명', flex: 1, minWidth: 180 },
+        {
+            headerName: '검수수량', width: 110,
+            headerTooltip: '이 건에서 검수한 수량 (입고단위). 취소된 건은 취소선으로 표시된다',
+            valueGetter: (p) => fmtStoredQty(p.data.qty, p.data),
+            // 취소된 건은 수량에 줄을 긋는다 — 흐리게만 두면 훑을 때 유효한 건과 섞여 보인다
+            cellClass: (p) => p.data.cancelled
+                ? 'ag-right-aligned-cell line-through text-slate-400'
+                : 'ag-right-aligned-cell',
+        },
+        { field: 'lotNo', headerName: 'Lot번호', width: 130 },
+        { field: 'receiptDt', headerName: '입고일자', width: 110 },
+        {
+            field: 'mfgDt', headerName: '제조일자', width: 110,
+            cellRenderer: (p) => p.value ?? <span className="text-slate-400">미관리</span>,
+        },
+        {
+            headerName: '취소', width: 80,
+            cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+            cellRenderer: (p) => p.data.cancelled
+                ? <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-500">취소됨</span>
+                : canCancelReceipt && (
+                    <button
+                        onClick={() => setCancelReceiptTarget(p.data)}
+                        className="text-[11px] font-bold text-rose-600 hover:text-rose-800">
+                        취소
+                    </button>
+                ),
+        },
+    ];
+
+    // 검수 입력 탭에는 아직 할 일이 남은 라인만 둔다 — 전량 검수된 라인은 입력할 것이 없고,
+    // 예전에 그 라인들을 남겨둔 이유(이력을 열어 취소해야 해서)는 이력 탭이 생기며 사라졌다
+    const pendingLineRows = lineRows.filter(r => r.expctQty - r.rcvdQty > 0);
 
     return (
         <div className="flex flex-col gap-4 h-full">
@@ -354,9 +399,13 @@ export default function Receiving() {
                             columnDefs={HEADER_COLUMN_DEFS}
                             rowHeight={34}
                             headerHeight={38}
+                            // 행 식별자를 주지 않으면 목록이 다시 올 때 ag-grid가 전부 새 행으로 보고 선택을 버린다.
+                            // 그러면 라인을 기다리는 사이(onSelectionChanged의 await) 선택이 풀려 selectedAsn이
+                            // null이 되고, 라인은 떠 있는데 검수 입력 칸이 잠긴다(canReceive가 selectedAsn을 본다).
+                            // StrictMode가 최초 조회를 두 번 돌리기 때문에 목록이 뜨자마자 클릭하면 바로 걸렸다.
+                            getRowId={(p) => p.data.ibNo}
                             rowSelection={{ mode: 'singleRow', checkboxes: false, enableClickSelection: true }}
                             onSelectionChanged={onSelectionChanged}
-                            onModelUpdated={onModelUpdated}
                         />
                     </div>
                 </Panel>
@@ -367,19 +416,48 @@ export default function Receiving() {
 
                 <Panel defaultSize={60} minSize={25} className="flex flex-col gap-2 min-h-0">
                     <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 min-w-0">
-                            <span className="text-sm font-bold text-slate-700 shrink-0">검수 입력</span>
+                        <div className="flex items-center gap-3 min-w-0">
+                            {/* 입력과 이력을 탭으로 나눈다 — 이력이 자기 자리를 가지면 입력 탭은 남은 일만 들면 된다 */}
+                            <div className="flex items-center gap-1 shrink-0">
+                                {/* 두 숫자는 세는 대상이 다르다 — 입력은 남은 「라인」, 이력은 검수한 「건」이다.
+                                    한 번 저장하면 라인마다 이력이 1건씩 생기고 분할입고면 더 늘어난다.
+                                    나란히 놓으면 비교하게 되므로 단위를 글자로 붙여 구분한다 */}
+                                {[
+                                    { key: 'input', label: '검수 입력', count: pendingLineRows.length, unit: '줄', icon: ClipboardCheck },
+                                    // 취소된 건은 목록엔 남기고(append-only 원장이라 지우지 않는다) 숫자에서는 뺀다 —
+                                    // 3건 넣고 2건 취소했는데 「3건」으로 뜨면 들어온 양을 잘못 읽는다
+                                    { key: 'history', label: '검수 이력', count: receipts.filter(r => !r.cancelled).length, unit: '건', icon: History },
+                                ].map(t => (
+                                    <button
+                                        key={t.key}
+                                        onClick={() => setTab(t.key)}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-bold rounded-lg transition-colors ${
+                                            tab === t.key
+                                                ? 'bg-indigo-50 text-indigo-700'
+                                                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'}`}>
+                                        <t.icon size={13} />
+                                        {t.label}
+                                        <span className={`text-[11px] font-bold ${tab === t.key ? 'text-indigo-400' : 'text-slate-400'}`}>
+                                            {t.count}{t.unit}
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
                             <span className="text-xs text-slate-400 truncate">
-                                {selectedAsn
-                                    ? `${selectedAsn.ibNo} · ${selectedAsn.vndrNm} — 파란 컬럼에 이번 검수분 입력 (검수수량은 입고단위 개수)`
-                                    : '위에서 입고예정을 선택하세요'}
+                                {!selectedAsn
+                                    ? '위에서 입고예정을 선택하세요'
+                                    : tab === 'input'
+                                        ? `${selectedAsn.ibNo} · ${selectedAsn.vndrNm} — 파란 컬럼에 이번 검수분 입력 (검수수량은 입고단위 개수)`
+                                        : `${selectedAsn.ibNo} · ${selectedAsn.vndrNm} — 검수한 건을 되돌립니다 (적치된 수량이 있으면 거부)`}
                             </span>
                         </div>
-                        <button
-                            onClick={handleReceiveClick}
-                            className="btn-primary shrink-0">
-                            <ClipboardCheck size={13} /> 검수 저장
-                        </button>
+                        {tab === 'input' && (
+                            <button
+                                onClick={handleReceiveClick}
+                                className="btn-primary shrink-0">
+                                <ClipboardCheck size={13} /> 검수 저장
+                            </button>
+                        )}
                     </div>
                     {/* 검수 제약 위반 배너 — 저장이 전체 거부됐음을 라인·규칙 단위로 보여준다 */}
                     {violations.length > 0 && (
@@ -395,14 +473,37 @@ export default function Receiving() {
                         </div>
                     )}
                     <div className="flex-1 min-h-0">
-                        <AgGridReact
-                            ref={lineGridRef}
-                            rowData={lineRows}
-                            columnDefs={lineColumnDefs}
-                            rowHeight={34}
-                            stopEditingWhenCellsLoseFocus={true}
-                            getRowStyle={(p) => p.data._violationMsg ? { background: '#fff1f2' } : undefined}
-                        />
+                        {tab === 'input' ? (
+                            selectedAsn && pendingLineRows.length === 0 ? (
+                                // 빈 그리드만 남으면 고장 난 줄 안다 — 어디로 갔는지 말해준다
+                                <div className="h-full flex flex-col items-center justify-center gap-1 text-slate-400">
+                                    <ClipboardCheck size={22} />
+                                    <span className="text-sm font-bold">검수할 라인이 없습니다</span>
+                                    <span className="text-xs">전량 검수된 라인은 「검수 이력」 탭에서 확인·취소합니다</span>
+                                </div>
+                            ) : (
+                                <AgGridReact
+                                    ref={lineGridRef}
+                                    rowData={pendingLineRows}
+                                    columnDefs={lineColumnDefs}
+                                    rowHeight={34}
+                                    getRowId={(p) => String(p.data.ibLineId)}
+                                    stopEditingWhenCellsLoseFocus={true}
+                                    getRowStyle={(p) => p.data._violationMsg ? { background: '#fff1f2' } : undefined}
+                                />
+                            )
+                        ) : (
+                            <AgGridReact
+                                rowData={receipts}
+                                columnDefs={receiptColumnDefs}
+                                rowHeight={34}
+                                getRowId={(p) => String(p.data.invHistId)}
+                                // 취소된 건은 원장에 그대로 남는다(append-only) — 지우지 않고 뒤로 물린다.
+                                // 취소선과 「취소됨」 뱃지가 구분을 맡으므로 여기서는 살짝만 흐리게 한다
+                                // (많이 흐리면 정작 무엇을 취소했는지 읽히지 않는다)
+                                getRowStyle={(p) => p.data.cancelled ? { opacity: 0.6 } : undefined}
+                            />
+                        )}
                     </div>
                 </Panel>
             </PanelGroup>
@@ -429,57 +530,14 @@ export default function Receiving() {
                 </ConfirmModal>
             )}
 
-            {/* 검수 이력 모달 */}
-            {receiptsModal && (
-                <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 bg-black/20">
-                    <div className="bg-white rounded-2xl shadow-xl p-6 w-[520px] flex flex-col gap-4">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <History size={16} className="text-indigo-600" />
-                                <h3 className="text-lg font-bold text-slate-800">검수 이력</h3>
-                            </div>
-                            <button onClick={() => setReceiptsModal(null)} className="text-slate-400 hover:text-slate-600">
-                                <X size={18} />
-                            </button>
-                        </div>
-                        <p className="text-xs text-slate-400">
-                            {receiptsModal.line.prodCd} · {receiptsModal.line.prodNm}
-                        </p>
-                        <div className="flex flex-col gap-2 max-h-80 overflow-y-auto">
-                            {receiptsModal.receipts.length === 0 && (
-                                <p className="text-sm text-slate-400 text-center py-6">검수 이력이 없습니다.</p>
-                            )}
-                            {receiptsModal.receipts.map(r => (
-                                <div key={r.invHistId} className={`flex items-center justify-between gap-3 px-3 py-2 border border-slate-200 rounded-lg ${r.cancelled ? 'opacity-50' : ''}`}>
-                                    <div className="flex flex-col gap-0.5">
-                                        <span className="text-sm font-bold text-slate-700">{fmtStoredQty(r.qty, receiptsModal.line)} · {r.lotNo}</span>
-                                        <span className="text-[11px] text-slate-400">
-                                            입고일자 {r.receiptDt}{r.mfgDt ? ` · 제조일자 ${r.mfgDt}` : ''} · {fmtDt(r.createdAt)}
-                                        </span>
-                                    </div>
-                                    {r.cancelled ? (
-                                        <span className="text-[11px] font-bold text-slate-400 shrink-0">취소됨</span>
-                                    ) : selectedAsn && ['RECEIVING', 'RECEIVED'].includes(selectedAsn.status) && (
-                                        <button
-                                            onClick={() => setCancelReceiptTarget(r)}
-                                            className="text-[11px] font-bold text-rose-600 hover:text-rose-800 shrink-0">
-                                            취소
-                                        </button>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            )}
-
             {/* 검수 취소 확인 모달 */}
             {cancelReceiptTarget && (
                 <div className="fixed inset-0 z-[60] flex items-start justify-center pt-16 bg-black/30">
                     <div className="bg-white rounded-2xl shadow-xl p-6 w-96 flex flex-col gap-4">
                         <h3 className="text-lg font-bold text-slate-800">검수를 취소하시겠습니까?</h3>
                         <p className="text-sm text-slate-500">
-                            {fmtStoredQty(cancelReceiptTarget.qty, receiptsModal?.line)} · {cancelReceiptTarget.lotNo}
+                            {cancelReceiptTarget.prodCd} {cancelReceiptTarget.prodNm} ·{' '}
+                            <b>{fmtStoredQty(cancelReceiptTarget.qty, cancelReceiptTarget)}</b> · {cancelReceiptTarget.lotNo}
                         </p>
                         <p className="text-xs text-slate-400">이미 적치된 수량이 있으면 취소할 수 없습니다.</p>
                         <div className="flex gap-2 justify-end">
