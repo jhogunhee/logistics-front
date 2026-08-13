@@ -6,7 +6,8 @@ import toast from 'react-hot-toast';
 import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import ConfirmModal from '@/components/common/ConfirmModal';
-import { TempZoneBadge } from '@/components/common/Badge';
+import { TEMP_ZONE_META } from '@/constants/badgeMeta';
+import { Badge } from '@/components/common/Badge';
 import { putawayApi, PUTAWAY_TASK_STATUS_META } from '@/api/putawayApi';
 import { fmtDe, fmtDt, num } from '@/utils/format';
 
@@ -65,7 +66,7 @@ export default function PutawayTaskList() {
         {
             field: 'tmpZon', headerName: '온도대', width: 100,
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-            cellRenderer: (p) => <TempZoneBadge value={p.value} />,
+            cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
         },
         { field: 'lotNo', headerName: 'Lot번호', width: 140 },
         {

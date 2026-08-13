@@ -7,7 +7,8 @@ import toast from 'react-hot-toast';
 import SearchBar, { SearchItem } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import ConfirmModal from '@/components/common/ConfirmModal';
-import { TempZoneBadge } from '@/components/common/Badge';
+import { TEMP_ZONE_META } from '@/constants/badgeMeta';
+import { Badge } from '@/components/common/Badge';
 import { putawayApi } from '@/api/putawayApi';
 import { daysAheadStr, fmtDe, num, todayStr } from '@/utils/format';
 
@@ -242,7 +243,7 @@ export default function PutawayOrderRegister() {
         {
             field: 'tmpZon', headerName: '온도대', width: 90,
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-            cellRenderer: (p) => <TempZoneBadge value={p.value} />,
+            cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
         },
         { field: 'lotNo', headerName: 'Lot번호', width: 140 },
         { field: 'receiptDt', headerName: '입고일자', width: 110, valueFormatter: (p) => fmtDe(p.value) },
@@ -451,7 +452,7 @@ export default function PutawayOrderRegister() {
                             <div className="flex items-end gap-3">
                                 <div className="flex items-center gap-2 text-sm flex-1 min-w-0">
                                     <span className="font-bold text-slate-700 truncate">{manual.prodCd} {manual.prodNm}</span>
-                                    <TempZoneBadge value={manual.tmpZon} />
+                                    <Badge meta={TEMP_ZONE_META} value={manual.tmpZon} />
                                     <span className="text-xs text-slate-400 shrink-0">
                                         {manual.lotNo} · 미지시 {num(manual.unDrctQty)}개
                                     </span>
