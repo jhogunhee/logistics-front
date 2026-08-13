@@ -30,6 +30,7 @@ import StockMove from "@/pages/stock/StockMove.jsx";
 import StockHold from "@/pages/stock/StockHold.jsx";
 import StockCount from "@/pages/stock/StockCount.jsx";
 import StockAttr from "@/pages/stock/StockAttr.jsx";
+import StockLotChng from "@/pages/stock/StockLotChng.jsx";
 import OutbOrderList from "@/pages/outbound/OutbOrderList.jsx";
 import Wave from "@/pages/outbound/Wave.jsx";
 import Allocation from "@/pages/outbound/Allocation.jsx";
@@ -70,6 +71,8 @@ export default function App() {
                         <Route path="/stock/history" element={<InvHistory/>}/>
                         {/* 재고 속성변경 — Lot 속성(제조일자·유통기한) 정정. 재고는 움직이지 않는다. 탭으로 정정/이력을 오간다 */}
                         <Route path="/stock/attribute" element={<StockAttr/>}/>
+                        {/* 재고 로트변경 — 수량을 지정한 Lot 속성정정(분할·병합). 재고가 새 배치 Lot으로 옮겨진다. 탭으로 실행/실적을 오간다 */}
+                        <Route path="/stock/lot-change" element={<StockLotChng/>}/>
                         {/* 재고 보류 (수량 방식 — 등록 즉시 가용 차감). 메뉴는 하나 — 화면 안 탭으로 등록/관리/실적을 오간다 */}
                         <Route path="/stock/hold" element={<StockHold/>}/>
                         {/* 재고 이동 2단계(지시=예약 → 확정). 메뉴는 하나 — 화면 안 탭으로 등록/관리를 오간다 */}

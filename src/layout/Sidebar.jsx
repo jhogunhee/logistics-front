@@ -30,6 +30,7 @@ import {
     Settings2,
     ShieldCheck,
     Shuffle,
+    Split,
     Store,
     Tags,
     Truck,
@@ -73,7 +74,8 @@ const MENU = [
         items: [
             { to: "/stock/status", label: "현재고 조회", icon: Box, keywords: "inventory 재고 현황 수량" },
             { to: "/stock/history", label: "재고 이력 조회", icon: History, keywords: "inventory history 원장 입출고" },
-            { to: "/stock/attribute", label: "재고 속성변경", icon: Tags, keywords: "lot 유통기한 제조일자 정정 변경" },
+            { to: "/stock/attribute", label: "재고 속성변경", icon: Tags, keywords: "lot 유통기한 제조일자 정정 변경 전량 라벨 유지" },
+            { to: "/stock/lot-change", label: "재고 로트변경", icon: Split, keywords: "lot 로트 분할 병합 부분 수량 정정 split merge" },
             { to: "/stock/hold", label: "재고 보류", icon: PauseCircle, keywords: "hold 출고 금지" },
             { to: "/stock/move", label: "재고 이동", icon: ArrowLeftRight, keywords: "move 로케이션 이동 지시 예약 등록 확정 취소" },
             { to: "/stock/count", label: "재고조사", icon: Calculator, keywords: "실사 count 조정 adjust" },
@@ -138,7 +140,8 @@ const MenuItem = ({ to, label, icon: Icon, badge }) => (
             }`
         }
     >
-        <div className="flex items-center gap-3">
+        {/* break-keep: 괄호 딸린 긴 라벨이 단어 중간(「지·정」)에서 꺾이지 않게 어절 단위로만 줄바꿈 */}
+        <div className="flex items-center gap-3 break-keep">
             {Icon && <Icon size={20} />}
             {label}
         </div>
