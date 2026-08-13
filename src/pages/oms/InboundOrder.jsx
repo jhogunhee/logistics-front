@@ -322,9 +322,9 @@ export default function InboundOrder() {
                         <span className="w-12 shrink-0" />
                     </div>
                     {/* flex-[1_0_auto] — 라인이 적어도 남는 높이를 채워 합계를 섹션 바닥에 붙인다 */}
-                    <div className="flex-[1_0_auto] divide-y divide-slate-100">
+                    <div className="flex-[1_0_auto] divide-y divide-slate-100 flex flex-col">
                     {form.lines.length === 0 && (
-                        <div className="pt-4 pb-16 flex flex-col items-center gap-3 text-sm text-slate-400">
+                        <div className="flex-1 py-8 flex flex-col items-center justify-center gap-3 text-sm text-slate-400">
                             <Package size={22} className="text-slate-300" />
                             담긴 상품이 없습니다
                             <button
