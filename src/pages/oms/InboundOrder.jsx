@@ -9,7 +9,7 @@ import { omsIbOrderApi } from '@/api/omsIbOrderApi';
 import { useCodes } from '@/hooks/useCodes';
 import { eaQtyPerInbUomOf } from '@/api/prodApi';
 import { TEMP_ZONE_META } from '@/constants/badgeMeta';
-import { todayStr } from '@/utils/format';
+import { num, todayStr } from '@/utils/format';
 
 // 오늘 날짜 "YYYY-MM-DD" (입고 예정일 기본값)
 
@@ -280,14 +280,15 @@ export default function InboundOrder() {
             </section>
 
             {/* ── 디테일: 발주 상품 ───────────────────────────────── */}
-            <section className="flex-1 min-h-0 flex flex-col border border-slate-200 rounded-xl overflow-hidden">
+            {/* min-h — 뷰포트가 낮으면 목록을 짜부라뜨리는 대신 Layout 카드 스크롤로 넘긴다 */}
+            <section className="flex-1 min-h-[280px] flex flex-col border border-slate-200 rounded-xl overflow-hidden">
                 <div className="px-4 py-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between shrink-0">
                     <div className="flex items-center gap-2">
                         <Package size={14} className="text-slate-500" />
                         <span className="text-xs font-bold text-slate-600">발주 상품</span>
                         <span className="text-[11px] text-slate-400">
                             {form.lines.length}건
-                            {form.lines.length > 0 && ` · 환산 ${totalConvQty.toLocaleString()}`}
+                            {form.lines.length > 0 && ` · 환산 ${num(totalConvQty)}`}
                             {' · 수량은 발주단위 기준입니다'}
                         </span>
                     </div>
@@ -299,26 +300,29 @@ export default function InboundOrder() {
                     </button>
                 </div>
 
-                {/* 컬럼 헤더 — 아래 행들과 같은 폭 규칙을 공유한다 */}
-                <div className="flex items-center gap-3 px-4 py-1.5 border-b border-slate-200 text-[11px] font-bold text-slate-500 shrink-0">
-                    <span className="w-10 shrink-0">No.</span>
-                    <span className="w-28 shrink-0">상품 코드</span>
-                    {/* 상품명은 남는 폭을 다 먹지 않게 캡을 둔다 — 남는 공간은 온도대 앞(ml-auto)으로 밀어
-                        오른쪽 수량 컬럼들의 정렬을 유지한다 */}
-                    <span className="flex-1 min-w-0 max-w-[360px]">상품명</span>
-                    <span className="w-24 shrink-0 text-center ml-auto">온도대</span>
-                    <span className="w-20 shrink-0 text-right">유통기한</span>
-                    <span className="w-40 shrink-0 text-right">발주 수량</span>
-                    <span className="w-20 shrink-0 text-right" title="발주단위 1개당 입수량(낱개 기준) — 단위 관리의 낱개수량과 같은 값">
-                        입수량
-                    </span>
-                    <span className="w-36 shrink-0 text-right" title="발주 수량을 낱개(EA)로 환산한 수량입니다">
-                        환산 수량 (낱개)
-                    </span>
-                    <span className="w-16 shrink-0" />
-                </div>
-
-                <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-slate-100">
+                {/* 컬럼 헤더·합계는 행들과 같은 스크롤 컨테이너 안에 sticky로 둔다 —
+                    밖에 두면 스크롤바가 생길 때 행 영역만 좁아져 서로 어긋난다.
+                    셋(헤더·행·합계)은 같은 폭 규칙을 공유한다 */}
+                <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
+                    <div className="shrink-0 sticky top-0 z-10 bg-white flex items-center gap-3 px-4 py-1.5 border-b border-slate-200 text-[11px] font-bold text-slate-500">
+                        <span className="w-10 shrink-0">No.</span>
+                        <span className="w-24 shrink-0">상품 코드</span>
+                        {/* 상품명은 남는 폭을 다 먹지 않게 캡을 둔다 — 남는 공간은 온도대 앞(ml-auto)으로 밀어
+                            오른쪽 수량 컬럼들의 정렬을 유지한다 */}
+                        <span className="flex-1 min-w-0 max-w-[360px]">상품명</span>
+                        <span className="w-20 shrink-0 text-center ml-auto">온도대</span>
+                        <span className="w-20 shrink-0 text-right">유통기한</span>
+                        <span className="w-32 shrink-0 text-right">발주 수량</span>
+                        <span className="w-20 shrink-0 text-right" title="발주단위 1개당 입수량(낱개 기준) — 단위 관리의 낱개수량과 같은 값">
+                            입수량
+                        </span>
+                        <span className="w-32 shrink-0 text-right" title="발주 수량을 낱개(EA)로 환산한 수량입니다">
+                            환산 수량 (낱개)
+                        </span>
+                        <span className="w-12 shrink-0" />
+                    </div>
+                    {/* flex-[1_0_auto] — 라인이 적어도 남는 높이를 채워 합계를 섹션 바닥에 붙인다 */}
+                    <div className="flex-[1_0_auto] divide-y divide-slate-100">
                     {form.lines.length === 0 && (
                         <div className="pt-4 pb-16 flex flex-col items-center gap-3 text-sm text-slate-400">
                             <Package size={22} className="text-slate-300" />
@@ -335,9 +339,9 @@ export default function InboundOrder() {
                         return (
                             <div key={line.prodId} className="flex items-center gap-3 px-4 py-1 hover:bg-slate-50/70">
                                 <span className="w-10 shrink-0 text-xs text-slate-400">{idx + 1}</span>
-                                <span className="w-28 shrink-0 text-sm font-medium text-slate-700">{line.prodCd}</span>
+                                <span className="w-24 shrink-0 text-sm font-medium text-slate-700">{line.prodCd}</span>
                                 <span className="flex-1 min-w-0 max-w-[360px] truncate text-sm text-slate-700">{line.prodNm}</span>
-                                <span className="w-24 shrink-0 flex justify-center ml-auto">
+                                <span className="w-20 shrink-0 flex justify-center ml-auto">
                                     {tz && (
                                         <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${tz.badge}`}>
                                             {tz.label} {line.tmpZon}
@@ -350,7 +354,7 @@ export default function InboundOrder() {
                                         : `${line.shelfLifeDays}일`}
                                 </span>
                                 {/* 발주 수량 — 단위는 상품이 정하므로 라벨로만 붙는다 (담당자가 고를 수 없다) */}
-                                <span className="w-40 shrink-0 flex items-center gap-1.5">
+                                <span className="w-32 shrink-0 flex items-center gap-1.5">
                                     <input
                                         type="number"
                                         min="1"
@@ -366,16 +370,16 @@ export default function InboundOrder() {
                                 </span>
                                 {/* 입수량 — 발주단위 1개 = 낱개 몇 개인지 (환산의 배수, 값의 근거는 단위 관리 화면의 낱개수량과 같다) */}
                                 <span className="w-20 shrink-0 text-right text-sm text-slate-500">
-                                    {eaQtyPerInbUomOf(line).toLocaleString()}
+                                    {num(eaQtyPerInbUomOf(line))}
                                 </span>
                                 {/* 환산 수량(낱개) — 읽기 전용. 환산이 없는 상품(×1)은 회색으로 눌러 둔다 */}
-                                <span className="w-36 shrink-0 flex items-center justify-end gap-1.5">
+                                <span className="w-32 shrink-0 flex items-center justify-end gap-1.5">
                                     {Number(line.odrQty) > 0 ? (
                                         <>
                                             <span className={`text-sm font-bold tabular-nums ${
                                                 eaQtyPerInbUomOf(line) > 1 ? 'text-indigo-600' : 'text-slate-500'
                                             }`}>
-                                                {convertedQty(line).toLocaleString()}
+                                                {num(convertedQty(line))}
                                             </span>
                                             <span className="w-9 shrink-0 text-[11px] font-bold text-slate-500 text-left">
                                                 EA
@@ -385,7 +389,7 @@ export default function InboundOrder() {
                                         <span className="text-sm text-slate-300">-</span>
                                     )}
                                 </span>
-                                <span className="w-16 shrink-0 flex justify-center gap-1">
+                                <span className="w-12 shrink-0 flex justify-center gap-1">
                                     <button
                                         onClick={() => setPickerFor(idx)}
                                         disabled={readOnly}
@@ -404,18 +408,19 @@ export default function InboundOrder() {
                             </div>
                         );
                     })}
-                </div>
+                    </div>
 
-                {/* 합계 */}
-                <div className="flex items-center gap-3 px-4 py-2 bg-slate-50 border-t border-slate-200 text-xs font-bold text-slate-600 shrink-0">
-                    <span className="flex-1 text-right">합계</span>
-                    {/* 발주 수량 칸은 비운다 — 라인마다 발주단위가 달라 더한 값에 의미가 없다 */}
-                    <span className="w-40 shrink-0" />
-                    <span className="w-20 shrink-0" />
-                    <span className="w-36 shrink-0 text-right">
-                        {totalConvQty.toLocaleString()}
-                    </span>
-                    <span className="w-16 shrink-0" />
+                    {/* 합계 */}
+                    <div className="shrink-0 sticky bottom-0 z-10 flex items-center gap-3 px-4 py-2 bg-slate-50 border-t border-slate-200 text-xs font-bold text-slate-600">
+                        <span className="flex-1 text-right">합계</span>
+                        {/* 발주 수량 칸은 비운다 — 라인마다 발주단위가 달라 더한 값에 의미가 없다 */}
+                        <span className="w-32 shrink-0" />
+                        <span className="w-20 shrink-0" />
+                        <span className="w-32 shrink-0 text-right">
+                            {num(totalConvQty)}
+                        </span>
+                        <span className="w-12 shrink-0" />
+                    </div>
                 </div>
             </section>
 

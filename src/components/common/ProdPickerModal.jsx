@@ -4,6 +4,7 @@ import { Check, Package, Search, X } from 'lucide-react';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import { eaQtyPerInbUomOf, prodApi } from '@/api/prodApi';
 import { TEMP_ZONE_META } from '@/constants/badgeMeta';
+import { num } from '@/utils/format';
 
 const TEMP_ZONE_OPTIONS = [
     { value: '', label: '전체' },
@@ -29,7 +30,7 @@ const UomFlow = ({ prod, uomRole }) => {
                 <>
                     <span className="text-slate-300">→</span>
                     <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-600 font-bold">EA</span>
-                    <span className="text-slate-400">×{eaQty.toLocaleString()}</span>
+                    <span className="text-slate-400">×{num(eaQty)}</span>
                 </>
             )}
         </span>
@@ -115,7 +116,7 @@ function ProdPickerBody({ prods, onClose, onSelect, multiple, excludeIds, uomRol
     return (
         <div className="fixed inset-0 z-50 flex items-start justify-center pt-12 bg-black/20" onMouseDown={onClose}>
             <div
-                className="bg-white rounded-2xl shadow-xl w-[840px] max-h-[80vh] flex flex-col"
+                className="bg-white rounded-2xl shadow-xl w-[840px] max-w-[calc(100vw-2rem)] max-h-[80vh] flex flex-col"
                 onMouseDown={(e) => e.stopPropagation()}
             >
                 {/* 헤더 */}
@@ -168,18 +169,18 @@ function ProdPickerBody({ prods, onClose, onSelect, multiple, excludeIds, uomRol
                     </div>
                 </div>
 
-                {/* 컬럼 헤더 */}
-                <div className="flex items-center gap-3 px-6 py-2 border-b border-slate-200 text-[11px] font-bold text-slate-500 shrink-0">
-                    {multiple && <span className="w-6 shrink-0" />}
-                    <span className="w-32 shrink-0">상품 코드</span>
-                    <span className="flex-1 min-w-0">상품명</span>
-                    <span className="w-24 shrink-0 text-center">온도대</span>
-                    <span className="w-20 shrink-0 text-right">유통기한</span>
-                    <span className="w-44 shrink-0 text-center">{uomRole === 'outb' ? '단위 (주문 → 낱개)' : '단위 (발주 → 낱개)'}</span>
-                </div>
-
-                {/* 목록 */}
-                <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-slate-100">
+                {/* 목록 — 컬럼 헤더는 스크롤 컨테이너 안에 sticky로 둔다.
+                    밖에 두면 스크롤바가 생길 때 행 영역만 좁아져 헤더와 어긋난다 */}
+                <div className="flex-1 min-h-0 overflow-y-auto">
+                    <div className="sticky top-0 z-10 bg-white flex items-center gap-3 px-6 py-2 border-b border-slate-200 text-[11px] font-bold text-slate-500">
+                        {multiple && <span className="w-6 shrink-0" />}
+                        <span className="w-32 shrink-0">상품 코드</span>
+                        <span className="flex-1 min-w-0">상품명</span>
+                        <span className="w-24 shrink-0 text-center">온도대</span>
+                        <span className="w-20 shrink-0 text-right">유통기한</span>
+                        <span className="w-44 shrink-0 text-center">{uomRole === 'outb' ? '단위 (주문 → 낱개)' : '단위 (발주 → 낱개)'}</span>
+                    </div>
+                    <div className="divide-y divide-slate-100">
                     {prods === null && (
                         <div className="py-16 text-center text-sm text-slate-400">불러오는 중…</div>
                     )}
@@ -234,6 +235,7 @@ function ProdPickerBody({ prods, onClose, onSelect, multiple, excludeIds, uomRol
                             </div>
                         );
                     })}
+                    </div>
                 </div>
 
                 {/* 푸터 */}
