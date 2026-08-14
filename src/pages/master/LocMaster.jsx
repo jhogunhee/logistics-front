@@ -77,6 +77,12 @@ export default function LocMaster() {
             headerTooltip: '적치 전략의 후보 정렬 기준(적치순서). 낮을수록 먼저 배정',
         },
         {
+            field: 'maxQty', headerName: '최대 적재 수량', width: 120, editable: notDeleted,
+            cellClass: 'ag-right-aligned-cell',
+            headerTooltip: '보관(STORAGE) 필수 · 스테이징은 빈 값(무제한). 적재가능수량 = 최대 적재 수량 − 현재고 − 미완료 지시 유입 잔량',
+            valueFormatter: (p) => (p.value == null || p.value === '') ? '' : num(p.value),
+        },
+        {
             field: '_status', headerName: '상태', width: 70,
             cellRenderer: (p) => <RowStatusCell value={p.value} />,
         },
@@ -119,7 +125,7 @@ export default function LocMaster() {
             // 기본 존은 마스터의 첫 행에서 가져온다 — 코드를 박아두면 그 존이 삭제됐을 때 저장이 실패한다
             add: [{
                 locCd: '', zonCd: zons[0]?.zonCd ?? '', tmpZon: zons[0]?.tmpZon ?? 'DRY',
-                locTyp: 'STORAGE', pikngPrty: 0, ptawyPrty: 0, _status: 'C',
+                locTyp: 'STORAGE', pikngPrty: 0, ptawyPrty: 0, maxQty: null, _status: 'C',
             }],
         });
         const rowIndex = res.add[0].rowIndex;
@@ -155,11 +161,11 @@ export default function LocMaster() {
     // 두 번째 시트에 코드표를 넣어 입력 가능한 값을 안내한다 (업로드는 첫 시트만 읽음).
     const handleTemplateDownload = () => {
         const sheet = XLSX.utils.json_to_sheet([
-            { '로케이션 코드': 'DRY-C-01-01 (예시)', '존': 'DRY', '온도대': 'DRY', '유형': 'STORAGE', '피킹 우선순위': 5, '적치 우선순위': 5 },
-            { '로케이션 코드': 'CHL-B-02-01 (예시)', '존': 'CHL', '온도대': 'CHL', '유형': 'STORAGE', '피킹 우선순위': 4, '적치 우선순위': 4 },
-            { '로케이션 코드': 'RCV-STAGE-2 (예시)', '존': 'RCV-STAGE', '온도대': 'DRY', '유형': 'STAGE', '피킹 우선순위': 0, '적치 우선순위': 0 },
+            { '로케이션 코드': 'DRY-C-01-01 (예시)', '존': 'DRY', '온도대': 'DRY', '유형': 'STORAGE', '피킹 우선순위': 5, '적치 우선순위': 5, '최대 적재 수량': 100 },
+            { '로케이션 코드': 'CHL-B-02-01 (예시)', '존': 'CHL', '온도대': 'CHL', '유형': 'STORAGE', '피킹 우선순위': 4, '적치 우선순위': 4, '최대 적재 수량': 100 },
+            { '로케이션 코드': 'RCV-STAGE-2 (예시)', '존': 'RCV-STAGE', '온도대': 'DRY', '유형': 'STAGE', '피킹 우선순위': 0, '적치 우선순위': 0, '최대 적재 수량': null },
         ]);
-        sheet['!cols'] = [{ wch: 22 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 12 }]; // 열 너비
+        sheet['!cols'] = [{ wch: 22 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 14 }]; // 열 너비
 
         const codeSheet = XLSX.utils.json_to_sheet([
             ...zons.map(z => ({ '구분': '존', '코드': z.zonCd, '이름': z.zonNm })),
@@ -211,10 +217,12 @@ export default function LocMaster() {
             }
             const prty = r['피킹 우선순위'];
             const ptawyPrty = r['적치 우선순위'];
+            const maxQty = r['최대 적재 수량'];
             rows.push({
                 locCd, zonCd, tmpZon, locTyp,
                 pikngPrty: (prty == null || prty === '') ? 0 : Number(prty),
                 ptawyPrty: (ptawyPrty == null || ptawyPrty === '') ? 0 : Number(ptawyPrty),
+                maxQty: (maxQty == null || maxQty === '') ? null : Number(maxQty),
                 _status: 'C',
             });
         });
@@ -261,16 +269,26 @@ export default function LocMaster() {
                 toast.error(`적치 우선순위는 0 이상 숫자여야 합니다: ${r.locCd}`);
                 return;
             }
+            // 서버 검증(ck_loc_storage_capacity · ck_loc_max_qty)과 같은 규칙 — 저장 전에 걸러준다
+            if (r.locTyp === 'STORAGE' && (r.maxQty == null || r.maxQty === '')) {
+                toast.error(`보관 로케이션은 최대 적재 수량이 필수입니다: ${r.locCd}`);
+                return;
+            }
+            if (r.maxQty != null && r.maxQty !== '' && !(Number(r.maxQty) >= 1)) {
+                toast.error(`최대 적재 수량은 1 이상 숫자여야 합니다: ${r.locCd}`);
+                return;
+            }
         }
         setSaveConfirm(dirty); // 가운데 확인 모달을 띄운다
     };
 
     const doSave = async (dirty) => {
         try {
-            // 빈 우선순위는 0으로 정규화해서 전송
+            // 빈 우선순위는 0으로, 빈 최대 적재 수량은 null(무제한)로 정규화해서 전송
             const payload = dirty.map(r => ({
                 ...r,
                 pikngPrty: (r.pikngPrty == null || r.pikngPrty === '') ? 0 : Number(r.pikngPrty),
+                maxQty: (r.maxQty == null || r.maxQty === '') ? null : Number(r.maxQty),
             }));
             await locApi.saveAll(payload);
             toast.success(`${dirty.length}건 저장했습니다.`);
