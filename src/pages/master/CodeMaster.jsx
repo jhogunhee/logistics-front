@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { ListTree, Plus, Save, Trash2 } from 'lucide-react';
@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 
 import SearchBar, { SearchText } from '@/components/common/SearchBar';
 import { codeApi } from '@/api/codeApi';
+import { useMasterGrid } from '@/hooks/useMasterGrid';
 import { RowStatusCell } from '@/components/common/Badge';
 import { fmtDe, num } from '@/utils/format';
 import ConfirmModal from '@/components/common/ConfirmModal';
@@ -17,12 +18,16 @@ export default function CodeMaster() {
     const [selectedGroup, setSelectedGroup] = useState(null); // 상단에서 고른 그룹 (null이면 하단이 비어 있다)
     const [rowData, setRowData] = useState([]);
     const [cond, setCond] = useState({ codeCd: '', codeNm: '' });
-    const [rowCount, setRowCount] = useState(0); // 행추가분은 rowData 상태에 없으므로 건수는 그리드 기준으로 센다
-    const [groupRowCount, setGroupRowCount] = useState(0); // 그룹 행추가분도 그리드에만 있다 — 같은 이유로 그리드 기준
-    const [saveConfirm, setSaveConfirm] = useState(null); // 저장 확인 모달에 넘길 대상 행들 (null이면 닫힘)
     const [groupSwitchConfirm, setGroupSwitchConfirm] = useState(null); // 미저장 상태에서 그룹을 바꾸려 할 때 보류된 그룹
-    const groupGridRef = useRef(null);
-    const gridRef = useRef(null);
+    // 그리드가 둘이라 훅도 둘 — C/U/D 마킹·행추가·삭제·dirty 수집 규약을 다른 마스터 화면과 같은 훅으로 쓴다
+    const {
+        gridRef: groupGridRef, rowCount: groupRowCount, gridProps: groupGridProps,
+        addRow: addGroupRow, collectDirty: collectGroupDirty,
+    } = useMasterGrid();
+    const {
+        gridRef, rowCount, saveConfirm, setSaveConfirm,
+        gridProps, addRow, deleteSelectedRows, collectDirty, requestSave,
+    } = useMasterGrid();
 
     // 삭제(D) 표시된 행은 편집을 막는다
     const notDeleted = (p) => p.data._status !== 'D';
@@ -164,8 +169,7 @@ export default function CodeMaster() {
         const next = p.api.getSelectedRows()[0] ?? null;
         if (!next || next.grpCd === selectedGroup?.grpCd) return;
 
-        const dirty = [];
-        gridRef.current?.api.forEachNode(n => { if (n.data._status) dirty.push(n.data); });
+        const dirty = gridRef.current ? collectDirty() : [];
         if (dirty.length > 0) {
             // 확인 모달은 비동기라 여기서 막을 수 없다 — 전환을 보류해 두고 응답을 기다린다
             setGroupSwitchConfirm(next);
@@ -176,13 +180,7 @@ export default function CodeMaster() {
 
     // ── 그룹 편집 ────────────────────────────────────────────
     // 저장 대상이 코드가 아니라 그룹이라 저장 버튼도 패널마다 따로 둔다.
-    const handleAddGroup = () => {
-        const api = groupGridRef.current.api;
-        const res = api.applyTransaction({ add: [{ grpCd: '', grpNm: '', dscr: '', _status: 'C' }] });
-        const rowIndex = res.add[0].rowIndex;
-        api.ensureIndexVisible(rowIndex, 'bottom');
-        api.startEditingCell({ rowIndex, colKey: 'grpCd' });
-    };
+    const handleAddGroup = () => addGroupRow({ grpCd: '', grpNm: '', dscr: '' }, 'grpCd');
 
     // 그룹은 단일 선택이라 "선택된 그룹"을 지운다 (코드 그리드의 다중 선택과 다르다)
     const handleDeleteGroup = () => {
@@ -199,9 +197,7 @@ export default function CodeMaster() {
     };
 
     const handleSaveGroups = async () => {
-        const rows = [];
-        groupGridRef.current.api.forEachNode(n => rows.push(n.data));
-        const dirty = rows.filter(r => r._status);
+        const dirty = collectGroupDirty();
         if (dirty.length === 0) { toast('변경된 그룹이 없습니다.'); return; }
         for (const r of dirty.filter(r => r._status !== 'D')) {
             if (!String(r.grpCd ?? '').trim()) { toast.error('그룹코드는 필수입니다.'); return; }
@@ -220,87 +216,46 @@ export default function CodeMaster() {
         }
     };
 
-    // 셀 수정 시 행 상태를 U(수정)로 표시 (신규 C는 유지)
-    const onCellValueChanged = (params) => {
-        if (params.column.getColId() === '_status') return;
-        if (params.data._status !== 'C') {
-            params.node.setDataValue('_status', 'U');
-        }
-    };
-
     // ── 행 추가 ──────────────────────────────────────────────
     // 정렬순서 기본값은 현재 최댓값 + 1 — 새 코드는 콤보박스 맨 뒤에 붙는 게 자연스럽다
     const handleAddRow = () => {
         if (!selectedGroup) { toast('위에서 그룹을 먼저 고르세요.'); return; }
         // 미저장 신규 그룹은 서버에 없다 — 코드 저장이 /master/codes/{grpCd}/bulk로 나가므로 그룹 저장이 먼저다
         if (selectedGroup._status === 'C') { toast('그룹을 먼저 저장하세요.'); return; }
-        const api = gridRef.current.api;
         let maxSeq = 0;
-        api.forEachNode(node => { maxSeq = Math.max(maxSeq, node.data.srtSeq ?? 0); });
-
-        const res = api.applyTransaction({
-            add: [{ codeCd: '', codeNm: '', srtSeq: maxSeq + 1, ref1: '', ref2: '', ref3: '', _status: 'C' }],
-        });
-        const rowIndex = res.add[0].rowIndex;
-        api.ensureIndexVisible(rowIndex, 'bottom');
-        api.startEditingCell({ rowIndex, colKey: 'codeCd' });
-    };
-
-    // ── 삭제 ────────────────────────────────────────────────
-    // 신규(C) 행은 그리드에서 바로 제거, 기존 행은 D로 표시해 저장 시 반영한다 (재조회하면 원복).
-    // 실제 차단은 서버가 한다 — UOM 그룹은 그 단위를 쓰는 상품이 있으면 거부한다.
-    const handleDeleteRows = () => {
-        const api = gridRef.current.api;
-        const selected = api.getSelectedNodes();
-        if (selected.length === 0) {
-            toast('삭제할 행을 선택하세요.');
-            return;
-        }
-        const newRows = selected.filter(n => n.data._status === 'C').map(n => n.data);
-        if (newRows.length > 0) api.applyTransaction({ remove: newRows });
-        const marked = selected.filter(n => n.data._status !== 'C');
-        marked.forEach(n => n.setDataValue('_status', 'D'));
-        api.deselectAll();
-
-        const parts = [];
-        if (newRows.length > 0) parts.push(`신규 ${newRows.length}건은 바로 제거했습니다`);
-        if (marked.length > 0) parts.push(`기존 ${marked.length}건은 저장 시 삭제됩니다`);
-        toast(parts.join(', '));
+        gridRef.current.api.forEachNode(node => { maxSeq = Math.max(maxSeq, node.data.srtSeq ?? 0); });
+        addRow({ codeCd: '', codeNm: '', srtSeq: maxSeq + 1, ref1: '', ref2: '', ref3: '' }, 'codeCd');
     };
 
     // ── 저장 ────────────────────────────────────────────────
-    const handleSave = () => {
-        if (selectedGroup?._status === 'C') { toast.error('그룹을 먼저 저장하세요.'); return; }
-        const rows = [];
-        gridRef.current.api.forEachNode(node => rows.push(node.data));
-        const dirty = rows.filter(r => r._status);
-        if (dirty.length === 0) {
-            toast('변경된 내용이 없습니다.');
-            return;
-        }
-        const editable = dirty.filter(r => r._status !== 'D');
-        for (const r of editable) {
+    const validateRows = (rows) => {
+        for (const r of rows) {
             if (!String(r.codeCd ?? '').trim()) {
                 toast.error('코드는 필수입니다.');
-                return;
+                return false;
             }
             if (!String(r.codeNm ?? '').trim()) {
                 toast.error(`코드명은 필수입니다: ${r.codeCd}`);
-                return;
+                return false;
             }
             if (r.srtSeq === null || r.srtSeq === undefined || r.srtSeq === '') {
                 toast.error(`정렬순서는 필수입니다: ${r.codeCd}`);
-                return;
+                return false;
             }
         }
         // 신규 행끼리의 코드 중복은 서버가 건건이 INSERT하며 잡기 전에 여기서 먼저 막는다
-        const newCds = editable.filter(r => r._status === 'C').map(r => r.codeCd);
+        const newCds = rows.filter(r => r._status === 'C').map(r => r.codeCd);
         const dup = newCds.find((cd, i) => newCds.indexOf(cd) !== i);
         if (dup) {
             toast.error(`코드가 중복됩니다: ${dup}`);
-            return;
+            return false;
         }
-        setSaveConfirm(dirty);
+        return true;
+    };
+
+    const handleSave = () => {
+        if (selectedGroup?._status === 'C') { toast.error('그룹을 먼저 저장하세요.'); return; }
+        requestSave(validateRows);
     };
 
     const doSave = async (dirty) => {
@@ -398,16 +353,10 @@ export default function CodeMaster() {
                             columnDefs={GROUP_COLUMN_DEFS}
                             rowHeight={34}
                             headerHeight={38}
+                            {...groupGridProps}
                             rowSelection={{ mode: 'singleRow', checkboxes: false, enableClickSelection: true }}
-                            rowClassRules={{
-                                'line-through': (p) => p.data._status === 'D',
-                                'opacity-40': (p) => p.data._status === 'D',
-                            }}
-                            stopEditingWhenCellsLoseFocus={true}
-                            onCellValueChanged={onCellValueChanged}
                             onRowDataUpdated={syncGroupSelection}
                             onSelectionChanged={onGroupSelected}
-                            onModelUpdated={(p) => setGroupRowCount(p.api.getDisplayedRowCount())}
                         />
                     </div>
                 </Panel>
@@ -428,7 +377,7 @@ export default function CodeMaster() {
                         </div>
                         <div className="flex gap-2">
                             <button
-                                onClick={handleDeleteRows}
+                                onClick={deleteSelectedRows}
                                 className="btn-danger">
                                 <Trash2 size={13} /> 삭제
                             </button>
@@ -451,14 +400,7 @@ export default function CodeMaster() {
                             columnDefs={columnDefs}
                             rowHeight={34}
                             headerHeight={38}
-                            rowSelection={{ mode: 'multiRow' }}
-                            rowClassRules={{
-                                'line-through': (p) => p.data._status === 'D',
-                                'opacity-40': (p) => p.data._status === 'D',
-                            }}
-                            stopEditingWhenCellsLoseFocus={true}
-                            onCellValueChanged={onCellValueChanged}
-                            onModelUpdated={(p) => setRowCount(p.api.getDisplayedRowCount())}
+                            {...gridProps}
                         />
                     </div>
                 </Panel>
