@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Loader2, ServerCrash, RotateCw } from 'lucide-react';
 
 const BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-const PROBE_PATH = '/master/code-groups';
+const PROBE_PATH = '/health';
 
 // 깨어 있는 서버는 수백 ms 안에 답한다. 그보다 오래 걸리면 기동 중이므로 안내를 띄운다.
 const BANNER_AFTER_MS = 1200;
@@ -16,8 +16,11 @@ const MAX_ATTEMPTS = 8;
 /**
  * 첫 진입 시 서버가 깨어날 때까지 화면을 붙잡는다.
  *
- * 없으면 콜드 스타트 동안 모든 조회가 5초 타임아웃으로 죽어 **빈 그리드만 남는다** —
- * 서버가 죽은 것과 기동 중인 것이 사용자에게 똑같이 보인다. 둘을 구분해 알리는 것이 목적이다.
+ * 평상시에는 cron-job.org가 /health를 주기적으로 때려 Render 유휴 슬립을 막고 있어서
+ * 이 게이트는 거의 즉시 통과된다. 그래도 남겨두는 이유는 크론이 못 막는 콜드 스타트가
+ * 있어서다 — 배포 직후 재기동, 크론 누락/장애. 그동안은 모든 조회가 5초 타임아웃으로 죽어
+ * **빈 그리드만 남는다** — 서버가 죽은 것과 기동 중인 것이 사용자에게 똑같이 보인다.
+ * 둘을 구분해 알리는 것이 목적이다.
  * axios 인스턴스를 쓰지 않는 이유는 그쪽 타임아웃(5초)이 콜드 스타트보다 짧고,
  * 실패마다 조회 실패 토스트가 뜨기 때문이다.
  */
