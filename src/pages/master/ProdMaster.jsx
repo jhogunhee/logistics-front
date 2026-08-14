@@ -260,7 +260,7 @@ export default function ProdMaster() {
         }
         // 검증 (상품 코드는 서버 채번, 삭제 행은 id만 쓰므로 검증 대상 아님)
         for (const r of dirty.filter(r => r._status !== 'D')) {
-            if (!r.prodNm.trim()) {
+            if (!String(r.prodNm ?? '').trim()) {
                 toast.error('상품명은 필수입니다.');
                 return;
             }

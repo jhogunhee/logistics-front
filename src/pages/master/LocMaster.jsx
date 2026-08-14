@@ -251,7 +251,7 @@ export default function LocMaster() {
         }
         // 검증 (삭제 행은 id만 쓰므로 검증 대상 아님)
         for (const r of dirty.filter(r => r._status !== 'D')) {
-            if (!r.locCd.trim()) {
+            if (!String(r.locCd ?? '').trim()) {
                 toast.error('로케이션 코드는 필수입니다.');
                 return;
             }
@@ -288,6 +288,7 @@ export default function LocMaster() {
             const payload = dirty.map(r => ({
                 ...r,
                 pikngPrty: (r.pikngPrty == null || r.pikngPrty === '') ? 0 : Number(r.pikngPrty),
+                ptawyPrty: (r.ptawyPrty == null || r.ptawyPrty === '') ? 0 : Number(r.ptawyPrty),
                 maxQty: (r.maxQty == null || r.maxQty === '') ? null : Number(r.maxQty),
             }));
             await locApi.saveAll(payload);
