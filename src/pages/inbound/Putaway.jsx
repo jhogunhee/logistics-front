@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
-import { ArrowRight, Layers, PackageOpen } from 'lucide-react';
+import { Layers, PackageOpen } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import SearchBar, { SearchText, SearchProd } from '@/components/common/SearchBar';
@@ -44,36 +44,8 @@ const PROD_COLUMN_DEFS = [
     },
 ];
 
-// 하단: 선택 상품의 지시들 — 어디에 얼마씩 넣는지가 한눈에 보여야 한 번 들고 나가 나눠 넣는다
-const TASK_COLUMN_DEFS = [
-    { field: 'ibNo', headerName: '입고번호', width: 165 },
-    { field: 'lotNo', headerName: 'Lot번호', width: 140 },
-    {
-        field: 'expiryDt', headerName: '유통기한', width: 110,
-        cellRenderer: (p) => (p.value ? fmtDe(p.value) : <span className="text-slate-400">미관리</span>),
-    },
-    {
-        // 이 화면의 핵심 정보 — 작업자는 여기 적힌 로케이션으로만 물건을 넣는다
-        field: 'toLocCd', headerName: '대상 로케이션', width: 160,
-        headerTooltip: '지시된 적치 위치. 다른 곳에 넣으려면 적치지시 화면에서 취소 후 재지시해야 한다',
-        cellClass: 'font-mono font-bold text-indigo-700',
-    },
-    {
-        field: 'drctQty', headerName: '지시수량', width: 100,
-        cellClass: 'ag-right-aligned-cell tabular-nums font-medium', valueFormatter: (p) => num(p.value),
-    },
-    {
-        field: 'cmplQty', headerName: '완료수량', width: 100,
-        cellClass: (p) => `ag-right-aligned-cell tabular-nums ${p.value > 0 ? 'text-emerald-600 font-bold' : 'text-slate-300'}`,
-        valueFormatter: (p) => num(p.value),
-    },
-    {
-        field: 'remainingQty', headerName: '잔여수량', width: 100,
-        headerTooltip: '잔여 = 지시 - 완료. 이번에 실행할 수 있는 상한',
-        cellClass: 'ag-right-aligned-cell tabular-nums font-bold text-amber-600',
-        valueFormatter: (p) => num(p.value),
-    },
-];
+// 하단 지시 그리드 컬럼은 실행 버튼이 컴포넌트 상태를 써야 해서 컴포넌트 안에 둔다
+// (적치지시 등록의 batchColumnDefs와 같은 이유)
 
 /** 지시 목록을 상품별로 접는다 — 서버는 지시 1건씩 주고, 화면의 작업 단위인 상품은 여기서 만든다 */
 const groupByProd = (tasks) => {
@@ -96,12 +68,9 @@ const groupByProd = (tasks) => {
 
 export default function Putaway() {
     const [tasks, setTasks] = useState([]);
-    const [cond, setCond] = useState({ ibNo: '', prodCd: '', toLocCd: '' });
+    const [cond, setCond] = useState({ ibNo: '', prodCd: '' });
     const [selectedProdCd, setSelectedProdCd] = useState(null);
-    const [selectedTask, setSelectedTask] = useState(null);
-    const [qty, setQty] = useState('');
-    const [confirmOne, setConfirmOne] = useState(null);  // 건별 실행 확인 대상
-    const [confirmAll, setConfirmAll] = useState(null);  // 상품 전량 실행 확인 대상 (그룹)
+    const [confirmSave, setConfirmSave] = useState(null); // 적치 저장 확인 모달 대상 (수량 입력된 지시들)
     const prodGridRef = useRef(null);
     const pendingProdRef = useRef(null); // 재조회 후 같은 상품을 다시 선택하기 위한 키
 
@@ -113,10 +82,10 @@ export default function Putaway() {
         if (!keepProd) {
             setSelectedProdCd(null);
         }
-        setSelectedTask(null);
-        setQty('');
         try {
-            setTasks(await putawayApi.tasks({ status: 'DIRECTED', ...cond }));
+            const data = await putawayApi.tasks({ status: 'DIRECTED', ...cond });
+            // 적치수량 편집 컬럼의 기본값 = 잔여 전량 — 부분 실행할 때만 고친다
+            setTasks(data.map(t => ({ ...t, _execQty: t.remainingQty })));
         } catch (e) {
             toast.error(e.message || '조회에 실패했습니다.');
         }
@@ -132,61 +101,109 @@ export default function Putaway() {
 
     useEffect(() => {
         let ignore = false;
-        putawayApi.tasks({ status: 'DIRECTED' }).then(data => { if (!ignore) setTasks(data); }).catch(() => {});
+        putawayApi.tasks({ status: 'DIRECTED' }).then(data => {
+            if (!ignore) setTasks(data.map(t => ({ ...t, _execQty: t.remainingQty })));
+        }).catch(() => {});
         return () => { ignore = true; };
     }, []);
 
     const onProdSelectionChanged = (e) => {
         const node = e.api.getSelectedNodes()[0];
         setSelectedProdCd(node ? node.data.prodCd : null);
-        setSelectedTask(null);
-        setQty('');
     };
 
-    const onTaskSelectionChanged = (e) => {
-        const node = e.api.getSelectedNodes()[0];
-        if (!node) {
-            setSelectedTask(null);
-            setQty('');
+    // ── 적치 저장 (일괄 실행) — 그리드에 입력 → 저장 → 확인 모달, 검수·이동확정과 같은 패턴 ──
+    // 적치수량 기본값이 잔여 전량이라 아무것도 안 고치고 저장하면 곧 전량 적치다 (별도 전량 버튼을 안 두는 이유).
+    // 안 옮길 행은 수량을 지운다 — 빈 값 = 제외 (검수 저장의 「입력한 라인만」 규칙과 동일)
+    const handleSaveClick = () => {
+        if (!selectedProd) {
+            toast('적치할 상품을 선택하세요.');
             return;
         }
-        setSelectedTask(node.data);
-        setQty(String(node.data.remainingQty));
+        const targets = selectedProd.tasks.filter(t => String(t._execQty ?? '').trim() !== '');
+        if (targets.length === 0) {
+            toast('적치수량을 입력한 지시가 없습니다.');
+            return;
+        }
+        for (const t of targets) {
+            const n = Number(t._execQty);
+            if (!(n > 0) || !Number.isInteger(n)) {
+                toast.error(`적치수량은 1 이상 정수여야 합니다: ${t.toLocCd}`);
+                return;
+            }
+            if (n > t.remainingQty) {
+                toast.error(`적치수량이 잔여수량(${num(t.remainingQty)})을 초과했습니다: ${t.toLocCd}`);
+                return;
+            }
+        }
+        setConfirmSave(targets);
     };
 
-    // ── 건별 실행 (부분 가능) ────────────────────────────────
-    const handleExecuteClick = () => {
-        const n = Number(qty);
-        if (!(n > 0) || !Number.isInteger(n)) {
-            toast.error('적치수량은 1 이상 정수여야 합니다.');
-            return;
-        }
-        if (n > selectedTask.remainingQty) {
-            toast.error(`잔여수량을 초과했습니다 (잔여 ${num(selectedTask.remainingQty)}).`);
-            return;
-        }
-        setConfirmOne({ ...selectedTask, qty: n });
-    };
-
-    const doExecuteOne = async (target) => {
+    const doSave = async (targets) => {
+        const totalQty = targets.reduce((s, t) => s + Number(t._execQty), 0);
         try {
-            await putawayApi.execute(target.putawayTaskId, target.qty);
-            toast.success(`${target.prodCd} ${num(target.qty)}개를 ${target.toLocCd}에 적치했습니다.`);
-            fetchList(true);
+            await putawayApi.executeAll(targets.map(t => ({ taskId: t.putawayTaskId, qty: Number(t._execQty) })));
+            toast.success(`${num(totalQty)}개를 ${new Set(targets.map(t => t.toLocCd)).size}개 로케이션에 적치했습니다.`);
+            // 잔여가 남으면 같은 상품 선택을 유지해 이어서 처리한다 (전량이면 상품이 목록에서 빠진다)
+            const partial = targets.length < selectedProd.tasks.length
+                || targets.some(t => Number(t._execQty) < t.remainingQty);
+            fetchList(partial);
         } catch (e) {
-            toast.error(e.message || '적치에 실패했습니다.');
+            toast.error(e.message || '적치 저장에 실패했습니다.');
         }
     };
 
-    // ── 상품 전량 실행 ───────────────────────────────────────
-    // 지시대로 다 옮기는 것이 대부분이라 이쪽이 주 동선이다. 부분 실행만 아래 건별 패널이 맡는다
-    const doExecuteAll = async (group) => {
-        try {
-            await putawayApi.executeAll(group.tasks.map(t => ({ taskId: t.putawayTaskId, qty: t.remainingQty })));
-            toast.success(`${group.prodCd} ${num(group.remainingQty)}개를 ${group.locCount}개 로케이션에 적치했습니다.`);
-            fetchList(false); // 전량 실행이면 그 상품이 목록에서 빠진다
-        } catch (e) {
-            toast.error(e.message || '일괄 적치에 실패했습니다.');
+    // 하단: 선택 상품의 지시들 — 어디에 얼마씩 넣는지가 한눈에 보여야 한 번 들고 나가 나눠 넣는다.
+    // 작업 순서대로 [어디로(로케이션) → 얼마나(지시·완료·잔여) → 이번에 옮길 수량]을 앞에 모으고,
+    // 근거(Lot·유통기한·입고번호)는 뒤로 보낸다. 입고번호가 flex로 남는 폭을 흡수해 행이 끝까지 찬다
+    const taskColumnDefs = [
+        {
+            // 이 화면의 핵심 정보 — 작업자는 여기 적힌 로케이션으로만 물건을 넣는다
+            field: 'toLocCd', headerName: '대상 로케이션', width: 160,
+            headerTooltip: '지시된 적치 위치. 다른 곳에 넣으려면 적치지시 화면에서 취소 후 재지시해야 한다',
+            cellClass: 'font-mono font-bold text-indigo-700',
+        },
+        {
+            field: 'drctQty', headerName: '지시수량', width: 100,
+            cellClass: 'ag-right-aligned-cell tabular-nums font-medium', valueFormatter: (p) => num(p.value),
+        },
+        {
+            field: 'cmplQty', headerName: '완료수량', width: 100,
+            cellClass: (p) => `ag-right-aligned-cell tabular-nums ${p.value > 0 ? 'text-emerald-600 font-bold' : 'text-slate-300'}`,
+            valueFormatter: (p) => num(p.value),
+        },
+        {
+            field: 'remainingQty', headerName: '잔여수량', width: 100,
+            headerTooltip: '잔여 = 지시 - 완료. 이번에 실행할 수 있는 상한',
+            cellClass: 'ag-right-aligned-cell tabular-nums font-bold text-amber-600',
+            valueFormatter: (p) => num(p.value),
+        },
+        {
+            field: '_execQty', headerName: '적치수량', width: 100, editable: true,
+            cellDataType: 'number',
+            cellEditor: 'agNumberCellEditor', cellEditorParams: { min: 1, precision: 0 },
+            valueFormatter: (p) => num(p.value),
+            // 잔여 초과 상태인 동안 셀을 붉게 — 토스트는 사라져도 안 고친 행이 계속 눈에 걸린다
+            cellClass: (p) => Number(p.value) > p.data.remainingQty
+                ? 'ag-right-aligned-cell bg-rose-50 text-rose-600 font-bold'
+                : 'ag-right-aligned-cell bg-indigo-50',
+            headerTooltip: '이번에 옮길 수량 — 기본값은 잔여 전량, 일부만 옮겼으면 고치고, 안 옮길 행은 지워서 제외',
+        },
+        { field: 'lotNo', headerName: 'Lot번호', width: 140, cellClass: 'text-slate-500' },
+        {
+            field: 'expiryDt', headerName: '유통기한', width: 110,
+            cellRenderer: (p) => (p.value ? fmtDe(p.value) : <span className="text-slate-400">미관리</span>),
+        },
+        { field: 'ibNo', headerName: '입고번호', flex: 1, minWidth: 165, cellClass: 'text-slate-500' },
+    ];
+
+    // 적치수량 초과는 적는 순간(편집 확정 시점) 한 번 알린다 — 값을 잔여로 깎아주지는 않는다.
+    // 조용한 자동 수정은 그럴듯한 오답을 깔아주는 것(제조일자 기본값을 뺀 것과 같은 원칙).
+    // 셀 붉은 표시가 남아 있고, [적치 저장] 검증과 서버 검증이 뒤를 받친다
+    const onTaskCellValueChanged = (e) => {
+        if (e.colDef.field !== '_execQty') return;
+        if (Number(e.newValue) > e.data.remainingQty) {
+            toast.error(`적치수량이 잔여수량(${num(e.data.remainingQty)})을 초과했습니다.`);
         }
     };
 
@@ -202,11 +219,13 @@ export default function Putaway() {
                 </span>
             </div>
 
-            {/* 검색 조건 */}
+            {/* 검색 조건 — 대상 로케이션은 두지 않는다. 이 화면의 축은 상품이고(집어 드는 단위),
+                로케이션은 상품을 고르면 아래에 나오는 결과다. 조건으로 걸면 상단 상품 집계가 그
+                로케이션 몫만 더해 잔여수량이 실제와 달라진다. 「이 로케이션에 뭐가 걸렸나」는
+                지시 단위 목록인 적치지시 관리 화면이 답한다 */}
             <SearchBar label="검색" cond={cond} setCond={setCond} onSearch={() => fetchList()}>
                 <SearchProd name="prodCd" />
                 <SearchText name="ibNo" label="입고번호" placeholder="IB-20260717-001" />
-                <SearchText name="toLocCd" label="대상 로케이션" placeholder="DRY-A-01-01" />
             </SearchBar>
 
             <PanelGroup direction="vertical" autoSaveId="wms-putaway-split-v1" className="flex-1 min-h-0">
@@ -218,13 +237,6 @@ export default function Putaway() {
                             유통기한 임박순 — 상품을 고르면 아래에 어느 로케이션으로 얼마씩 가는지 나옵니다
                         </span>
                         <span className="text-xs text-slate-500 font-medium ml-auto shrink-0">{prodRows.length}개 상품</span>
-                        <button
-                            onClick={() => selectedProd ? setConfirmAll(selectedProd) : toast('적치할 상품을 선택하세요.')}
-                            disabled={!selectedProd}
-                            className="btn-primary shrink-0 disabled:opacity-40"
-                            title="이 상품의 지시를 잔여 전량으로 한 번에 실행합니다">
-                            <Layers size={13} /> 전량 적치
-                        </button>
                     </div>
                     <div className="flex-1 min-h-0">
                         <AgGridReact
@@ -246,108 +258,68 @@ export default function Putaway() {
                     <div className="h-1 w-16 rounded-full bg-slate-200 group-hover:bg-indigo-400 group-data-[resize-handle-active]:bg-indigo-500 transition-colors" />
                 </PanelResizeHandle>
 
-                {/* 하단: 선택 상품의 지시 + 건별 실행 */}
+                {/* 하단: 선택 상품의 지시 + 적치 저장 */}
                 <Panel defaultSize={55} minSize={25} className="flex flex-col gap-2 min-h-0">
                     <div className="flex items-center gap-2 min-w-0">
                         <span className="text-sm font-bold text-slate-700 shrink-0">적치 위치</span>
                         <span className="text-xs text-slate-400 truncate">
                             {selectedProd
-                                ? `${selectedProd.prodCd} ${selectedProd.prodNm} — ${selectedProd.locCount}개 로케이션 · 잔여 ${num(selectedProd.remainingQty)}개`
+                                ? `${selectedProd.prodCd} ${selectedProd.prodNm} — ${selectedProd.locCount}개 로케이션 · 잔여 ${num(selectedProd.remainingQty)}개 · 일부만 옮겼으면 적치수량을 고치고, 안 옮길 행은 지우세요`
                                 : '위에서 상품을 선택하세요'}
                         </span>
+                        <button
+                            onClick={handleSaveClick}
+                            disabled={!selectedProd}
+                            className="btn-primary ml-auto shrink-0 disabled:opacity-40">
+                            <Layers size={13} /> 적치 저장
+                        </button>
                     </div>
                     <div className="flex-1 min-h-0">
                         <AgGridReact
                             rowData={selectedProd?.tasks ?? []}
-                            columnDefs={TASK_COLUMN_DEFS}
+                            columnDefs={taskColumnDefs}
                             getRowId={(p) => String(p.data.putawayTaskId)}
                             rowHeight={34}
                             headerHeight={38}
-                            rowSelection={{ mode: 'singleRow', checkboxes: false, enableClickSelection: true }}
-                            onSelectionChanged={onTaskSelectionChanged}
+                            // 편집 컬럼이 적치수량 하나뿐이라 더블클릭 관례 대신 한 번 클릭으로 연다 —
+                            // 이전 UI(행 클릭 → 패널)에 익숙하면 더블클릭을 몰라 부분 실행이 안 되는 것처럼 보인다
+                            singleClickEdit={true}
+                            stopEditingWhenCellsLoseFocus={true}
+                            onCellValueChanged={onTaskCellValueChanged}
                             overlayNoRowsTemplate={'<span class="text-sm text-slate-400">위에서 상품을 선택하세요</span>'}
                         />
-                    </div>
-
-                    {/* 건별(부분) 실행 — 지시대로 다 못 옮기는 경우에만 쓴다 */}
-                    <div className="border border-slate-200 rounded-xl p-3 bg-white flex flex-col gap-2 shrink-0">
-                        {!selectedTask ? (
-                            <span className="text-xs text-slate-400">
-                                일부만 옮겼다면 위에서 해당 로케이션 행을 골라 수량을 입력하세요 (전량이면 위쪽 「전량 적치」).
-                            </span>
-                        ) : (
-                            <div className="flex items-end gap-3">
-                                <div className="flex items-center gap-2 text-sm flex-1 min-w-0">
-                                    <span className="text-xs text-slate-400 shrink-0">{selectedTask.lotNo}</span>
-                                    <span className="text-sm font-mono shrink-0">
-                                        RCV-STAGE <span className="text-slate-400">→</span> <b className="text-indigo-700">{selectedTask.toLocCd}</b>
-                                    </span>
-                                    <span className="text-xs text-slate-400 shrink-0">잔여 {num(selectedTask.remainingQty)}개</span>
-                                </div>
-                                <div className="flex flex-col gap-1 w-28 shrink-0">
-                                    <label className="text-xs font-bold text-slate-500">적치수량</label>
-                                    <input
-                                        type="number"
-                                        min="1"
-                                        max={selectedTask.remainingQty}
-                                        value={qty}
-                                        onChange={(e) => setQty(e.target.value)}
-                                        className="input-num"
-                                    />
-                                </div>
-                                <button
-                                    onClick={handleExecuteClick}
-                                    className="flex items-center gap-1 px-4 py-2 bg-indigo-600 rounded-lg text-sm font-bold text-white hover:bg-indigo-700 transition-colors shrink-0">
-                                    <ArrowRight size={14} /> 이 건만 적치
-                                </button>
-                            </div>
-                        )}
                     </div>
                 </Panel>
             </PanelGroup>
 
-            {/* 전량 적치 확인 모달 */}
-            {confirmAll && (
+            {/* 적치 저장 확인 모달 — 행별 (로케이션, 수량)을 나열해 숫자를 보고 누르게 한다 */}
+            {confirmSave && (
                 <ConfirmModal
-                    title="이 상품을 전량 적치할까요?"
+                    title="적치를 저장하시겠습니까?"
                     confirmText="적치"
-                    onCancel={() => setConfirmAll(null)}
-                    onConfirm={() => { doExecuteAll(confirmAll); setConfirmAll(null); }}
+                    onCancel={() => setConfirmSave(null)}
+                    onConfirm={() => { doSave(confirmSave); setConfirmSave(null); }}
                 >
                     <p className="text-sm text-slate-500">
-                        {confirmAll.prodCd} {confirmAll.prodNm} · <b className="text-emerald-600">{num(confirmAll.remainingQty)}개</b>
+                        {selectedProd?.prodCd} {selectedProd?.prodNm} · <b className="text-emerald-600">
+                        {num(confirmSave.reduce((s, t) => s + Number(t._execQty), 0))}개</b>
                     </p>
                     <div className="flex flex-col gap-1 text-xs font-mono bg-slate-50 rounded-lg px-3 py-2">
-                        {confirmAll.tasks.map(t => (
+                        {confirmSave.map(t => (
                             <div key={t.putawayTaskId} className="flex justify-between gap-3">
                                 <span className="text-slate-500">RCV-STAGE → <b className="text-indigo-700">{t.toLocCd}</b></span>
-                                <span className="tabular-nums text-slate-700">{num(t.remainingQty)}</span>
+                                <span className="tabular-nums text-slate-700">
+                                    {num(t._execQty)}
+                                    {Number(t._execQty) < t.remainingQty && (
+                                        <span className="text-amber-600"> (잔여 {num(t.remainingQty - t._execQty)} 남음)</span>
+                                    )}
+                                </span>
                             </div>
                         ))}
                     </div>
                     <p className="text-xs text-slate-400">
-                        {confirmAll.taskCount}건이 한 트랜잭션으로 처리됩니다 — 하나라도 실패하면 전부 되돌아갑니다.
+                        {confirmSave.length}건이 한 트랜잭션으로 처리됩니다 — 하나라도 실패하면 전부 되돌아갑니다.
                     </p>
-                </ConfirmModal>
-            )}
-
-            {/* 건별 실행 확인 모달 */}
-            {confirmOne && (
-                <ConfirmModal
-                    title="적치하시겠습니까?"
-                    confirmText="적치"
-                    onCancel={() => setConfirmOne(null)}
-                    onConfirm={() => { doExecuteOne(confirmOne); setConfirmOne(null); }}
-                >
-                    <p className="text-sm text-slate-500">
-                        {confirmOne.prodCd} {confirmOne.prodNm} · <b className="text-emerald-600">{num(confirmOne.qty)}개</b>
-                    </p>
-                    <p className="text-xs text-slate-400 font-mono">RCV-STAGE → {confirmOne.toLocCd}</p>
-                    {confirmOne.qty < confirmOne.remainingQty && (
-                        <p className="text-xs text-amber-600">
-                            부분 실행 — 잔여 {num(confirmOne.remainingQty - confirmOne.qty)}개는 지시 상태로 남습니다.
-                        </p>
-                    )}
                 </ConfirmModal>
             )}
         </div>
