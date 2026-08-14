@@ -18,8 +18,15 @@ import { num } from '@/utils/format';
 const GRP_CD = 'UOM';
 
 
-/** 서버가 준 포장 목록 → 편집판. `_key`는 getRowId용 — 신규 행에는 아직 prodUomId가 없다 */
-const snapshot = (prod) => (prod?.uoms ?? []).map(u => ({ ...u, _key: `id-${u.prodUomId}` }));
+/** 서버가 준 포장 행들 → 편집판. `_key`는 getRowId용 — 신규 행에는 아직 prodUomId가 없다 */
+const snapshot = (rows) => (rows ?? []).map(u => ({ ...u, _key: `id-${u.prodUomId}` }));
+
+/** 평평한 포장 목록(prodUomApi.list) → prodId별 묶음. 좌측 건수·우측 패널·업로드 중복검사가 같은 묶음을 쓴다 */
+const groupByProd = (uoms) => {
+    const byProd = {};
+    uoms.forEach(u => { (byProd[u.prodId] ??= []).push(u); });
+    return byProd;
+};
 
 /**
  * 입고단위·출고단위 지정 라디오.
@@ -46,6 +53,7 @@ const RoleRadio = ({ node, field, onPick }) => (
 
 export default function UomMaster() {
     const [prods, setProds] = useState([]);
+    const [uomsByProd, setUomsByProd] = useState({}); // 포장은 단위 API에서 따로 받는다 — 상품 응답은 포장을 싣지 않는다
     const [cond, setCond] = useState({ prodCd: '', prodNm: '' });
     const uomCodes = useCodes(GRP_CD);                     // 공통코드 UOM — 단위 콤보 편집기용
     const [selectedProdId, setSelectedProdId] = useState(null);
@@ -76,7 +84,7 @@ export default function UomMaster() {
             // 포장이 몇 건인지만 보여준다 — 어느 상품을 손봐야 하는지 고르는 단서다
             headerName: '포장', width: 60,
             cellClass: 'ag-right-aligned-cell text-slate-400',
-            valueGetter: (p) => p.data.uoms?.length ?? 0,
+            valueGetter: (p) => uomsByProd[p.data.prodId]?.length ?? 0,
             valueFormatter: (p) => num(p.value),
         },
     ];
@@ -136,15 +144,20 @@ export default function UomMaster() {
         },
     ];
 
+    // 상품 목록(검색조건 적용)과 포장 전체를 함께 받는다 — 좌측 건수와 우측 상세가 같은 시점의 데이터가 된다
     const fetchList = async () => {
-        const data = await prodApi.list(cond);
-        setProds(data);
+        const [prodData, uomData] = await Promise.all([prodApi.list(cond), prodUomApi.list()]);
+        setProds(prodData);
+        setUomsByProd(groupByProd(uomData));
         // 조회 결과에 없는 상품을 고른 상태로 두면 오른쪽이 빈 채로 남는다
-        setSelectedProdId(prev => (data.some(p => p.prodId === prev) ? prev : null));
+        setSelectedProdId(prev => (prodData.some(p => p.prodId === prev) ? prev : null));
     };
 
     useEffect(() => {
-        prodApi.list().then(setProds);
+        Promise.all([prodApi.list(), prodUomApi.list()]).then(([prodData, uomData]) => {
+            setProds(prodData);
+            setUomsByProd(groupByProd(uomData));
+        });
     }, []);
 
     // 상품이 바뀌면 그 상품의 포장을 복사해 편집판을 만든다. 복사하는 이유는 취소(되돌리기)를
@@ -154,7 +167,7 @@ export default function UomMaster() {
     const [snapshotProd, setSnapshotProd] = useState(null);
     if (selectedProd !== snapshotProd) {
         setSnapshotProd(selectedProd);
-        setUomRows(snapshot(selectedProd));
+        setUomRows(snapshot(uomsByProd[selectedProd?.prodId]));
     }
 
     // 행 추가는 state로만 하므로(그리드가 아니라) 새 행이 그려진 뒤에야 편집을 걸 수 있다
@@ -182,7 +195,7 @@ export default function UomMaster() {
         setSelectedProdId(prodId);
     };
 
-    const revert = () => setUomRows(snapshot(selectedProd));
+    const revert = () => setUomRows(snapshot(uomsByProd[selectedProdId]));
 
     // 셀 수정 시 행 상태를 U(수정)로 표시 (신규 C는 유지)
     const onCellValueChanged = (params) => {
@@ -313,9 +326,10 @@ export default function UomMaster() {
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const raw = XLSX.utils.sheet_to_json(sheet, { defval: null });
 
-        // 검색으로 좁혀진 prods 상태로 검증하면 목록 밖의 유효한 상품까지 오류로 거부된다 — 전체를 새로 받는다
-        const allProds = await prodApi.list();
+        // 검색으로 좁혀진 화면 상태로 검증하면 목록 밖의 유효한 상품까지 오류로 거부된다 — 전체를 새로 받는다
+        const [allProds, allUoms] = await Promise.all([prodApi.list(), prodUomApi.list()]);
         const prodByCd = Object.fromEntries(allProds.map(p => [p.prodCd, p]));
+        const allUomsByProd = groupByProd(allUoms);
 
         const codeSet = new Set(uomCodes.values);
         const rows = [];
@@ -331,8 +345,8 @@ export default function UomMaster() {
                 badLines.push(line);
                 return;
             }
-            // 이미 그 상품이 갖고 있는 단위인지 (조회된 상품 목록의 포장으로 판단)
-            if (prod.uoms?.some(u => u.uomCd === uomCd)
+            // 이미 그 상품이 갖고 있는 단위인지
+            if (allUomsByProd[prod.prodId]?.some(u => u.uomCd === uomCd)
                 || rows.some(x => x.prodId === prod.prodId && x.uomCd === uomCd)) {
                 dupLines.push(line);
                 return;
@@ -572,7 +586,7 @@ export default function UomMaster() {
                         <h3 className="text-lg font-bold text-slate-800">상품을 삭제하시겠습니까?</h3>
                         <p className="text-sm text-slate-500">
                             <b className="text-slate-700">{prodDeleteConfirm.prodCd} {prodDeleteConfirm.prodNm}</b>
-                            <span className="text-red-500 font-bold"> 와 포장 {prodDeleteConfirm.uoms?.length ?? 0}건</span>이
+                            <span className="text-red-500 font-bold"> 와 포장 {uomsByProd[prodDeleteConfirm.prodId]?.length ?? 0}건</span>이
                             함께 삭제됩니다.
                         </p>
                         <p className="text-xs text-slate-400">

@@ -21,7 +21,7 @@ const TEMP_ZONE_OPTIONS = [
 const UomFlow = ({ prod, uomRole }) => {
     const uomCd = uomRole === 'outb' ? prod.outbUomCd : prod.inbUomCd;
     const eaQty = uomRole === 'outb'
-        ? (prod.uoms?.find(u => u.uomCd === prod.outbUomCd)?.eaQty ?? 1)
+        ? (prod.outbEaQty ?? 1)
         : eaQtyPerInbUomOf(prod);
     return (
         <span className="flex items-center justify-center gap-1 text-[11px]">
