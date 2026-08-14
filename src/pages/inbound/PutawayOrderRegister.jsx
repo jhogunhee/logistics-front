@@ -18,8 +18,10 @@ const ORDER_COLUMN_DEFS = [
     { field: 'ibNo', headerName: '입고번호', width: 170 },
     { field: 'vndrNm', headerName: '벤더', flex: 1, minWidth: 140 },
     {
-        field: 'batchCount', headerName: 'Lot 수', width: 80,
-        headerTooltip: '이 입고건의 (라인, Lot) 수 — 검수가 나뉘면 한 상품도 여러 Lot이 된다',
+        // Lot 수가 아니라 상품수 — 입고건을 고르는 단계에선 「몇 종류가 왔나」가 읽히는 정보다.
+        // 검수가 나뉘면 한 상품도 여러 Lot이 되므로 아래 Lot 그리드 행 수와는 다를 수 있다
+        field: 'prodCount', headerName: '상품수', width: 80,
+        headerTooltip: '이 입고건의 상품 종류 수 — 검수가 나뉜 상품은 아래에 Lot별로 여러 행이 된다',
         cellClass: 'ag-right-aligned-cell tabular-nums text-slate-500',
     },
     {
@@ -53,10 +55,10 @@ const groupByOrder = (batches) => {
     for (const b of batches) {
         const group = byOrder.get(b.ibNo) ?? {
             ibNo: b.ibNo, ibOrderId: b.ibOrderId, vndrNm: b.vndrNm,
-            batchCount: 0, pendingQty: 0, drctRemainQty: 0, unDrctQty: 0,
+            prodCds: new Set(), pendingQty: 0, drctRemainQty: 0, unDrctQty: 0,
             nearestExpiryDt: null, batches: [],
         };
-        group.batchCount += 1;
+        group.prodCds.add(b.prodCd);
         group.pendingQty += b.pendingQty;
         group.drctRemainQty += b.drctRemainQty;
         group.unDrctQty += b.unDrctQty;
@@ -65,7 +67,7 @@ const groupByOrder = (batches) => {
         group.batches.push(b);
         byOrder.set(b.ibNo, group);
     }
-    return [...byOrder.values()];
+    return [...byOrder.values()].map(g => ({ ...g, prodCount: g.prodCds.size }));
 };
 
 export default function PutawayOrderRegister() {
