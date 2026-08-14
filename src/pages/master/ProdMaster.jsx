@@ -9,10 +9,11 @@ import SelectCellEditor from '@/components/common/SelectCellEditor';
 import { prodApi } from '@/api/prodApi';
 import { TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { useCodes } from '@/hooks/useCodes';
-import { Badge } from '@/components/common/Badge';
-import { RowStatusCell } from '@/components/common/Badge';
+import { useMasterGrid } from '@/hooks/useMasterGrid';
+import { Badge, RowStatusCell } from '@/components/common/Badge';
 import { fmtDe, num } from '@/utils/format';
 import ConfirmModal from '@/components/common/ConfirmModal';
+import SaveCountSummary from '@/components/common/SaveCountSummary';
 
 
 
@@ -21,9 +22,10 @@ export default function ProdMaster() {
     const [cond, setCond] = useState({ prodCd: '', prodNm: '', tmpZon: '' });
     const tempZoneCodes = useCodes('TEMP_ZONE');
     const uomCodes = useCodes('UOM'); // 입고/출고단위 콤보박스 — 콤보에 "BOX 박스"로 보여준다
-    const [rowCount, setRowCount] = useState(0); // 행추가분은 rowData 상태에 없으므로 건수는 그리드 기준으로 센다
-    const [saveConfirm, setSaveConfirm] = useState(null); // 저장 확인 모달에 넘길 대상 행들 (null이면 닫힘)
-    const gridRef = useRef(null); // 그리드 api 호출용 (applyTransaction 등)
+    const {
+        gridRef, rowCount, saveConfirm, setSaveConfirm,
+        gridProps, addRow, deleteSelectedRows, requestSave,
+    } = useMasterGrid();
     const fileInputRef = useRef(null); // 엑셀 업로드 파일 선택창
 
     // 삭제(D) 표시된 행은 편집을 막는다
@@ -109,50 +111,13 @@ export default function ProdMaster() {
         prodApi.list().then(setRowData);
     }, []);
 
-    // 셀 수정 시 행 상태를 U(수정)로 표시 (신규 C는 유지)
-    const onCellValueChanged = (params) => {
-        if (params.column.getColId() === '_status') return; // 상태 컬럼 자체의 변경(삭제 표시 등)은 무시
-        if (params.data._status !== 'C') {
-            params.node.setDataValue('_status', 'U');
-        }
-    };
-
     // ── 행 추가 ──────────────────────────────────────────────
-    // applyTransaction은 동기라 추가된 행 노드를 바로 돌려주므로 곧장 편집을 시작할 수 있다
-    const handleAddRow = () => {
-        const api = gridRef.current.api;
-        const res = api.applyTransaction({
-            // 단위 기본값은 EA — 낱개로 받아 낱개로 내보내는 상품이 대부분이고,
-            // 서버가 그 단위의 포장을 낱개수량 1로 자동 생성하므로 이대로 저장해도 환산이 항등이다
-            add: [{ prodCd: '', prodNm: '', tmpZon: 'DRY', inbUomCd: 'EA', outbUomCd: 'EA', shelfLifeDays: null, _status: 'C' }],
-        });
-        const rowIndex = res.add[0].rowIndex;
-        api.ensureIndexVisible(rowIndex, 'bottom');
-        api.startEditingCell({ rowIndex, colKey: 'prodNm' });
-    };
-
-    // ── 삭제 ────────────────────────────────────────────────
-    // 신규(C) 행은 그리드에서 바로 제거, 기존 행은 D로 표시해 저장 시 서버에 반영한다 (재조회하면 원복)
-    const handleDeleteRows = () => {
-        const api = gridRef.current.api;
-        const selected = api.getSelectedNodes();
-        if (selected.length === 0) {
-            toast('삭제할 행을 선택하세요.');
-            return;
-        }
-        const newRows = selected.filter(n => n.data._status === 'C').map(n => n.data);
-        if (newRows.length > 0) {
-            api.applyTransaction({ remove: newRows });
-        }
-        const marked = selected.filter(n => n.data._status !== 'C');
-        marked.forEach(n => n.setDataValue('_status', 'D'));
-        api.deselectAll();
-
-        const parts = [];
-        if (newRows.length > 0) parts.push(`신규 ${newRows.length}건은 바로 제거했습니다`);
-        if (marked.length > 0) parts.push(`기존 ${marked.length}건은 저장 시 삭제됩니다`);
-        toast(parts.join(', '));
-    };
+    // 단위 기본값은 EA — 낱개로 받아 낱개로 내보내는 상품이 대부분이고,
+    // 서버가 그 단위의 포장을 낱개수량 1로 자동 생성하므로 이대로 저장해도 환산이 항등이다
+    const handleAddRow = () => addRow(
+        { prodCd: '', prodNm: '', tmpZon: 'DRY', inbUomCd: 'EA', outbUomCd: 'EA', shelfLifeDays: null },
+        'prodNm'
+    );
 
     // ── 엑셀 양식 다운로드 ───────────────────────────────────
     // 업로드가 읽는 헤더 그대로 예시 행을 담아 내려준다 (예시 행은 업로드 후 그리드에서 지우면 됨).
@@ -249,37 +214,29 @@ export default function ProdMaster() {
     };
 
     // ── 저장 ────────────────────────────────────────────────
-    const handleSave = async () => {
-        // 행추가분은 rowData 상태에 없으므로 그리드에서 전체 행을 수집한다
-        const rows = [];
-        gridRef.current.api.forEachNode(node => rows.push(node.data));
-        const dirty = rows.filter(r => r._status);
-        if (dirty.length === 0) {
-            toast('변경된 내용이 없습니다.');
-            return;
-        }
-        // 검증 (상품 코드는 서버 채번, 삭제 행은 id만 쓰므로 검증 대상 아님)
-        for (const r of dirty.filter(r => r._status !== 'D')) {
+    // 검증 (상품 코드는 서버 채번, 삭제 행은 id만 쓰므로 검증 대상 아님)
+    const validateRows = (rows) => {
+        for (const r of rows) {
             if (!String(r.prodNm ?? '').trim()) {
                 toast.error('상품명은 필수입니다.');
-                return;
+                return false;
             }
             if (!String(r.inbUomCd ?? '').trim()) {
                 toast.error(`입고단위는 필수입니다: ${r.prodNm}`);
-                return;
+                return false;
             }
             if (!String(r.outbUomCd ?? '').trim()) {
                 toast.error(`출고단위는 필수입니다: ${r.prodNm}`);
-                return;
+                return false;
             }
             // 빈 값 = 유통기한 미관리(공산품 등). 값이 있으면 1 이상이어야 한다.
             const hasShelfLife = r.shelfLifeDays != null && String(r.shelfLifeDays).trim() !== '';
             if (hasShelfLife && !(Number(r.shelfLifeDays) > 0)) {
                 toast.error(`유통기한(일)은 비워두거나(미관리) 1 이상이어야 합니다: ${r.prodNm}`);
-                return;
+                return false;
             }
         }
-        setSaveConfirm(dirty); // 가운데 확인 모달을 띄운다
+        return true;
     };
 
     /**
@@ -353,7 +310,7 @@ export default function ProdMaster() {
                         <Upload size={13} /> 엑셀 업로드
                     </button>
                     <button
-                        onClick={handleDeleteRows}
+                        onClick={deleteSelectedRows}
                         className="btn-danger">
                         <Trash2 size={13} /> 삭제
                     </button>
@@ -363,7 +320,7 @@ export default function ProdMaster() {
                         <Plus size={13} /> 행추가
                     </button>
                     <button
-                        onClick={handleSave}
+                        onClick={() => requestSave(validateRows)}
                         className="btn-primary">
                         <Save size={13} /> 저장
                     </button>
@@ -378,11 +335,7 @@ export default function ProdMaster() {
                     onCancel={() => setSaveConfirm(null)}
                     onConfirm={() => { doSave(saveConfirm); setSaveConfirm(null); }}
                 >
-                    <p className="text-sm text-slate-500">
-                        신규 <b className="text-blue-500">{saveConfirm.filter(r => r._status === 'C').length}</b>건 ·
-                        수정 <b className="text-amber-500">{saveConfirm.filter(r => r._status === 'U').length}</b>건 ·
-                        삭제 <b className="text-red-500">{saveConfirm.filter(r => r._status === 'D').length}</b>건
-                    </p>
+                    <SaveCountSummary rows={saveConfirm} />
                 </ConfirmModal>
             )}
 
@@ -392,14 +345,7 @@ export default function ProdMaster() {
                     ref={gridRef}
                     rowData={rowData}
                     columnDefs={columnDefs}
-                    rowSelection={{ mode: 'multiRow' }}
-                    rowClassRules={{
-                        'line-through': (p) => p.data._status === 'D',
-                        'opacity-40': (p) => p.data._status === 'D',
-                    }}
-                    stopEditingWhenCellsLoseFocus={true}
-                    onCellValueChanged={onCellValueChanged}
-                    onModelUpdated={(p) => setRowCount(p.api.getDisplayedRowCount())}
+                    {...gridProps}
                 />
             </div>
         </div>
