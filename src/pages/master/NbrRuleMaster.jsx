@@ -203,6 +203,13 @@ export default function NbrRuleMaster() {
                 return false;
             }
         }
+        // 신규 행끼리의 코드 중복은 서버가 건건이 확인하기 전에 여기서 먼저 막는다
+        const newCds = rows.filter(r => r._status === 'C').map(r => r.ruleCd);
+        const dup = newCds.find((cd, i) => newCds.indexOf(cd) !== i);
+        if (dup) {
+            toast.error(`규칙코드가 중복됩니다: ${dup}`);
+            return false;
+        }
         return true;
     };
 
