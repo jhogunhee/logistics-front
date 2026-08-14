@@ -11,11 +11,15 @@ import { prodApi } from '@/api/prodApi';
 import { useCodes } from '@/hooks/useCodes';
 import { RowStatusCell } from '@/components/common/Badge';
 import ConfirmModal from '@/components/common/ConfirmModal';
+import SaveCountSummary from '@/components/common/SaveCountSummary';
 import { num } from '@/utils/format';
 
 // 단위 코드 목록의 주인은 공통코드 UOM 그룹이다 (온도대·보관유형과 같은 API를 쓴다)
 const GRP_CD = 'UOM';
 
+
+/** 서버가 준 포장 목록 → 편집판. `_key`는 getRowId용 — 신규 행에는 아직 prodUomId가 없다 */
+const snapshot = (prod) => (prod?.uoms ?? []).map(u => ({ ...u, _key: `id-${u.prodUomId}` }));
 
 /**
  * 입고단위·출고단위 지정 라디오.
@@ -30,9 +34,6 @@ const GRP_CD = 'UOM';
  * 이 그리드가 한 상품의 포장만 담기 때문에 "그리드 전체에서 하나"가 곧 "상품 안에서 하나"다 —
  * 라디오의 범위가 화면에 그대로 보인다.
  */
-/** 서버가 준 포장 목록 → 편집판. `_key`는 getRowId용 — 신규 행에는 아직 prodUomId가 없다 */
-const snapshot = (prod) => (prod?.uoms ?? []).map(u => ({ ...u, _key: `id-${u.prodUomId}` }));
-
 const RoleRadio = ({ node, field, onPick }) => (
     <input
         type="radio"
@@ -148,9 +149,13 @@ export default function UomMaster() {
 
     // 상품이 바뀌면 그 상품의 포장을 복사해 편집판을 만든다. 복사하는 이유는 취소(되돌리기)를
     // 하려면 서버에서 받은 원본이 남아 있어야 하기 때문이다 — ag-grid는 행 객체를 직접 고친다.
-    useEffect(() => {
+    // effect가 아니라 렌더 중 조정인 이유: effect의 동기 setState는 렌더를 한 번 더 돌게 한다
+    // (react-hooks/set-state-in-effect). 재조회로 같은 상품 객체가 새로 오면 스냅샷도 다시 뜬다.
+    const [snapshotProd, setSnapshotProd] = useState(null);
+    if (selectedProd !== snapshotProd) {
+        setSnapshotProd(selectedProd);
         setUomRows(snapshot(selectedProd));
-    }, [selectedProd]);
+    }
 
     // 행 추가는 state로만 하므로(그리드가 아니라) 새 행이 그려진 뒤에야 편집을 걸 수 있다
     useEffect(() => {
@@ -422,8 +427,6 @@ export default function UomMaster() {
         }
     };
 
-    const btnClass = 'flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[12px] font-bold text-slate-600 transition-colors disabled:opacity-40';
-
     return (
         <div className="flex flex-col gap-4 h-full">
             {/* 타이틀 */}
@@ -454,18 +457,18 @@ export default function UomMaster() {
                             />
                             <button
                                 onClick={handleTemplateDownload}
-                                className={`${btnClass} hover:border-indigo-300 hover:text-indigo-600`}>
+                                className="btn-ghost">
                                 <Download size={13} /> 엑셀 양식
                             </button>
                             <button
                                 onClick={() => fileInputRef.current.click()}
-                                className={`${btnClass} hover:border-indigo-300 hover:text-indigo-600`}>
+                                className="btn-ghost">
                                 <Upload size={13} /> 엑셀 업로드
                             </button>
                             <button
                                 onClick={handleDeleteProd}
                                 disabled={!selectedProd}
-                                className={`${btnClass} hover:border-red-300 hover:text-red-600`}>
+                                className="btn-danger">
                                 <Trash2 size={13} /> 상품 삭제
                             </button>
                         </div>
@@ -503,19 +506,19 @@ export default function UomMaster() {
                             <button
                                 onClick={revert}
                                 disabled={dirtyRows.length === 0}
-                                className={`${btnClass} hover:border-slate-300`}>
+                                className="btn-ghost">
                                 <Undo2 size={13} /> 되돌리기
                             </button>
                             <button
                                 onClick={handleDeleteUoms}
                                 disabled={!selectedProd}
-                                className={`${btnClass} hover:border-red-300 hover:text-red-600`}>
+                                className="btn-danger">
                                 <Trash2 size={13} /> 포장 삭제
                             </button>
                             <button
                                 onClick={handleAddUom}
                                 disabled={!selectedProd}
-                                className={`${btnClass} hover:border-indigo-300 hover:text-indigo-600`}>
+                                className="btn-ghost">
                                 <Plus size={13} /> 포장 추가
                             </button>
                             <button
@@ -552,12 +555,10 @@ export default function UomMaster() {
                     onCancel={() => setSaveConfirm(null)}
                     onConfirm={() => { doSave(saveConfirm); setSaveConfirm(null); }}
                 >
-                    <p className="text-sm text-slate-500">
-                        <b className="text-slate-700">{selectedProd?.prodNm}</b> ·
-                        신규 <b className="text-blue-500">{saveConfirm.filter(r => r._status === 'C').length}</b>건 ·
-                        수정 <b className="text-amber-500">{saveConfirm.filter(r => r._status === 'U').length}</b>건 ·
-                        삭제 <b className="text-red-500">{saveConfirm.filter(r => r._status === 'D').length}</b>건
-                    </p>
+                    <SaveCountSummary
+                        rows={saveConfirm}
+                        prefix={<><b className="text-slate-700">{selectedProd?.prodNm}</b> · </>}
+                    />
                     <p className="text-xs text-slate-400">
                         입고단위·출고단위로 쓰이는 포장은 삭제되지 않습니다 — 다른 포장으로 옮긴 뒤 지우세요.
                     </p>

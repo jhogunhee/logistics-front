@@ -9,6 +9,7 @@ import { codeApi } from '@/api/codeApi';
 import { RowStatusCell } from '@/components/common/Badge';
 import { fmtDe, num } from '@/utils/format';
 import ConfirmModal from '@/components/common/ConfirmModal';
+import SaveCountSummary from '@/components/common/SaveCountSummary';
 
 
 export default function CodeMaster() {
@@ -17,6 +18,7 @@ export default function CodeMaster() {
     const [rowData, setRowData] = useState([]);
     const [cond, setCond] = useState({ codeCd: '', codeNm: '' });
     const [rowCount, setRowCount] = useState(0); // 행추가분은 rowData 상태에 없으므로 건수는 그리드 기준으로 센다
+    const [groupRowCount, setGroupRowCount] = useState(0); // 그룹 행추가분도 그리드에만 있다 — 같은 이유로 그리드 기준
     const [saveConfirm, setSaveConfirm] = useState(null); // 저장 확인 모달에 넘길 대상 행들 (null이면 닫힘)
     const [groupSwitchConfirm, setGroupSwitchConfirm] = useState(null); // 미저장 상태에서 그룹을 바꾸려 할 때 보류된 그룹
     const groupGridRef = useRef(null);
@@ -337,11 +339,7 @@ export default function CodeMaster() {
                     onCancel={() => setSaveConfirm(null)}
                     onConfirm={() => { doSave(saveConfirm); setSaveConfirm(null); }}
                 >
-                    <p className="text-sm text-slate-500">
-                        <b>{selectedGroup?.grpNm}</b> · 신규 <b className="text-blue-500">{saveConfirm.filter(r => r._status === 'C').length}</b>건 ·
-                        수정 <b className="text-amber-500">{saveConfirm.filter(r => r._status === 'U').length}</b>건 ·
-                        삭제 <b className="text-red-500">{saveConfirm.filter(r => r._status === 'D').length}</b>건
-                    </p>
+                    <SaveCountSummary rows={saveConfirm} prefix={<><b>{selectedGroup?.grpNm}</b> · </>} />
                     <p className="text-xs text-slate-400">
                         코드 값은 로직이 리터럴로 참조합니다. 이미 쓰이는 코드를 지우면 그 값을 가진 기존 데이터가 화면에서 빈 칸으로 보입니다.
                     </p>
@@ -371,7 +369,7 @@ export default function CodeMaster() {
                         <div className="flex items-center gap-2">
                             <span className="text-sm font-bold text-slate-700">코드 그룹</span>
                             <span className="text-xs text-slate-400">
-                                {groups.length}건 · 그룹코드는 등록 후 변경할 수 없습니다
+                                {groupRowCount}건 · 그룹코드는 등록 후 변경할 수 없습니다
                             </span>
                         </div>
                         <div className="flex gap-2">
@@ -409,6 +407,7 @@ export default function CodeMaster() {
                             onCellValueChanged={onCellValueChanged}
                             onRowDataUpdated={syncGroupSelection}
                             onSelectionChanged={onGroupSelected}
+                            onModelUpdated={(p) => setGroupRowCount(p.api.getDisplayedRowCount())}
                         />
                     </div>
                 </Panel>
