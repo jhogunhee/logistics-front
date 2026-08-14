@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
-import { Hand, PackagePlus, Wand2 } from 'lucide-react';
+import { Hand, PackagePlus, Search, Wand2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import SearchBar, { SearchItem, SearchProd } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
+import VendorPickerModal from '@/components/common/VendorPickerModal';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import { TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { Badge } from '@/components/common/Badge';
@@ -73,7 +74,8 @@ const groupByOrder = (batches) => {
 export default function PutawayOrderRegister() {
     const [batches, setBatches] = useState([]);
     // 기본 기간 = 과거 7일 ~ 오늘. 이미 검수된 물건을 적치하는 화면이라 미래 날짜에는 대상이 없다
-    const [cond, setCond] = useState({ ibNo: '', dateFrom: daysAheadStr(-7), dateTo: todayStr(), prodCd: '' });
+    const [cond, setCond] = useState({ ibNo: '', vndrNm: '', dateFrom: daysAheadStr(-7), dateTo: todayStr(), prodCd: '' });
+    const [vendorPickerOpen, setVendorPickerOpen] = useState(false);
     const [selectedIbNo, setSelectedIbNo] = useState(null);
     const [preview, setPreview] = useState(null);             // 전략 추천 결과 items
     const [confirmCreate, setConfirmCreate] = useState(null); // 지시 생성 확인 대상 (배정이 있는 item들)
@@ -296,6 +298,24 @@ export default function PutawayOrderRegister() {
                         className="w-full input-base"
                     />
                 </SearchItem>
+                <SearchItem label="벤더">
+                    <button
+                        type="button"
+                        onClick={() => setVendorPickerOpen(true)}
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-left flex items-center justify-between gap-2 hover:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400">
+                        <span className={`truncate ${cond.vndrNm ? 'text-slate-700' : 'text-slate-400'}`}>
+                            {cond.vndrNm || '전체'}
+                        </span>
+                        {cond.vndrNm
+                            ? <X
+                                size={13}
+                                title="벤더 조건 지우기"
+                                className="shrink-0 text-slate-400 hover:text-slate-600"
+                                onClick={(e) => { e.stopPropagation(); setCond(prev => ({ ...prev, vndrNm: '' })); }}
+                              />
+                            : <Search size={13} className="shrink-0 text-slate-400" />}
+                    </button>
+                </SearchItem>
                 <SearchItem label="입고일자" wide>
                     <div className="flex items-center gap-2">
                         <input
@@ -492,6 +512,13 @@ export default function PutawayOrderRegister() {
                     </p>
                 </ConfirmModal>
             )}
+
+            {/* 벤더 선택 팝업 — 자유 입력 대신 팝업에서 고른다 (입고예정·입고검수와 같은 방식, vndrNm contains 검색) */}
+            <VendorPickerModal
+                open={vendorPickerOpen}
+                onClose={() => setVendorPickerOpen(false)}
+                onSelect={(v) => setCond(prev => ({ ...prev, vndrNm: v.vndrNm }))}
+            />
 
             {/* 수동 지시 확인 모달 */}
             {confirmManual && (

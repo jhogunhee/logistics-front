@@ -3,7 +3,7 @@ import api from '@/utils/axios';
 
 export const putawayApi = {
     /**
-     * 지시 대상 (라인, Lot) 배치. cond: { ibNo, dateFrom, dateTo, prodCd, prodNm } — 날짜는 Lot 입고일자 기준.
+     * 지시 대상 (라인, Lot) 배치. cond: { ibNo, vndrNm, dateFrom, dateTo, prodCd, prodNm } — 날짜는 Lot 입고일자 기준.
      * 유통기한 오름차순(FEFO)으로 내려오고, 이 순서가 곧 로케이션 용량 선점 순서라 추천 요청 시 그대로 보내야 한다.
      */
     lines(cond = {}) {
