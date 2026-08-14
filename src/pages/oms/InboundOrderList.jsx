@@ -247,7 +247,7 @@ export default function InboundOrderList() {
 
     return (
         // min-h — 노트북처럼 낮은 화면에선 그리드를 짜부라뜨리는 대신 카드 스크롤(Layout의 overflow-auto)이 생긴다
-        <div className="flex flex-col gap-4 h-full min-h-[42rem]">
+        <div className="flex flex-col gap-4 h-full min-h-[36rem]">
             {/* 타이틀 */}
             <div className="flex items-center gap-2">
                 <ClipboardList size={18} className="text-indigo-600" />

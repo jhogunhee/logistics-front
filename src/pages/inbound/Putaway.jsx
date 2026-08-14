@@ -25,14 +25,11 @@ const PROD_COLUMN_DEFS = [
         cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
     },
     {
-        field: 'taskCount', headerName: '지시 건수', width: 100,
-        headerTooltip: '이 상품에 걸린 미완료 지시 수. 2건 이상이면 로케이션이 나뉘어 있다는 뜻',
-        cellClass: (p) => `ag-right-aligned-cell tabular-nums ${p.value > 1 ? 'text-indigo-600 font-bold' : 'text-slate-500'}`,
-    },
-    {
+        // 지시 건수 컬럼은 두지 않는다 — 같은 로케이션으로 지시가 갈리는 일이 드물어 로케이션 수와
+        // 거의 항상 같고, 작업자에게 본질적인 정보는 「몇 군데로 나눠 넣나」 하나다
         field: 'locCount', headerName: '로케이션', width: 100,
-        headerTooltip: '이 상품이 들어갈 서로 다른 보관 로케이션 수',
-        cellClass: 'ag-right-aligned-cell tabular-nums text-slate-500',
+        headerTooltip: '이 상품이 들어갈 서로 다른 보관 로케이션 수 — 2 이상이면 한 번 들고 나가 나눠 넣는다',
+        cellClass: (p) => `ag-right-aligned-cell tabular-nums ${p.value > 1 ? 'text-indigo-600 font-bold' : 'text-slate-500'}`,
     },
     {
         field: 'remainingQty', headerName: '잔여수량', width: 110,
@@ -195,7 +192,7 @@ export default function Putaway() {
 
     return (
         // min-h — 노트북처럼 낮은 화면에선 그리드를 짜부라뜨리는 대신 카드 스크롤(Layout의 overflow-auto)이 생긴다
-        <div className="flex flex-col gap-4 h-full min-h-[42rem]">
+        <div className="flex flex-col gap-4 h-full min-h-[36rem]">
             {/* 타이틀 */}
             <div className="flex items-center gap-2">
                 <PackageOpen size={18} className="text-indigo-600" />

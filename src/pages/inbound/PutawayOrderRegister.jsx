@@ -25,12 +25,8 @@ const ORDER_COLUMN_DEFS = [
         headerTooltip: '이 입고건의 상품 종류 수 — 검수가 나뉜 상품은 아래에 Lot별로 여러 행이 된다',
         cellClass: 'ag-right-aligned-cell tabular-nums text-slate-500',
     },
-    {
-        field: 'pendingQty', headerName: '미적치', width: 110,
-        headerTooltip: 'RCV-STAGE에 남아있는, 아직 보관 로케이션으로 옮기지 않은 수량',
-        cellClass: 'ag-right-aligned-cell tabular-nums text-slate-600',
-        valueFormatter: (p) => num(p.value),
-    },
+    // 미적치 컬럼은 두지 않는다 — 미적치 = 지시중 + 미지시라 항상 나머지 둘의 합이고,
+    // 이 화면의 판단은 「지시 걸 게 남았나(미지시)」와 「이미 얼마나 걸렸나(지시중)」로 끝난다
     {
         field: 'drctRemainQty', headerName: '지시중', width: 110,
         headerTooltip: '이미 발행된 미완료 지시의 잔량. 적치 화면에서 처리를 기다리는 수량',
@@ -256,11 +252,7 @@ export default function PutawayOrderRegister() {
             headerTooltip: '목록이 이 값 오름차순(FEFO)이고, 그 순서가 추천 시 로케이션 용량 선점 순서가 된다',
             cellRenderer: (p) => (p.value ? fmtDe(p.value) : <span className="text-slate-400">미관리</span>),
         },
-        {
-            field: 'pendingQty', headerName: '미적치', width: 100,
-            cellClass: 'ag-right-aligned-cell tabular-nums text-slate-600',
-            valueFormatter: (p) => num(p.value),
-        },
+        // 미적치 컬럼은 상단과 같은 이유로 두지 않는다 (지시중 + 미지시의 합)
         {
             field: 'drctRemainQty', headerName: '지시중', width: 100,
             cellClass: (p) => `ag-right-aligned-cell tabular-nums ${p.value > 0 ? 'text-indigo-600 font-bold' : 'text-slate-300'}`,
@@ -276,7 +268,7 @@ export default function PutawayOrderRegister() {
 
     return (
         // min-h — 노트북처럼 낮은 화면에선 그리드를 짜부라뜨리는 대신 카드 스크롤(Layout의 overflow-auto)이 생긴다
-        <div className="flex flex-col gap-4 h-full min-h-[42rem]">
+        <div className="flex flex-col gap-4 h-full min-h-[36rem]">
             {/* 타이틀 */}
             <div className="flex items-center gap-2">
                 <PackagePlus size={18} className="text-indigo-600" />
@@ -375,7 +367,11 @@ export default function PutawayOrderRegister() {
                 {/* 하단: 선택 입고건의 배치 + 추천 결과 + 수동 지시 */}
                 <Panel defaultSize={62} minSize={30} className="flex flex-col gap-2 min-h-0">
                     <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-sm font-bold text-slate-700 shrink-0">적치 대상 Lot</span>
+                        <span
+                            className="text-sm font-bold text-slate-700 shrink-0"
+                            title="검수가 나뉜 상품은 Lot별로 여러 행이 됩니다">
+                            적치 대상 상품
+                        </span>
                         <span className="text-xs text-slate-400 truncate">
                             {selectedOrder
                                 ? `${selectedOrder.ibNo} · ${selectedOrder.vndrNm} — 미지시 ${num(selectedOrder.unDrctQty)}개 · 행을 클릭하면 수동 지시`
@@ -405,7 +401,7 @@ export default function PutawayOrderRegister() {
                                         <span className="text-sm font-bold text-slate-700">추천 결과</span>
                                     </div>
                                     <span className="text-slate-400">
-                                        Lot {preview.length}건 · 배정 가능 <b className="text-emerald-600">{assignable.length}</b>건
+                                        대상 {preview.length}건 · 배정 가능 <b className="text-emerald-600">{assignable.length}</b>건
                                     </span>
                                     <button onClick={handleCreateClick} className="btn-primary">
                                         <PackagePlus size={13} /> 지시 생성
@@ -502,7 +498,7 @@ export default function PutawayOrderRegister() {
                     onConfirm={() => { doCreate(confirmCreate); setConfirmCreate(null); }}
                 >
                     <p className="text-sm text-slate-500">
-                        <b>{selectedOrder?.ibNo}</b> · Lot <b>{confirmCreate.length}건</b> · 총 <b className="text-emerald-600">
+                        <b>{selectedOrder?.ibNo}</b> · 대상 <b>{confirmCreate.length}건</b> · 총 <b className="text-emerald-600">
                         {num(confirmCreate.reduce((s, i) => s + i.asgnQty, 0))}개</b>를
                         {' '}{num(confirmCreate.reduce((s, i) => s + i.assignments.length, 0))}개 로케이션으로 지시합니다.
                     </p>
