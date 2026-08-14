@@ -4,7 +4,7 @@
  * 뱃지 메타와 형태가 다르고 소비처도 DropdownSelect라 파일을 나눈다.
  */
 import {
-    ASN_STATUS_META, OMS_IB_STATUS_META, OMS_OUTB_STATUS_META, OUTB_STATUS_META, TX_TYPE_META,
+    ASN_PRGR_META, OMS_IB_STATUS_META, OMS_OUTB_STATUS_META, OUTB_STATUS_META, TX_TYPE_META,
 } from '@/constants/badgeMeta';
 
 /** 공통코드 목록 → 검색 콤보 옵션 ('전체' 포함) */
@@ -13,10 +13,10 @@ export const toSearchOptions = (codes) => [
     ...codes.map(c => ({ value: c.codeCd, label: c.codeNm })),
 ];
 
-/** ASN 상태 검색 드롭다운 옵션 */
-export const ASN_STATUS_OPTIONS = [
+/** ASN 진행단계(5단계 파생) 검색 드롭다운 옵션 — 그리드 뱃지와 같은 체계로 거른다 */
+export const ASN_PRGR_OPTIONS = [
     { value: '', label: '전체' },
-    ...Object.entries(ASN_STATUS_META).map(([value, m]) => ({ value, label: m.label })),
+    ...Object.entries(ASN_PRGR_META).map(([value, m]) => ({ value, label: m.label })),
 ];
 
 /** 입고주문 상태 검색 드롭다운 옵션 */
@@ -31,7 +31,7 @@ export const OMS_OUTB_STATUS_OPTIONS = [
     ...Object.entries(OMS_OUTB_STATUS_META).map(([value, m]) => ({ value, label: m.label })),
 ];
 
-/** 출고진행상태 검색 드롭다운 옵션 (ASN_STATUS_OPTIONS와 같은 형태) */
+/** 출고진행상태 검색 드롭다운 옵션 (ASN_PRGR_OPTIONS와 같은 형태) */
 export const OUTB_STATUS_OPTIONS = [
     { value: '', label: '전체' },
     ...Object.entries(OUTB_STATUS_META).map(([value, m]) => ({ value, label: m.label })),
