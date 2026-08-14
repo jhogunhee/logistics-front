@@ -13,9 +13,9 @@ export const strategyApi = {
             return api.get('/strategy/meta/putaway-methods');
         },
         /**
-         * 할당 슬롯의 구현체 목록 (백엔드 AlocRstrct·AlocSrt·AlocDstrb enum).
-         * slotTyp: 'RSTRCT' | 'INVN_SRT' | 'ODR_SRT' | 'DSTRB'
-         * — 'INVN_FLTR'은 구현체 축이 없어 빈 배열이 온다(정의 전체가 조건이다).
+         * 할당 슬롯의 구현체 목록 (백엔드 AlocRstrct·AlocDstrb enum). slotTyp: 'RSTRCT' | 'DSTRB'
+         * — 구현체 축이 없는 'INVN_FLTR'(정의 전체가 조건) · 'INVN_SRT' · 'ODR_SRT'
+         * (정의 전체가 정렬 기준 목록)는 빈 배열이 온다.
          */
         allocationComponents(slotTyp) {
             return api.get(`/strategy/meta/allocation-components/${slotTyp}`);
@@ -56,13 +56,6 @@ export const strategyApi = {
         preview(payload) {
             return api.post('/strategy/inspection-policy/preview', payload);
         },
-        /** 리비전 이력 (조회 전용 감사 이력) */
-        revisions() {
-            return api.get('/strategy/inspection-policy/revisions');
-        },
-        revision(rvsnNo) {
-            return api.get(`/strategy/inspection-policy/revisions/${rvsnNo}`);
-        },
     },
 
     /** 적치 전략 */
@@ -85,13 +78,6 @@ export const strategyApi = {
         /** 미저장 정의 미리보기. payload: { definition, ibLineId?, lotId?, prodId?, qty } */
         preview(payload) {
             return api.post('/strategy/putaway-strategies/preview', payload);
-        },
-        /** 리비전 이력 (조회 전용 감사 이력) */
-        revisions(id) {
-            return api.get(`/strategy/putaway-strategies/${id}/revisions`);
-        },
-        revision(id, rvsnNo) {
-            return api.get(`/strategy/putaway-strategies/${id}/revisions/${rvsnNo}`);
         },
     },
 
@@ -122,13 +108,6 @@ export const strategyApi = {
          */
         previewSaved(id, payload) {
             return api.post(`/strategy/wave-strategies/${id}/preview`, payload);
-        },
-        /** 리비전 이력 (조회 전용 감사 이력) */
-        revisions(id) {
-            return api.get(`/strategy/wave-strategies/${id}/revisions`);
-        },
-        revision(id, rvsnNo) {
-            return api.get(`/strategy/wave-strategies/${id}/revisions/${rvsnNo}`);
         },
         /**
          * 전략 실행 — 실제 편성(웨이브 생성 + 주문 편입). 전략 관리가 아니라 업무 API다.
@@ -167,21 +146,35 @@ export const strategyApi = {
         previewSaved(id, payload) {
             return api.post(`/strategy/allocation-strategies/${id}/preview`, payload);
         },
-        /** 리비전 이력 (조회 전용 감사 이력) */
-        revisions(id) {
-            return api.get(`/strategy/allocation-strategies/${id}/revisions`);
-        },
-        revision(id, rvsnNo) {
-            return api.get(`/strategy/allocation-strategies/${id}/revisions/${rvsnNo}`);
-        },
         /** 미리보기 대상 웨이브 목록 — 업무 API 재사용 (할당 대상 = 잔량 남은 PLANNED 웨이브) */
         targetWaves() {
             return api.get('/outbound/allocations/waves');
         },
     },
 
-    /** 실행 로그. stgyTyp: 'INSP' | 'PTAWY' | 'WAV' | 'ALOC' */
-    executions(stgyTyp, stgyId) {
-        return api.get('/strategy/executions', { params: { stgyTyp, ...(stgyId ? { stgyId } : {}) } });
+    /**
+     * 리비전 이력 (조회 전용 감사 이력) — 네 전략이 같은 엔드포인트를 쓴다.
+     * stgyTyp: 'INSP' | 'PTAWY' | 'WAV' | 'ALOC', stgyId: 검수는 inspPlcyId
+     */
+    revisions(stgyTyp, stgyId) {
+        return api.get('/strategy/revisions', { params: { stgyTyp, stgyId } });
+    },
+    revision(stgyTyp, stgyId, rvsnNo) {
+        return api.get(`/strategy/revisions/${rvsnNo}`, { params: { stgyTyp, stgyId } });
+    },
+
+    /**
+     * 실행 로그. stgyTyp: 'INSP' | 'PTAWY' | 'WAV' | 'ALOC'.
+     * trgrTyps를 주지 않으면 서버가 실행 기록만(MANUAL·AUTO) 돌려준다 —
+     * 미리보기 기록까지 보려면 ['MANUAL','AUTO','PREVIEW']처럼 명시한다.
+     */
+    executions(stgyTyp, stgyId, trgrTyps) {
+        return api.get('/strategy/executions', {
+            params: {
+                stgyTyp,
+                ...(stgyId ? { stgyId } : {}),
+                ...(trgrTyps?.length ? { trgrTyp: trgrTyps.join(',') } : {}),
+            },
+        });
     },
 };

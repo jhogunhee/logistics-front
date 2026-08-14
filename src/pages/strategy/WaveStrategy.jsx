@@ -386,8 +386,8 @@ export default function WaveStrategy() {
             {editingId != null && (
                 <>
                     <RevisionHistory open={revisionOpen} onClose={() => setRevisionOpen(false)}
-                                     listFn={() => strategyApi.waveStrategies.revisions(editingId)}
-                                     getFn={(no) => strategyApi.waveStrategies.revision(editingId, no)} />
+                                     listFn={() => strategyApi.revisions('WAV', editingId)}
+                                     getFn={(no) => strategyApi.revision('WAV', editingId, no)} />
                     <ExecutionHistory open={execOpen} onClose={() => setExecOpen(false)} stgyTyp="WAV" stgyId={editingId} />
                 </>
             )}

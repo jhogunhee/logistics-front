@@ -25,7 +25,7 @@ const SECTIONS = [
         typ: 'INVN_FLTR', no: '①', label: '재고위치', orderLabel: '계층',
         dflt: '보관 재고 전체가 한 덩어리 (계층 없음)',
         hint: '위에서부터 계층입니다 — 앞 계층을 다 쓰고 모자라면 다음으로 내려갑니다.',
-        multi: true, hasCmpnt: false, condDomain: 'allocation-invn',
+        multi: true, hasCmpnt: false, slotLabel: '후보 계층', condDomain: 'allocation-invn',
         condHint: '조건 없는 계층은 후보 전체를 가져가므로 마지막에만 둘 수 있습니다.',
     },
     {
@@ -38,13 +38,13 @@ const SECTIONS = [
         typ: 'INVN_SRT', no: '③', label: '재고 정렬', orderLabel: '정렬 우선순위',
         dflt: 'FEFO — 유통기한 → 로케이션 피킹순위 → 로케이션코드',
         hint: '재고를 어떤 순서로 소진할지 정합니다.',
-        multi: false, hasCmpnt: true, sortDomain: 'allocation-invn',
+        multi: false, hasCmpnt: false, slotLabel: '정렬 기준', sortDomain: 'allocation-invn',
     },
     {
         typ: 'ODR_SRT', no: '④', label: '주문 순서', orderLabel: '정렬 우선순위',
         dflt: '출고예정일 → 출고번호',
         hint: '먼저 처리된 라인이 재고를 먼저 가져갑니다 — 이 순서가 곧 우선권입니다.',
-        multi: false, hasCmpnt: true, sortDomain: 'allocation-order',
+        multi: false, hasCmpnt: false, slotLabel: '정렬 기준', sortDomain: 'allocation-order',
     },
     {
         typ: 'DSTRB', no: '⑤', label: '분배', orderLabel: '실행 순서',
@@ -176,9 +176,10 @@ export default function AllocationStrategy() {
     };
 
     /**
-     * 슬롯 추가. 고를 구현체가 <b>둘 이상일 때만</b> 피커를 띄운다 —
-     * 정렬 슬롯은 구현체가 `MULTI_SORT` 하나뿐이라 피커가 「선택지 1개짜리 모달」이 되고,
-     * 그건 정보가 아니라 한 단계 늘어난 클릭이다. code는 메타 응답에서 꺼내 P1을 지킨다.
+     * 슬롯 추가. 고를 구현체가 <b>둘 이상일 때만</b> 피커를 띄운다 — 하나뿐인 피커는
+     * 정보가 아니라 한 단계 늘어난 클릭이다. code는 메타 응답에서 꺼내 P1을 지킨다.
+     * 구현체 축이 없는 슬롯(재고위치·정렬 2종)은 곧바로 추가한다 — 그 슬롯들은
+     * 조건 목록·정렬 기준 목록 자체가 정의라 고를 구현체가 없다.
      */
     const addOrPick = (section) => {
         if (!section.hasCmpnt) {
@@ -440,7 +441,7 @@ export default function AllocationStrategy() {
                                                     <span className="text-sm font-bold text-slate-700">
                                                         {section.hasCmpnt
                                                             ? cmpntName(section.typ, slot.cmpntCd)
-                                                            : '후보 계층'}
+                                                            : section.slotLabel}
                                                     </span>
                                                     <button onClick={() => removeSlot(section.typ, idx)}
                                                             className="ml-auto p-1 text-slate-300 hover:text-rose-500" title="삭제 (저장 시 반영)">
@@ -557,8 +558,8 @@ export default function AllocationStrategy() {
             {editingId != null && (
                 <>
                     <RevisionHistory open={revisionOpen} onClose={() => setRevisionOpen(false)}
-                                     listFn={() => strategyApi.allocationStrategies.revisions(editingId)}
-                                     getFn={(no) => strategyApi.allocationStrategies.revision(editingId, no)} />
+                                     listFn={() => strategyApi.revisions('ALOC', editingId)}
+                                     getFn={(no) => strategyApi.revision('ALOC', editingId, no)} />
                     <ExecutionHistory open={execOpen} onClose={() => setExecOpen(false)}
                                       stgyTyp="ALOC" stgyId={editingId} />
                 </>

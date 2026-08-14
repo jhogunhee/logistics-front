@@ -22,15 +22,18 @@ const TRGR_LABELS = { MANUAL: '화면 조작', AUTO: '자동', PREVIEW: '미리�
 export default function ExecutionHistory({ open, onClose, stgyTyp, stgyId }) {
     const [rows, setRows] = useState([]);
     const [openId, setOpenId] = useState(null);
+    // 기본은 실행 기록만. 미리보기는 결과를 반영하지 않은 산정이라 「무엇이 실제로 일어났나」와
+    // 섞이면 안 되고, 100건 상한을 나눠 쓰면 실행 이력이 화면에서 밀려난다
+    const [withPreview, setWithPreview] = useState(false);
 
     useEffect(() => {
         if (!open) return;
         let ignore = false;
-        strategyApi.executions(stgyTyp, stgyId)
+        strategyApi.executions(stgyTyp, stgyId, withPreview ? ['MANUAL', 'AUTO', 'PREVIEW'] : null)
             .then(data => { if (!ignore) { setRows(data); setOpenId(null); } })
             .catch(() => {}); // 실패 토스트는 axios 인터셉터가 띄운다
         return () => { ignore = true; };
-    }, [open, stgyTyp, stgyId]);
+    }, [open, stgyTyp, stgyId, withPreview]);
 
     if (!open) return null;
 
@@ -44,12 +47,22 @@ export default function ExecutionHistory({ open, onClose, stgyTyp, stgyId }) {
                         <h3 className="text-lg font-bold text-slate-800">실행 이력</h3>
                         <span className="text-xs text-slate-400">최근 100건 — 행을 펼치면 건별 판정 근거를 보여줍니다</span>
                     </div>
-                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+                    <div className="flex items-center gap-3">
+                        <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
+                            <input type="checkbox" checked={withPreview}
+                                   onChange={(e) => setWithPreview(e.target.checked)}
+                                   className="accent-indigo-600" />
+                            미리보기 포함
+                        </label>
+                        <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+                    </div>
                 </div>
 
                 <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-1.5">
                     {rows.length === 0 && (
-                        <p className="text-sm text-slate-400 text-center py-8">실행 이력이 없습니다.</p>
+                        <p className="text-sm text-slate-400 text-center py-8">
+                            {withPreview ? '이력이 없습니다.' : '실행 이력이 없습니다 — 미리보기 기록은 위 체크박스로 볼 수 있습니다.'}
+                        </p>
                     )}
                     {rows.map(r => (
                         // shrink-0 — 세로 flex 안에서 행이 눌려 글자가 잘리는 것을 막는다 (overflow-hidden이 최소높이를 0으로 만든다)

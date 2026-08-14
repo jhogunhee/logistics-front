@@ -360,9 +360,11 @@ export default function InspectionPolicy() {
                              disabledCodes={rules.map(r => r.ruleCd)}
                              onSelect={addRule} onClose={() => setPickerOpen(false)} />
             <ProdPickerModal open={prodPickerOpen} onClose={() => setProdPickerOpen(false)} onSelect={addPreviewProd} />
-            <RevisionHistory open={revisionOpen} onClose={() => setRevisionOpen(false)}
-                             listFn={strategyApi.inspectionPolicy.revisions}
-                             getFn={strategyApi.inspectionPolicy.revision} />
+            {plcyId != null && (
+                <RevisionHistory open={revisionOpen} onClose={() => setRevisionOpen(false)}
+                                 listFn={() => strategyApi.revisions('INSP', plcyId)}
+                                 getFn={(no) => strategyApi.revision('INSP', plcyId, no)} />
+            )}
             <ExecutionHistory open={execOpen} onClose={() => setExecOpen(false)} stgyTyp="INSP" stgyId={plcyId ?? undefined} />
             <ConfirmDialog ref={confirmRef} />
         </div>
