@@ -83,10 +83,13 @@ export default function Receiving() {
     const gridRef = useRef(null);
     const lineGridRef = useRef(null);
     // 재조회 후 행을 다시 선택하던 ref는 없앴다 — 헤더 그리드의 getRowId가 선택을 유지한다
+    // 진행 중 상세 조회 무효화 토큰 — 응답 대기 중에 선택이 바뀌거나 비워지면 낡은 응답을 버린다
+    const detailSeq = useRef(0);
 
     const canReceive = !!selectedAsn && ['SCHEDULED', 'RECEIVING'].includes(selectedAsn.status);
 
     const clearDetail = () => {
+        detailSeq.current++;
         setSelectedAsn(null);
         setLineRows([]);
         setReceipts([]);
@@ -96,11 +99,17 @@ export default function Receiving() {
      * 선택한 입고건의 라인과 검수 이력을 읽는다.
      * 선택할 때만이 아니라 검수 저장·취소 뒤에도 직접 부른다 — 헤더 그리드에 getRowId가 붙어
      * 목록을 다시 읽어도 선택이 유지되므로 selectionChanged가 다시 발생하지 않기 때문이다.
+     * 원격 DB라 응답까지 초 단위가 걸린다 — 기다리는 사이 선택이 바뀌면(seq 불일치) 낡은 응답을 버린다.
+     * 안 버리면 지워진 선택의 라인이 되살아나, 라인은 떠 있는데 검수 입력이 잠긴 화면이 된다.
      */
     const loadDetail = async (asn) => {
+        const seq = ++detailSeq.current;
         setViolations([]);
-        setReceipts(await asnApi.orderReceipts(asn.ibOrderId));
+        const receipts = await asnApi.orderReceipts(asn.ibOrderId);
+        if (seq !== detailSeq.current) return;
+        setReceipts(receipts);
         const lines = await asnApi.lines(asn.ibOrderId);
+        if (seq !== detailSeq.current) return;
         // 입고일자는 전 라인, 제조일자는 유통기한 관리 상품만 입력
         // (입고일자만 기본값 오늘 — 제조일자는 거의 항상 과거라 오늘 기본값은 그럴듯한 오답, 직접 입력을 강제한다)
         setLineRows(lines.map(l => ({
@@ -113,23 +122,27 @@ export default function Receiving() {
 
     // 검수 작업 화면이므로 검수/취소가 아직 의미 있는 것만 보여준다 (확정된 입고는 닫힌 문서라 제외)
     const fetchList = async (keepSelection = false) => {
+        if (!keepSelection) {
+            // 비우는 것은 응답 후가 아니라 조회를 누르는 순간이다 — 응답 뒤에 비우면 조회~응답 사이에
+            // 사용자가 새로 선택한 것을 지워버려, 라인은 떠 있는데 검수 입력이 잠기는 경쟁이 생긴다(2026-08-14).
+            // 그리드 선택도 같이 풀어야 한다 — getRowId가 하이라이트를 유지해서, 안 풀면 상태만 비워지고
+            // 같은 행을 다시 클릭해도 selectionChanged가 울리지 않아 라인을 다시 못 연다.
+            gridRef.current?.api?.deselectAll();
+            clearDetail();
+        }
         const data = await asnApi.list(cond);
         const rows = data.filter(a => a.status !== 'CONFIRMED');
         setRowData(rows);
 
-        if (!keepSelection) {
-            clearDetail();
-            return;
-        }
+        if (!keepSelection) return;
         // 선택한 건의 헤더 값(상태·검수 진행)도 새로 받은 것으로 바꾼다 — 옛 값을 들고 있으면
         // 검수 진행·잔량 표시가 방금 저장한 것과 어긋나 보인다
         const fresh = rows.find(a => a.ibOrderId === selectedAsn?.ibOrderId) ?? null;
-        setSelectedAsn(fresh);
         if (fresh) {
+            setSelectedAsn(fresh);
             await loadDetail(fresh);
         } else {
-            setLineRows([]);
-            setReceipts([]);
+            clearDetail();
         }
     };
 
@@ -193,25 +206,27 @@ export default function Receiving() {
             headerTooltip: '이번에 개수 확인한 입고단위 개수 — 잔량 이내 정수만 (전량 재고로 입고)',
         },
         {
-                field: '_mfgDt', headerName: '제조일자', width: 110,
-                editable: (p) => canReceive && p.data.shelfLifeDays != null,
-                // dateString 명시 필수 — 기본값이 빈 문자열이라 타입 추론이 안 돼 날짜 파서가 없어 에디터가 죽는다
-                cellDataType: 'dateString',
-                cellEditor: 'agDateStringCellEditor',
-                // 달력 상한 = 입고일자 (제조일자는 입고보다 미래일 수 없다 — 저장 검증과 같은 규칙)
-                cellEditorParams: (p) => ({ max: p.data._receiptDt || todayStr() }),
-                cellClass: 'bg-indigo-50',
-                headerTooltip: '유통기한 = 제조일자 + 유통기한(일). 유통기한 미관리 상품은 입력 없음',
-                cellRenderer: (p) => p.data.shelfLifeDays == null
-                    ? <span className="text-slate-400">미관리</span>
-                    : p.value,
-            },
-        {
+            // 입고일자를 제조일자보다 앞에 둔다 — 제조일자 달력의 상한이 입고일자라 먼저 정해지는 게 맞고
+            // (소급 등록 때 특히), 제조일자가 뒤로 가면서 만료일 미리보기(유통기한)와 바로 붙는다
             field: '_receiptDt', headerName: '입고일자', width: 110, editable: canReceive,
             cellDataType: 'dateString',
             cellEditor: 'agDateStringCellEditor',
             cellClass: 'bg-indigo-50',
             headerTooltip: '실제 입고된 날 (소급 등록 시 과거로 변경). Lot 번호 채번 기준',
+        },
+        {
+            field: '_mfgDt', headerName: '제조일자', width: 110,
+            editable: (p) => canReceive && p.data.shelfLifeDays != null,
+            // dateString 명시 필수 — 기본값이 빈 문자열이라 타입 추론이 안 돼 날짜 파서가 없어 에디터가 죽는다
+            cellDataType: 'dateString',
+            cellEditor: 'agDateStringCellEditor',
+            // 달력 상한 = 입고일자 (제조일자는 입고보다 미래일 수 없다 — 저장 검증과 같은 규칙)
+            cellEditorParams: (p) => ({ max: p.data._receiptDt || todayStr() }),
+            cellClass: 'bg-indigo-50',
+            headerTooltip: '유통기한 = 제조일자 + 유통기한(일). 유통기한 미관리 상품은 입력 없음',
+            cellRenderer: (p) => p.data.shelfLifeDays == null
+                ? <span className="text-slate-400">미관리</span>
+                : p.value,
         },
         // 낱개환산 컬럼은 뺐다 — 입력 중에는 입고단위 하나만 보인다. EA가 필요한 순간은
         // 저장 확인 모달(낱개 합계)과 검수 이력의 병기 표기가 맡는다.
