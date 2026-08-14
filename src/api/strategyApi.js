@@ -56,13 +56,6 @@ export const strategyApi = {
         preview(payload) {
             return api.post('/strategy/inspection-policy/preview', payload);
         },
-        /** 리비전 이력 (조회 전용 감사 이력) */
-        revisions() {
-            return api.get('/strategy/inspection-policy/revisions');
-        },
-        revision(rvsnNo) {
-            return api.get(`/strategy/inspection-policy/revisions/${rvsnNo}`);
-        },
     },
 
     /** 적치 전략 */
@@ -85,13 +78,6 @@ export const strategyApi = {
         /** 미저장 정의 미리보기. payload: { definition, ibLineId?, lotId?, prodId?, qty } */
         preview(payload) {
             return api.post('/strategy/putaway-strategies/preview', payload);
-        },
-        /** 리비전 이력 (조회 전용 감사 이력) */
-        revisions(id) {
-            return api.get(`/strategy/putaway-strategies/${id}/revisions`);
-        },
-        revision(id, rvsnNo) {
-            return api.get(`/strategy/putaway-strategies/${id}/revisions/${rvsnNo}`);
         },
     },
 
@@ -122,13 +108,6 @@ export const strategyApi = {
          */
         previewSaved(id, payload) {
             return api.post(`/strategy/wave-strategies/${id}/preview`, payload);
-        },
-        /** 리비전 이력 (조회 전용 감사 이력) */
-        revisions(id) {
-            return api.get(`/strategy/wave-strategies/${id}/revisions`);
-        },
-        revision(id, rvsnNo) {
-            return api.get(`/strategy/wave-strategies/${id}/revisions/${rvsnNo}`);
         },
         /**
          * 전략 실행 — 실제 편성(웨이브 생성 + 주문 편입). 전략 관리가 아니라 업무 API다.
@@ -167,17 +146,21 @@ export const strategyApi = {
         previewSaved(id, payload) {
             return api.post(`/strategy/allocation-strategies/${id}/preview`, payload);
         },
-        /** 리비전 이력 (조회 전용 감사 이력) */
-        revisions(id) {
-            return api.get(`/strategy/allocation-strategies/${id}/revisions`);
-        },
-        revision(id, rvsnNo) {
-            return api.get(`/strategy/allocation-strategies/${id}/revisions/${rvsnNo}`);
-        },
         /** 미리보기 대상 웨이브 목록 — 업무 API 재사용 (할당 대상 = 잔량 남은 PLANNED 웨이브) */
         targetWaves() {
             return api.get('/outbound/allocations/waves');
         },
+    },
+
+    /**
+     * 리비전 이력 (조회 전용 감사 이력) — 네 전략이 같은 엔드포인트를 쓴다.
+     * stgyTyp: 'INSP' | 'PTAWY' | 'WAV' | 'ALOC', stgyId: 검수는 inspPlcyId
+     */
+    revisions(stgyTyp, stgyId) {
+        return api.get('/strategy/revisions', { params: { stgyTyp, stgyId } });
+    },
+    revision(stgyTyp, stgyId, rvsnNo) {
+        return api.get(`/strategy/revisions/${rvsnNo}`, { params: { stgyTyp, stgyId } });
     },
 
     /** 실행 로그. stgyTyp: 'INSP' | 'PTAWY' | 'WAV' | 'ALOC' */

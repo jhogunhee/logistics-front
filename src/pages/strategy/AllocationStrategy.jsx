@@ -557,8 +557,8 @@ export default function AllocationStrategy() {
             {editingId != null && (
                 <>
                     <RevisionHistory open={revisionOpen} onClose={() => setRevisionOpen(false)}
-                                     listFn={() => strategyApi.allocationStrategies.revisions(editingId)}
-                                     getFn={(no) => strategyApi.allocationStrategies.revision(editingId, no)} />
+                                     listFn={() => strategyApi.revisions('ALOC', editingId)}
+                                     getFn={(no) => strategyApi.revision('ALOC', editingId, no)} />
                     <ExecutionHistory open={execOpen} onClose={() => setExecOpen(false)}
                                       stgyTyp="ALOC" stgyId={editingId} />
                 </>

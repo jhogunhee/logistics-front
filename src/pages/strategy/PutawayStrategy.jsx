@@ -481,8 +481,8 @@ export default function PutawayStrategy() {
             {editingId != null && (
                 <>
                     <RevisionHistory open={revisionOpen} onClose={() => setRevisionOpen(false)}
-                                     listFn={() => strategyApi.putawayStrategies.revisions(editingId)}
-                                     getFn={(no) => strategyApi.putawayStrategies.revision(editingId, no)} />
+                                     listFn={() => strategyApi.revisions('PTAWY', editingId)}
+                                     getFn={(no) => strategyApi.revision('PTAWY', editingId, no)} />
                     <ExecutionHistory open={execOpen} onClose={() => setExecOpen(false)} stgyTyp="PTAWY" stgyId={editingId} />
                 </>
             )}
