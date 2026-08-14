@@ -52,6 +52,7 @@ export default function UomMaster() {
     const [saveConfirm, setSaveConfirm] = useState(null);  // 저장 확인 모달 대상 행들 (null이면 닫힘)
     const [uploadConfirm, setUploadConfirm] = useState(null); // 엑셀 업로드 확인 모달
     const [prodDeleteConfirm, setProdDeleteConfirm] = useState(null); // 상품 삭제 확인 모달
+    const prodGridRef = useRef(null);
     const uomGridRef = useRef(null);
     const fileInputRef = useRef(null);
     const newRowSeq = useRef(0);       // 신규 행의 임시 키 (getRowId가 id를 요구한다)
@@ -60,10 +61,6 @@ export default function UomMaster() {
     const selectedProd = useMemo(
         () => prods.find(p => p.prodId === selectedProdId) ?? null,
         [prods, selectedProdId]
-    );
-    const prodByCd = useMemo(
-        () => Object.fromEntries(prods.map(p => [p.prodCd, p])),
-        [prods]
     );
     // 삭제(D) 표시된 행은 편집을 막는다
     const notDeleted = (p) => p.data._status !== 'D';
@@ -173,6 +170,8 @@ export default function UomMaster() {
         if (prodId === selectedProdId) return;
         if (dirtyRows.length > 0) {
             toast.error('저장하지 않은 변경이 있습니다. 저장하거나 되돌린 뒤 이동하세요.');
+            // 클릭으로 이미 옮겨간 그리드 선택 하이라이트를 현재 상품으로 되돌린다
+            prodGridRef.current?.api.forEachNode(n => n.setSelected(n.data.prodId === selectedProdId));
             return;
         }
         setSelectedProdId(prodId);
@@ -308,6 +307,10 @@ export default function UomMaster() {
         const workbook = XLSX.read(await file.arrayBuffer());
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const raw = XLSX.utils.sheet_to_json(sheet, { defval: null });
+
+        // 검색으로 좁혀진 prods 상태로 검증하면 목록 밖의 유효한 상품까지 오류로 거부된다 — 전체를 새로 받는다
+        const allProds = await prodApi.list();
+        const prodByCd = Object.fromEntries(allProds.map(p => [p.prodCd, p]));
 
         const codeSet = new Set(uomCodes.values);
         const rows = [];
@@ -469,10 +472,12 @@ export default function UomMaster() {
                     </div>
                     <div className="flex-1 min-h-0">
                         <AgGridReact
+                            ref={prodGridRef}
                             rowData={prods}
                             columnDefs={prodColumnDefs}
                             getRowId={(p) => String(p.data.prodId)}
-                            rowSelection={{ mode: 'singleRow', checkboxes: false }}
+                            // enableClickSelection이 없으면 v33+ 기본값(false) 탓에 클릭해도 행 하이라이트가 안 생긴다
+                            rowSelection={{ mode: 'singleRow', checkboxes: false, enableClickSelection: true }}
                             onRowClicked={(p) => selectProd(p.data.prodId)}
                         />
                     </div>
