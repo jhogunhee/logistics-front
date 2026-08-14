@@ -9,6 +9,7 @@ import { omsOutbOrderApi } from '@/api/omsOutbOrderApi';
 import { useCodes } from '@/hooks/useCodes';
 import { TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { num, todayStr } from '@/utils/format';
+import DatePicker from '@/components/common/DatePicker';
 
 const EMPTY_FORM = () => ({
     storeId: '', expctDe: todayStr(),
@@ -242,12 +243,10 @@ export default function OutboundOrder() {
                         </button>
                     </Field>
                     <Field label="출고 예정일" required hint="확정 시 생성될 출고번호(OB-)의 채번 기준일이자 웨이브 편성 단위">
-                        <input
-                            type="date"
+                        <DatePicker
                             value={form.expctDe}
-                            onChange={(e) => setForm(prev => ({ ...prev, expctDe: e.target.value }))}
+                            onChange={(v) => setForm(prev => ({ ...prev, expctDe: v }))}
                             disabled={readOnly}
-                            className={inputCls + ' disabled:bg-slate-50 disabled:cursor-not-allowed'}
                         />
                     </Field>
                     <Field label="담당자" hint="수주를 받은 사람. 등록자 계정과는 별개입니다">

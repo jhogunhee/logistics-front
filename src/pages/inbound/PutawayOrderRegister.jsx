@@ -12,6 +12,7 @@ import { TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { Badge } from '@/components/common/Badge';
 import { putawayApi } from '@/api/putawayApi';
 import { daysAheadStr, fmtDe, num, todayStr } from '@/utils/format';
+import DatePicker from '@/components/common/DatePicker';
 
 
 // 상단: 입고건 — 물건이 트럭 단위로 들어와 한 자리에 내려지므로 지시도 이 단위로 건다
@@ -310,18 +311,18 @@ export default function PutawayOrderRegister() {
                 </SearchItem>
                 <SearchItem label="입고일자" wide>
                     <div className="flex items-center gap-2">
-                        <input
-                            type="date"
+                        <DatePicker
                             value={cond.dateFrom}
-                            onChange={(e) => setCond(prev => ({ ...prev, dateFrom: e.target.value }))}
-                            className="flex-1 min-w-0 input-base"
+                            onChange={(v) => setCond(prev => ({ ...prev, dateFrom: v }))}
+                            max={cond.dateTo || undefined}
+                            className="flex-1 min-w-0"
                         />
                         <span className="text-slate-400 shrink-0">~</span>
-                        <input
-                            type="date"
+                        <DatePicker
                             value={cond.dateTo}
-                            onChange={(e) => setCond(prev => ({ ...prev, dateTo: e.target.value }))}
-                            className="flex-1 min-w-0 input-base"
+                            onChange={(v) => setCond(prev => ({ ...prev, dateTo: v }))}
+                            min={cond.dateFrom || undefined}
+                            className="flex-1 min-w-0"
                         />
                     </div>
                 </SearchItem>

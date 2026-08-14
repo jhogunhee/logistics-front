@@ -12,6 +12,7 @@ import { Badge } from '@/components/common/Badge';
 import { fmtDt, num, todayStr, daysAheadStr } from '@/utils/format';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import VendorPickerModal from '@/components/common/VendorPickerModal';
+import DateCellEditor from '@/components/common/DateCellEditor';
 
 
 // 오늘 날짜 "YYYY-MM-DD" (입고일자/제조일자 기본값)
@@ -209,17 +210,21 @@ export default function Receiving() {
             // 입고일자를 제조일자보다 앞에 둔다 — 제조일자 달력의 상한이 입고일자라 먼저 정해지는 게 맞고
             // (소급 등록 때 특히), 제조일자가 뒤로 가면서 만료일 미리보기(유통기한)와 바로 붙는다
             field: '_receiptDt', headerName: '입고일자', width: 110, editable: canReceive,
-            cellDataType: 'dateString',
-            cellEditor: 'agDateStringCellEditor',
+            cellDataType: false,   // 제조일자와 같은 이유 (아래 주석)
+            cellEditor: DateCellEditor,
             cellClass: 'bg-indigo-50',
             headerTooltip: '실제 입고된 날 (소급 등록 시 과거로 변경). Lot 번호 채번 기준',
         },
         {
             field: '_mfgDt', headerName: '제조일자', width: 110,
             editable: (p) => canReceive && p.data.shelfLifeDays != null,
-            // dateString 명시 필수 — 기본값이 빈 문자열이라 타입 추론이 안 돼 날짜 파서가 없어 에디터가 죽는다
-            cellDataType: 'dateString',
-            cellEditor: 'agDateStringCellEditor',
+            // cellDataType는 끈다 (예전엔 'dateString'이었다). 그 설정은 ag-grid 기본 날짜
+            // 에디터에 파서를 물리려던 것인데, 에디터를 DateCellEditor로 바꾼 지금은 방해만 한다 —
+            // dateString의 valueParser가 「유효한 날짜가 아니면 버린다」라서 빈 문자열이 통과하지
+            // 못하고, 제조일자를 지워도 옛 값이 그대로 남는다. 우리 에디터는 언제나
+            // 'YYYY-MM-DD' 아니면 '' 만 내보내므로 타입 추론이 필요 없다.
+            cellDataType: false,
+            cellEditor: DateCellEditor,
             // 달력 상한 = 입고일자 (제조일자는 입고보다 미래일 수 없다 — 저장 검증과 같은 규칙)
             cellEditorParams: (p) => ({ max: p.data._receiptDt || todayStr() }),
             cellClass: 'bg-indigo-50',

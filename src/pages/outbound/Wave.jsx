@@ -18,6 +18,7 @@ import { strategyApi } from '@/api/strategyApi';
 import { useCodes } from '@/hooks/useCodes';
 import { Badge } from '@/components/common/Badge';
 import { fmtDt, num } from '@/utils/format';
+import DatePicker from '@/components/common/DatePicker';
 
 const centered = { display: 'flex', alignItems: 'center', justifyContent: 'center' };
 
@@ -366,13 +367,15 @@ export default function Wave() {
                     </div>
                     {/* 출고예정일은 편성 조건이 아니라 판정할 대상 주문의 범위다 */}
                     <label className="text-xs font-bold text-slate-500" title="편성 조건이 아니라 대상 주문을 좁히는 실행 범위입니다">대상 출고예정일</label>
-                    <input type="date" value={execRange.expctDeFrom}
-                           onChange={(e) => setExecRange(prev => ({ ...prev, expctDeFrom: e.target.value }))}
-                           className="w-36 input-base" />
+                    <DatePicker value={execRange.expctDeFrom}
+                                onChange={(v) => setExecRange(prev => ({ ...prev, expctDeFrom: v }))}
+                                max={execRange.expctDeTo || undefined}
+                                className="w-36" />
                     <span className="text-slate-400">~</span>
-                    <input type="date" value={execRange.expctDeTo}
-                           onChange={(e) => setExecRange(prev => ({ ...prev, expctDeTo: e.target.value }))}
-                           className="w-36 input-base" />
+                    <DatePicker value={execRange.expctDeTo}
+                                onChange={(v) => setExecRange(prev => ({ ...prev, expctDeTo: v }))}
+                                min={execRange.expctDeFrom || undefined}
+                                className="w-36" />
                     <span className="text-[11px] text-slate-400">비우면 미편성 주문 전체</span>
 
                     <div className="ml-auto flex items-center gap-2">

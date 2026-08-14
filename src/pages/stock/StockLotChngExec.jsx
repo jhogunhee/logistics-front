@@ -9,6 +9,7 @@ import { invLotChngApi } from '@/api/invLotChngApi';
 import { useCodes } from '@/hooks/useCodes';
 import { ETC_RSN_CD, LOT_ATTR_RSN_GRP } from '@/constants/rsnCodes';
 import { num } from '@/utils/format';
+import DatePicker from '@/components/common/DatePicker';
 
 /**
  * "YYYY-MM-DD" + n일. toISOString()을 쓰지 않는 이유는 그게 UTC로 변환하기 때문이다
@@ -375,22 +376,22 @@ export default function StockLotChngExec() {
                                 <div className="flex flex-col gap-2 pl-8 pr-1 py-1">
                                     <div className="flex items-center gap-2 text-xs">
                                         <span className="w-16 text-slate-500 font-bold shrink-0">제조일자</span>
-                                        <input type="date" value={dest.mfgDt} max={dest.row.receiptDt || undefined}
-                                               onChange={(e) => setDest(prev => ({
-                                                   ...prev,
-                                                   mfgDt: e.target.value,
-                                                   // 유통기한 기본값 제안 (제조일자 + 유통기한일수) — 벤더 인쇄값으로 덮어쓸 수 있다
-                                                   expiryDt: e.target.value && dest.row.shelfLifeDays != null
-                                                       ? addDays(e.target.value, dest.row.shelfLifeDays) : prev.expiryDt,
-                                               }))}
-                                               className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs" />
+                                        <DatePicker value={dest.mfgDt} max={dest.row.receiptDt || undefined}
+                                                    onChange={(v) => setDest(prev => ({
+                                                        ...prev,
+                                                        mfgDt: v,
+                                                        // 유통기한 기본값 제안 (제조일자 + 유통기한일수) — 벤더 인쇄값으로 덮어쓸 수 있다
+                                                        expiryDt: v && dest.row.shelfLifeDays != null
+                                                            ? addDays(v, dest.row.shelfLifeDays) : prev.expiryDt,
+                                                    }))}
+                                                    className="w-36" />
                                     </div>
                                     <div className="flex items-center gap-2 text-xs">
                                         <span className="w-16 text-slate-500 font-bold shrink-0">유통기한</span>
-                                        <input type="date" value={manualMatch ? manualMatch.expiryDt : dest.expiryDt}
-                                               min={dest.mfgDt || undefined} disabled={!!manualMatch}
-                                               onChange={(e) => setDest(prev => ({ ...prev, expiryDt: e.target.value }))}
-                                               className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs disabled:bg-slate-50 disabled:text-slate-400" />
+                                        <DatePicker value={manualMatch ? manualMatch.expiryDt : dest.expiryDt}
+                                                    min={dest.mfgDt || undefined} disabled={!!manualMatch}
+                                                    onChange={(v) => setDest(prev => ({ ...prev, expiryDt: v }))}
+                                                    className="w-36" />
                                     </div>
                                     {manualMatch && (
                                         <div className="flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 rounded-lg px-2.5 py-1.5">
