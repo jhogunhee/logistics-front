@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState } from 'react';
 import { Search, X } from "lucide-react";
 import DropdownSelect from './DropdownSelect';
+import DatePicker from './DatePicker';
 import ProdPickerModal from './ProdPickerModal';
 import LocPickerModal from './LocPickerModal';
 
@@ -211,22 +212,23 @@ export function SearchSelect({ name, label, options, placeholder = '전체', req
  */
 export function SearchDateRange({ from, to, label, required, wide = true }) {
     const { cond, setCond } = useContext(SearchBarCtx);
-    const onChange = (name) => (e) => setCond(prev => ({ ...prev, [name]: e.target.value }));
+    const onChange = (name) => (v) => setCond(prev => ({ ...prev, [name]: v }));
     return (
         <SearchItem label={label} required={required} wide={wide}>
             <div className="flex items-center gap-2">
-                <input
-                    type="date"
+                {/* 시작일의 상한 = 종료일, 종료일의 하한 = 시작일 — 뒤집힌 기간을 달력에서 아예 못 고르게 한다 */}
+                <DatePicker
                     value={cond[from]}
                     onChange={onChange(from)}
-                    className="flex-1 min-w-0 input-base"
+                    max={cond[to] || undefined}
+                    className="flex-1 min-w-0"
                 />
                 <span className="text-slate-400 shrink-0">~</span>
-                <input
-                    type="date"
+                <DatePicker
                     value={cond[to]}
                     onChange={onChange(to)}
-                    className="flex-1 min-w-0 input-base"
+                    min={cond[from] || undefined}
+                    className="flex-1 min-w-0"
                 />
             </div>
         </SearchItem>

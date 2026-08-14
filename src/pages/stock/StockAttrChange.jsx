@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 
 import SearchBar, { SearchItem, SearchText, SearchDateRange, SearchProd } from '@/components/common/SearchBar';
 import SelectCellEditor from '@/components/common/SelectCellEditor';
+import DateCellEditor from '@/components/common/DateCellEditor';
 import { lotAttrChngApi } from '@/api/lotAttrChngApi';
 import { useCodes } from '@/hooks/useCodes';
 import { ETC_RSN_CD, LOT_ATTR_RSN_GRP } from '@/constants/rsnCodes';
@@ -94,17 +95,19 @@ export default function StockAttrChange() {
         },
         {
             field: 'mfgDt', headerName: '제조일자', width: 115, editable: true,
-            // dateString 명시 필수 — 빈 값이 섞여 있어 타입 추론이 안 되면 날짜 파서가 없어 에디터가 죽는다
-            cellDataType: 'dateString',
-            cellEditor: 'agDateStringCellEditor',
+            // cellDataType는 끈다 (예전엔 'dateString'이었다). 그 설정은 ag-grid 기본 날짜 에디터용이고,
+            // DateCellEditor로 바꾼 지금은 dateString의 valueParser가 빈 문자열을 버려서 값을 지울 수
+            // 없게 만든다. 우리 에디터는 'YYYY-MM-DD' 아니면 '' 만 내보낸다.
+            cellDataType: false,
+            cellEditor: DateCellEditor,
             // 달력 상한 = 입고일자 (제조일자는 입고보다 미래일 수 없다 — 저장 검증과 같은 규칙)
             cellEditorParams: (p) => ({ max: p.data.receiptDt || undefined }),
             cellClass: (p) => `bg-indigo-50 ${p.data.mfgDt !== p.data._mfgDt0 ? 'text-amber-600 font-bold' : 'font-medium'}`,
         },
         {
             field: 'expiryDt', headerName: '유통기한', width: 115, editable: true,
-            cellDataType: 'dateString',
-            cellEditor: 'agDateStringCellEditor',
+            cellDataType: false,   // 제조일자와 같은 이유 (위 주석)
+            cellEditor: DateCellEditor,
             cellEditorParams: (p) => ({ min: p.data.mfgDt || undefined }),
             cellClass: (p) => `bg-indigo-50 font-bold ${p.data.expiryDt !== p.data._expiryDt0 ? 'text-amber-600' : 'text-indigo-700'}`,
         },

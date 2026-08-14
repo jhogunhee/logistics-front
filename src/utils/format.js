@@ -52,8 +52,11 @@ export const fmtInbQty = (eaQty, eaPerUnit, uomCd) => {
  * 로컬 기준 "YYYY-MM-DD". `toISOString().slice(0, 10)`을 쓰지 않는 이유는 그게 UTC로
  * 변환하기 때문이다 — KST 오전 9시 이전에는 하루 전 날짜가 나온다. 6개 화면이 전부
  * 그 형태였고, 기간 검색의 기본값이 매일 아침 9시간 동안 하루씩 밀고 있었다.
+ *
+ * 공용 DatePicker의 달력 격자도 이걸 쓴다 — 격자 칸을 Date로 만들어 문자열로 되돌리는
+ * 자리라, 여기서 UTC로 새면 같은 하루 밀림이 달력 전체에 번진다.
  */
-const ymd = (d) => {
+export const ymd = (d) => {
     const p = (n) => String(n).padStart(2, '0');
     return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 };

@@ -10,6 +10,7 @@ import RevisionHistory from '@/components/strategy/RevisionHistory';
 import WaveOrderTrace from '@/components/strategy/WaveOrderTrace';
 import { strategyApi } from '@/api/strategyApi';
 import { num } from '@/utils/format';
+import DatePicker from '@/components/common/DatePicker';
 
 const emptyDefinition = () => ({ stgyNm: '', prty: 0, condGrp: [] });
 
@@ -342,13 +343,15 @@ export default function WaveStrategy() {
                     {/* 출고예정일은 편성 조건이 아니라 대상 주문을 좁히는 실행 스코프다 */}
                     <div className="flex items-center gap-2">
                         <label className="text-xs font-bold text-slate-500 shrink-0" title="편성 조건이 아니라 판정할 대상 주문의 범위입니다">출고예정일</label>
-                        <input type="date" value={range.expctDeFrom}
-                               onChange={(e) => setRange(prev => ({ ...prev, expctDeFrom: e.target.value }))}
-                               className="flex-1 min-w-0 input-base" />
+                        <DatePicker value={range.expctDeFrom}
+                                    onChange={(v) => setRange(prev => ({ ...prev, expctDeFrom: v }))}
+                                    max={range.expctDeTo || undefined}
+                                    className="flex-1 min-w-0" />
                         <span className="text-slate-400">~</span>
-                        <input type="date" value={range.expctDeTo}
-                               onChange={(e) => setRange(prev => ({ ...prev, expctDeTo: e.target.value }))}
-                               className="flex-1 min-w-0 input-base" />
+                        <DatePicker value={range.expctDeTo}
+                                    onChange={(v) => setRange(prev => ({ ...prev, expctDeTo: v }))}
+                                    min={range.expctDeFrom || undefined}
+                                    className="flex-1 min-w-0" />
                     </div>
                     <div className="flex items-center justify-between">
                         <span className="text-[11px] text-slate-400">비우면 미편성 주문 전체가 대상</span>

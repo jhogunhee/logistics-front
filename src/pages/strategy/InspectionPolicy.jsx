@@ -13,6 +13,7 @@ import SortableList from '@/components/strategy/SortableList';
 import { strategyApi } from '@/api/strategyApi';
 import { asnApi } from '@/api/asnApi';
 import { todayStr } from '@/utils/format';
+import DatePicker from '@/components/common/DatePicker';
 
 // 오늘 "YYYY-MM-DD" (미리보기 로트 기본값)
 
@@ -304,13 +305,14 @@ export default function InspectionPolicy() {
                                 <span className="text-xs font-bold text-slate-700 truncate">{lot.prodCd} {lot.prodNm}</span>
                                 <div className="flex items-center gap-2 mt-1">
                                     <label className="text-[10px] text-slate-400">제조</label>
-                                    <input type="date" value={lot.mfgDt} disabled={lot.shelfLifeDays == null}
-                                           onChange={(e) => setPreviewLots(prev => prev.map((l, i) => i === idx ? { ...l, mfgDt: e.target.value } : l))}
-                                           className="px-1.5 py-1 border border-slate-200 rounded text-[11px] disabled:bg-slate-50" />
+                                    <DatePicker value={lot.mfgDt} disabled={lot.shelfLifeDays == null}
+                                                max={lot.receiptDt || undefined}
+                                                onChange={(v) => setPreviewLots(prev => prev.map((l, i) => i === idx ? { ...l, mfgDt: v } : l))}
+                                                className="w-32" />
                                     <label className="text-[10px] text-slate-400">입고</label>
-                                    <input type="date" value={lot.receiptDt}
-                                           onChange={(e) => setPreviewLots(prev => prev.map((l, i) => i === idx ? { ...l, receiptDt: e.target.value } : l))}
-                                           className="px-1.5 py-1 border border-slate-200 rounded text-[11px]" />
+                                    <DatePicker value={lot.receiptDt}
+                                                onChange={(v) => setPreviewLots(prev => prev.map((l, i) => i === idx ? { ...l, receiptDt: v } : l))}
+                                                className="w-32" />
                                 </div>
                             </div>
                             <button onClick={() => setPreviewLots(prev => prev.filter((_, i) => i !== idx))}
