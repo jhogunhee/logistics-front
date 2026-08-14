@@ -4,7 +4,7 @@ import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
 import { Hand, PackagePlus, Wand2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchItem } from '@/components/common/SearchBar';
+import SearchBar, { SearchItem, SearchProd } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import { TEMP_ZONE_META } from '@/constants/badgeMeta';
@@ -18,8 +18,8 @@ const ORDER_COLUMN_DEFS = [
     { field: 'ibNo', headerName: '입고번호', width: 170 },
     { field: 'vndrNm', headerName: '벤더', flex: 1, minWidth: 140 },
     {
-        field: 'batchCount', headerName: '배치', width: 80,
-        headerTooltip: '이 입고건의 (라인, Lot) 배치 수. Lot이 나뉘면 한 상품도 여러 배치가 된다',
+        field: 'batchCount', headerName: 'Lot 수', width: 80,
+        headerTooltip: '이 입고건의 (라인, Lot) 수 — 검수가 나뉘면 한 상품도 여러 Lot이 된다',
         cellClass: 'ag-right-aligned-cell tabular-nums text-slate-500',
     },
     {
@@ -271,7 +271,8 @@ export default function PutawayOrderRegister() {
     ];
 
     return (
-        <div className="flex flex-col gap-4 h-full">
+        // min-h — 노트북처럼 낮은 화면에선 그리드를 짜부라뜨리는 대신 카드 스크롤(Layout의 overflow-auto)이 생긴다
+        <div className="flex flex-col gap-4 h-full min-h-[42rem]">
             {/* 타이틀 */}
             <div className="flex items-center gap-2">
                 <PackagePlus size={18} className="text-indigo-600" />
@@ -282,7 +283,7 @@ export default function PutawayOrderRegister() {
             </div>
 
             {/* 검색 조건 */}
-            <SearchBar label="검색" onSearch={() => fetchList()}>
+            <SearchBar label="검색" cond={cond} setCond={setCond} onSearch={() => fetchList()}>
                 <SearchItem label="입고번호">
                     <input
                         type="text"
@@ -310,16 +311,7 @@ export default function PutawayOrderRegister() {
                         />
                     </div>
                 </SearchItem>
-                <SearchItem label="상품 코드">
-                    <input
-                        type="text"
-                        value={cond.prodCd}
-                        onChange={(e) => setCond(prev => ({ ...prev, prodCd: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="PROD-0001"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
+                <SearchProd name="prodCd" label="상품 코드" placeholder="PROD-0001" />
                 <SearchItem label="상품명">
                     <input
                         type="text"
@@ -372,83 +364,83 @@ export default function PutawayOrderRegister() {
                 {/* 하단: 선택 입고건의 배치 + 추천 결과 + 수동 지시 */}
                 <Panel defaultSize={62} minSize={30} className="flex flex-col gap-2 min-h-0">
                     <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-sm font-bold text-slate-700 shrink-0">배치 (라인 · Lot)</span>
+                        <span className="text-sm font-bold text-slate-700 shrink-0">적치 대상 Lot</span>
                         <span className="text-xs text-slate-400 truncate">
                             {selectedOrder
                                 ? `${selectedOrder.ibNo} · ${selectedOrder.vndrNm} — 미지시 ${num(selectedOrder.unDrctQty)}개 · 행을 클릭하면 수동 지시`
                                 : '위에서 입고건을 선택하세요'}
                         </span>
                     </div>
+                    {/* 추천이 열리면 Lot 그리드 자리를 통째로 차지한다 — 같은 Lot이 추천 결과에 다 나오므로
+                        둘을 세로로 같이 두면 노트북 높이에서 그리드만 짜부라진다. 닫기를 누르면 그리드로 복귀 */}
                     <div className="flex-1 min-h-0">
-                        <AgGridReact
-                            rowData={selectedOrder?.batches ?? []}
-                            columnDefs={batchColumnDefs}
-                            getRowId={(p) => `${p.data.ibLineId}:${p.data.lotId}`}
-                            rowHeight={34}
-                            headerHeight={38}
-                            rowSelection={{ mode: 'singleRow', checkboxes: false, enableClickSelection: true }}
-                            onCellClicked={onBatchCellClicked}
-                            overlayNoRowsTemplate={'<span class="text-sm text-slate-400">위에서 입고건을 선택하세요</span>'}
-                        />
+                        {!preview ? (
+                            <AgGridReact
+                                rowData={selectedOrder?.batches ?? []}
+                                columnDefs={batchColumnDefs}
+                                getRowId={(p) => `${p.data.ibLineId}:${p.data.lotId}`}
+                                rowHeight={34}
+                                headerHeight={38}
+                                rowSelection={{ mode: 'singleRow', checkboxes: false, enableClickSelection: true }}
+                                onCellClicked={onBatchCellClicked}
+                                overlayNoRowsTemplate={'<span class="text-sm text-slate-400">위에서 입고건을 선택하세요</span>'}
+                            />
+                        ) : (
+                            /* 추천 결과 — 발행 전 시뮬레이션이라 여기서 확인하고 [지시 생성]을 눌러야 저장된다 */
+                            <div className="h-full border border-slate-200 rounded-xl bg-white px-4 py-3 flex flex-col gap-2 overflow-y-auto">
+                                <div className="flex items-center gap-3 flex-wrap text-xs sticky top-0 bg-white">
+                                    <div className="flex items-center gap-1.5">
+                                        <Wand2 size={14} className="text-indigo-600" />
+                                        <span className="text-sm font-bold text-slate-700">추천 결과</span>
+                                    </div>
+                                    <span className="text-slate-400">
+                                        Lot {preview.length}건 · 배정 가능 <b className="text-emerald-600">{assignable.length}</b>건
+                                    </span>
+                                    <button onClick={handleCreateClick} className="btn-primary">
+                                        <PackagePlus size={13} /> 지시 생성
+                                    </button>
+                                    <button onClick={() => setPreview(null)} className="ml-auto btn-ghost">닫기</button>
+                                </div>
+                                <div className="flex flex-col gap-1.5">
+                                    {preview.map((it, i) => (
+                                        <div key={i} className="text-xs leading-relaxed border-b border-slate-50 last:border-0 pb-1.5 last:pb-0">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <span className="font-bold text-slate-700">{it.prodCd} {it.prodNm}</span>
+                                                <span className="text-slate-400 font-mono">{lotNoOf(it)}</span>
+                                                <span className="text-slate-400 tabular-nums">
+                                                    요청 {num(it.reqQty)} · 배정 <b className="text-emerald-600">{num(it.asgnQty)}</b>
+                                                </span>
+                                                {!it.strategySelected && (
+                                                    <span className="text-[11px] font-bold text-amber-700 bg-amber-50 rounded-full px-2 py-0.5">
+                                                        적치 전략 없음 — 닫은 뒤 Lot 행을 클릭해 수동 지시로 발행하세요
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                                {it.assignments.map((a, j) => (
+                                                    <span key={j} className="px-2 py-0.5 bg-white border border-indigo-200 rounded-lg text-[11px]">
+                                                        <span className="font-mono text-slate-600">{a.locCd}</span>
+                                                        <b className="text-indigo-700 ml-1.5 tabular-nums">{num(a.qty)}</b>
+                                                    </span>
+                                                ))}
+                                                {it.remainQty > 0 && (
+                                                    <span className="px-2 py-0.5 rounded-lg text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-200">
+                                                        미배정 {num(it.remainQty)} — 로케이션 용량 부족 · 수동 지시 필요
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
-                    {/* 추천 결과 — 발행 전 시뮬레이션이라 여기서 확인하고 [지시 생성]을 눌러야 저장된다 */}
-                    {preview && (
-                        <div className="border border-slate-200 rounded-xl bg-white px-4 py-3 shrink-0 flex flex-col gap-2 max-h-56 overflow-y-auto">
-                            <div className="flex items-center gap-3 flex-wrap text-xs sticky top-0 bg-white">
-                                <div className="flex items-center gap-1.5">
-                                    <Wand2 size={14} className="text-indigo-600" />
-                                    <span className="text-sm font-bold text-slate-700">추천 결과</span>
-                                </div>
-                                <span className="text-slate-400">
-                                    배치 {preview.length}건 · 배정 가능 <b className="text-emerald-600">{assignable.length}</b>건
-                                </span>
-                                <button onClick={handleCreateClick} className="btn-primary">
-                                    <PackagePlus size={13} /> 지시 생성
-                                </button>
-                                <button onClick={() => setPreview(null)} className="ml-auto btn-ghost">닫기</button>
-                            </div>
-                            <div className="flex flex-col gap-1.5">
-                                {preview.map((it, i) => (
-                                    <div key={i} className="text-xs leading-relaxed border-b border-slate-50 last:border-0 pb-1.5 last:pb-0">
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                            <span className="font-bold text-slate-700">{it.prodCd} {it.prodNm}</span>
-                                            <span className="text-slate-400 font-mono">{lotNoOf(it)}</span>
-                                            <span className="text-slate-400 tabular-nums">
-                                                요청 {num(it.reqQty)} · 배정 <b className="text-emerald-600">{num(it.asgnQty)}</b>
-                                            </span>
-                                            {!it.strategySelected && (
-                                                <span className="text-[11px] font-bold text-amber-700 bg-amber-50 rounded-full px-2 py-0.5">
-                                                    적치 전략 없음 — 수동 지시로 발행하세요
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                                            {it.assignments.map((a, j) => (
-                                                <span key={j} className="px-2 py-0.5 bg-white border border-indigo-200 rounded-lg text-[11px]">
-                                                    <span className="font-mono text-slate-600">{a.locCd}</span>
-                                                    <b className="text-indigo-700 ml-1.5 tabular-nums">{num(a.qty)}</b>
-                                                </span>
-                                            ))}
-                                            {it.remainQty > 0 && (
-                                                <span className="px-2 py-0.5 rounded-lg text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-200">
-                                                    미배정 {num(it.remainQty)} — 로케이션 용량 부족 · 수동 지시 필요
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* 수동 지시 — 전략이 없거나 용량이 모자라 남은 수량을 로케이션 하나로 직접 지시한다 */}
-                    <div className="border border-slate-200 rounded-xl p-3 bg-white flex flex-col gap-2 shrink-0">
-                        {!manual ? (
-                            <span className="text-xs text-slate-400">
-                                전략이 배정하지 못한 배치는 위에서 행을 클릭해 로케이션을 직접 지정하세요.
-                            </span>
-                        ) : (
+                    {/* 수동 지시 — 전략이 없거나 용량이 모자라 남은 수량을 로케이션 하나로 직접 지시한다.
+                        Lot 행을 클릭해야 나타난다 — 안 쓸 때도 상주시키면 노트북 높이에서 그리드만 준다
+                        (행 클릭 안내는 위 설명 줄의 「행을 클릭하면 수동 지시」가 맡는다) */}
+                    {manual && (
+                        <div className="border border-slate-200 rounded-xl p-3 bg-white flex flex-col gap-2 shrink-0">
                             <div className="flex items-end gap-3">
                                 <div className="flex items-center gap-2 text-sm flex-1 min-w-0">
                                     <span className="font-bold text-slate-700 truncate">{manual.prodCd} {manual.prodNm}</span>
@@ -485,8 +477,8 @@ export default function PutawayOrderRegister() {
                                     <Hand size={14} /> 수동 지시
                                 </button>
                             </div>
-                        )}
-                    </div>
+                        </div>
+                    )}
                 </Panel>
             </PanelGroup>
 
@@ -499,7 +491,7 @@ export default function PutawayOrderRegister() {
                     onConfirm={() => { doCreate(confirmCreate); setConfirmCreate(null); }}
                 >
                     <p className="text-sm text-slate-500">
-                        <b>{selectedOrder?.ibNo}</b> · 배치 <b>{confirmCreate.length}건</b> · 총 <b className="text-emerald-600">
+                        <b>{selectedOrder?.ibNo}</b> · Lot <b>{confirmCreate.length}건</b> · 총 <b className="text-emerald-600">
                         {num(confirmCreate.reduce((s, i) => s + i.asgnQty, 0))}개</b>를
                         {' '}{num(confirmCreate.reduce((s, i) => s + i.assignments.length, 0))}개 로케이션으로 지시합니다.
                     </p>

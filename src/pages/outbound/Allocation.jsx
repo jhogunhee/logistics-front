@@ -4,7 +4,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Hand, PackageCheck, Rocket, Unlink } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchText, SearchDateRange } from '@/components/common/SearchBar';
+import SearchBar, { SearchText, SearchDateRange, SearchProd } from '@/components/common/SearchBar';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import AllocCandidateModal from '@/components/outbound/AllocCandidateModal';
 import { outbAllocApi } from '@/api/outbAllocApi';
@@ -237,7 +237,8 @@ export default function Allocation() {
     const shortLines = execResult?.lines.filter(l => l.shortQty > 0) ?? [];
 
     return (
-        <div className="flex flex-col gap-4 h-full">
+        // min-h — 노트북처럼 낮은 화면에선 그리드를 짜부라뜨리는 대신 카드 스크롤(Layout의 overflow-auto)이 생긴다
+        <div className="flex flex-col gap-4 h-full min-h-[42rem]">
             {/* 타이틀 */}
             <div className="flex items-center gap-2">
                 <PackageCheck size={18} className="text-indigo-600" />
@@ -251,7 +252,7 @@ export default function Allocation() {
             <SearchBar cond={cond} setCond={setCond} onSearch={search}>
                 <SearchText name="wavNo" label="웨이브번호" placeholder="WV-20260803-001" />
                 <SearchText name="outbNo" label="출고번호" placeholder="OB-20260803-001" />
-                <SearchText name="prodCd" label="상품코드" placeholder="PROD-0001" />
+                <SearchProd name="prodCd" label="상품코드" placeholder="PROD-0001" />
                 <SearchText name="storeCd" label="점포코드" placeholder="ST-0001" />
                 <SearchDateRange from="expctDeFrom" to="expctDeTo" label="출고예정일" />
             </SearchBar>
