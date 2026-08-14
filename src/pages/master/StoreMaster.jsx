@@ -3,9 +3,11 @@ import { AgGridReact } from 'ag-grid-react';
 import { Plus, Save, Store, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchText } from '@/components/common/SearchBar';
+import SearchBar, { SearchSelect, SearchText } from '@/components/common/SearchBar';
 import { storeApi } from '@/api/storeApi';
 import { RowStatusCell } from '@/components/common/Badge';
+import SelectCellEditor from '@/components/common/SelectCellEditor';
+import { useCodes } from '@/hooks/useCodes';
 import { fmtDe, num } from '@/utils/format';
 import ConfirmModal from '@/components/common/ConfirmModal';
 
@@ -13,7 +15,9 @@ import ConfirmModal from '@/components/common/ConfirmModal';
 
 export default function StoreMaster() {
     const [rowData, setRowData] = useState([]);
-    const [cond, setCond] = useState({ storeCd: '', storeNm: '' });
+    const [cond, setCond] = useState({ storeCd: '', storeNm: '', storeGrp: '', storeTyp: '' });
+    const storeGrpCodes = useCodes('STORE_GRP');
+    const storeTypCodes = useCodes('STORE_TYP');
     const [rowCount, setRowCount] = useState(0); // 행추가분은 rowData 상태에 없으므로 건수는 그리드 기준으로 센다
     const [saveConfirm, setSaveConfirm] = useState(null); // 저장 확인 모달 대상 행들 (null이면 닫힘)
     const gridRef = useRef(null);
@@ -32,6 +36,21 @@ export default function StoreMaster() {
             cellRenderer: (p) => p.value || <span className="text-slate-400">(저장 시 채번)</span>,
         },
         { field: 'storeNm', headerName: '점포명', minWidth: 180, flex: 1, editable: notDeleted },
+        {
+            field: 'storeGrp', headerName: '그룹', width: 110, editable: notDeleted,
+            cellEditor: SelectCellEditor,
+            cellEditorParams: { values: storeGrpCodes.values, labelMap: storeGrpCodes.nmByCd, placeholder: '미지정' },
+            // 코드가 아니라 코드명으로 보여준다 — 미지정(null)은 빈칸
+            valueFormatter: (p) => (p.value ? storeGrpCodes.nm(p.value) : ''),
+            headerTooltip: '체인·계열 묶음입니다. 웨이브 편성 조건 「납품처그룹」과 할당 분배 대상 선별이 이 값을 봅니다',
+        },
+        {
+            field: 'storeTyp', headerName: '유형', width: 100, editable: notDeleted,
+            cellEditor: SelectCellEditor,
+            cellEditorParams: { values: storeTypCodes.values, labelMap: storeTypCodes.nmByCd, placeholder: '미지정' },
+            valueFormatter: (p) => (p.value ? storeTypCodes.nm(p.value) : ''),
+            headerTooltip: '업태(편의점·마트·급식)입니다. 웨이브 편성 조건 「납품처유형」과 할당 분배 대상 선별이 이 값을 봅니다',
+        },
         {
             field: 'outbLifeRate', headerName: '잔여수명 허용률(%)', width: 150, editable: notDeleted,
             type: 'numericColumn',
@@ -78,8 +97,9 @@ export default function StoreMaster() {
     const handleAddRow = () => {
         const api = gridRef.current.api;
         const res = api.applyTransaction({
-            // 허용률은 DB 기본값(40)을 미리 채워 준다 — 필수값이라 비워 두면 저장이 막힌다
-            add: [{ storeCd: '', storeNm: '', outbLifeRate: 40, _status: 'C' }],
+            // 허용률은 DB 기본값(40)을 미리 채워 준다 — 필수값이라 비워 두면 저장이 막힌다.
+            // 그룹·유형은 선택값이라 미지정(null)으로 시작한다
+            add: [{ storeCd: '', storeNm: '', storeGrp: null, storeTyp: null, outbLifeRate: 40, _status: 'C' }],
         });
         const rowIndex = res.add[0].rowIndex;
         api.ensureIndexVisible(rowIndex, 'bottom');
@@ -157,6 +177,8 @@ export default function StoreMaster() {
             <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
                 <SearchText name="storeCd" label="점포 코드" placeholder="ST-0001" />
                 <SearchText name="storeNm" label="점포명" placeholder="점포명 검색" />
+                <SearchSelect name="storeGrp" label="그룹" options={storeGrpCodes.searchOptions} />
+                <SearchSelect name="storeTyp" label="유형" options={storeTypCodes.searchOptions} />
             </SearchBar>
 
             {/* 그리드 툴바 */}
