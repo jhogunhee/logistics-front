@@ -20,7 +20,7 @@ const isEntered = (r) => r.qty != null || r.toLocCd !== '';
 
 export default function StockMoveOrder() {
     const [rowData, setRowData] = useState([]);
-    const [cond, setCond] = useState({ prodCd: '', prodNm: '', locCd: '', lotNo: '' });
+    const [cond, setCond] = useState({ prodCd: '', locCd: '', lotNo: '' });
     const [storageLocs, setStorageLocs] = useState([]); // 보관 로케이션 전체 (TO 후보의 모집단)
     const [confirmTargets, setConfirmTargets] = useState(null);
     const gridRef = useRef(null);
@@ -190,8 +190,7 @@ export default function StockMoveOrder() {
 
             {/* 검색 조건 */}
             <SearchBar cond={cond} setCond={setCond} onSearch={fetchStock}>
-                <SearchProd name="prodCd" label="상품 코드" placeholder="PROD-0001" />
-                <SearchText name="prodNm" label="상품명" placeholder="상품명 일부" />
+                <SearchProd name="prodCd" />
                 <SearchText name="locCd" label="로케이션" placeholder="DRY-A-01-01" />
                 <SearchText name="lotNo" label="Lot번호" placeholder="LOT-260722-001" />
             </SearchBar>

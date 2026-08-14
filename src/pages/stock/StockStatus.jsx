@@ -75,7 +75,7 @@ const StatTile = ({ label, value, accent }) => (
 
 export default function StockStatus() {
     const [rowData, setRowData] = useState([]);
-    const [cond, setCond] = useState({ prodCd: '', prodNm: '', locCd: '', lotNo: '', tmpZon: '', locTyp: '' });
+    const [cond, setCond] = useState({ prodCd: '', locCd: '', lotNo: '', tmpZon: '', locTyp: '' });
 
     const fetchList = async () => {
         const data = await invApi.list(cond);
@@ -117,8 +117,7 @@ export default function StockStatus() {
 
             {/* 검색 조건 */}
             <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
-                <SearchProd name="prodCd" label="상품 코드" placeholder="PROD-0001" />
-                <SearchText name="prodNm" label="상품명" placeholder="상품명 일부" />
+                <SearchProd name="prodCd" />
                 <SearchText name="locCd" label="로케이션" placeholder="DRY-A-01-01" />
                 <SearchText name="lotNo" label="Lot번호" placeholder="LOT-260722-001" />
                 <SearchSelect name="tmpZon" label="온도대" options={TEMP_ZONE_OPTIONS} />

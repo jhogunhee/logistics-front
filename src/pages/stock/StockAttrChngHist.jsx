@@ -75,7 +75,7 @@ export default function StockAttrChngHist() {
 
             {/* 검색 조건 */}
             <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
-                <SearchProd name="prodCd" label="상품 코드" placeholder="PROD-0001" />
+                <SearchProd name="prodCd" />
                 <SearchText name="lotNo" label="Lot번호" placeholder="LOT-260722-001" />
                 <SearchDateRange from="chngFrom" to="chngTo" label="정정일" />
                 <SearchSelect name="rsnCd" label="사유" options={rsn.searchOptions} />

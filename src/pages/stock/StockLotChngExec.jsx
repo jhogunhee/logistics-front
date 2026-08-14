@@ -38,7 +38,7 @@ const isEntered = (r) => r.chngQty != null || r.newMfgDt !== '' || r.rsnCd !== '
  */
 export default function StockLotChngExec() {
     const [rowData, setRowData] = useState([]);
-    const [cond, setCond] = useState({ prodCd: '', prodNm: '', locCd: '', lotNo: '' });
+    const [cond, setCond] = useState({ prodCd: '', locCd: '', lotNo: '' });
     const [confirmTargets, setConfirmTargets] = useState(null);
     // 목적지 선택 모달 상태 — dest.row가 있으면 열림
     const [dest, setDest] = useState(null); // { row, cands: null(로딩)|[], mode: 'cand'|'manual', lotId, mfgDt, expiryDt }
@@ -270,8 +270,7 @@ export default function StockLotChngExec() {
 
             {/* 검색 조건 */}
             <SearchBar cond={cond} setCond={setCond} onSearch={fetchTargets}>
-                <SearchProd name="prodCd" label="상품 코드" placeholder="PROD-0001" />
-                <SearchText name="prodNm" label="상품명" placeholder="상품명 일부" />
+                <SearchProd name="prodCd" />
                 <SearchText name="locCd" label="로케이션" placeholder="DRY-A-01-01" />
                 <SearchText name="lotNo" label="Lot번호" placeholder="LOT-260722-001" />
             </SearchBar>

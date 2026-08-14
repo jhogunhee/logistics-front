@@ -197,7 +197,7 @@ export default function StockHoldList() {
             {/* 검색 조건 */}
             <SearchBar cond={cond} setCond={setCond} onSearch={() => fetchList()}>
                 <SearchText name="hldNo" label="보류번호" placeholder="HD-20260803-001" />
-                <SearchProd name="prodCd" label="상품 코드" placeholder="PROD-0001" />
+                <SearchProd name="prodCd" />
                 <SearchText name="locCd" label="로케이션" placeholder="DRY-A-01-01" />
                 <SearchSelect name="rsnCd" label="보류사유" options={hldRsn.searchOptions} />
                 <SearchSelect name="status" label="상태" options={STATUS_OPTIONS} />

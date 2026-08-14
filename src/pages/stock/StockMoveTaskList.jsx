@@ -189,7 +189,7 @@ export default function StockMoveTaskList() {
             {/* 검색 조건 */}
             <SearchBar cond={cond} setCond={setCond} onSearch={() => fetchList()}>
                 <SearchText name="invMovNo" label="지시번호" placeholder="MV-20260803-001" />
-                <SearchProd name="prodCd" label="상품 코드" placeholder="PROD-0001" />
+                <SearchProd name="prodCd" />
                 <SearchText name="fromLocCd" label="출발지" placeholder="DRY-A-01-01" />
                 <SearchText name="toLocCd" label="도착지" placeholder="DRY-B-01-01" />
                 <SearchSelect name="movDvsn" label="이동구분" options={DVSN_OPTIONS} />

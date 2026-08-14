@@ -55,7 +55,7 @@ const COLUMN_DEFS = [
 
 export default function InvHistory() {
     const [rowData, setRowData] = useState([]);
-    const [cond, setCond] = useState({ prodCd: '', prodNm: '', locCd: '', txTyp: '', rfnDocNo: '', dateFrom: '', dateTo: '' });
+    const [cond, setCond] = useState({ prodCd: '', locCd: '', txTyp: '', rfnDocNo: '', dateFrom: '', dateTo: '' });
 
     const fetchList = async () => {
         const data = await invHistApi.list(cond);
@@ -77,8 +77,7 @@ export default function InvHistory() {
 
             {/* 검색 조건 */}
             <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
-                <SearchProd name="prodCd" label="상품 코드" placeholder="PROD-0001" />
-                <SearchText name="prodNm" label="상품명" placeholder="상품명 일부" />
+                <SearchProd name="prodCd" />
                 <SearchText name="locCd" label="로케이션" placeholder="RCV-STAGE" />
                 <SearchSelect name="txTyp" label="유형" options={TX_TYPE_OPTIONS} />
                 <SearchText name="rfnDocNo" label="Ref No." placeholder="IB-20260717-001" />

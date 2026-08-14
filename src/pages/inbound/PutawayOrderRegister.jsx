@@ -71,7 +71,7 @@ const groupByOrder = (batches) => {
 export default function PutawayOrderRegister() {
     const [batches, setBatches] = useState([]);
     // 기본 기간 = 과거 7일 ~ 오늘. 이미 검수된 물건을 적치하는 화면이라 미래 날짜에는 대상이 없다
-    const [cond, setCond] = useState({ ibNo: '', dateFrom: daysAheadStr(-7), dateTo: todayStr(), prodCd: '', prodNm: '' });
+    const [cond, setCond] = useState({ ibNo: '', dateFrom: daysAheadStr(-7), dateTo: todayStr(), prodCd: '' });
     const [selectedIbNo, setSelectedIbNo] = useState(null);
     const [preview, setPreview] = useState(null);             // 전략 추천 결과 items
     const [confirmCreate, setConfirmCreate] = useState(null); // 지시 생성 확인 대상 (배정이 있는 item들)
@@ -311,18 +311,7 @@ export default function PutawayOrderRegister() {
                         />
                     </div>
                 </SearchItem>
-                <SearchProd name="prodCd" label="상품 코드" placeholder="PROD-0001" />
-                <SearchItem label="상품명">
-                    <input
-                        type="text"
-                        value={cond.prodNm}
-                        onChange={(e) => setCond(prev => ({ ...prev, prodNm: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="상품명 일부"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-            </SearchBar>
+                <SearchProd name="prodCd" />            </SearchBar>
 
             <PanelGroup direction="vertical" autoSaveId="wms-putaway-order-split-v1" className="flex-1 min-h-0">
                 {/* 상단: 입고건 */}

@@ -30,7 +30,7 @@ const StatusBadge = ({ value }) => {
 export default function PutawayTaskList() {
     const [rowData, setRowData] = useState([]);
     // 기본 상태 = 지시 — 이 탭의 유일한 동작(취소)이 가능한 상태다
-    const [cond, setCond] = useState({ ibNo: '', prodCd: '', prodNm: '', toLocCd: '', status: 'DIRECTED' });
+    const [cond, setCond] = useState({ ibNo: '', prodCd: '', toLocCd: '', status: 'DIRECTED' });
     const [cancelTarget, setCancelTarget] = useState(null);
 
     const fetchList = async () => {
@@ -140,18 +140,7 @@ export default function PutawayTaskList() {
                         className="w-full input-base"
                     />
                 </SearchItem>
-                <SearchProd name="prodCd" label="상품 코드" placeholder="PROD-0001" />
-                <SearchItem label="상품명">
-                    <input
-                        type="text"
-                        value={cond.prodNm}
-                        onChange={(e) => setCond(prev => ({ ...prev, prodNm: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="상품명 일부"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
-                <SearchItem label="대상 로케이션">
+                <SearchProd name="prodCd" />                <SearchItem label="대상 로케이션">
                     <input
                         type="text"
                         value={cond.toLocCd}

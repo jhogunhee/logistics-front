@@ -79,26 +79,39 @@ export function SearchText({ name, label, placeholder, required, wide }) {
  * 그냥 치고, 모르면 팝업에서 골라 채운다. 팝업 선택은 정확한 코드 하나를 넣을 뿐이라
  * 서버 검색 API(contains)는 그대로 통한다.
  */
-export function SearchProd({ name = 'prodCd', label = '상품 코드', placeholder = 'PROD-0001', required, wide }) {
+export function SearchProd({ name = 'prodCd', label = '상품', placeholder = 'PROD-0001', required, wide = true }) {
     const { cond, setCond, onSearch } = useContext(SearchBarCtx);
     const [pickerOpen, setPickerOpen] = useState(false);
+    // 팝업에서 고른 상품 — 화면에는 명칭을 보여주고 검색키는 코드(cond[name])로 나간다.
+    // cond의 코드가 이 상품의 코드와 같을 때만 유효로 판정해, 조건이 다른 경로로 바뀌어도 표시가 어긋나지 않는다
+    const [picked, setPicked] = useState(null);
+    const isPicked = picked != null && cond[name] === picked.prodCd;
     const setValue = (v) => setCond(prev => ({ ...prev, [name]: v }));
     return (
         <SearchItem label={label} required={required} wide={wide}>
             <div className="relative">
                 <input
                     type="text"
-                    value={cond[name]}
-                    onChange={(e) => setValue(e.target.value)}
+                    value={isPicked ? picked.prodNm : cond[name]}
+                    title={isPicked ? picked.prodCd : undefined}
+                    onChange={(e) => {
+                        // 명칭이 표시된 상태에서 타이핑하면 선택을 풀고 빈 코드 입력으로 돌아간다
+                        if (isPicked) {
+                            setPicked(null);
+                            setValue('');
+                            return;
+                        }
+                        setValue(e.target.value);
+                    }}
                     onKeyDown={(e) => e.key === 'Enter' && onSearch()}
                     placeholder={placeholder}
-                    className="w-full input-base pr-12"
+                    className={`w-full input-base pr-12 ${isPicked ? 'text-indigo-700 font-medium' : ''}`}
                 />
                 <div className="absolute inset-y-0 right-2 flex items-center gap-0.5">
                     {cond[name] && (
                         <button
                             type="button"
-                            onClick={() => setValue('')}
+                            onClick={() => { setPicked(null); setValue(''); }}
                             title="지우기"
                             className="p-0.5 text-slate-300 hover:text-slate-500">
                             <X size={13} />
@@ -116,7 +129,10 @@ export function SearchProd({ name = 'prodCd', label = '상품 코드', placehold
             <ProdPickerModal
                 open={pickerOpen}
                 onClose={() => setPickerOpen(false)}
-                onSelect={(p) => setValue(p.prodCd)}
+                onSelect={(p) => {
+                    setPicked({ prodCd: p.prodCd, prodNm: p.prodNm });
+                    setValue(p.prodCd);
+                }}
             />
         </SearchItem>
     );

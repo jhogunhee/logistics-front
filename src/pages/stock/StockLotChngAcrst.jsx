@@ -91,7 +91,7 @@ export default function StockLotChngAcrst() {
             {/* 검색 조건 */}
             <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
                 <SearchText name="lotChngNo" label="로트변경 번호" placeholder="LC-20260813-001" />
-                <SearchProd name="prodCd" label="상품 코드" placeholder="PROD-0001" />
+                <SearchProd name="prodCd" />
                 <SearchText name="locCd" label="로케이션" placeholder="DRY-A-01-01" />
                 <SearchText name="lotNo" label="Lot번호" placeholder="원·새 어느 쪽이든" />
                 <SearchSelect name="rsnCd" label="사유" options={rsn.searchOptions} />

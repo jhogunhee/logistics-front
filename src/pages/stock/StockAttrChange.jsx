@@ -39,7 +39,7 @@ const toEditableRow = (r) => ({
 
 const isChanged = (r) => r.mfgDt !== r._mfgDt0 || r.expiryDt !== r._expiryDt0;
 
-const INIT_COND = { prodCd: '', prodNm: '', lotNo: '', expiryFrom: '', expiryTo: '', onlyInStock: true };
+const INIT_COND = { prodCd: '', lotNo: '', expiryFrom: '', expiryTo: '', onlyInStock: true };
 
 // API가 거르는 것은 ''·null뿐이라, 체크를 풀었으면 여기서 조건 자체를 빼야 한다
 const listParams = (cond) => ({ ...cond, onlyInStock: cond.onlyInStock || undefined });
@@ -229,8 +229,7 @@ export default function StockAttrChange() {
 
             {/* 검색 조건 */}
             <SearchBar cond={cond} setCond={setCond} onSearch={() => fetchTargets()}>
-                <SearchProd name="prodCd" label="상품 코드" placeholder="PROD-0001" />
-                <SearchText name="prodNm" label="상품명" placeholder="상품명 일부" />
+                <SearchProd name="prodCd" />
                 <SearchText name="lotNo" label="Lot번호" placeholder="LOT-260722-001" />
                 <SearchDateRange from="expiryFrom" to="expiryTo" label="유통기한" />
                 <SearchItem label="조회 범위">

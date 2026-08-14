@@ -252,7 +252,7 @@ export default function Allocation() {
             <SearchBar cond={cond} setCond={setCond} onSearch={search}>
                 <SearchText name="wavNo" label="웨이브번호" placeholder="WV-20260803-001" />
                 <SearchText name="outbNo" label="출고번호" placeholder="OB-20260803-001" />
-                <SearchProd name="prodCd" label="상품코드" placeholder="PROD-0001" />
+                <SearchProd name="prodCd" />
                 <SearchText name="storeCd" label="점포코드" placeholder="ST-0001" />
                 <SearchDateRange from="expctDeFrom" to="expctDeTo" label="출고예정일" />
             </SearchBar>

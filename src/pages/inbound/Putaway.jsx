@@ -41,7 +41,7 @@ const COLUMN_DEFS = [
 export default function Putaway() {
     const [rowData, setRowData] = useState([]);
     const [selected, setSelected] = useState(null);
-    const [cond, setCond] = useState({ ibNo: '', dateFrom: '', dateTo: '', prodCd: '', prodNm: '' });
+    const [cond, setCond] = useState({ ibNo: '', dateFrom: '', dateTo: '', prodCd: '' });
     const [candidateLocs, setCandidateLocs] = useState([]);
     const [qty, setQty] = useState('');
     const [targetLocId, setTargetLocId] = useState('');
@@ -170,8 +170,7 @@ export default function Putaway() {
             <SearchBar cond={cond} setCond={setCond} onSearch={() => fetchList()}>
                 <SearchText name="ibNo" label="입고번호" placeholder="IB-20260717-001" />
                 <SearchDateRange from="dateFrom" to="dateTo" label="입고일자" />
-                <SearchProd name="prodCd" label="상품 코드" placeholder="PROD-0001" />
-                <SearchText name="prodNm" label="상품명" placeholder="상품명 일부" />
+                <SearchProd name="prodCd" />
             </SearchBar>
 
             <div className="flex-1 min-h-0 flex flex-col gap-3">

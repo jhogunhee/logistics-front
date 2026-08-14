@@ -21,7 +21,7 @@ const isEntered = (r) => r.qty != null || r.rsnCd !== '';
 
 export default function StockHoldRegister() {
     const [rowData, setRowData] = useState([]);
-    const [cond, setCond] = useState({ prodCd: '', prodNm: '', locCd: '', lotNo: '' });
+    const [cond, setCond] = useState({ prodCd: '', locCd: '', lotNo: '' });
     const rsn = useCodes('HLD_RSN'); // 보류사유
     const [confirmTargets, setConfirmTargets] = useState(null);
     const gridRef = useRef(null);
@@ -184,8 +184,7 @@ export default function StockHoldRegister() {
 
             {/* 검색 조건 */}
             <SearchBar cond={cond} setCond={setCond} onSearch={fetchStock}>
-                <SearchProd name="prodCd" label="상품 코드" placeholder="PROD-0001" />
-                <SearchText name="prodNm" label="상품명" placeholder="상품명 일부" />
+                <SearchProd name="prodCd" />
                 <SearchText name="locCd" label="로케이션" placeholder="DRY-A-01-01" />
                 <SearchText name="lotNo" label="Lot번호" placeholder="LOT-260722-001" />
             </SearchBar>
