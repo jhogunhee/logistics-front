@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Loader2, ServerCrash, RotateCw } from 'lucide-react';
 
 const BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-const PROBE_PATH = '/master/codes/groups';
+const PROBE_PATH = '/master/code-groups';
 
 // 깨어 있는 서버는 수백 ms 안에 답한다. 그보다 오래 걸리면 기동 중이므로 안내를 띄운다.
 const BANNER_AFTER_MS = 1200;

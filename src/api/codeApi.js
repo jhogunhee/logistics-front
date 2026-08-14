@@ -5,7 +5,7 @@ export const codeApi = {
     /** 그룹 목록. 응답: [{ grpCd, grpNm, dscr }] (grpCd 순).
      *  그룹 자체는 조회만 한다 — 스키마와 함께 결정되는 값이라 화면에서 늘리지 않는다 */
     groups() {
-        return api.get('/master/codes/groups');
+        return api.get('/master/code-groups');
     },
 
     /** 그룹의 코드 목록. 응답: [{ codeCd, codeNm, srtSeq }] (srtSeq 순). 화면 콤보박스가 쓴다 */
@@ -15,7 +15,7 @@ export const codeApi = {
 
     /** 그룹 일괄 저장. 그룹코드는 신규 행에서만, 삭제는 하위 코드가 없을 때만 (서버가 판정) */
     saveGroups(rows) {
-        return api.post('/master/codes/groups/bulk', rows);
+        return api.post('/master/code-groups/bulk', rows);
     },
 
     /** 관리 화면용 검색 (코드/코드명 부분일치). cond: { codeCd, codeNm } */
