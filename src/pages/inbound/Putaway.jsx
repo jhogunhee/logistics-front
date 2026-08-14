@@ -23,7 +23,7 @@ const COLUMN_DEFS = [
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
         cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
     },
-    { field: 'lotNo', headerName: 'Lot번호', width: 130 },
+    { field: 'lotNo', headerName: 'Lot번호', width: 140 },
     { field: 'receiptDt', headerName: '입고일자', width: 110 },
     {
         field: 'expiryDt', headerName: '유통기한', width: 110,

@@ -33,7 +33,7 @@ const COLUMN_DEFS = [
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
         cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
     },
-    { field: 'lotNo', headerName: 'Lot번호', width: 130 },
+    { field: 'lotNo', headerName: 'Lot번호', width: 140 },
     {
         field: 'qty', headerName: '수량', width: 90,
         cellClass: (p) => `ag-right-aligned-cell font-bold ${p.value < 0 ? 'text-red-500' : 'text-emerald-600'}`,

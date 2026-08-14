@@ -64,7 +64,7 @@ export default function StockMoveOrder() {
             cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
         },
         { field: 'locCd', headerName: '로케이션', width: 130 },
-        { field: 'lotNo', headerName: 'Lot번호', width: 130 },
+        { field: 'lotNo', headerName: 'Lot번호', width: 140 },
         {
             field: 'expiryDt', headerName: '유통기한', width: 110,
             cellRenderer: (p) => p.value ?? <span className="text-slate-400">미관리</span>,

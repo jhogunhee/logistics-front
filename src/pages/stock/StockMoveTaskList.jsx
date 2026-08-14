@@ -65,7 +65,7 @@ export default function StockMoveTaskList() {
         },
         { field: 'prodCd', headerName: '상품 코드', width: 115 },
         { field: 'prodNm', headerName: '상품명', flex: 1, minWidth: 160 },
-        { field: 'lotNo', headerName: 'Lot번호', width: 130 },
+        { field: 'lotNo', headerName: 'Lot번호', width: 140 },
         {
             headerName: '이동 (FROM → TO)', width: 220,
             cellRenderer: (p) => (
