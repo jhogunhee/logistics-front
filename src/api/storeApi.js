@@ -2,9 +2,15 @@
 import api from '@/utils/axios';
 
 export const storeApi = {
-    /** 전체 목록 (점포코드 순). 응답: [{ storeId, storeCd, storeNm, outbLifeRate }]
-     *  조회 전용이다 — 점포 관리 화면이 아직 없어 서버에도 등록·수정 경로가 없다 */
-    list() {
-        return api.get('/master/stores');
+    /** 목록 조회. cond: { storeCd, storeNm } — 빈 값 조건은 빼고 보낸다.
+     *  인자 없이 부르면 전체 (납품처 선택 팝업이 이 형태로 쓴다) */
+    list(cond = {}) {
+        const params = Object.fromEntries(Object.entries(cond).filter(([, v]) => v));
+        return api.get('/master/stores', { params });
+    },
+
+    /** 일괄저장 (생성·수정·삭제 한 번에). 벤더/상품 마스터와 같은 방식 */
+    saveAll(rows) {
+        return api.post('/master/stores/bulk', rows);
     },
 };

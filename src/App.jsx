@@ -10,6 +10,7 @@ import UomMaster from "@/pages/master/UomMaster.jsx";
 import ZonMaster from "@/pages/master/ZonMaster.jsx";
 import LocMaster from "@/pages/master/LocMaster.jsx";
 import VendorMaster from "@/pages/master/VendorMaster.jsx";
+import StoreMaster from "@/pages/master/StoreMaster.jsx";
 import NbrRuleMaster from "@/pages/master/NbrRuleMaster.jsx";
 import CodeMaster from "@/pages/master/CodeMaster.jsx";
 import InspectionPolicy from "@/pages/strategy/InspectionPolicy.jsx";
@@ -97,7 +98,7 @@ export default function App() {
                         <Route path="/master/zone" element={<ZonMaster/>}/>
                         <Route path="/master/location" element={<LocMaster/>}/>
                         <Route path="/master/vendor" element={<VendorMaster/>}/>
-                        <Route path="/master/store" element={<Placeholder title="점포 관리"/>}/>
+                        <Route path="/master/store" element={<StoreMaster/>}/>
                         <Route path="/master/nbr-rules" element={<NbrRuleMaster/>}/>
                         <Route path="/master/codes" element={<CodeMaster/>}/>
 
