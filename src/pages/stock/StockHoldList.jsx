@@ -45,7 +45,7 @@ export default function StockHoldList() {
         { field: 'prodCd', headerName: '상품 코드', width: 115 },
         { field: 'prodNm', headerName: '상품명', flex: 1, minWidth: 160 },
         { field: 'locCd', headerName: '로케이션', width: 125 },
-        { field: 'lotNo', headerName: 'Lot번호', width: 130 },
+        { field: 'lotNo', headerName: 'Lot번호', width: 140 },
         {
             field: 'rsnCd', headerName: '보류사유', width: 130,
             cellRenderer: (p) => (

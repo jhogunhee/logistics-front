@@ -35,7 +35,7 @@ const COLUMN_DEFS = [
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
         cellRenderer: (p) => <Badge meta={LOC_TYPE_META} value={p.value} show="label" />,
     },
-    { field: 'lotNo', headerName: 'Lot번호', width: 130 },
+    { field: 'lotNo', headerName: 'Lot번호', width: 140 },
     {
         field: 'expiryDt', headerName: '유통기한', width: 110,
         headerTooltip: 'Lot 유통기한. FEFO 할당 기준값',

@@ -129,7 +129,7 @@ export default function StockLotChngExec() {
         { field: 'prodCd', headerName: '상품 코드', width: 115 },
         { field: 'prodNm', headerName: '상품명', flex: 1, minWidth: 150 },
         { field: 'locCd', headerName: '로케이션', width: 120 },
-        { field: 'lotNo', headerName: '원 Lot번호', width: 135 },
+        { field: 'lotNo', headerName: '원 Lot번호', width: 140 },
         {
             field: 'receiptDt', headerName: '입고일자', width: 105, cellClass: 'text-slate-500',
             headerTooltip: '입고일자는 바뀌지 않는다 — 새 제조일자는 이 날짜를 넘을 수 없다',

@@ -83,7 +83,7 @@ export default function StockCountDetail({ stktkId, onBack }) {
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
             cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
         },
-        { field: 'lotNo', headerName: 'Lot번호', width: 130 },
+        { field: 'lotNo', headerName: 'Lot번호', width: 140 },
         {
             field: 'expiryDt', headerName: '유통기한', width: 105,
             cellRenderer: (p) => p.value ?? <span className="text-slate-400">미관리</span>,

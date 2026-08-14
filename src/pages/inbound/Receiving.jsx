@@ -329,7 +329,7 @@ export default function Receiving() {
                 ? 'ag-right-aligned-cell line-through text-slate-400'
                 : 'ag-right-aligned-cell',
         },
-        { field: 'lotNo', headerName: 'Lot번호', width: 130 },
+        { field: 'lotNo', headerName: 'Lot번호', width: 140 },
         { field: 'receiptDt', headerName: '입고일자', width: 110 },
         {
             field: 'mfgDt', headerName: '제조일자', width: 110,
