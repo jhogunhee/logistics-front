@@ -5,17 +5,19 @@ import { asnApi } from '@/api/asnApi';
 import { putawayApi } from '@/api/putawayApi';
 import { prodApi } from '@/api/prodApi';
 import { invHistApi } from '@/api/invHistApi';
-import { ASN_STATUS_META, TX_TYPE_META } from '@/constants/badgeMeta';
+import { ASN_PRGR_META, TX_TYPE_META } from '@/constants/badgeMeta';
 import { fmtDt, num, todayStr } from '@/utils/format';
 
 
-
-const STATUS_ORDER = ['SCHEDULED', 'RECEIVING', 'RECEIVED', 'COMPLETED'];
+// 분포는 저장 상태(3값)가 아니라 진행 5단계 파생값(prgr)으로 그린다 — 저장 상태로는
+// 검수·적치·확정대기가 전부 「입고중」 한 칸에 뭉쳐 분포라 할 게 없다
+const STATUS_ORDER = ['SCHEDULED', 'RECEIVING', 'PTAWY_DRCT', 'PTAWY_CMPL', 'CONFIRMED'];
 const STATUS_BAR_COLOR = {
     SCHEDULED: 'bg-slate-300',
     RECEIVING: 'bg-amber-400',
-    RECEIVED: 'bg-sky-400',
-    COMPLETED: 'bg-emerald-400',
+    PTAWY_DRCT: 'bg-indigo-400',
+    PTAWY_CMPL: 'bg-sky-400',
+    CONFIRMED: 'bg-emerald-400',
 };
 
 const StatCard = ({ title, value, icon: Icon, hint }) => (
@@ -45,7 +47,7 @@ const StatusDistribution = ({ asns }) => {
     const total = asns.length;
     const counts = STATUS_ORDER.map(status => ({
         status,
-        count: asns.filter(a => a.status === status).length,
+        count: asns.filter(a => a.prgr === status).length,
     }));
 
     if (total === 0) {
@@ -60,7 +62,7 @@ const StatusDistribution = ({ asns }) => {
                         key={c.status}
                         className={STATUS_BAR_COLOR[c.status]}
                         style={{ width: `${(c.count / total) * 100}%` }}
-                        title={`${ASN_STATUS_META[c.status].label} ${num(c.count)}건`}
+                        title={`${ASN_PRGR_META[c.status].label} ${num(c.count)}건`}
                     />
                 ))}
             </div>
@@ -68,7 +70,7 @@ const StatusDistribution = ({ asns }) => {
                 {counts.map(c => (
                     <div key={c.status} className="flex items-center gap-1.5 text-xs">
                         <span className={`w-2 h-2 rounded-full ${STATUS_BAR_COLOR[c.status]}`} />
-                        <span className="text-slate-500">{ASN_STATUS_META[c.status].label}</span>
+                        <span className="text-slate-500">{ASN_PRGR_META[c.status].label}</span>
                         <span className="font-bold text-slate-700">{num(c.count)}</span>
                     </div>
                 ))}
@@ -126,7 +128,8 @@ export default function Dashboard() {
     }, []);
 
     const todayAsnCount = asns.filter(a => a.expctDe === todayStr()).length;
-    const receivingCount = asns.filter(a => a.status === 'RECEIVING').length;
+    // 진행 단계 기준 — 저장 상태 RECEIVING은 적치 중·확정대기까지 포함해 「검수중」보다 넓다
+    const receivingCount = asns.filter(a => a.prgr === 'RECEIVING').length;
 
     return (
         <div className="flex flex-col gap-5">

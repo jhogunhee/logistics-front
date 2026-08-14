@@ -66,7 +66,7 @@ const MENU = [
             { to: "/inbound/receiving", label: "입고검수", icon: ClipboardCheck, keywords: "검수 수령 receiving lot 제조일자" },
             { to: "/inbound/putaway-order", label: "적치지시", icon: ListChecks, keywords: "putaway 지시 로케이션 배정" },
             { to: "/inbound/putaway", label: "적치", icon: PackageOpen, keywords: "putaway 이동 보관" },
-            { to: "/inbound/close", label: "입고확정", icon: CheckCircle2, keywords: "마감 close 결품" },
+            { to: "/inbound/confirm", label: "입고확정", icon: CheckCircle2, keywords: "확정 confirm 결품 마감" },
         ],
     },
     {

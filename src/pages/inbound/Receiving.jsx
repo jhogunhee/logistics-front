@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import { ClipboardCheck, History, Search } from 'lucide-react';
+import { ClipboardCheck, History, Search, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import SearchBar, { SearchItem, SearchText, SearchDateRange } from '@/components/common/SearchBar';
@@ -97,18 +97,18 @@ export default function Receiving() {
         })));
     };
 
-    // 검수 작업 화면이므로 검수/취소가 아직 의미 있는 것만 보여준다 (적치까지 끝난 COMPLETED는 제외)
+    // 검수 작업 화면이므로 검수/취소가 아직 의미 있는 것만 보여준다 (확정된 입고는 닫힌 문서라 제외)
     const fetchList = async (keepSelection = false) => {
         const data = await asnApi.list(cond);
-        const rows = data.filter(a => ['SCHEDULED', 'RECEIVING', 'RECEIVED'].includes(a.status));
+        const rows = data.filter(a => a.status !== 'CONFIRMED');
         setRowData(rows);
 
         if (!keepSelection) {
             clearDetail();
             return;
         }
-        // 선택한 건의 헤더 값(상태·검수 진행)도 새로 받은 것으로 바꾼다 — 옛 상태를 들고 있으면
-        // 전량 검수로 「입고확정」이 된 뒤에도 입력이 열려 있는 것처럼 보인다
+        // 선택한 건의 헤더 값(상태·검수 진행)도 새로 받은 것으로 바꾼다 — 옛 값을 들고 있으면
+        // 검수 진행·잔량 표시가 방금 저장한 것과 어긋나 보인다
         const fresh = rows.find(a => a.ibOrderId === selectedAsn?.ibOrderId) ?? null;
         setSelectedAsn(fresh);
         if (fresh) {
@@ -122,7 +122,7 @@ export default function Receiving() {
     // 최초 1회 조회 (검색조건 기본값 = 오늘 ~ +7일)
     useEffect(() => {
         asnApi.list(cond).then(data => {
-            setRowData(data.filter(a => ['SCHEDULED', 'RECEIVING', 'RECEIVED'].includes(a.status)));
+            setRowData(data.filter(a => a.status !== 'CONFIRMED'));
         });
     }, []);
 
@@ -299,7 +299,8 @@ export default function Receiving() {
 
     // ── 검수 이력 / 취소 ─────────────────────────────────────
     // 이력은 입고건 단위로 한 번에 받는다. 취소하면 라인 수량이 바뀌므로 목록·라인도 함께 다시 읽는다.
-    const canCancelReceipt = !!selectedAsn && ['RECEIVING', 'RECEIVED'].includes(selectedAsn.status);
+    // 확정된 입고는 결품까지 못박힌 닫힌 문서라 취소 불가 (서버도 같은 검증을 한다)
+    const canCancelReceipt = !!selectedAsn && selectedAsn.status === 'RECEIVING';
 
     const doCancelReceipt = async (receipt) => {
         try {
@@ -359,7 +360,7 @@ export default function Receiving() {
             <div className="flex items-center gap-2">
                 <ClipboardCheck size={18} className="text-indigo-600" />
                 <h2 className="text-lg font-bold text-slate-800">입고 검수</h2>
-                <span className="text-xs text-slate-400 mt-0.5">검수 대상(입고예정/검수중/마감)만 표시 · 합격분은 RCV-STAGE로 입고 · 적치 전까지는 검수 취소 가능</span>
+                <span className="text-xs text-slate-400 mt-0.5">확정 전 입고만 표시 · 합격분은 RCV-STAGE로 입고 · 검수 취소는 확정 전, 적치 안 된 수량만 가능</span>
             </div>
 
             {/* 검색 조건 */}

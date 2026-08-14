@@ -24,6 +24,7 @@ import AsnList from "@/pages/inbound/AsnList.jsx";
 import Receiving from "@/pages/inbound/Receiving.jsx";
 import PutawayOrder from "@/pages/inbound/PutawayOrder.jsx";
 import Putaway from "@/pages/inbound/Putaway.jsx";
+import InboundConfirm from "@/pages/inbound/InboundConfirm.jsx";
 import StockStatus from "@/pages/stock/StockStatus.jsx";
 import InvHistory from "@/pages/stock/InvHistory.jsx";
 import StockMove from "@/pages/stock/StockMove.jsx";
@@ -64,7 +65,7 @@ export default function App() {
                         {/* 적치 2단계(지시 발행 → 실행). 메뉴는 하나 — 화면 안 탭으로 등록/관리를 오간다 */}
                         <Route path="/inbound/putaway-order" element={<PutawayOrder/>}/>
                         <Route path="/inbound/putaway" element={<Putaway/>}/>
-                        <Route path="/inbound/close" element={<Placeholder title="입고확정"/>}/>
+                        <Route path="/inbound/confirm" element={<InboundConfirm/>}/>
 
                         {/* 재고 */}
                         <Route path="/stock/status" element={<StockStatus/>}/>

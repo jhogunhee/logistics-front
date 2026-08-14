@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 
 import SearchBar, { SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
 import { asnApi } from '@/api/asnApi';
-import { ASN_STATUS_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
+import { ASN_PRGR_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { ASN_STATUS_OPTIONS } from '@/constants/codeOptions';
 import { Badge } from '@/components/common/Badge';
 import { eaQtyPerInbUomOf } from '@/api/prodApi';
@@ -22,9 +22,12 @@ const HEADER_COLUMN_DEFS = [
     { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
     { field: 'ibNo', headerName: '입고번호', width: 170 },
     {
-        field: 'status', headerName: '입고진행상태', width: 130,
+        // 진행 5단계(예정/검수/적치지시/적치완료/확정) — 저장 상태가 아니라 서버가 수량·적치지시에서
+        // 파생시킨 값(prgr)이다. 저장 상태는 3값뿐이라 목록에서 「어디까지 왔나」를 말하기엔 성기다
+        field: 'prgr', headerName: '진행단계', width: 130,
+        headerTooltip: '수량·적치지시에서 계산한 진행 단계. 적치완료는 확정 대기라는 뜻이다 — 입고확정 화면에서 닫는다',
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-        cellRenderer: (p) => <Badge meta={ASN_STATUS_META} value={p.value} show="label" />,
+        cellRenderer: (p) => <Badge meta={ASN_PRGR_META} value={p.value} show="label" />,
     },
     { field: 'vndrNm', headerName: '벤더', flex: 1, minWidth: 110 },
     { field: 'expctDe', headerName: '입고 예정일', width: 120 },
@@ -50,7 +53,7 @@ const HEADER_COLUMN_DEFS = [
     },
     {
         field: 'cfmDt', headerName: '확정일시', width: 150,
-        headerTooltip: '입고가 확정(마감)된 시각. 비어 있으면 아직 진행 중이다',
+        headerTooltip: '입고확정 버튼을 누른 시각. 비어 있으면 아직 진행 중이다',
         cellRenderer: (p) => (p.value ? fmtDt(p.value) : <span className="text-slate-300">—</span>),
     },
 ];
@@ -65,13 +68,13 @@ const LINE_COLUMN_DEFS = [
         cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
     },
     {
-        // 라인에도 진행상태를 둔다 — 수량 셋을 눈으로 비교해야 알던 것을 뱃지 하나로 읽는다.
+        // 라인에도 진행 단계를 둔다 — 수량 셋을 눈으로 비교해야 알던 것을 뱃지 하나로 읽는다.
         // 서버가 수량에서 파생시켜 내려주는 값이고(IbLine#progressStatus) 저장된 컬럼이 아니다.
-        // 헤더와 같은 IbStatus라 뱃지 메타를 그대로 쓴다 — 헤더 상태가 왜 그 값인지 여기서 보인다.
-        field: 'status', headerName: '입고진행상태', width: 130,
-        headerTooltip: '예정·검수·적치 수량에서 파생. 검수 축을 먼저 본다 — 덜 왔으면(검수 < 예정) 온 것을 다 적치했어도 검수중이다',
+        // 헤더 진행단계와 같은 IbPrgr라 뱃지 메타를 그대로 쓴다 — 헤더가 왜 그 값인지 여기서 보인다.
+        field: 'status', headerName: '진행단계', width: 130,
+        headerTooltip: '예정·검수·적치 수량에서 계산. 검수 축을 먼저 본다 — 덜 왔으면(검수 < 예정) 온 것을 다 적치했어도 검수다',
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-        cellRenderer: (p) => <Badge meta={ASN_STATUS_META} value={p.value} show="label" />,
+        cellRenderer: (p) => <Badge meta={ASN_PRGR_META} value={p.value} show="label" />,
     },
     // 잔량(예정−검수) 컬럼은 두지 않는다 — 이 그리드는 입고·적치 두 축이 함께 나오는 유일한
     // 자리라 「잔량」이 어느 쪽에서 빼는 값인지 위치로 오해된다. 예정과 검수가 나란히 있으니
@@ -137,7 +140,8 @@ export default function AsnList() {
             {/* 검색 조건 */}
             <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
                 <SearchText name="ibNo" label="입고번호" placeholder="IB-20260717-001" />
-                <SearchSelect name="status" label="입고진행상태" options={ASN_STATUS_OPTIONS} />
+                {/* 필터는 저장 상태 3값이다 — 진행단계(5단계 파생)는 저장돼 있지 않아 서버가 eq로 거를 수 없다 */}
+                <SearchSelect name="status" label="상태" options={ASN_STATUS_OPTIONS} />
                 <SearchDateRange from="dateFrom" to="dateTo" label="입고예정일" />
             </SearchBar>
 

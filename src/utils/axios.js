@@ -3,7 +3,9 @@ import toast from 'react-hot-toast';
 
 const instance = axios.create({
     baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080', // wms-backend 주소
-    timeout: 5000,
+    // DB가 원격(Supabase)이라 검수 저장·지시 발행처럼 쿼리가 많은 트랜잭션은 5초를 넘긴다 —
+    // 5000으로 두면 서버는 성공했는데 화면만 실패 토스트를 띄우는 어긋남이 실제로 났다
+    timeout: 30000,
 });
 
 // [요청 인터셉터] 서버로 보내기 전 공통 작업

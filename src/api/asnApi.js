@@ -3,9 +3,11 @@ import api from '@/utils/axios';
 
 export const asnApi = {
     /** 헤더 목록 조회. cond: { ibNo, status, dateFrom, dateTo } — 빈 값 조건은 빼고 보낸다.
-     *  lineCount/cmplLineCount와 수량 합계는 서버가 라인에서 파생시켜 내려준다
+     *  status 필터는 저장 상태 3값(SCHEDULED/RECEIVING/CONFIRMED)이고, 응답의 prgr는
+     *  진행 5단계(IbPrgr — 예정/검수/적치지시/적치완료/확정) 파생값이다.
+     *  lineCount/cmplLineCount와 수량 합계(totalExpct/totalRcvd/totalPtawyQty)도 서버가 라인에서 파생시켜 내려준다
      *  (cmplLineCount는 착수한 라인이 아니라 전량 검수를 마친 라인 수 — 입고검수 화면이 쓴다).
-     *  inspDt는 라인 검수일시의 최댓값(inv_hist RECEIVE 기준)이고, cfmDt는 ib_order.cfm_dt다. */
+     *  inspDt는 라인 검수일시의 최댓값(inv_hist RECEIVE 기준)이고, cfmDt는 입고확정 버튼을 누른 시각이다. */
     list(cond = {}) {
         const params = Object.fromEntries(Object.entries(cond).filter(([, v]) => v));
         return api.get('/inbound/asns', { params });
@@ -27,9 +29,10 @@ export const asnApi = {
         return api.post(`/inbound/asns/${ibOrderId}/receive`, payload);
     },
 
-    /** 입고 마감 (RECEIVING → RECEIVED). 잔량(예정-검수)은 미입고로 확정 */
-    close(ibOrderId) {
-        return api.post(`/inbound/asns/${ibOrderId}/close`);
+    /** 입고확정 (RECEIVING → CONFIRMED) — 유일한 종결 액션. 전제: 검수분 전량 적치.
+     *  잔량(예정-검수)은 결품으로 확정되고, 이후 검수·검수취소·지시생성이 막힌다 */
+    confirm(ibOrderId) {
+        return api.post(`/inbound/asns/${ibOrderId}/confirm`);
     },
 
     /** 입고건 전체의 검수 이력(RECEIVE 건, 최근 순) — 검수 화면의 「검수 이력」 탭 */

@@ -52,13 +52,23 @@ export const OMS_IB_STATUS_META = {
     CONFIRMED: { label: '확정', badge: 'bg-emerald-100 text-emerald-700' },
 };
 
-/** ASN 상태 표시 메타 (라벨/뱃지 색) — 백엔드 IbStatus와 1:1.
+/** ASN 저장 상태 표시 메타 — 백엔드 IbStatus와 1:1. 사건 셋만 저장한다(생성/검수 시작/사람이 확정).
+ *  진행 단계(적치지시·적치완료 등)는 상태가 아니라 파생값이다 — 아래 ASN_PRGR_META.
  *  취소 상태는 없다 — 확정취소가 ASN 행을 삭제한다 (omsIbOrderApi.cancelConfirm) */
 export const ASN_STATUS_META = {
     SCHEDULED: { label: '입고예정', badge: 'bg-slate-100 text-slate-600' },
-    RECEIVING: { label: '검수중',   badge: 'bg-amber-100 text-amber-700' },
-    RECEIVED:  { label: '입고확정', badge: 'bg-sky-100 text-sky-700' },
-    COMPLETED: { label: '적치완료', badge: 'bg-emerald-100 text-emerald-700' },
+    RECEIVING: { label: '입고중',   badge: 'bg-amber-100 text-amber-700' },
+    CONFIRMED: { label: '입고확정', badge: 'bg-emerald-100 text-emerald-700' },
+};
+
+/** ASN 진행 5단계 표시 메타 — 백엔드 IbPrgr와 1:1. 저장값이 아니라 수량·적치지시에서
+ *  매번 계산해 내려오는 값이다(헤더 prgr, 라인 status). 양끝 세 토큰은 IbStatus와 같다 */
+export const ASN_PRGR_META = {
+    SCHEDULED:  { label: '입고예정', badge: 'bg-slate-100 text-slate-600' },
+    RECEIVING:  { label: '검수',     badge: 'bg-amber-100 text-amber-700' },
+    PTAWY_DRCT: { label: '적치지시', badge: 'bg-indigo-100 text-indigo-700' },
+    PTAWY_CMPL: { label: '적치완료', badge: 'bg-sky-100 text-sky-700' },
+    CONFIRMED:  { label: '입고확정', badge: 'bg-emerald-100 text-emerald-700' },
 };
 
 
