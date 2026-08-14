@@ -1,4 +1,4 @@
-// 벤더(납품처) 마스터 API — wms-backend의 com.project.wmsback.master 연동
+// 벤더(납품처) 마스터 API — wms-backend의 com.project.mdm.vendor 연동
 import api from '@/utils/axios';
 
 export const vendorApi = {
