@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { History } from 'lucide-react';
 
-import SearchBar, { SearchText, SearchSelect, SearchProd } from '@/components/common/SearchBar';
+import SearchBar, { SearchText, SearchSelect, SearchProd, SearchLoc } from '@/components/common/SearchBar';
 import { invLotChngApi } from '@/api/invLotChngApi';
 import { useCodes } from '@/hooks/useCodes';
 import { LOT_ATTR_RSN_GRP } from '@/constants/rsnCodes';
@@ -92,7 +92,7 @@ export default function StockLotChngAcrst() {
             <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
                 <SearchText name="lotChngNo" label="로트변경 번호" placeholder="LC-20260813-001" />
                 <SearchProd name="prodCd" />
-                <SearchText name="locCd" label="로케이션" placeholder="DRY-A-01-01" />
+                <SearchLoc name="locCd" />
                 <SearchText name="lotNo" label="Lot번호" placeholder="원·새 어느 쪽이든" />
                 <SearchSelect name="rsnCd" label="사유" options={rsn.searchOptions} />
             </SearchBar>

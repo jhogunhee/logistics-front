@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { History } from 'lucide-react';
 
-import SearchBar, { SearchText, SearchSelect, SearchDateRange, SearchProd } from '@/components/common/SearchBar';
+import SearchBar, { SearchText, SearchSelect, SearchDateRange, SearchProd, SearchLoc } from '@/components/common/SearchBar';
 import { invHistApi } from '@/api/invHistApi';
 import { TEMP_ZONE_META, TX_TYPE_META } from '@/constants/badgeMeta';
 import { TX_TYPE_OPTIONS } from '@/constants/codeOptions';
@@ -78,7 +78,7 @@ export default function InvHistory() {
             {/* 검색 조건 */}
             <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
                 <SearchProd name="prodCd" />
-                <SearchText name="locCd" label="로케이션" placeholder="RCV-STAGE" />
+                <SearchLoc name="locCd" placeholder="RCV-STAGE" />
                 <SearchSelect name="txTyp" label="유형" options={TX_TYPE_OPTIONS} />
                 <SearchText name="rfnDocNo" label="Ref No." placeholder="IB-20260717-001" />
                 <SearchDateRange from="dateFrom" to="dateTo" label="생성일자" />

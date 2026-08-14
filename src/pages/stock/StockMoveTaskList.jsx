@@ -3,7 +3,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { ArrowRight, ClipboardList } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchText, SearchSelect, SearchProd } from '@/components/common/SearchBar';
+import SearchBar, { SearchText, SearchSelect, SearchProd, SearchLoc } from '@/components/common/SearchBar';
 import { invMovApi } from '@/api/invMovApi';
 import { INV_MOV_DVSN_META, INV_MOV_STATUS_META } from '@/constants/badgeMeta';
 import { Badge } from '@/components/common/Badge';
@@ -190,8 +190,8 @@ export default function StockMoveTaskList() {
             <SearchBar cond={cond} setCond={setCond} onSearch={() => fetchList()}>
                 <SearchText name="invMovNo" label="지시번호" placeholder="MV-20260803-001" />
                 <SearchProd name="prodCd" />
-                <SearchText name="fromLocCd" label="출발지" placeholder="DRY-A-01-01" />
-                <SearchText name="toLocCd" label="도착지" placeholder="DRY-B-01-01" />
+                <SearchLoc name="fromLocCd" label="출발지" />
+                <SearchLoc name="toLocCd" label="도착지" placeholder="DRY-B-01-01" />
                 <SearchSelect name="movDvsn" label="이동구분" options={DVSN_OPTIONS} />
                 <SearchSelect name="status" label="상태" options={STATUS_OPTIONS} />
             </SearchBar>

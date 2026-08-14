@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState } from 'react';
 import { Search, X } from "lucide-react";
 import DropdownSelect from './DropdownSelect';
 import ProdPickerModal from './ProdPickerModal';
+import LocPickerModal from './LocPickerModal';
 
 const SearchBarCtx = createContext(null);
 
@@ -133,6 +134,56 @@ export function SearchProd({ name = 'prodCd', label = '상품', placeholder = 'P
                     setPicked({ prodCd: p.prodCd, prodNm: p.prodNm });
                     setValue(p.prodCd);
                 }}
+            />
+        </SearchItem>
+    );
+}
+
+/**
+ * 검색 조건 로케이션 (SearchBar의 cond[name]에 바인딩 · Enter로 조회)
+ *
+ * 직접 타이핑과 돋보기 팝업 선택을 병행한다 — 로케이션 코드는 존-열-단-칸 체계라
+ * 앞부분 타이핑(부분일치)이 유효하고, 팝업 선택은 정확한 코드를 채울 뿐이라
+ * 서버 검색(contains)은 그대로 통한다. 상품(SearchProd)과 같은 패턴.
+ */
+export function SearchLoc({ name = 'locCd', label = '로케이션', placeholder = 'DRY-A-01-01', required, wide }) {
+    const { cond, setCond, onSearch } = useContext(SearchBarCtx);
+    const [pickerOpen, setPickerOpen] = useState(false);
+    const setValue = (v) => setCond(prev => ({ ...prev, [name]: v }));
+    return (
+        <SearchItem label={label} required={required} wide={wide}>
+            <div className="relative">
+                <input
+                    type="text"
+                    value={cond[name]}
+                    onChange={(e) => setValue(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && onSearch()}
+                    placeholder={placeholder}
+                    className="w-full input-base pr-12"
+                />
+                <div className="absolute inset-y-0 right-2 flex items-center gap-0.5">
+                    {cond[name] && (
+                        <button
+                            type="button"
+                            onClick={() => setValue('')}
+                            title="지우기"
+                            className="p-0.5 text-slate-300 hover:text-slate-500">
+                            <X size={13} />
+                        </button>
+                    )}
+                    <button
+                        type="button"
+                        onClick={() => setPickerOpen(true)}
+                        title="로케이션 팝업에서 선택"
+                        className="p-0.5 text-slate-400 hover:text-indigo-600">
+                        <Search size={14} />
+                    </button>
+                </div>
+            </div>
+            <LocPickerModal
+                open={pickerOpen}
+                onClose={() => setPickerOpen(false)}
+                onSelect={(l) => setValue(l.locCd)}
             />
         </SearchItem>
     );

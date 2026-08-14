@@ -3,7 +3,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { ClipboardList } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchItem, SearchProd } from '@/components/common/SearchBar';
+import SearchBar, { SearchItem, SearchLoc, SearchProd } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import { TEMP_ZONE_META } from '@/constants/badgeMeta';
@@ -140,16 +140,8 @@ export default function PutawayTaskList() {
                         className="w-full input-base"
                     />
                 </SearchItem>
-                <SearchProd name="prodCd" />                <SearchItem label="대상 로케이션">
-                    <input
-                        type="text"
-                        value={cond.toLocCd}
-                        onChange={(e) => setCond(prev => ({ ...prev, toLocCd: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="DRY-A-01-01"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
+                <SearchProd name="prodCd" />
+                <SearchLoc name="toLocCd" label="대상 로케이션" />
                 <SearchItem label="상태">
                     <DropdownSelect
                         value={cond.status}

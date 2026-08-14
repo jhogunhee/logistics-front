@@ -3,7 +3,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { Split, AlertTriangle, GitMerge } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchText, SearchProd } from '@/components/common/SearchBar';
+import SearchBar, { SearchText, SearchProd, SearchLoc } from '@/components/common/SearchBar';
 import SelectCellEditor from '@/components/common/SelectCellEditor';
 import { invLotChngApi } from '@/api/invLotChngApi';
 import { useCodes } from '@/hooks/useCodes';
@@ -271,7 +271,7 @@ export default function StockLotChngExec() {
             {/* 검색 조건 */}
             <SearchBar cond={cond} setCond={setCond} onSearch={fetchTargets}>
                 <SearchProd name="prodCd" />
-                <SearchText name="locCd" label="로케이션" placeholder="DRY-A-01-01" />
+                <SearchLoc name="locCd" />
                 <SearchText name="lotNo" label="Lot번호" placeholder="LOT-260722-001" />
             </SearchBar>
 
