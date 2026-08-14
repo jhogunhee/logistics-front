@@ -20,11 +20,24 @@ import VendorPickerModal from '@/components/common/VendorPickerModal';
 // 입고단위로 딱 안 떨어지는 값(단위 변경 전 데이터)은 소수로 그대로 보여준다 — 반올림해서 감추면 잔량이 왜곡된다
 const inInbUom = (eaQty, line) => Math.round((eaQty / eaQtyPerInbUomOf(line)) * 100) / 100;
 
-// 검수 이력 등 낱개(EA) 저장값 1건 표시: 입고단위로 떨어지면 "N BOX", 아니면 낱개 그대로 "N EA"
+// 유통기한 미리보기 = 제조일자 + 유통기한일수 — 서버 계산(LotIssuer: mfgDt.plusDays(shelfLifeDays))과 같은 식.
+// 문자열 파싱으로 로컬 날짜를 만든다 (new Date('YYYY-MM-DD')는 UTC라 KST에서 하루 밀릴 수 있다)
+const expiryPreview = (mfgDt, shelfLifeDays) => {
+    if (!mfgDt || shelfLifeDays == null) return null;
+    const [y, m, d] = mfgDt.split('-').map(Number);
+    const dt = new Date(y, m - 1, d + shelfLifeDays);
+    const p = (n) => String(n).padStart(2, '0');
+    return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}`;
+};
+
+// 검수 이력 등 낱개(EA) 저장값 1건 표시: 입고단위로 떨어지면 "2 BOX (48 EA)" 병기, 아니면 낱개 그대로 "N EA".
+// EA를 병기하는 이유 — 취소·재고 대조 시점엔 재고(EA)에서 얼마나 빠지는지가 보여야 한다.
+// 입력 그리드에는 EA를 노출하지 않는다(셀 때는 세는 단위 하나만) — 병기는 장부를 만지는 자리 몫이다
 const fmtStoredQty = (eaQty, line) => {
     if (!line) return `${num(eaQty)}개`;
     const unit = eaQtyPerInbUomOf(line);
-    return eaQty % unit === 0 ? `${num(eaQty / unit)} ${line.inbUomCd}` : `${num(eaQty)} EA`;
+    if (unit <= 1 || eaQty % unit !== 0) return `${num(eaQty)} EA`;
+    return `${num(eaQty / unit)} ${line.inbUomCd} (${num(eaQty)} EA)`;
 };
 
 const HEADER_COLUMN_DEFS = [
@@ -49,7 +62,8 @@ const HEADER_COLUMN_DEFS = [
     // 헤더의 「검수 진행」이 세는 것은 착수한 라인이 아니라 전량 검수를 마친 라인이다
     // (분할검수 중인 라인은 끝날 때까지 세지 않는다)
     {
-        field: 'createdAt', headerName: '등록시간', width: 150,
+        field: 'inspDt', headerName: '최종 검수일시', width: 150,
+        headerTooltip: '이 입고건에서 마지막으로 검수한 시각 — 검수중인 건이 여럿일 때 하다 만 건을 찾는다',
         valueFormatter: (p) => fmtDt(p.value),
     },
 ];
@@ -143,6 +157,11 @@ export default function Receiving() {
         { field: 'prodCd', headerName: '상품 코드', width: 105 },
         { field: 'prodNm', headerName: '상품명', flex: 1, minWidth: 180 },
         {
+            field: 'tmpZon', headerName: '온도대', width: 90,
+            cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+            cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
+        },
+        {
             field: 'inbUomCd', headerName: '단위', width: 64,
             headerTooltip: '검수 입력 단위 = 입고단위(발주단위). 예정/잔량/검수누계도 이 단위로 환산해 표시',
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
@@ -194,30 +213,20 @@ export default function Receiving() {
             cellClass: 'bg-indigo-50',
             headerTooltip: '실제 입고된 날 (소급 등록 시 과거로 변경). Lot 번호 채번 기준',
         },
-        {
-            // 입력 3종(검수수량·제조일자·입고일자) 뒤에 둔다 — 입력 컬럼 사이에 끼우면 탭 이동이 끊긴다
-            headerName: '낱개환산', width: 95,
-            headerTooltip: '검수수량 × 입고단위 입수량 — 입력 확인용 낱개(EA) 환산',
-            valueGetter: (p) => {
-                const n = Number(p.data._inspectQty);
-                return n > 0 ? n * eaQtyPerInbUomOf(p.data) : null;
-            },
-            valueFormatter: (p) => num(p.value),
-            cellClass: (p) => p.value != null && eaQtyPerInbUomOf(p.data) > 1
-                ? 'ag-right-aligned-cell text-indigo-600 font-bold'
-                : 'ag-right-aligned-cell text-slate-500',
-        },
+        // 낱개환산 컬럼은 뺐다 — 입력 중에는 입고단위 하나만 보인다. EA가 필요한 순간은
+        // 저장 확인 모달(낱개 합계)과 검수 이력의 병기 표기가 맡는다.
         // 검수누계·검수이력 컬럼은 두지 않는다 — 잔량 = 예정 − 누계라 셋 중 둘이면 충분하고,
         // 누계 확인과 취소는 「검수 이력」 탭이 통째로 맡는다
         {
-            field: 'shelfLifeDays', headerName: '유통기한', width: 95, cellClass: 'ag-right-aligned-cell',
-            headerTooltip: '유통기한 일수. 서버가 제조일자 + 이 일수로 유통기한을 계산해 Lot에 기록',
-            cellRenderer: (p) => p.value == null ? <span className="text-slate-400">미관리</span> : num(p.value),
-        },
-        {
-            field: 'tmpZon', headerName: '온도대', width: 90,
-            cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-            cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
+            // 일수(마스터값)가 아니라 계산된 만료일을 보여준다 — 제조일자를 넣는 순간 서버가 Lot에
+            // 기록할 값이 미리 보여, 연도 오타 같은 오입력을 이 자리에서 잡는다. 입력 전에는 일수를 흐리게
+            headerName: '유통기한', width: 110, cellClass: 'ag-right-aligned-cell',
+            headerTooltip: '제조일자 + 유통기한일수 — 저장 시 Lot에 기록될 만료일 미리보기. 제조일자 입력 전에는 일수 표시',
+            valueGetter: (p) => expiryPreview(p.data._mfgDt, p.data.shelfLifeDays),
+            cellRenderer: (p) => {
+                if (p.data.shelfLifeDays == null) return <span className="text-slate-400">미관리</span>;
+                return p.value ?? <span className="text-slate-400">{num(p.data.shelfLifeDays)}일</span>;
+            },
         },
     ];
 
@@ -321,8 +330,8 @@ export default function Receiving() {
         { field: 'prodCd', headerName: '상품 코드', width: 105 },
         { field: 'prodNm', headerName: '상품명', flex: 1, minWidth: 180 },
         {
-            headerName: '검수수량', width: 110,
-            headerTooltip: '이 건에서 검수한 수량 (입고단위). 취소된 건은 취소선으로 표시된다',
+            headerName: '검수수량', width: 150,
+            headerTooltip: '이 건에서 검수한 수량 — 입고단위, 괄호는 재고에서 빠질 낱개(EA) 환산. 취소된 건은 취소선으로 표시된다',
             valueGetter: (p) => fmtStoredQty(p.data.qty, p.data),
             // 취소된 건은 수량에 줄을 긋는다 — 흐리게만 두면 훑을 때 유효한 건과 섞여 보인다
             cellClass: (p) => p.data.cancelled
