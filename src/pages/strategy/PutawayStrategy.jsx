@@ -8,10 +8,11 @@ import ProdPickerModal from '@/components/common/ProdPickerModal';
 import ComponentPicker from '@/components/strategy/ComponentPicker';
 import ConditionBuilder from '@/components/strategy/ConditionBuilder';
 import ExecutionHistory from '@/components/strategy/ExecutionHistory';
+import PutawayStageTrace from '@/components/strategy/PutawayStageTrace';
 import RevisionHistory from '@/components/strategy/RevisionHistory';
 import SortableList from '@/components/strategy/SortableList';
 import SortCriteriaEditor from '@/components/strategy/SortCriteriaEditor';
-import { useOptions } from '@/components/strategy/useOptions';
+import { useOptions, usePutawayMethods } from '@/components/strategy/useOptions';
 import { strategyApi } from '@/api/strategyApi';
 import { putawayApi } from '@/api/putawayApi';
 import { num } from '@/utils/format';
@@ -33,7 +34,6 @@ export default function PutawayStrategy() {
     const [baseline, setBaseline] = useState('');        // 마지막 저장 상태 스냅샷 — dirty 판정 기준
 
     // 메타 (방식·조건 필드·정렬 기준·적용대상 선택지)
-    const [methods, setMethods] = useState([]);
     const [targetFields, setTargetFields] = useState([]);   // 단계 조건 필드
     const [sortFields, setSortFields] = useState([]);       // 후보 정렬 기준 (loc_srt)
     const odrOptions = useOptions('odrDvsns');              // 적용대상 발주구분 (정상/긴급)
@@ -53,12 +53,12 @@ export default function PutawayStrategy() {
     const [prodPickerOpen, setProdPickerOpen] = useState(false);
     const [previewResult, setPreviewResult] = useState(null);
 
+    const methods = usePutawayMethods();
     const methodOf = (code) => methods.find(m => m.code === code);
 
     const fetchList = () => strategyApi.putawayStrategies.list().then(setRows);
 
     useEffect(() => {
-        strategyApi.meta.putawayMethods().then(setMethods);
         strategyApi.meta.fields('putaway-target').then(setTargetFields);
         strategyApi.meta.sortFields('putaway-loc').then(setSortFields);
         fetchList();
@@ -449,24 +449,8 @@ export default function PutawayStrategy() {
                                 </div>
                             )}
 
-                            {/* 단계별 trace — "게이트 표" */}
-                            {previewResult.trace?.stages?.map((st, si) => (
-                                <div key={si} className="border border-slate-200 rounded-lg overflow-hidden">
-                                    <div className="px-3 py-1.5 bg-slate-50 flex items-center gap-2 text-xs">
-                                        <span className="font-bold text-slate-600">단계 {si + 1} · {methodOf(st.mthdCd)?.name ?? st.mthdCd}</span>
-                                        <span className={`font-bold ${st.gate === 'PASS' ? 'text-emerald-600' : 'text-slate-400'}`}>{st.gate}</span>
-                                    </div>
-                                    {(st.locs ?? []).map((l, li) => (
-                                        <div key={li} className="px-3 py-1 border-t border-slate-100 flex items-center justify-between text-[11px]">
-                                            <span className="font-mono text-slate-500">{l.locCd}</span>
-                                            <span className="text-slate-400">
-                                                가능 {num(l.avalQty)} · 배정 <b className={l.asgnQty > 0 ? 'text-emerald-600' : 'text-slate-400'}>{num(l.asgnQty)}</b>
-                                                {l.skip && <span className="text-rose-400 ml-1">({l.skip})</span>}
-                                            </span>
-                                        </div>
-                                    ))}
-                                </div>
-                            ))}
+                            {/* 단계별 trace — "게이트 표". 실행 이력 모달과 같은 컴포넌트 */}
+                            <PutawayStageTrace trace={previewResult.trace} />
                         </div>
                     )}
                 </div>

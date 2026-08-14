@@ -24,6 +24,26 @@ export function useFields(domain) {
     return (domain && fieldCache.get(domain)) || [];
 }
 
+// 적치 방식 메타 캐시 (배포본이 바뀌기 전엔 고정 — 편집 폼과 판정 근거 표가 같이 쓴다)
+let methodCache = null;
+
+/** 적치 방식 메타 로딩 훅. [{ code, name, dscr, deprecated }] */
+export function usePutawayMethods() {
+    const [, force] = useState(0);
+
+    useEffect(() => {
+        if (methodCache) return;
+        let ignore = false;
+        strategyApi.meta.putawayMethods().then(data => {
+            methodCache = data;
+            if (!ignore) force(n => n + 1);
+        });
+        return () => { ignore = true; };
+    }, []);
+
+    return methodCache || [];
+}
+
 /** 동적 선택지 로딩 훅. source가 없으면(직접입력 필드) 빈 배열 */
 export function useOptions(source) {
     // 값은 캐시에서 렌더 중에 읽고, 없을 때만 비동기 로드 후 리렌더를 트리거한다

@@ -4,6 +4,7 @@ import { ChevronDown, ChevronRight, ScrollText, X } from 'lucide-react';
 import { strategyApi } from '@/api/strategyApi';
 import { fmtDt, num } from '@/utils/format';
 import AllocPlanTrace from './AllocPlanTrace';
+import PutawayStageTrace from './PutawayStageTrace';
 import WaveOrderTrace from './WaveOrderTrace';
 
 const TRGR_LABELS = { MANUAL: '화면 조작', AUTO: '자동', PREVIEW: '미리보기' };
@@ -123,30 +124,9 @@ function Trace({ stgyTyp, trace }) {
         );
     }
 
-    // 적치: 단계 × 후보
+    // 적치: 단계 × 후보 (미리보기 패널과 같은 구조라 같은 컴포넌트를 쓴다)
     if (stgyTyp === 'PTAWY' && trace.stages) {
-        return (
-            <div className="flex flex-col gap-1.5">
-                <span className="text-[11px] font-bold text-slate-600">요청 {num(trace.reqQty)} · 배정 {num(trace.asgnQty)}</span>
-                {trace.stages.map((st, si) => (
-                    <div key={si} className="bg-white border border-slate-200 rounded-lg overflow-hidden">
-                        <div className="px-2.5 py-1 text-[11px] bg-slate-50 flex items-center gap-2">
-                            <span className="font-bold text-slate-600">단계 {si + 1} · {st.mthdCd}</span>
-                            <span className={`font-bold ${st.gate === 'PASS' ? 'text-emerald-600' : 'text-slate-400'}`}>{st.gate}</span>
-                        </div>
-                        {(st.locs ?? []).map((l, li) => (
-                            <div key={li} className="px-2.5 py-1 border-t border-slate-100 flex items-center justify-between text-[11px]">
-                                <span className="font-mono text-slate-500">{l.locCd}</span>
-                                <span className="text-slate-400">
-                                    가능 {num(l.avalQty)} · 배정 <b className={l.asgnQty > 0 ? 'text-emerald-600' : 'text-slate-400'}>{num(l.asgnQty)}</b>
-                                    {l.skip && <span className="text-rose-400 ml-1">({l.skip})</span>}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
-                ))}
-            </div>
-        );
+        return <PutawayStageTrace trace={trace} />;
     }
 
     // 웨이브: 주문 × 조건그룹
