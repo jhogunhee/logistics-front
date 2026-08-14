@@ -33,8 +33,6 @@ export default function ServerWakeGate({ children }) {
 
     useEffect(() => {
         let cancelled = false;
-        setFailed(false);
-        setElapsed(0);
 
         const bannerTimer = setTimeout(() => !cancelled && setShowBanner(true), BANNER_AFTER_MS);
         const ticker = setInterval(() => !cancelled && setElapsed((s) => s + 1), 1000);
@@ -75,7 +73,13 @@ export default function ServerWakeGate({ children }) {
                     </p>
                 </div>
                 <button
-                    onClick={() => { setShowBanner(false); setRound((n) => n + 1); }}
+                    onClick={() => {
+                        // 상태 초기화는 이펙트가 아니라 여기서 — 마운트 시점엔 이미 초기값이라 재시도 때만 필요하다
+                        setFailed(false);
+                        setElapsed(0);
+                        setShowBanner(false);
+                        setRound((n) => n + 1);
+                    }}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50"
                 >
                     <RotateCw size={14} />
