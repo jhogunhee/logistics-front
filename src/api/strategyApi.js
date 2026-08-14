@@ -13,9 +13,9 @@ export const strategyApi = {
             return api.get('/strategy/meta/putaway-methods');
         },
         /**
-         * 할당 슬롯의 구현체 목록 (백엔드 AlocRstrct·AlocSrt·AlocDstrb enum).
-         * slotTyp: 'RSTRCT' | 'INVN_SRT' | 'ODR_SRT' | 'DSTRB'
-         * — 'INVN_FLTR'은 구현체 축이 없어 빈 배열이 온다(정의 전체가 조건이다).
+         * 할당 슬롯의 구현체 목록 (백엔드 AlocRstrct·AlocDstrb enum). slotTyp: 'RSTRCT' | 'DSTRB'
+         * — 구현체 축이 없는 'INVN_FLTR'(정의 전체가 조건) · 'INVN_SRT' · 'ODR_SRT'
+         * (정의 전체가 정렬 기준 목록)는 빈 배열이 온다.
          */
         allocationComponents(slotTyp) {
             return api.get(`/strategy/meta/allocation-components/${slotTyp}`);
