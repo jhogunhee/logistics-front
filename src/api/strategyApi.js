@@ -163,8 +163,18 @@ export const strategyApi = {
         return api.get(`/strategy/revisions/${rvsnNo}`, { params: { stgyTyp, stgyId } });
     },
 
-    /** 실행 로그. stgyTyp: 'INSP' | 'PTAWY' | 'WAV' | 'ALOC' */
-    executions(stgyTyp, stgyId) {
-        return api.get('/strategy/executions', { params: { stgyTyp, ...(stgyId ? { stgyId } : {}) } });
+    /**
+     * 실행 로그. stgyTyp: 'INSP' | 'PTAWY' | 'WAV' | 'ALOC'.
+     * trgrTyps를 주지 않으면 서버가 실행 기록만(MANUAL·AUTO) 돌려준다 —
+     * 미리보기 기록까지 보려면 ['MANUAL','AUTO','PREVIEW']처럼 명시한다.
+     */
+    executions(stgyTyp, stgyId, trgrTyps) {
+        return api.get('/strategy/executions', {
+            params: {
+                stgyTyp,
+                ...(stgyId ? { stgyId } : {}),
+                ...(trgrTyps?.length ? { trgrTyp: trgrTyps.join(',') } : {}),
+            },
+        });
     },
 };
