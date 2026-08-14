@@ -193,7 +193,6 @@ export default function PutawayStrategy() {
                 return;
             }
             payload.ibLineId = batch.ibLineId;
-            payload.lotId = batch.lotId;
         } else {
             if (!previewTarget.prod) {
                 toast.error('상품을 선택하세요.');
