@@ -143,6 +143,8 @@ export default function AsnList() {
             {/* 검색 조건 */}
             <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
                 <SearchText name="ibNo" label="입고번호" placeholder="IB-20260717-001" />
+                {/* 필터는 저장 상태(3값)가 아니라 그리드 뱃지와 같은 진행단계(5단계 파생)다 — 서버가 파생 후 거른다 */}
+                <SearchSelect name="prgr" label="진행단계" options={ASN_PRGR_OPTIONS} />
                 <SearchItem label="벤더">
                     <button
                         type="button"
@@ -161,8 +163,6 @@ export default function AsnList() {
                             : <Search size={13} className="shrink-0 text-slate-400" />}
                     </button>
                 </SearchItem>
-                {/* 필터는 저장 상태(3값)가 아니라 그리드 뱃지와 같은 진행단계(5단계 파생)다 — 서버가 파생 후 거른다 */}
-                <SearchSelect name="prgr" label="진행단계" options={ASN_PRGR_OPTIONS} />
                 <SearchDateRange from="dateFrom" to="dateTo" label="입고예정일" />
             </SearchBar>
 
