@@ -109,13 +109,14 @@ export default function CodeMaster() {
         codeApi.groups().then(setGroups);
     }, []);
 
-    // 그룹 데이터가 처음 그려질 때 첫 행을 골라 둔다 (선택 이벤트가 하단 조회까지 이어진다).
-    // groups 상태가 아니라 그리드가 실제로 들고 있는 행 수를 보는 이유는, 이 핸들러가
-    // 데이터 도착 전에도 불릴 수 있어 닫힌 값(빈 배열)을 보게 되기 때문이다.
-    const selectFirstGroup = (p) => {
-        if (p.api.getDisplayedRowCount() > 0 && p.api.getSelectedRows().length === 0) {
-            p.api.getDisplayedRowAtIndex(0)?.setSelected(true);
-        }
+    // 그룹 데이터가 들어올 때마다: 선택이 없으면 selectedGroup(없으면 첫 행)을 그리드 선택에 맞춘다.
+    // onFirstDataRendered는 1회만 발화해 데이터보다 먼저 불리면 자동선택이 영영 누락되고,
+    // 저장 후 rowData 교체로 사라진 선택도 되살릴 수 없다 — 그래서 onRowDataUpdated에 매단다.
+    const syncGroupSelection = (p) => {
+        if (p.api.getDisplayedRowCount() === 0 || p.api.getSelectedRows().length > 0) return;
+        let match = null;
+        p.api.forEachNode(n => { if (!match && n.data.grpCd === selectedGroup?.grpCd) match = n; });
+        (match ?? p.api.getDisplayedRowAtIndex(0))?.setSelected(true);
     };
 
     /**
@@ -207,7 +208,11 @@ export default function CodeMaster() {
         try {
             await codeApi.saveGroups(dirty);
             toast.success(`그룹 ${dirty.length}건 저장했습니다.`);
-            setGroups(await codeApi.groups());
+            const next = await codeApi.groups();
+            setGroups(next);
+            // rowData 교체로 그리드 선택이 사라지고 selectedGroup은 옛 객체(옛 그룹명·삭제된 그룹)로
+            // 남는다 — 새 목록에서 같은 그룹을 되찾아 바꿔 끼운다 (그리드 선택은 syncGroupSelection이 잇는다)
+            setSelectedGroup(prev => prev ? next.find(g => g.grpCd === prev.grpCd) ?? null : null);
         } catch (e) {
             toast.error(e.message || '그룹 저장에 실패했습니다.');
         }
@@ -225,6 +230,8 @@ export default function CodeMaster() {
     // 정렬순서 기본값은 현재 최댓값 + 1 — 새 코드는 콤보박스 맨 뒤에 붙는 게 자연스럽다
     const handleAddRow = () => {
         if (!selectedGroup) { toast('위에서 그룹을 먼저 고르세요.'); return; }
+        // 미저장 신규 그룹은 서버에 없다 — 코드 저장이 /master/codes/{grpCd}/bulk로 나가므로 그룹 저장이 먼저다
+        if (selectedGroup._status === 'C') { toast('그룹을 먼저 저장하세요.'); return; }
         const api = gridRef.current.api;
         let maxSeq = 0;
         api.forEachNode(node => { maxSeq = Math.max(maxSeq, node.data.srtSeq ?? 0); });
@@ -261,6 +268,7 @@ export default function CodeMaster() {
 
     // ── 저장 ────────────────────────────────────────────────
     const handleSave = () => {
+        if (selectedGroup?._status === 'C') { toast.error('그룹을 먼저 저장하세요.'); return; }
         const rows = [];
         gridRef.current.api.forEachNode(node => rows.push(node.data));
         const dirty = rows.filter(r => r._status);
@@ -399,7 +407,7 @@ export default function CodeMaster() {
                             }}
                             stopEditingWhenCellsLoseFocus={true}
                             onCellValueChanged={onCellValueChanged}
-                            onFirstDataRendered={selectFirstGroup}
+                            onRowDataUpdated={syncGroupSelection}
                             onSelectionChanged={onGroupSelected}
                         />
                     </div>
