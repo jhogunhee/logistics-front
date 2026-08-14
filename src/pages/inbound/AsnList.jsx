@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Search, Truck, X } from 'lucide-react';
-import toast from 'react-hot-toast';
 
 import SearchBar, { SearchItem, SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
 import { asnApi } from '@/api/asnApi';
@@ -15,9 +14,6 @@ import { daysAheadStr, fmtDt, fmtInbQty, num, todayStr } from '@/utils/format';
 
 /** 라인 수량 셀 — 저장값은 낱개(EA)이고 표시는 「입고단위 (낱개)」다 */
 const inbQtyFmt = (p) => fmtInbQty(p.value, eaQtyPerInbUomOf(p.data), p.data?.inbUomCd);
-
-// 오늘 날짜 "YYYY-MM-DD" (검색 기본값)
-
 
 const HEADER_COLUMN_DEFS = [
     { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
@@ -34,9 +30,6 @@ const HEADER_COLUMN_DEFS = [
     { field: 'expctDe', headerName: '입고 예정일', width: 120 },
     {
         field: 'totalExpctQty', headerName: '예정수량(EA)', width: 110,
-        // 단위를 못 붙인 게 아니라 EA로 통일한 것이다 — 한 입고건에 BOX 상품과 EA 상품이
-        // 섞이면 합계에 붙일 단위가 낱개밖에 없다. 라벨에 박아둬야 사용자가 박스로 오해하지 않는다.
-        // 상품이 하나로 확정되는 라인 그리드에는 이 제약이 없다
         headerTooltip: '라인 예정수량의 합계. 상품마다 입고단위가 달라 낱개(EA)로 통일해 더한다',
         cellClass: 'ag-right-aligned-cell', valueFormatter: (p) => num(p.value),
     },
