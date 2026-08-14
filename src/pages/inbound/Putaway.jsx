@@ -3,7 +3,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { ArrowRight, PackageOpen, RefreshCw, Wand2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchText, SearchDateRange } from '@/components/common/SearchBar';
+import SearchBar, { SearchText, SearchDateRange, SearchProd } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import { putawayApi } from '@/api/putawayApi';
 import { TEMP_ZONE_META } from '@/constants/badgeMeta';
@@ -32,7 +32,7 @@ const COLUMN_DEFS = [
     },
     {
         field: 'pendingQty', headerName: '미적치', width: 100,
-        headerTooltip: 'RCV-STAGE에 남아있는, 아직 보관 로케이션으로 옮기지 않은 이 배치(Lot)의 수량',
+        headerTooltip: 'RCV-STAGE에 남아있는, 아직 보관 로케이션으로 옮기지 않은 이 Lot의 수량',
         cellClass: 'ag-right-aligned-cell text-amber-600 font-bold',
         valueFormatter: (p) => num(p.value),
     },
@@ -125,7 +125,7 @@ export default function Putaway() {
 
     const handlePutawayClick = () => {
         if (!selected) {
-            toast('적치할 배치를 선택하세요.');
+            toast('적치할 Lot을 선택하세요.');
             return;
         }
         const n = Number(qty);
@@ -170,7 +170,7 @@ export default function Putaway() {
             <SearchBar cond={cond} setCond={setCond} onSearch={() => fetchList()}>
                 <SearchText name="ibNo" label="입고번호" placeholder="IB-20260717-001" />
                 <SearchDateRange from="dateFrom" to="dateTo" label="입고일자" />
-                <SearchText name="prodCd" label="상품 코드" placeholder="PROD-0001" />
+                <SearchProd name="prodCd" label="상품 코드" placeholder="PROD-0001" />
                 <SearchText name="prodNm" label="상품명" placeholder="상품명 일부" />
             </SearchBar>
 
@@ -197,7 +197,7 @@ export default function Putaway() {
                 {/* 적치 실행 영역 */}
                 <div className="border border-slate-200 rounded-xl p-4 bg-white flex flex-col gap-3 shrink-0">
                     {!selected ? (
-                        <span className="text-xs text-slate-400">위에서 적치할 배치를 선택하세요.</span>
+                        <span className="text-xs text-slate-400">위에서 적치할 Lot을 선택하세요.</span>
                     ) : (
                         <>
                             <div className="flex items-center gap-2 text-sm">

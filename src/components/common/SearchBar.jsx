@@ -1,6 +1,7 @@
-import React, { createContext, useContext } from 'react';
-import { Search } from "lucide-react";
+import React, { createContext, useContext, useState } from 'react';
+import { Search, X } from "lucide-react";
 import DropdownSelect from './DropdownSelect';
+import ProdPickerModal from './ProdPickerModal';
 
 const SearchBarCtx = createContext(null);
 
@@ -66,6 +67,56 @@ export function SearchText({ name, label, placeholder, required, wide }) {
                 onKeyDown={(e) => e.key === 'Enter' && onSearch()}
                 placeholder={placeholder}
                 className="w-full input-base"
+            />
+        </SearchItem>
+    );
+}
+
+/**
+ * 검색 조건 상품 코드 (SearchBar의 cond[name]에 바인딩 · Enter로 조회)
+ *
+ * 직접 타이핑(부분일치 검색)과 돋보기 팝업 선택을 병행한다 — 코드를 아는 사용자는
+ * 그냥 치고, 모르면 팝업에서 골라 채운다. 팝업 선택은 정확한 코드 하나를 넣을 뿐이라
+ * 서버 검색 API(contains)는 그대로 통한다.
+ */
+export function SearchProd({ name = 'prodCd', label = '상품 코드', placeholder = 'PROD-0001', required, wide }) {
+    const { cond, setCond, onSearch } = useContext(SearchBarCtx);
+    const [pickerOpen, setPickerOpen] = useState(false);
+    const setValue = (v) => setCond(prev => ({ ...prev, [name]: v }));
+    return (
+        <SearchItem label={label} required={required} wide={wide}>
+            <div className="relative">
+                <input
+                    type="text"
+                    value={cond[name]}
+                    onChange={(e) => setValue(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && onSearch()}
+                    placeholder={placeholder}
+                    className="w-full input-base pr-12"
+                />
+                <div className="absolute inset-y-0 right-2 flex items-center gap-0.5">
+                    {cond[name] && (
+                        <button
+                            type="button"
+                            onClick={() => setValue('')}
+                            title="지우기"
+                            className="p-0.5 text-slate-300 hover:text-slate-500">
+                            <X size={13} />
+                        </button>
+                    )}
+                    <button
+                        type="button"
+                        onClick={() => setPickerOpen(true)}
+                        title="상품 팝업에서 선택"
+                        className="p-0.5 text-slate-400 hover:text-indigo-600">
+                        <Search size={14} />
+                    </button>
+                </div>
+            </div>
+            <ProdPickerModal
+                open={pickerOpen}
+                onClose={() => setPickerOpen(false)}
+                onSelect={(p) => setValue(p.prodCd)}
             />
         </SearchItem>
     );

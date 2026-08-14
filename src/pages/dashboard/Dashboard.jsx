@@ -138,7 +138,7 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard title="금일 입고예정" value={`${num(todayAsnCount)}건`} icon={Truck} hint={todayStr()} />
                 <StatCard title="검수중" value={`${num(receivingCount)}건`} icon={ClipboardCheck} hint="입고예정(ASN) 기준" />
-                <StatCard title="적치대기 배치" value={`${num(putawayPending.length)}건`} icon={PackageOpen} hint="RCV-STAGE 미적치" />
+                <StatCard title="적치대기 Lot" value={`${num(putawayPending.length)}건`} icon={PackageOpen} hint="RCV-STAGE 미적치" />
                 <StatCard title="등록 상품" value={`${num(prodCount)}종`} icon={Barcode} hint="마스터 기준" />
             </div>
 

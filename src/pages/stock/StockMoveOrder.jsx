@@ -3,7 +3,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { ArrowLeftRight, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchText } from '@/components/common/SearchBar';
+import SearchBar, { SearchText, SearchProd } from '@/components/common/SearchBar';
 import SelectCellEditor from '@/components/common/SelectCellEditor';
 import { invApi } from '@/api/invApi';
 import { invMovApi } from '@/api/invMovApi';
@@ -190,7 +190,7 @@ export default function StockMoveOrder() {
 
             {/* 검색 조건 */}
             <SearchBar cond={cond} setCond={setCond} onSearch={fetchStock}>
-                <SearchText name="prodCd" label="상품 코드" placeholder="PROD-0001" />
+                <SearchProd name="prodCd" label="상품 코드" placeholder="PROD-0001" />
                 <SearchText name="prodNm" label="상품명" placeholder="상품명 일부" />
                 <SearchText name="locCd" label="로케이션" placeholder="DRY-A-01-01" />
                 <SearchText name="lotNo" label="Lot번호" placeholder="LOT-260722-001" />

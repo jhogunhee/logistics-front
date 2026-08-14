@@ -3,7 +3,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { ClipboardList } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchItem } from '@/components/common/SearchBar';
+import SearchBar, { SearchItem, SearchProd } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import { TEMP_ZONE_META } from '@/constants/badgeMeta';
@@ -129,7 +129,7 @@ export default function PutawayTaskList() {
             </div>
 
             {/* 검색 조건 */}
-            <SearchBar label="검색" onSearch={() => fetchList()}>
+            <SearchBar label="검색" cond={cond} setCond={setCond} onSearch={() => fetchList()}>
                 <SearchItem label="입고번호">
                     <input
                         type="text"
@@ -140,16 +140,7 @@ export default function PutawayTaskList() {
                         className="w-full input-base"
                     />
                 </SearchItem>
-                <SearchItem label="상품 코드">
-                    <input
-                        type="text"
-                        value={cond.prodCd}
-                        onChange={(e) => setCond(prev => ({ ...prev, prodCd: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && fetchList()}
-                        placeholder="PROD-0001"
-                        className="w-full input-base"
-                    />
-                </SearchItem>
+                <SearchProd name="prodCd" label="상품 코드" placeholder="PROD-0001" />
                 <SearchItem label="상품명">
                     <input
                         type="text"
@@ -207,7 +198,7 @@ export default function PutawayTaskList() {
                     </p>
                     <p className="text-xs text-slate-400 font-mono">RCV-STAGE → {cancelTarget.toLocCd}</p>
                     <p className="text-xs text-slate-600 bg-slate-50 rounded-lg px-3 py-2 leading-relaxed">
-                        재고는 움직이지 않습니다 — 이 배치의 수량이 다시 「미지시」로 돌아가 새로 지시할 수 있게 됩니다.
+                        재고는 움직이지 않습니다 — 이 Lot의 수량이 다시 「미지시」로 돌아가 새로 지시할 수 있게 됩니다.
                     </p>
                 </ConfirmModal>
             )}

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { Box } from 'lucide-react';
 
-import SearchBar, { SearchText, SearchSelect } from '@/components/common/SearchBar';
+import SearchBar, { SearchText, SearchSelect, SearchProd } from '@/components/common/SearchBar';
 import { invApi } from '@/api/invApi';
 import { LOC_TYPE_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { Badge } from '@/components/common/Badge';
@@ -117,7 +117,7 @@ export default function StockStatus() {
 
             {/* 검색 조건 */}
             <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
-                <SearchText name="prodCd" label="상품 코드" placeholder="PROD-0001" />
+                <SearchProd name="prodCd" label="상품 코드" placeholder="PROD-0001" />
                 <SearchText name="prodNm" label="상품명" placeholder="상품명 일부" />
                 <SearchText name="locCd" label="로케이션" placeholder="DRY-A-01-01" />
                 <SearchText name="lotNo" label="Lot번호" placeholder="LOT-260722-001" />

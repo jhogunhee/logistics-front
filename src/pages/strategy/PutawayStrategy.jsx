@@ -189,7 +189,7 @@ export default function PutawayStrategy() {
         if (previewTarget.kind === 'batch') {
             const batch = batches.find(b => `${b.ibLineId}-${b.lotId}` === previewTarget.batchKey);
             if (!batch) {
-                toast.error('적치 대기 배치를 선택하세요.');
+                toast.error('적치 대기 Lot을 선택하세요.');
                 return;
             }
             payload.ibLineId = batch.ibLineId;
@@ -396,7 +396,7 @@ export default function PutawayStrategy() {
                         <label className="flex items-center gap-1.5 cursor-pointer">
                             <input type="radio" checked={previewTarget.kind === 'batch'}
                                    onChange={() => setPreviewTarget(prev => ({ ...prev, kind: 'batch' }))} />
-                            적치 대기 배치
+                            적치 대기 Lot
                         </label>
                         <label className="flex items-center gap-1.5 cursor-pointer">
                             <input type="radio" checked={previewTarget.kind === 'virtual'}
@@ -405,7 +405,7 @@ export default function PutawayStrategy() {
                         </label>
                     </div>
                     {previewTarget.kind === 'batch' ? (
-                        <DropdownSelect value={previewTarget.batchKey} options={batchOptions} placeholder="배치 선택"
+                        <DropdownSelect value={previewTarget.batchKey} options={batchOptions} placeholder="Lot 선택"
                                         onChange={(batchKey) => {
                                             const b = batches.find(x => `${x.ibLineId}-${x.lotId}` === batchKey);
                                             setPreviewTarget(prev => ({ ...prev, batchKey, qty: b ? String(b.pendingQty) : prev.qty }));

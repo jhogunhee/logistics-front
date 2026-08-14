@@ -3,7 +3,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { ListChecks, PlayCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchText, SearchSelect } from '@/components/common/SearchBar';
+import SearchBar, { SearchText, SearchSelect, SearchProd } from '@/components/common/SearchBar';
 import SelectCellEditor from '@/components/common/SelectCellEditor';
 import { invHldApi } from '@/api/invHldApi';
 import { ETC_RSN_CD } from '@/constants/rsnCodes';
@@ -197,7 +197,7 @@ export default function StockHoldList() {
             {/* 검색 조건 */}
             <SearchBar cond={cond} setCond={setCond} onSearch={() => fetchList()}>
                 <SearchText name="hldNo" label="보류번호" placeholder="HD-20260803-001" />
-                <SearchText name="prodCd" label="상품 코드" placeholder="PROD-0001" />
+                <SearchProd name="prodCd" label="상품 코드" placeholder="PROD-0001" />
                 <SearchText name="locCd" label="로케이션" placeholder="DRY-A-01-01" />
                 <SearchSelect name="rsnCd" label="보류사유" options={hldRsn.searchOptions} />
                 <SearchSelect name="status" label="상태" options={STATUS_OPTIONS} />

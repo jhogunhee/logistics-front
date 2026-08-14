@@ -3,7 +3,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { ClipboardCheck, Plus, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
+import SearchBar, { SearchText, SearchSelect, SearchDateRange, SearchProd } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import ProdPickerModal from '@/components/common/ProdPickerModal';
 import { invStktkApi } from '@/api/invStktkApi';
@@ -138,7 +138,7 @@ export default function StockCountList({ onOpen }) {
                 <SearchText name="stktkNo" label="조사번호" placeholder="ST-260803-001" />
                 <SearchSelect name="status" label="상태" options={STATUS_OPTIONS} />
                 <SearchSelect name="zonCd" label="존" options={zonOptions} />
-                <SearchText name="prodCd" label="상품 코드" placeholder="PROD-0001" />
+                <SearchProd name="prodCd" label="상품 코드" placeholder="PROD-0001" />
                 <SearchDateRange from="fromDe" to="toDe" label="생성일자" />
             </SearchBar>
 

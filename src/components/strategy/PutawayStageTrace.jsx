@@ -54,7 +54,7 @@ export default function PutawayStageTrace({ trace }) {
 function Occupancy({ loc }) {
     const parts = [];
     if (loc.inflowQty > 0) parts.push(`미완료 지시 ${num(loc.inflowQty)}`);
-    if (loc.crossQty > 0) parts.push(`앞선 배치 ${num(loc.crossQty)}`);
+    if (loc.crossQty > 0) parts.push(`앞선 Lot ${num(loc.crossQty)}`);
     if (!parts.length && !loc.warn) return null;
 
     return (
