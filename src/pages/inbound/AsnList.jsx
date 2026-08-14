@@ -19,8 +19,7 @@ const HEADER_COLUMN_DEFS = [
     { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
     { field: 'ibNo', headerName: '입고번호', width: 170 },
     {
-        // 진행 5단계(예정/검수/적치지시/적치완료/확정) — 저장 상태가 아니라 서버가 수량·적치지시에서
-        // 파생시킨 값(prgr)이다. 저장 상태는 3값뿐이라 목록에서 「어디까지 왔나」를 말하기엔 성기다
+        // 저장 상태(3값)가 아니라 서버가 수량·적치지시에서 파생시킨 5단계 — 3값으론 「어디까지 왔나」가 성기다
         field: 'prgr', headerName: '진행단계', width: 130,
         headerTooltip: '수량·적치지시에서 계산한 진행 단계. 적치완료는 확정 대기라는 뜻이다 — 입고확정 화면에서 닫는다',
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
@@ -33,13 +32,7 @@ const HEADER_COLUMN_DEFS = [
         headerTooltip: '라인 예정수량의 합계. 상품마다 입고단위가 달라 낱개(EA)로 통일해 더한다',
         cellClass: 'ag-right-aligned-cell', valueFormatter: (p) => num(p.value),
     },
-    // 헤더가 드는 수량은 예정수량 하나뿐이다. 진행은 수량이 아니라 「언제」로 표현한다 —
-    // 상태 뱃지가 단계를, 아래 두 일시가 시작과 끝을 말한다.
-    //
-    // 수량 진행(검수/적치 누계·잔량)을 헤더에 두지 않는 이유: 여러 상품이 섞인 합계는 단위가
-    // 낱개(EA)밖에 될 수 없어(입고단위는 상품 속성이라 헤더에 붙일 라벨이 없다) 진행 파악에
-    // 도움이 안 된다. 「얼마나 왔나」는 단위가 확정되는 라인 그리드가 맡는다 —
-    // 입고검수 화면이 같은 이유로 헤더 합계를 두지 않은 것과 같은 판단이다
+    // 헤더는 수량 대신 「언제」를 든다 — 상품이 섞인 합계는 EA밖에 안 돼 진행 파악에 안 쓰인다
     {
         field: 'inspDt', headerName: '검수일시', width: 150,
         headerTooltip: '최종 검수일시 — 라인들의 검수일시 중 가장 늦은 것. 마지막으로 검수가 움직인 때',
@@ -62,27 +55,18 @@ const LINE_COLUMN_DEFS = [
         cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
     },
     {
-        // 라인에도 진행 단계를 둔다 — 수량 셋을 눈으로 비교해야 알던 것을 뱃지 하나로 읽는다.
-        // 서버가 수량에서 파생시켜 내려주는 값이고(IbLine#progressStatus) 저장된 컬럼이 아니다.
-        // 헤더 진행단계와 같은 IbPrgr라 뱃지 메타를 그대로 쓴다 — 헤더가 왜 그 값인지 여기서 보인다.
+        // 서버가 수량에서 파생시킨 값(IbLine#progressStatus) — 헤더와 같은 IbPrgr라 헤더가 왜 그 단계인지 여기서 보인다
         field: 'status', headerName: '진행단계', width: 130,
         headerTooltip: '예정·검수·적치 수량에서 계산. 검수 축을 먼저 본다 — 덜 왔으면(검수 < 예정) 온 것을 다 적치했어도 검수다',
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
         cellRenderer: (p) => <Badge meta={ASN_PRGR_META} value={p.value} show="label" />,
     },
-    // 잔량(예정−검수) 컬럼은 두지 않는다 — 이 그리드는 입고·적치 두 축이 함께 나오는 유일한
-    // 자리라 「잔량」이 어느 쪽에서 빼는 값인지 위치로 오해된다. 예정과 검수가 나란히 있으니
-    // 차이는 그 자리에서 읽힌다. 잔량을 이름 그대로 쓰는 곳은 축이 하나뿐인 화면들이다
-    // (Receiving = 예정−검수, Allocation = 주문−할당, Putaway = 미적치)
-    // 세 수량은 「입고단위 (낱개)」로 보여준다 — 라인은 상품이 하나라 입고단위가 확정된다.
-    // 헤더 합계가 EA인 것과 어긋나 보이지 않게 괄호에 낱개를 늘 같이 적는다 (utils/format의 fmtInbQty)
+    // 잔량 컬럼은 두지 않는다 — 입고·적치 두 축이 함께 나오는 자리라 어느 쪽에서 뺀 값인지 오해된다
+    // 세 수량은 「입고단위 (낱개)」 표기 — 라인은 상품이 하나라 단위가 확정된다 (fmtInbQty)
     { field: 'expctQty', headerName: '예정수량', width: 140, cellClass: 'ag-right-aligned-cell', valueFormatter: inbQtyFmt },
     { field: 'rcvdQty', headerName: '검수수량', width: 140, cellClass: 'ag-right-aligned-cell', valueFormatter: inbQtyFmt },
     { field: 'ptawyQty', headerName: '적치완료', width: 140, cellClass: 'ag-right-aligned-cell', valueFormatter: inbQtyFmt },
-    // 라인 검수일시 컬럼은 두지 않는다 — 「언제」는 헤더 몫이고 여기는 「무엇이 얼마나」를 맡는다.
-    // 한 입고건은 보통 한 자리에서 한 번에 검수하므로 라인마다 헤더와 거의 같은 시각이 반복될 뿐이고,
-    // 값이 실제로 갈리는 분할입고에서는 오히려 칸 하나로 부족하다 (마지막 시각만 남아 몇 번에
-    // 나눠 왔는지가 사라진다). 그건 검수 이력이 답할 일이다 — asnApi.receipts()
+    // 라인 검수일시는 두지 않는다 — 분할입고면 마지막 시각만 남아 칸 하나로 부족하다 (검수 이력이 답할 일)
 ];
 
 export default function AsnList() {
@@ -100,7 +84,7 @@ export default function AsnList() {
         setLineRows([]);
     };
 
-    // 최초 1회 조회 (검색조건 기본값 = 오늘)
+    // 최초 1회 조회 (기본 기간 = 오늘 ~ +7일)
     useEffect(() => {
         asnApi.list(cond).then(setRowData);
     }, []);
@@ -117,9 +101,7 @@ export default function AsnList() {
         setLineRows(await asnApi.lines(node.data.ibOrderId));
     };
 
-    // 등록도 취소도 이 화면엔 없다. 입고예정의 생성/소멸은 입고주문 관리 화면의
-    // 주문확정 · 확정취소가 주관한다 — 여기서 예정만 없애면 주문 상태와 어긋나기 때문이다.
-    // 이 화면은 조회 전용이고, 실제 작업은 입고검수·적치 화면에서 이어진다.
+    // 등록도 취소도 없는 조회 전용 화면 — 예정만 없애면 주문 상태와 어긋나 OMS 입고주문이 주관한다
 
     return (
         // min-h — 노트북처럼 낮은 화면에선 그리드를 짜부라뜨리는 대신 카드 스크롤(Layout의 overflow-auto)이 생긴다
@@ -129,7 +111,7 @@ export default function AsnList() {
                 <Truck size={18} className="text-indigo-600" />
                 <h2 className="text-lg font-bold text-slate-800">입고예정(ASN)</h2>
                 <span className="text-xs text-slate-400 mt-0.5">
-                    조회 · 취소 — 등록은 입고주문 확정으로, 검수는 입고검수 화면에서
+                    조회 전용 — 등록·취소는 입고주문 확정에서, 검수는 입고검수 화면에서
                 </span>
             </div>
 
