@@ -7,9 +7,8 @@ import ProdPickerModal from '@/components/common/ProdPickerModal';
 import VendorPickerModal from '@/components/common/VendorPickerModal';
 import { omsIbOrderApi } from '@/api/omsIbOrderApi';
 import { useCodes } from '@/hooks/useCodes';
-import { eaQtyPerInbUomOf } from '@/api/prodApi';
 import { TEMP_ZONE_META } from '@/constants/badgeMeta';
-import { num, todayStr } from '@/utils/format';
+import { eaQtyPerInbUomOf, num, todayStr } from '@/utils/format';
 import DatePicker from '@/components/common/DatePicker';
 
 // 오늘 날짜 "YYYY-MM-DD" (입고 예정일 기본값)

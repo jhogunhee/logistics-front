@@ -6,10 +6,9 @@ import toast from 'react-hot-toast';
 
 import SearchBar, { SearchItem, SearchText, SearchDateRange } from '@/components/common/SearchBar';
 import { asnApi } from '@/api/asnApi';
-import { eaQtyPerInbUomOf } from '@/api/prodApi';
 import { ASN_STATUS_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { Badge } from '@/components/common/Badge';
-import { fmtDt, num, todayStr, daysAheadStr } from '@/utils/format';
+import { eaQtyPerInbUomOf, fmtDt, num, todayStr, daysAheadStr } from '@/utils/format';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import VendorPickerModal from '@/components/common/VendorPickerModal';
 import DateCellEditor from '@/components/common/DateCellEditor';

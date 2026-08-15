@@ -24,6 +24,16 @@ export const fmtDtSec = (v) => (v ? String(v).replace('T', ' ').slice(0, 19) : '
 export const num = (v) => (v == null || String(v).trim() === '' ? '' : Number(v).toLocaleString());
 
 /**
+ * 입고단위(발주단위) 1개 = 낱개(EA) 몇 개인가. 재고 저장 단위가 낱개(EA)라
+ * 이 값 하나로 화면의 모든 환산이 끝난다 — 「환산수량」 표시도, 검수 화면이
+ * 입고단위 입력값과 EA 저장값(예정/누계/이력) 사이를 오가는 것도 전부 이것이다.
+ *
+ * 상품 마스터 응답과 입고주문 라인 응답 모두 서버가 계산한 inbEaQty를 실어 온다.
+ * 값이 없으면 1 — 환산 없음으로 그리는 편이 NaN보다 낫고, 실제 저장은 서버가 막는다.
+ */
+export const eaQtyPerInbUomOf = (prodOrLine) => prodOrLine?.inbEaQty ?? 1;
+
+/**
  * 낱개(EA)로 저장된 수량을 「입고단위 (낱개)」로 표시 — "2 BOX (48)".
  *
  * 괄호에 낱개를 같이 적는 이유: 입고예정 목록의 헤더 합계는 EA로 낸다(상품마다 입고단위가
@@ -38,7 +48,7 @@ export const num = (v) => (v == null || String(v).trim() === '' ? '' : Number(v)
  *     그래서 소수로 뭉개는 대신 단위를 낱개로 떨어뜨려 "박스로 안 맞는 건"임을 드러낸다.
  *
  * @param eaQty     낱개 저장값
- * @param eaPerUnit 입고단위 1개의 낱개 수 (api/prodApi의 eaQtyPerInbUomOf)
+ * @param eaPerUnit 입고단위 1개의 낱개 수 (eaQtyPerInbUomOf)
  * @param uomCd     입고단위 코드 ("BOX" 등)
  */
 export const fmtInbQty = (eaQty, eaPerUnit, uomCd) => {

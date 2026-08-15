@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { Check, Package, Search, X } from 'lucide-react';
 
 import DropdownSelect from '@/components/common/DropdownSelect';
-import { eaQtyPerInbUomOf, prodApi } from '@/api/prodApi';
+import { prodApi } from '@/api/prodApi';
 import { TEMP_ZONE_META } from '@/constants/badgeMeta';
-import { num } from '@/utils/format';
+import { eaQtyPerInbUomOf, num } from '@/utils/format';
 
 const TEMP_ZONE_OPTIONS = [
     { value: '', label: '전체' },

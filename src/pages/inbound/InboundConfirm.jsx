@@ -9,8 +9,7 @@ import { asnApi } from '@/api/asnApi';
 import { ASN_PRGR_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { ASN_PRGR_OPTIONS } from '@/constants/codeOptions';
 import { Badge } from '@/components/common/Badge';
-import { eaQtyPerInbUomOf } from '@/api/prodApi';
-import { daysAheadStr, fmtDt, fmtInbQty, num, todayStr } from '@/utils/format';
+import { daysAheadStr, eaQtyPerInbUomOf, fmtDt, fmtInbQty, num } from '@/utils/format';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import VendorPickerModal from '@/components/common/VendorPickerModal';
 

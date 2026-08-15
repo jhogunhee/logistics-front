@@ -9,8 +9,7 @@ import { ASN_PRGR_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { ASN_PRGR_OPTIONS } from '@/constants/codeOptions';
 import VendorPickerModal from '@/components/common/VendorPickerModal';
 import { Badge } from '@/components/common/Badge';
-import { eaQtyPerInbUomOf } from '@/api/prodApi';
-import { daysAheadStr, fmtDt, fmtInbQty, num, todayStr } from '@/utils/format';
+import { daysAheadStr, eaQtyPerInbUomOf, fmtDt, fmtInbQty, num, todayStr } from '@/utils/format';
 
 /** 라인 수량 셀 — 저장값은 낱개(EA)이고 표시는 「입고단위 (낱개)」다 */
 const inbQtyFmt = (p) => fmtInbQty(p.value, eaQtyPerInbUomOf(p.data), p.data?.inbUomCd);
