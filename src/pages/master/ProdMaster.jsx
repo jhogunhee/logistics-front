@@ -59,15 +59,11 @@ export default function ProdMaster() {
             cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
         },
         {
-            // 신규 행(C)에서만 연다. 등록 후에는 못 고치고 변경은 단위 관리 화면의 라디오가 맡는다 —
-            // 두 화면에서 고칠 수 있으면 어느 쪽이 최신인지 흐려지고, 그 화면은 포장 행 위에서
-            // 고르므로 포장 없는 단위를 지정하는 일이 없다. 아직 저장 전인 신규 행은 참조가 하나도
-            // 없어서 이 위험이 없고, 서버가 그 단위의 포장을 낱개수량 1로 만들어 둔다(ProdService.ensureUoms).
-            // 그 1이 실제 입수량과 다른 건은 저장 후 토스트로 단위 관리 화면 입력을 안내한다.
+            // 신규 행(C)에서만 연다. 등록 후에는 못 고치고 변경은 단위 관리 화면의 라디오가 맡는다.
+            // 이중 관리 방지
             field: 'inbUomCd', headerName: '입고단위', width: 100, editable: isNewRow,
             cellEditor: SelectCellEditor,
             cellEditorParams: { values: uomCodes.values, labelMap: uomCodes.nmByCd },
-            // 잠긴 기존 행만 흐리게 — 열린 칸과 눈으로 구분된다
             cellClass: (p) => (isNewRow(p) ? undefined : 'text-slate-500'),
             headerTooltip: '벤더에게 발주하고 납품받는 단위. 신규 등록 시에만 지정할 수 있고, 등록 후 변경은 단위 관리 화면에서 합니다',
         },
@@ -76,7 +72,7 @@ export default function ProdMaster() {
             cellEditor: SelectCellEditor,
             cellEditorParams: { values: uomCodes.values, labelMap: uomCodes.nmByCd },
             cellClass: (p) => (isNewRow(p) ? undefined : 'text-slate-500'),
-            headerTooltip: '출고주문서에 쓰는 단위입니다. 재고·창고 수량은 전부 낱개(EA)로 저장되고, 확정 시 이 단위에서 낱개로 환산됩니다. 신규 등록 시에만 지정할 수 있고, 등록 후 변경은 단위 관리 화면에서 합니다',
+            headerTooltip: '출고주문에 쓰는 단위. 신규 등록 시에만 지정할 수 있고, 등록 후 변경은 단위 관리 화면에서 합니다',
         },
         {
             field: 'shelfLifeDays', headerName: '유통기한(일)', width: 120, editable: notDeleted,
@@ -112,8 +108,7 @@ export default function ProdMaster() {
     }, []);
 
     // ── 행 추가 ──────────────────────────────────────────────
-    // 단위 기본값은 EA — 낱개로 받아 낱개로 내보내는 상품이 대부분이고,
-    // 서버가 그 단위의 포장을 낱개수량 1로 자동 생성하므로 이대로 저장해도 환산이 항등이다
+    // 단위 기본값은 EA — 낱개로 받아 낱개로 내보내는 상품이 대부분이다.
     const handleAddRow = () => addRow(
         { prodCd: '', prodNm: '', tmpZon: 'DRY', inbUomCd: 'EA', outbUomCd: 'EA', shelfLifeDays: null },
         'prodNm'
