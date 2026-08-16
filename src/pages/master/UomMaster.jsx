@@ -30,16 +30,6 @@ const groupByProd = (uoms) => {
 
 /**
  * 입고단위·출고단위 지정 라디오.
- *
- * 체크박스가 아니라 라디오인 이유는 상품이 입고단위·출고단위를 각각 <b>한 칸씩</b> 갖기 때문이다
- * (`prod.inb_uom_cd` · `outb_uom_cd`, 둘 다 NOT NULL). 그래서 한 상품 안에서 하나만 켜지고,
- * 끄는 조작은 없다 — 다른 포장으로 옮기는 것만 된다.
- *
- * 입고와 출고는 서로 독립이라 같은 행이 둘 다 켜질 수 있다. 낱개로 받아 낱개로 내보내는
- * 상품(대부분)이 EA 행에 둘 다 붙은 모습이 정상이다.
- *
- * 이 그리드가 한 상품의 포장만 담기 때문에 "그리드 전체에서 하나"가 곧 "상품 안에서 하나"다 —
- * 라디오의 범위가 화면에 그대로 보인다.
  */
 const RoleRadio = ({ node, field, onPick }) => (
     <input
@@ -129,13 +119,13 @@ export default function UomMaster() {
             // 파생 표시로 두면(field 없음) 직접 refreshCells를 불러야 한다.
             field: 'inbUom', headerName: '입고단위', width: 90, editable: false,
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-            headerTooltip: '벤더에게 발주하고 납품받는 단위. 상품마다 하나입니다',
+            headerTooltip: '벤더에게 발주하고 납품받는 단위',
             cellRenderer: (p) => <RoleRadio node={p.node} field="inbUom" onPick={assignRole} />,
         },
         {
             field: 'outbUom', headerName: '출고단위', width: 90, editable: false,
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-            headerTooltip: '재고 저장 단위이기도 합니다 — 재고·검수·적치·출고의 모든 수량이 이 단위 기준입니다',
+            headerTooltip: '출고주문에 쓰는 단위',
             cellRenderer: (p) => <RoleRadio node={p.node} field="outbUom" onPick={assignRole} />,
         },
         {
