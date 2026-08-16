@@ -24,7 +24,7 @@ export default function CodeMaster() {
     } = useMasterGrid();
     const [cond, setCond] = useState({ grpCd: '', grpNm: '' });
     const [groups, setGroups] = useState([]);
-    const [rowData, setRowData] = useState([]);
+    const [rowData, setRowData] = useState([]); // 하단 코드 그리드 (그룹 그리드는 groups)
     const [selectedGroup, setSelectedGroup] = useState(null); // 상단에서 고른 그룹 (null이면 하단이 비어 있다)
     const [groupSwitchConfirm, setGroupSwitchConfirm] = useState(null); // 미저장 상태에서 그룹을 바꾸려 할 때 보류된 그룹
 
@@ -33,8 +33,12 @@ export default function CodeMaster() {
     // 코드 값은 (grp_cd, code_cd) PK의 일부라 등록 후 변경 불가 — 신규(C) 행에서만 입력받는다
     const isNew = (p) => p.data._status === 'C';
 
-    const GROUP_COLUMN_DEFS = [
-        { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
+    const groupColumnDefs = [
+        {
+            headerName: 'No.', width: 60, editable: false,
+            valueGetter: (p) => p.node.rowIndex + 1,
+            cellClass: 'text-slate-400',
+        },
         {
             // 그룹코드는 PK이자 코드가 리터럴로 참조하는 값이라 등록 후 변경 불가
             field: 'grpCd', headerName: '그룹코드', width: 150,
@@ -54,7 +58,7 @@ export default function CodeMaster() {
         },
     ];
 
-    const columnDefs = [
+    const codeColumnDefs = [
         {
             headerName: 'No.', width: 60, editable: false,
             valueGetter: (p) => p.node.rowIndex + 1,
@@ -104,6 +108,7 @@ export default function CodeMaster() {
         },
     ];
 
+    // ── 그룹 조회·선택 ──────────────────────────────────────
     /**
      * 그룹 검색 — 검색조건(그룹코드/그룹명)은 상단 그룹 그리드에 걸린다.
      * 결과에 현재 선택 그룹이 남아 있으면 새 객체로 바꿔 끼우고, 없으면 선택을 풀고 하단도 비운다.
@@ -205,14 +210,14 @@ export default function CodeMaster() {
         try {
             await codeApi.saveGroups(dirty);
             toast.success(`그룹 ${dirty.length}건 저장했습니다.`);
-
             await fetchGroups();
         } catch (e) {
             toast.error(e.message || '그룹 저장에 실패했습니다.');
         }
     };
 
-    // ── 행 추가 ──────────────────────────────────────────────
+    // ── 코드 편집 ───────────────────────────────────────────
+    // 삭제는 훅의 deleteSelectedRows를 그대로 쓴다 (다중 선택 → D 마킹)
     // 정렬순서 기본값은 현재 최댓값 + 1 — 새 코드는 콤보박스 맨 뒤에 붙는 게 자연스럽다
     const handleAddRow = () => {
         if (!selectedGroup) { toast('위에서 그룹을 먼저 고르세요.'); return; }
@@ -223,7 +228,6 @@ export default function CodeMaster() {
         addRow({ codeCd: '', codeNm: '', srtSeq: maxSeq + 1, ref1: '', ref2: '', ref3: '' }, 'codeCd');
     };
 
-    // ── 저장 ────────────────────────────────────────────────
     const validateRows = (rows) => {
         for (const r of rows) {
             if (!String(r.codeCd ?? '').trim()) {
@@ -347,7 +351,7 @@ export default function CodeMaster() {
                         <AgGridReact
                             ref={groupGridRef}
                             rowData={groups}
-                            columnDefs={GROUP_COLUMN_DEFS}
+                            columnDefs={groupColumnDefs}
                             rowHeight={34}
                             headerHeight={38}
                             {...groupGridProps}
@@ -394,7 +398,7 @@ export default function CodeMaster() {
                         <AgGridReact
                             ref={gridRef}
                             rowData={rowData}
-                            columnDefs={columnDefs}
+                            columnDefs={codeColumnDefs}
                             rowHeight={34}
                             headerHeight={38}
                             {...gridProps}
