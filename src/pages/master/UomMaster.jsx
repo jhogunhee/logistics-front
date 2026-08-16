@@ -22,7 +22,7 @@ const GRP_CD = 'UOM';
 /** 서버가 준 포장 행들 → 편집판. `_key`는 getRowId용 — 신규 행에는 아직 prodUomId가 없다 */
 const snapshot = (rows) => (rows ?? []).map(u => ({ ...u, _key: `id-${u.prodUomId}` }));
 
-/** 평평한 포장 목록(prodUomApi.list) → prodId별 묶음. 좌측 건수·우측 패널·업로드 중복검사가 같은 묶음을 쓴다 */
+/** prodId별 포장단위 묶음. 좌측 건수·우측 패널·업로드 중복검사가 같은 묶음을 쓴다 */
 const groupByProd = (uoms) => {
     const byProd = {};
     uoms.forEach(u => { (byProd[u.prodId] ??= []).push(u); });
@@ -44,7 +44,7 @@ const RoleRadio = ({ node, field, onPick }) => (
 
 export default function UomMaster() {
     const [prods, setProds] = useState([]);
-    const [uomsByProd, setUomsByProd] = useState({}); // 포장은 단위 API에서 따로 받는다 — 상품 응답은 포장을 싣지 않는다
+    const [uomsByProd, setUomsByProd] = useState({});
     const [cond, setCond] = useState({ prodCd: '', prodNm: '' });
     const uomCodes = useCodes(GRP_CD);                     // 공통코드 UOM — 단위 콤보 편집기용
     const [selectedProdId, setSelectedProdId] = useState(null);
