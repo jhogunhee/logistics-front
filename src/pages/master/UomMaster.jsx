@@ -53,8 +53,7 @@ export default function UomMaster() {
         gridProps, addRow, deleteSelectedRows, requestSave,
     } = useMasterGrid();
 
-    // 상품이 바뀌거나 재조회되면 원본에서 편집판을 새로 뜬다. 복사하는 이유는
-    // ag-grid가 행 객체를 직접 고치기 때문 — 원본이 남아 있어야 되돌릴 수 있다.
+    // 상품이 바뀌거나 재조회되면 원본에서 편집본을 새로 뜬다. 편집본은 ag-grid가 직접 고치기 때문에 원본과 달라진다
     const uomRows = useMemo(
         () => (uomsByProd[selectedProd?.prodId] ?? []).map(u => ({ ...u })),
         [uomsByProd, selectedProd]
@@ -93,13 +92,12 @@ export default function UomMaster() {
             cellRenderer: (p) => p.value ? p.valueFormatted : <span className="text-slate-400">(선택)</span>,
         },
         {
-            // 재고 저장 단위가 낱개(EA)라 이 값이 곧 환산 배수다 — 검수 입력 1개가 재고 몇 개가 되는지
-            // (예전엔 출고단위 환산 「단위수량」 파생 컬럼이 따로 있었지만 EA 통일로 같은 값이 돼 제거)
+            // 재고 저장 단위가 낱개(EA)라 이 값이 곧 환산 배수다
             field: 'eaQty', headerName: '낱개수량', width: 100, editable: notDeleted,
             type: 'numericColumn',
             cellEditor: 'agNumberCellEditor',
             valueFormatter: (p) => num(p.value),
-            headerTooltip: '이 단위 1개가 낱개 몇 개인가 (예: BOX 1개 = 24). 낱개 그 자체면 1. 검수 입력·재고 수량이 이 배수로 움직입니다',
+            headerTooltip: '이 단위 1개가 낱개 몇 개인가 (예: BOX 1개 = 24). 낱개 그 자체면 1.',
         },
         {
             field: 'wgt', headerName: '중량(kg)', width: 100, editable: notDeleted,
@@ -111,8 +109,6 @@ export default function UomMaster() {
                 : num(p.value),
         },
         {
-            // field를 두는 이유 — setDataValue로 값을 바꾸면 ag-grid가 그 셀만 알아서 다시 그린다.
-            // 파생 표시로 두면(field 없음) 직접 refreshCells를 불러야 한다.
             field: 'inbUom', headerName: '입고단위', width: 90, editable: false,
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
             headerTooltip: '벤더에게 발주하고 납품받는 단위',
