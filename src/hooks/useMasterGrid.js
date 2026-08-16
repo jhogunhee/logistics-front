@@ -12,14 +12,22 @@ import toast from 'react-hot-toast';
 export function useMasterGrid() {
     const gridRef = useRef(null); // 그리드 api 호출용 (applyTransaction 등)
     const [rowCount, setRowCount] = useState(0); // 행추가분은 rowData 상태에 없으므로 건수는 그리드 기준으로 센다
+    const [dirtyCount, setDirtyCount] = useState(0); // 미저장 건수 — 라벨·버튼 활성에 쓰는 화면이 있어 그리드 기준으로 센다
     const [saveConfirm, setSaveConfirm] = useState(null); // 저장 확인 모달에 넘길 대상 행들 (null이면 닫힘)
+
+    const countDirty = (api) => {
+        let n = 0;
+        api.forEachNode(node => { if (node.data._status) n++; });
+        return n;
+    };
 
     // 셀 수정 시 행 상태를 U(수정)로 표시 (신규 C는 유지)
     const onCellValueChanged = (params) => {
-        if (params.column.getColId() === '_status') return; // 상태 컬럼 자체의 변경(삭제 표시 등)은 무시
-        if (params.data._status !== 'C') {
+        // 상태 컬럼 자체의 변경(삭제 표시 등)은 U로 바꾸지 않는다
+        if (params.column.getColId() !== '_status' && params.data._status !== 'C') {
             params.node.setDataValue('_status', 'U');
         }
+        setDirtyCount(countDirty(params.api));
     };
 
     /** AgGridReact에 스프레드로 넘기는 공통 props. 화면 고유 prop은 뒤에 이어 쓰면 덮인다 */
@@ -31,7 +39,10 @@ export function useMasterGrid() {
         },
         stopEditingWhenCellsLoseFocus: true,
         onCellValueChanged,
-        onModelUpdated: (p) => setRowCount(p.api.getDisplayedRowCount()),
+        onModelUpdated: (p) => {
+            setRowCount(p.api.getDisplayedRowCount());
+            setDirtyCount(countDirty(p.api));
+        },
     };
 
     // ── 행 추가 ──────────────────────────────────────────────
@@ -94,7 +105,7 @@ export function useMasterGrid() {
     };
 
     return {
-        gridRef, rowCount, saveConfirm, setSaveConfirm,
+        gridRef, rowCount, dirtyCount, saveConfirm, setSaveConfirm,
         gridProps, addRow, deleteSelectedRows, collectDirty, requestSave,
     };
 }

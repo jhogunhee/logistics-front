@@ -9,6 +9,7 @@ import SelectCellEditor from '@/components/common/SelectCellEditor';
 import { prodUomApi } from '@/api/prodUomApi';
 import { prodApi } from '@/api/prodApi';
 import { useCodes } from '@/hooks/useCodes';
+import { useMasterGrid } from '@/hooks/useMasterGrid';
 import { RowStatusCell } from '@/components/common/Badge';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import SaveCountSummary from '@/components/common/SaveCountSummary';
@@ -47,19 +48,26 @@ export default function UomMaster() {
     const [cond, setCond] = useState({ prodCd: '', prodNm: '' });
     const uomCodes = useCodes(GRP_CD);                     // 공통코드 UOM — 단위 콤보 편집기용
     const [selectedProdId, setSelectedProdId] = useState(null);
-    const [uomRows, setUomRows] = useState([]);            // 선택 상품의 포장 (편집용 복사본)
-    const [saveConfirm, setSaveConfirm] = useState(null);  // 저장 확인 모달 대상 행들 (null이면 닫힘)
     const [uploadConfirm, setUploadConfirm] = useState(null); // 엑셀 업로드 확인 모달
     const [prodDeleteConfirm, setProdDeleteConfirm] = useState(null); // 상품 삭제 확인 모달
     const prodGridRef = useRef(null);
-    const uomGridRef = useRef(null);
     const fileInputRef = useRef(null);
     const newRowSeq = useRef(0);       // 신규 행의 임시 키 (getRowId가 id를 요구한다)
-    const pendingEditRef = useRef(false); // 행 추가 직후 편집을 시작할지
+    // 우측 포장 그리드는 다른 마스터 화면과 같은 C/U/D 규약을 쓴다
+    const {
+        gridRef: uomGridRef, rowCount, dirtyCount, saveConfirm, setSaveConfirm,
+        gridProps, addRow, deleteSelectedRows, requestSave,
+    } = useMasterGrid();
 
     const selectedProd = useMemo(
         () => prods.find(p => p.prodId === selectedProdId) ?? null,
         [prods, selectedProdId]
+    );
+    // 상품이 바뀌거나 재조회되면 원본에서 편집판을 새로 뜬다. 복사하는 이유는
+    // ag-grid가 행 객체를 직접 고치기 때문 — 원본이 남아 있어야 되돌릴 수 있다.
+    const uomRows = useMemo(
+        () => snapshot(uomsByProd[selectedProdId]),
+        [uomsByProd, selectedProdId]
     );
     // 삭제(D) 표시된 행은 편집을 막는다
     const notDeleted = (p) => p.data._status !== 'D';
@@ -92,9 +100,7 @@ export default function UomMaster() {
             },
             headerTooltip: '공통코드 UOM 그룹에서 가져옵니다. 등록 후에는 바꿀 수 없습니다',
             valueFormatter: (p) => (p.value ? `${p.value} ${uomCodes.nmByCd[p.value] ?? ''}`.trim() : ''),
-            cellRenderer: (p) => p.value
-                ? `${p.value} ${uomCodes.nmByCd[p.value] ?? ''}`.trim()
-                : <span className="text-slate-400">(선택)</span>,
+            cellRenderer: (p) => p.value ? p.valueFormatted : <span className="text-slate-400">(선택)</span>,
         },
         {
             // 재고 저장 단위가 낱개(EA)라 이 값이 곧 환산 배수다 — 검수 입력 1개가 재고 몇 개가 되는지
@@ -150,33 +156,10 @@ export default function UomMaster() {
         });
     }, []);
 
-    // 상품이 바뀌면 그 상품의 포장을 복사해 편집판을 만든다. 복사하는 이유는 취소(되돌리기)를
-    // 하려면 서버에서 받은 원본이 남아 있어야 하기 때문이다 — ag-grid는 행 객체를 직접 고친다.
-    // effect가 아니라 렌더 중 조정인 이유: effect의 동기 setState는 렌더를 한 번 더 돌게 한다
-    // (react-hooks/set-state-in-effect). 재조회로 같은 상품 객체가 새로 오면 스냅샷도 다시 뜬다.
-    const [snapshotProd, setSnapshotProd] = useState(null);
-    if (selectedProd !== snapshotProd) {
-        setSnapshotProd(selectedProd);
-        setUomRows(snapshot(uomsByProd[selectedProd?.prodId]));
-    }
-
-    // 행 추가는 state로만 하므로(그리드가 아니라) 새 행이 그려진 뒤에야 편집을 걸 수 있다
-    useEffect(() => {
-        if (!pendingEditRef.current) return;
-        pendingEditRef.current = false;
-        const api = uomGridRef.current?.api;
-        if (!api) return;
-        const rowIndex = uomRows.length - 1;
-        api.ensureIndexVisible(rowIndex, 'bottom');
-        api.startEditingCell({ rowIndex, colKey: 'uomCd' });
-    }, [uomRows]);
-
-    const dirtyRows = uomRows.filter(r => r._status);
-
     // 저장하지 않은 편집을 들고 다른 상품으로 넘어가면 조용히 사라진다 — 막고 알린다
     const selectProd = (prodId) => {
         if (prodId === selectedProdId) return;
-        if (dirtyRows.length > 0) {
+        if (dirtyCount > 0) {
             toast.error('저장하지 않은 변경이 있습니다. 저장하거나 되돌린 뒤 이동하세요.');
             // 클릭으로 이미 옮겨간 그리드 선택 하이라이트를 현재 상품으로 되돌린다
             prodGridRef.current?.api.forEachNode(n => n.setSelected(n.data.prodId === selectedProdId));
@@ -185,16 +168,8 @@ export default function UomMaster() {
         setSelectedProdId(prodId);
     };
 
-    const revert = () => setUomRows(snapshot(uomsByProd[selectedProdId]));
-
-    // 셀 수정 시 행 상태를 U(수정)로 표시 (신규 C는 유지)
-    const onCellValueChanged = (params) => {
-        if (params.column.getColId() === '_status') return; // 상태 컬럼 자체의 변경은 무시
-        if (params.data._status !== 'C') {
-            params.node.setDataValue('_status', 'U');
-        }
-        setUomRows(prev => [...prev]); // dirty 개수·버튼 활성 상태를 다시 계산시킨다
-    };
+    // 원본에서 새로 뜬 편집판을 그리드에 직접 밀어 넣는다 — 행추가분(applyTransaction)까지 함께 걷힌다
+    const revert = () => uomGridRef.current.api.setGridOption('rowData', snapshot(uomsByProd[selectedProdId]));
 
     /**
      * 입고/출고단위 지정. 이 그리드는 한 상품의 포장만 담으므로 전체를 훑어 하나만 켜면 된다.
@@ -209,45 +184,18 @@ export default function UomMaster() {
         });
     };
 
-    // ── 포장 추가/삭제 ──────────────────────────────────────
-    // 행의 주인은 uomRows다 — applyTransaction으로 그리드에만 넣으면 되돌리기·미저장 건수가
-    // state와 어긋난다. state에 넣고 rowData로 흘려보낸 뒤 편집만 위 effect가 건다.
+    // ── 포장 추가 ───────────────────────────────────────────
     const handleAddUom = () => {
         if (!selectedProd) {
             toast('포장을 추가할 상품을 먼저 고르세요.');
             return;
         }
-        pendingEditRef.current = true;
-        setUomRows(prev => [...prev, {
+        addRow({
             _key: `new-${newRowSeq.current++}`,
             prodId: selectedProd.prodId,
             uomCd: '', eaQty: 1, wgt: null,
             inbUom: false, outbUom: false,
-            _status: 'C',
-        }]);
-    };
-
-    // 신규(C) 행은 바로 제거, 기존 행은 D로 표시해 저장 시 반영한다.
-    // 입고/출고단위로 쓰이는 포장인지는 서버가 최종 판단한다.
-    const handleDeleteUoms = () => {
-        const api = uomGridRef.current.api;
-        const selected = api.getSelectedRows();
-        if (selected.length === 0) {
-            toast('삭제할 포장을 선택하세요.');
-            return;
-        }
-        const keys = new Set(selected.map(r => r._key));
-        setUomRows(prev => prev
-            .filter(r => !(keys.has(r._key) && r._status === 'C'))
-            .map(r => (keys.has(r._key) ? { ...r, _status: 'D' } : r)));
-        api.deselectAll();
-
-        const newCount = selected.filter(r => r._status === 'C').length;
-        const markCount = selected.length - newCount;
-        const parts = [];
-        if (newCount > 0) parts.push(`신규 ${newCount}건은 바로 제거했습니다`);
-        if (markCount > 0) parts.push(`기존 ${markCount}건은 저장 시 삭제됩니다`);
-        toast(parts.join(', '));
+        }, 'uomCd');
     };
 
     // ── 상품 삭제 ───────────────────────────────────────────
@@ -259,7 +207,7 @@ export default function UomMaster() {
             toast('삭제할 상품을 먼저 고르세요.');
             return;
         }
-        if (dirtyRows.length > 0) {
+        if (dirtyCount > 0) {
             toast.error('저장하지 않은 포장 변경이 있습니다. 저장하거나 되돌린 뒤 삭제하세요.');
             return;
         }
@@ -378,36 +326,32 @@ export default function UomMaster() {
     };
 
     // ── 저장 ────────────────────────────────────────────────
-    const handleSave = () => {
-        if (dirtyRows.length === 0) {
-            toast('변경된 내용이 없습니다.');
-            return;
-        }
-        // 검증 (삭제 행은 id만 쓰므로 검증 대상 아님)
-        const editable = dirtyRows.filter(r => r._status !== 'D');
-        for (const r of editable) {
+    // rows는 편집 행(삭제 제외)만 온다 — 삭제 행은 id만 쓰므로 검증 대상이 아니다
+    const validateRows = (rows) => {
+        for (const r of rows) {
             if (!String(r.uomCd ?? '').trim()) {
                 toast.error('단위는 필수입니다.');
-                return;
+                return false;
             }
             if (!(Number(r.eaQty) >= 1)) {
                 toast.error(`낱개수량은 1 이상이어야 합니다: ${r.uomCd}`);
-                return;
+                return false;
             }
             const hasWgt = r.wgt != null && String(r.wgt).trim() !== '';
             if (hasWgt && !(Number(r.wgt) > 0)) {
                 toast.error(`중량은 비워두거나(미측정) 0보다 커야 합니다: ${r.uomCd}`);
-                return;
+                return false;
             }
         }
-        // 한 상품 안에서 같은 단위를 두 번 넣는 것 (uq_prod_uom 위반)
-        const cds = uomRows.filter(r => r._status !== 'D').map(r => r.uomCd);
+        // 한 상품 안에서 같은 단위를 두 번 넣는 것 (uq_prod_uom 위반) — 편집 안 한 행까지 포함해 본다
+        const cds = [];
+        uomGridRef.current.api.forEachNode(n => { if (n.data._status !== 'D') cds.push(n.data.uomCd); });
         const dup = cds.find((cd, i) => cd && cds.indexOf(cd) !== i);
         if (dup) {
             toast.error(`같은 단위가 중복됩니다: ${dup}`);
-            return;
+            return false;
         }
-        setSaveConfirm(dirtyRows);
+        return true;
     };
 
     const doSave = async (dirty) => {
@@ -415,7 +359,7 @@ export default function UomMaster() {
             await prodUomApi.saveAll(dirty.map(r => ({
                 _status: r._status,
                 prodUomId: r.prodUomId,
-                prodId: r.prodId ?? selectedProd?.prodId,
+                prodId: r.prodId,
                 uomCd: r.uomCd,
                 eaQty: r.eaQty == null || r.eaQty === '' ? null : Number(r.eaQty),
                 wgt: r.wgt == null || String(r.wgt).trim() === '' ? null : Number(r.wgt),
@@ -497,9 +441,9 @@ export default function UomMaster() {
                             {selectedProd ? (
                                 <>
                                     <b className="text-slate-700">{selectedProd.prodNm}</b>
-                                    <span className="text-slate-400"> 의 포장 {uomRows.length}건</span>
-                                    {dirtyRows.length > 0 && (
-                                        <span className="text-amber-500 font-bold"> · 미저장 {dirtyRows.length}건</span>
+                                    <span className="text-slate-400"> 의 포장 {rowCount}건</span>
+                                    {dirtyCount > 0 && (
+                                        <span className="text-amber-500 font-bold"> · 미저장 {dirtyCount}건</span>
                                     )}
                                 </>
                             ) : (
@@ -509,12 +453,12 @@ export default function UomMaster() {
                         <div className="flex gap-2">
                             <button
                                 onClick={revert}
-                                disabled={dirtyRows.length === 0}
+                                disabled={dirtyCount === 0}
                                 className="btn-ghost">
                                 <Undo2 size={13} /> 되돌리기
                             </button>
                             <button
-                                onClick={handleDeleteUoms}
+                                onClick={deleteSelectedRows}
                                 disabled={!selectedProd}
                                 className="btn-danger">
                                 <Trash2 size={13} /> 포장 삭제
@@ -526,8 +470,8 @@ export default function UomMaster() {
                                 <Plus size={13} /> 포장 추가
                             </button>
                             <button
-                                onClick={handleSave}
-                                disabled={dirtyRows.length === 0}
+                                onClick={() => requestSave(validateRows)}
+                                disabled={dirtyCount === 0}
                                 className="btn-primary">
                                 <Save size={13} /> 저장
                             </button>
@@ -539,13 +483,7 @@ export default function UomMaster() {
                             rowData={uomRows}
                             columnDefs={uomColumnDefs}
                             getRowId={(p) => p.data._key}
-                            rowSelection={{ mode: 'multiRow' }}
-                            rowClassRules={{
-                                'line-through': (p) => p.data._status === 'D',
-                                'opacity-40': (p) => p.data._status === 'D',
-                            }}
-                            stopEditingWhenCellsLoseFocus={true}
-                            onCellValueChanged={onCellValueChanged}
+                            {...gridProps}
                         />
                     </div>
                 </div>
@@ -571,32 +509,23 @@ export default function UomMaster() {
 
             {/* 상품 삭제 확인 모달 — 포장까지 함께 사라지므로 건수를 먼저 보여준다 */}
             {prodDeleteConfirm && (
-                <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 bg-black/20">
-                    <div className="bg-white rounded-2xl shadow-xl p-6 w-96 flex flex-col gap-4">
-                        <h3 className="text-lg font-bold text-slate-800">상품을 삭제하시겠습니까?</h3>
-                        <p className="text-sm text-slate-500">
-                            <b className="text-slate-700">{prodDeleteConfirm.prodCd} {prodDeleteConfirm.prodNm}</b>
-                            <span className="text-red-500 font-bold"> 와 포장 {uomsByProd[prodDeleteConfirm.prodId]?.length ?? 0}건</span>이
-                            함께 삭제됩니다.
-                        </p>
-                        <p className="text-xs text-slate-400">
-                            재고·재고 이력·입고주문·입고예정·출고주문·Lot 중 한 곳이라도 이 상품을 쓰고 있으면
-                            삭제되지 않습니다.
-                        </p>
-                        <div className="flex gap-2 justify-end">
-                            <button
-                                onClick={() => setProdDeleteConfirm(null)}
-                                className="btn-modal-cancel">
-                                취소
-                            </button>
-                            <button
-                                onClick={() => { doDeleteProd(prodDeleteConfirm); setProdDeleteConfirm(null); }}
-                                className="px-4 py-2 text-sm font-bold rounded-lg bg-red-600 text-white hover:bg-red-700">
-                                삭제
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <ConfirmModal
+                    title="상품을 삭제하시겠습니까?"
+                    confirmText="삭제"
+                    danger
+                    onCancel={() => setProdDeleteConfirm(null)}
+                    onConfirm={() => { doDeleteProd(prodDeleteConfirm); setProdDeleteConfirm(null); }}
+                >
+                    <p>
+                        <b className="text-slate-700">{prodDeleteConfirm.prodCd} {prodDeleteConfirm.prodNm}</b>
+                        <span className="text-red-500 font-bold"> 와 포장 {uomsByProd[prodDeleteConfirm.prodId]?.length ?? 0}건</span>이
+                        함께 삭제됩니다.
+                    </p>
+                    <p className="text-xs text-slate-400">
+                        재고·재고 이력·입고주문·입고예정·출고주문·Lot 중 한 곳이라도 이 상품을 쓰고 있으면
+                        삭제되지 않습니다.
+                    </p>
+                </ConfirmModal>
             )}
 
             {/* 엑셀 업로드 확인 모달 — 여러 상품에 걸치므로 그리드를 거치지 않고 바로 등록한다 */}
