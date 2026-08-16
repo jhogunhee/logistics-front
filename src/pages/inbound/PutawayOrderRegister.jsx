@@ -4,16 +4,36 @@ import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
 import { Hand, PackagePlus, Search, Wand2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+import { putawayApi } from '@/api/putawayApi';
+import { TEMP_ZONE_META } from '@/constants/badgeMeta';
+import { daysAheadStr, fmtDe, num, todayStr } from '@/utils/format';
 import SearchBar, { SearchItem, SearchProd } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import VendorPickerModal from '@/components/common/VendorPickerModal';
 import ConfirmModal from '@/components/common/ConfirmModal';
-import { TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { Badge } from '@/components/common/Badge';
-import { putawayApi } from '@/api/putawayApi';
-import { daysAheadStr, fmtDe, num, todayStr } from '@/utils/format';
 import DatePicker from '@/components/common/DatePicker';
 
+/** 배치 목록을 입고건으로 접는다 — 서버는 배치 단위로 주고, 화면의 작업 단위인 입고건은 여기서 만든다 */
+const groupByOrder = (batches) => {
+    const byOrder = new Map();
+    for (const b of batches) {
+        const group = byOrder.get(b.ibNo) ?? {
+            ibNo: b.ibNo, ibOrderId: b.ibOrderId, vndrNm: b.vndrNm,
+            prodCds: new Set(), pendingQty: 0, drctRemainQty: 0, unDrctQty: 0,
+            nearestExpiryDt: null, batches: [],
+        };
+        group.prodCds.add(b.prodCd);
+        group.pendingQty += b.pendingQty;
+        group.drctRemainQty += b.drctRemainQty;
+        group.unDrctQty += b.unDrctQty;
+        // 서버가 유통기한 순으로 주므로 첫 값이 곧 최단이다 (미관리는 null로 뒤에 온다)
+        if (group.nearestExpiryDt == null) group.nearestExpiryDt = b.expiryDt;
+        group.batches.push(b);
+        byOrder.set(b.ibNo, group);
+    }
+    return [...byOrder.values()].map(g => ({ ...g, prodCount: g.prodCds.size }));
+};
 
 // 상단: 입고건 — 물건이 트럭 단위로 들어와 한 자리에 내려지므로 지시도 이 단위로 건다
 const ORDER_COLUMN_DEFS = [
@@ -47,45 +67,62 @@ const ORDER_COLUMN_DEFS = [
     },
 ];
 
-/** 배치 목록을 입고건으로 접는다 — 서버는 배치 단위로 주고, 화면의 작업 단위인 입고건은 여기서 만든다 */
-const groupByOrder = (batches) => {
-    const byOrder = new Map();
-    for (const b of batches) {
-        const group = byOrder.get(b.ibNo) ?? {
-            ibNo: b.ibNo, ibOrderId: b.ibOrderId, vndrNm: b.vndrNm,
-            prodCds: new Set(), pendingQty: 0, drctRemainQty: 0, unDrctQty: 0,
-            nearestExpiryDt: null, batches: [],
-        };
-        group.prodCds.add(b.prodCd);
-        group.pendingQty += b.pendingQty;
-        group.drctRemainQty += b.drctRemainQty;
-        group.unDrctQty += b.unDrctQty;
-        // 서버가 유통기한 순으로 주므로 첫 값이 곧 최단이다 (미관리는 null로 뒤에 온다)
-        if (group.nearestExpiryDt == null) group.nearestExpiryDt = b.expiryDt;
-        group.batches.push(b);
-        byOrder.set(b.ibNo, group);
-    }
-    return [...byOrder.values()].map(g => ({ ...g, prodCount: g.prodCds.size }));
-};
-
 export default function PutawayOrderRegister() {
-    const [batches, setBatches] = useState([]);
     // 기본 기간 = 과거 7일 ~ 오늘. 이미 검수된 물건을 적치하는 화면이라 미래 날짜에는 대상이 없다
     const [cond, setCond] = useState({ ibNo: '', vndrNm: '', dateFrom: daysAheadStr(-7), dateTo: todayStr(), prodCd: '' });
-    const [vendorPickerOpen, setVendorPickerOpen] = useState(false);
+    const [batches, setBatches] = useState([]);
     const [selectedIbNo, setSelectedIbNo] = useState(null);
     const [preview, setPreview] = useState(null);             // 전략 추천 결과 items
-    const [confirmCreate, setConfirmCreate] = useState(null); // 지시 생성 확인 대상 (배정이 있는 item들)
     const [manual, setManual] = useState(null);               // 수동 지시 대상 배치
     const [manualLocs, setManualLocs] = useState([]);
     const [manualLocId, setManualLocId] = useState('');
     const [manualQty, setManualQty] = useState('');
+    const [vendorPickerOpen, setVendorPickerOpen] = useState(false);
+    const [confirmCreate, setConfirmCreate] = useState(null); // 지시 생성 확인 대상 (배정이 있는 item들)
     const [confirmManual, setConfirmManual] = useState(null);
     const orderGridRef = useRef(null);
     const pendingOrderRef = useRef(null); // 재조회 후 같은 입고건을 다시 선택하기 위한 키
 
     const orderRows = useMemo(() => groupByOrder(batches), [batches]);
     const selectedOrder = orderRows.find(o => o.ibNo === selectedIbNo) ?? null;
+    const assignable = preview?.filter(i => i.assignments.length > 0) ?? [];
+    // 추천 응답에는 Lot번호가 없다 (키는 lotId) — 화면에 띄울 Lot번호는 배치 목록에서 되찾는다
+    const lotNoOf = (it) => batches.find(b => b.ibLineId === it.ibLineId && b.lotId === it.lotId)?.lotNo ?? '';
+    const locOptions = manualLocs.map(l => ({
+        value: l.locId,
+        label: `${l.locCd} (${l.zonCd}) · 적재가능 ${l.availQty == null ? '무제한' : num(l.availQty)}`,
+    }));
+    const locLabel = (locId) => manualLocs.find(l => l.locId === Number(locId))?.locCd ?? '';
+
+    // 하단 배치 그리드 — 수동 지시 대상 강조를 위해 컴포넌트 안에 둔다
+    const batchColumnDefs = [
+        { field: 'prodCd', headerName: '상품 코드', width: 115 },
+        { field: 'prodNm', headerName: '상품명', flex: 1, minWidth: 160 },
+        {
+            field: 'tmpZon', headerName: '온도대', width: 90,
+            cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+            cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
+        },
+        { field: 'lotNo', headerName: 'Lot번호', width: 140 },
+        { field: 'receiptDt', headerName: '입고일자', width: 110, valueFormatter: (p) => fmtDe(p.value) },
+        {
+            field: 'expiryDt', headerName: '유통기한', width: 110,
+            headerTooltip: '목록이 이 값 오름차순(FEFO)이고, 그 순서가 추천 시 로케이션 용량 선점 순서가 된다',
+            cellRenderer: (p) => (p.value ? fmtDe(p.value) : <span className="text-slate-400">미관리</span>),
+        },
+        // 미적치 컬럼은 상단과 같은 이유로 두지 않는다 (지시중 + 미지시의 합)
+        {
+            field: 'drctRemainQty', headerName: '지시중', width: 100,
+            cellClass: (p) => `ag-right-aligned-cell tabular-nums ${p.value > 0 ? 'text-indigo-600 font-bold' : 'text-slate-300'}`,
+            valueFormatter: (p) => num(p.value),
+        },
+        {
+            field: 'unDrctQty', headerName: '미지시', width: 100,
+            headerTooltip: '0이 아니면 행을 클릭해 수동 지시할 수 있다',
+            cellClass: (p) => `ag-right-aligned-cell tabular-nums ${p.value > 0 ? 'text-amber-600 font-bold' : 'text-slate-300'}`,
+            valueFormatter: (p) => num(p.value),
+        },
+    ];
 
     const clearManual = () => {
         setManual(null);
@@ -106,18 +143,18 @@ export default function PutawayOrderRegister() {
         }
     };
 
+    useEffect(() => {
+        let ignore = false;
+        putawayApi.lines(cond).then(data => { if (!ignore) setBatches(data); }).catch(() => {});
+        return () => { ignore = true; };
+    }, []);
+
     const onOrderModelUpdated = (p) => {
         if (pendingOrderRef.current == null) return;
         const ibNo = pendingOrderRef.current;
         pendingOrderRef.current = null;
         p.api.forEachNode(n => { if (n.data.ibNo === ibNo) n.setSelected(true); });
     };
-
-    useEffect(() => {
-        let ignore = false;
-        putawayApi.lines(cond).then(data => { if (!ignore) setBatches(data); }).catch(() => {});
-        return () => { ignore = true; };
-    }, []);
 
     const onOrderSelectionChanged = (e) => {
         const node = e.api.getSelectedNodes()[0];
@@ -152,10 +189,6 @@ export default function PutawayOrderRegister() {
             toast.error(e.message || '적치 추천에 실패했습니다.');
         }
     };
-
-    const assignable = preview?.filter(i => i.assignments.length > 0) ?? [];
-    // 추천 응답에는 Lot번호가 없다 (키는 lotId) — 화면에 띄울 Lot번호는 배치 목록에서 되찾는다
-    const lotNoOf = (it) => batches.find(b => b.ibLineId === it.ibLineId && b.lotId === it.lotId)?.lotNo ?? '';
 
     const handleCreateClick = () => {
         if (assignable.length === 0) {
@@ -230,42 +263,6 @@ export default function PutawayOrderRegister() {
             toast.error(e.message || '적치지시 발행에 실패했습니다.');
         }
     };
-
-    const locOptions = manualLocs.map(l => ({
-        value: l.locId,
-        label: `${l.locCd} (${l.zonCd}) · 적재가능 ${l.availQty == null ? '무제한' : num(l.availQty)}`,
-    }));
-    const locLabel = (locId) => manualLocs.find(l => l.locId === Number(locId))?.locCd ?? '';
-
-    // 하단 배치 그리드 — 수동 지시 대상 강조를 위해 컴포넌트 안에 둔다
-    const batchColumnDefs = [
-        { field: 'prodCd', headerName: '상품 코드', width: 115 },
-        { field: 'prodNm', headerName: '상품명', flex: 1, minWidth: 160 },
-        {
-            field: 'tmpZon', headerName: '온도대', width: 90,
-            cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-            cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
-        },
-        { field: 'lotNo', headerName: 'Lot번호', width: 140 },
-        { field: 'receiptDt', headerName: '입고일자', width: 110, valueFormatter: (p) => fmtDe(p.value) },
-        {
-            field: 'expiryDt', headerName: '유통기한', width: 110,
-            headerTooltip: '목록이 이 값 오름차순(FEFO)이고, 그 순서가 추천 시 로케이션 용량 선점 순서가 된다',
-            cellRenderer: (p) => (p.value ? fmtDe(p.value) : <span className="text-slate-400">미관리</span>),
-        },
-        // 미적치 컬럼은 상단과 같은 이유로 두지 않는다 (지시중 + 미지시의 합)
-        {
-            field: 'drctRemainQty', headerName: '지시중', width: 100,
-            cellClass: (p) => `ag-right-aligned-cell tabular-nums ${p.value > 0 ? 'text-indigo-600 font-bold' : 'text-slate-300'}`,
-            valueFormatter: (p) => num(p.value),
-        },
-        {
-            field: 'unDrctQty', headerName: '미지시', width: 100,
-            headerTooltip: '0이 아니면 행을 클릭해 수동 지시할 수 있다',
-            cellClass: (p) => `ag-right-aligned-cell tabular-nums ${p.value > 0 ? 'text-amber-600 font-bold' : 'text-slate-300'}`,
-            valueFormatter: (p) => num(p.value),
-        },
-    ];
 
     return (
         // min-h — 노트북처럼 낮은 화면에선 그리드를 짜부라뜨리는 대신 카드 스크롤(Layout의 overflow-auto)이 생긴다

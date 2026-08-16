@@ -3,12 +3,12 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { FileOutput, Info, Package, Plus, RotateCcw, Save, Search, Trash2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import ProdPickerModal from '@/components/common/ProdPickerModal';
-import StorePickerModal from '@/components/common/StorePickerModal';
 import { omsOutbOrderApi } from '@/api/omsOutbOrderApi';
 import { useCodes } from '@/hooks/useCodes';
 import { TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { num, todayStr } from '@/utils/format';
+import ProdPickerModal from '@/components/common/ProdPickerModal';
+import StorePickerModal from '@/components/common/StorePickerModal';
 import DatePicker from '@/components/common/DatePicker';
 
 const EMPTY_FORM = () => ({
@@ -42,16 +42,28 @@ export default function OutboundOrder() {
     // 경로에 id가 있으면 수정, 없으면 등록. 화면 구성이 같아 컴포넌트를 나누지 않는다.
     const { omsOutbOrderId } = useParams();
     const isEdit = Boolean(omsOutbOrderId);
-
+    const navigate = useNavigate();
+    const outbTypCodes = useCodes('OUTB_TYP');
+    const vhclFltnoCodes = useCodes('VHCL_FLTNO');
     const [form, setForm] = useState(EMPTY_FORM);
     const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(isEdit);
-    const outbTypCodes = useCodes('OUTB_TYP');
-    const vhclFltnoCodes = useCodes('VHCL_FLTNO');
     // null이면 닫힘 / 'add'면 다중 추가 / 숫자면 그 인덱스 라인의 상품 교체
     const [pickerFor, setPickerFor] = useState(null);
     const [storePickerOpen, setStorePickerOpen] = useState(false);
-    const navigate = useNavigate();
+
+    // 확정된 주문은 고칠 수 없다 (서버도 거부한다). 화면에서 미리 잠가 헛수고를 막는다.
+    const readOnly = isEdit && form.status && form.status !== 'CREATED';
+
+    // 수량은 전부 출고단위(주문서 단위)라 그대로 더한다. 창고 저장은 낱개(EA)이고
+    // 환산은 확정 시 서버가 한다 — 이 화면은 주문서 단위만 안다.
+    const totalQty = form.lines.reduce((sum, l) => sum + (Number(l.odrQty) || 0), 0);
+
+    // 팝업에서 이미 담긴 상품을 비활성 처리하기 위한 목록.
+    // 라인 교체 모드에선 그 라인 자신은 제외해야 "같은 상품 다시 고르기"가 막히지 않는다.
+    const excludeIds = form.lines
+        .filter((_, i) => i !== pickerFor)
+        .map(l => l.prodId);
 
     // 수정 진입 시 주문을 불러온다. 헤더는 목록 API에서, 라인은 라인 API에서 가져온다 —
     // 단건 조회 엔드포인트가 없어서 목록을 받아 한 건만 골라낸다.
@@ -93,9 +105,6 @@ export default function OutboundOrder() {
         return () => { ignore = true; };
     }, [isEdit, omsOutbOrderId, navigate]);
 
-    // 확정된 주문은 고칠 수 없다 (서버도 거부한다). 화면에서 미리 잠가 헛수고를 막는다.
-    const readOnly = isEdit && form.status && form.status !== 'CREATED';
-
     // 선택된 납품처는 코드/명까지 폼에 담아둔다 (표시용). 저장 시엔 storeId만 보낸다.
     const pickStore = (s) => setForm(prev => ({
         ...prev,
@@ -130,16 +139,6 @@ export default function OutboundOrder() {
         ...prev,
         lines: prev.lines.filter((_, i) => i !== idx),
     }));
-
-    // 수량은 전부 출고단위(주문서 단위)라 그대로 더한다. 창고 저장은 낱개(EA)이고
-    // 환산은 확정 시 서버가 한다 — 이 화면은 주문서 단위만 안다.
-    const totalQty = form.lines.reduce((sum, l) => sum + (Number(l.odrQty) || 0), 0);
-
-    // 팝업에서 이미 담긴 상품을 비활성 처리하기 위한 목록.
-    // 라인 교체 모드에선 그 라인 자신은 제외해야 "같은 상품 다시 고르기"가 막히지 않는다.
-    const excludeIds = form.lines
-        .filter((_, i) => i !== pickerFor)
-        .map(l => l.prodId);
 
     const handleSave = async () => {
         if (readOnly) { toast.error('작성 상태의 주문만 수정할 수 있습니다.'); return; }

@@ -3,13 +3,15 @@ import { AgGridReact } from 'ag-grid-react';
 import { Tags, Save, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchItem, SearchText, SearchDateRange, SearchProd } from '@/components/common/SearchBar';
-import SelectCellEditor from '@/components/common/SelectCellEditor';
-import DateCellEditor from '@/components/common/DateCellEditor';
 import { lotAttrChngApi } from '@/api/lotAttrChngApi';
 import { useCodes } from '@/hooks/useCodes';
 import { ETC_RSN_CD, LOT_ATTR_RSN_GRP } from '@/constants/rsnCodes';
 import { num } from '@/utils/format';
+import SearchBar, { SearchItem, SearchText, SearchDateRange, SearchProd } from '@/components/common/SearchBar';
+import SelectCellEditor from '@/components/common/SelectCellEditor';
+import DateCellEditor from '@/components/common/DateCellEditor';
+
+const INIT_COND = { prodCd: '', lotNo: '', expiryFrom: '', expiryTo: '', onlyInStock: true };
 
 /**
  * "YYYY-MM-DD" + n일. toISOString()을 쓰지 않는 이유는 그게 UTC로 변환하기 때문이다
@@ -40,8 +42,6 @@ const toEditableRow = (r) => ({
 
 const isChanged = (r) => r.mfgDt !== r._mfgDt0 || r.expiryDt !== r._expiryDt0;
 
-const INIT_COND = { prodCd: '', lotNo: '', expiryFrom: '', expiryTo: '', onlyInStock: true };
-
 // API가 거르는 것은 ''·null뿐이라, 체크를 풀었으면 여기서 조건 자체를 빼야 한다
 const listParams = (cond) => ({ ...cond, onlyInStock: cond.onlyInStock || undefined });
 
@@ -52,29 +52,11 @@ const listParams = (cond) => ({ ...cond, onlyInStock: cond.onlyInStock || undefi
  * (재검증·재할당 없음 — 이후 할당부터 반영). 되돌리려면 반대 방향 정정을 한 번 더 한다.
  */
 export default function StockAttrChange() {
-    const [rowData, setRowData] = useState([]);
+    const rsn = useCodes(LOT_ATTR_RSN_GRP);
     const [cond, setCond] = useState(INIT_COND);
+    const [rowData, setRowData] = useState([]);
     const [confirmTargets, setConfirmTargets] = useState(null);
     const gridRef = useRef(null);
-    const rsn = useCodes(LOT_ATTR_RSN_GRP);
-
-    const fetchTargets = async () => {
-        const data = await lotAttrChngApi.listTargets(listParams(cond));
-        setRowData(data.map(toEditableRow));
-    };
-
-    useEffect(() => {
-        lotAttrChngApi.listTargets(listParams(INIT_COND)).then(d => setRowData(d.map(toEditableRow)));
-    }, []);
-
-    // 이 화면의 셀은 제 값이 아니라 다른 값을 보고 칠해진다 — 날짜 셀은 정정 전 값(_mfgDt0·_expiryDt0)을,
-    // 사유 셀은 isChanged를, 기타 사유 셀은 rsnCd를 본다. 그런데 그리드는 제 값이 바뀐 셀만 다시 그리니
-    // 「값은 그대로인데 칠할 모습만 달라진」 경우를 놓친다 — 저장 후 재조회하면 서버가 돌려준 값도 새
-    // _mfgDt0도 방금 정정한 값이라, 셀 값이 안 바뀌어 앰버 강조가 남는 것이 그 예다.
-    // 그래서 행이 갈릴 때마다 강제로 다시 그린다.
-    useEffect(() => {
-        gridRef.current?.api?.refreshCells({ force: true });
-    }, [rowData]);
 
     const changedCnt = useMemo(() => rowData.filter(isChanged).length, [rowData]);
 
@@ -147,6 +129,24 @@ export default function StockAttrChange() {
             valueFormatter: (p) => num(p.value),
         },
     ], [rsn]);
+
+    const fetchTargets = async () => {
+        const data = await lotAttrChngApi.listTargets(listParams(cond));
+        setRowData(data.map(toEditableRow));
+    };
+
+    useEffect(() => {
+        lotAttrChngApi.listTargets(listParams(INIT_COND)).then(d => setRowData(d.map(toEditableRow)));
+    }, []);
+
+    // 이 화면의 셀은 제 값이 아니라 다른 값을 보고 칠해진다 — 날짜 셀은 정정 전 값(_mfgDt0·_expiryDt0)을,
+    // 사유 셀은 isChanged를, 기타 사유 셀은 rsnCd를 본다. 그런데 그리드는 제 값이 바뀐 셀만 다시 그리니
+    // 「값은 그대로인데 칠할 모습만 달라진」 경우를 놓친다 — 저장 후 재조회하면 서버가 돌려준 값도 새
+    // _mfgDt0도 방금 정정한 값이라, 셀 값이 안 바뀌어 앰버 강조가 남는 것이 그 예다.
+    // 그래서 행이 갈릴 때마다 강제로 다시 그린다.
+    useEffect(() => {
+        gridRef.current?.api?.refreshCells({ force: true });
+    }, [rowData]);
 
     /**
      * 제조일자를 바꾸면 유통기한 기본값(제조일자 + 유통기한일수)을 제안한다.

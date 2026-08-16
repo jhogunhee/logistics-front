@@ -3,15 +3,15 @@ import { AgGridReact } from 'ag-grid-react';
 import { ArrowLeft, Ban, CheckCircle2, Plus, RefreshCw, Save, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import ConfirmModal from '@/components/common/ConfirmModal';
-import SelectCellEditor from '@/components/common/SelectCellEditor';
-import StockCountAddLineModal from '@/components/stock/StockCountAddLineModal';
-import { Badge } from '@/components/common/Badge';
 import { invStktkApi } from '@/api/invStktkApi';
 import { useCodes } from '@/hooks/useCodes';
 import { ETC_RSN_CD } from '@/constants/rsnCodes';
 import { INV_STKTK_STATUS_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { fmtDt, num } from '@/utils/format';
+import ConfirmModal from '@/components/common/ConfirmModal';
+import SelectCellEditor from '@/components/common/SelectCellEditor';
+import { Badge } from '@/components/common/Badge';
+import StockCountAddLineModal from '@/components/stock/StockCountAddLineModal';
 
 /** 전산수량 기준값 — 확정 후에는 확정시점 값이 고정 기준이다 */
 const baseQtyOf = (ln) => ln.cfmSysQty ?? ln.nowSysQty;
@@ -20,9 +20,9 @@ const baseQtyOf = (ln) => ln.cfmSysQty ?? ln.nowSysQty;
 const adjQtyOf = (ln) => (ln.stktkQty == null ? null : ln.stktkQty - baseQtyOf(ln));
 
 export default function StockCountDetail({ stktkId, onBack }) {
+    const rsn = useCodes('ADJ_RSN');
     const [head, setHead] = useState(null);
     const [lines, setLines] = useState([]);
-    const rsn = useCodes('ADJ_RSN');
     const [selectedLn, setSelectedLn] = useState(null);
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [cancelOpen, setCancelOpen] = useState(false);
@@ -34,29 +34,6 @@ export default function StockCountDetail({ stktkId, onBack }) {
     const pristineRef = useRef({});
 
     const editable = head?.status === 'CREATED';
-
-    const snapshotPristine = (lns) => {
-        pristineRef.current = Object.fromEntries(lns.map(l => [
-            l.lnId,
-            { stktkQty: l.stktkQty ?? null, rsnCd: l.rsnCd ?? null, rsnDscr: l.rsnDscr ?? null },
-        ]));
-    };
-
-    // 상세 조회는 이 effect 한 곳뿐이다 — 재조회는 키를 올려 같은 경로를 다시 태운다
-    // (조회 코드를 두 벌 두지 않고, 늦게 온 응답 무시도 한 번만 처리한다)
-    const reload = () => setReloadKey(k => k + 1);
-
-    useEffect(() => {
-        let ignore = false;
-        invStktkApi.detail(stktkId).then(data => {
-            if (ignore) return;
-            setHead(data);
-            setLines(data.lines);
-            snapshotPristine(data.lines);
-            setSelectedLn(null);
-        });
-        return () => { ignore = true; };
-    }, [stktkId, reloadKey]);
 
     // 화면 요약 — 상태가 아니라 수량에서 파생한다 (「부분입력」 같은 상태를 두지 않는 것과 같은 이유)
     const summary = useMemo(() => {
@@ -161,6 +138,29 @@ export default function StockCountDetail({ stktkId, onBack }) {
                 : <span className="text-slate-300">—</span>,
         },
     ], [editable, head?.status, rsn]);
+
+    const snapshotPristine = (lns) => {
+        pristineRef.current = Object.fromEntries(lns.map(l => [
+            l.lnId,
+            { stktkQty: l.stktkQty ?? null, rsnCd: l.rsnCd ?? null, rsnDscr: l.rsnDscr ?? null },
+        ]));
+    };
+
+    // 상세 조회는 이 effect 한 곳뿐이다 — 재조회는 키를 올려 같은 경로를 다시 태운다
+    // (조회 코드를 두 벌 두지 않고, 늦게 온 응답 무시도 한 번만 처리한다)
+    const reload = () => setReloadKey(k => k + 1);
+
+    useEffect(() => {
+        let ignore = false;
+        invStktkApi.detail(stktkId).then(data => {
+            if (ignore) return;
+            setHead(data);
+            setLines(data.lines);
+            snapshotPristine(data.lines);
+            setSelectedLn(null);
+        });
+        return () => { ignore = true; };
+    }, [stktkId, reloadKey]);
 
     // 그리드 편집 결과를 상태로 끌어올린다 — 요약(차이·사유 누락)이 즉시 갱신되도록
     const onCellValueChanged = (e) => {

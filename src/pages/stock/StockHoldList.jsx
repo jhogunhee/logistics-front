@@ -3,15 +3,14 @@ import { AgGridReact } from 'ag-grid-react';
 import { ListChecks, PlayCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchText, SearchSelect, SearchProd, SearchLoc } from '@/components/common/SearchBar';
-import SelectCellEditor from '@/components/common/SelectCellEditor';
 import { invHldApi } from '@/api/invHldApi';
+import { useCodes } from '@/hooks/useCodes';
 import { ETC_RSN_CD } from '@/constants/rsnCodes';
 import { INV_HLD_STATUS_META } from '@/constants/badgeMeta';
-import { useCodes } from '@/hooks/useCodes';
-import { Badge } from '@/components/common/Badge';
 import { fmtDt, num } from '@/utils/format';
-
+import SearchBar, { SearchText, SearchSelect, SearchProd, SearchLoc } from '@/components/common/SearchBar';
+import SelectCellEditor from '@/components/common/SelectCellEditor';
+import { Badge } from '@/components/common/Badge';
 
 const STATUS_OPTIONS = [
     { value: '', label: '전체' },
@@ -26,12 +25,15 @@ const toEditableRow = (r) => ({ ...r, _rlzQty: null, _rlzRsnCd: '', _rlzRsnDscr:
 const isEntered = (r) => r.status === 'HELD' && (r._rlzQty != null || r._rlzRsnCd !== '');
 
 export default function StockHoldList() {
-    const [rowData, setRowData] = useState([]);
-    const [cond, setCond] = useState({ hldNo: '', prodCd: '', locCd: '', rsnCd: '', status: '' });
-    const [confirmTargets, setConfirmTargets] = useState(null);
-    const gridRef = useRef(null);
     const hldRsn = useCodes('HLD_RSN');     // 보류사유 (조회 필터 + 그리드 표시)
     const rlzRsn = useCodes('HLD_RLZ_RSN'); // 해제사유 (그리드 편집)
+    const [cond, setCond] = useState({ hldNo: '', prodCd: '', locCd: '', rsnCd: '', status: '' });
+    const [rowData, setRowData] = useState([]);
+    const [confirmTargets, setConfirmTargets] = useState(null);
+    const gridRef = useRef(null);
+
+    const entered = useMemo(() => rowData.filter(isEntered), [rowData]);
+    const totalQty = entered.reduce((s, r) => s + (Number(r._rlzQty) || 0), 0);
 
     // 사유코드 → 사유명 매핑이 그리드 표시·편집에 필요해 컬럼 정의를 컴포넌트 안에 둔다
     const columnDefs = useMemo(() => [
@@ -125,9 +127,6 @@ export default function StockHoldList() {
     useEffect(() => {
         gridRef.current?.api?.refreshCells({ force: true });
     }, [rowData]);
-
-    const entered = useMemo(() => rowData.filter(isEntered), [rowData]);
-    const totalQty = entered.reduce((s, r) => s + (Number(r._rlzQty) || 0), 0);
 
     const onCellValueChanged = (e) => {
         // 기본 텍스트 에디터는 문자열을 남긴다 — 빈 값은 null로, 그 외는 숫자로 맞춰 올린다

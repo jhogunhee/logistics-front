@@ -3,13 +3,12 @@ import { AgGridReact } from 'ag-grid-react';
 import { ArrowRight, ClipboardList } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchText, SearchSelect, SearchProd, SearchLoc } from '@/components/common/SearchBar';
 import { invMovApi } from '@/api/invMovApi';
 import { INV_MOV_DVSN_META, INV_MOV_STATUS_META } from '@/constants/badgeMeta';
-import { Badge } from '@/components/common/Badge';
 import { fmtDt, num } from '@/utils/format';
+import SearchBar, { SearchText, SearchSelect, SearchProd, SearchLoc } from '@/components/common/SearchBar';
+import { Badge } from '@/components/common/Badge';
 import ConfirmModal from '@/components/common/ConfirmModal';
-
 
 const STATUS_OPTIONS = [
     { value: '', label: '전체' },
@@ -31,20 +30,11 @@ const isActionable = (r) => r.movDvsn === 'INV_MOV' && r.status === 'DIRECTED';
 const isEntered = (r) => isActionable(r) && r.cnfmQty != null;
 
 export default function StockMoveTaskList() {
-    const [rowData, setRowData] = useState([]);
     const [cond, setCond] = useState({ invMovNo: '', movDvsn: '', prodCd: '', fromLocCd: '', toLocCd: '', status: '' });
+    const [rowData, setRowData] = useState([]);
     const [confirmTargets, setConfirmTargets] = useState(null); // 확정 확인 모달 대상
     const [cancelTarget, setCancelTarget] = useState(null);     // 취소 확인 모달 대상 (행 단위)
     const gridRef = useRef(null);
-
-    const fetchList = async () => {
-        const data = await invMovApi.list(cond);
-        setRowData(data.map(toEditableRow));
-    };
-
-    useEffect(() => {
-        invMovApi.list().then(d => setRowData(d.map(toEditableRow)));
-    }, []);
 
     const entered = useMemo(() => rowData.filter(isEntered), [rowData]);
     const totalQty = entered.reduce((s, r) => s + (Number(r.cnfmQty) || 0), 0);
@@ -115,6 +105,15 @@ export default function StockMoveTaskList() {
         { field: 'createdAt', headerName: '등록일시', width: 140, valueFormatter: (p) => fmtDt(p.value), cellClass: 'text-slate-500' },
         { field: 'cmplDt', headerName: '완료일시', width: 140, valueFormatter: (p) => fmtDt(p.value), cellClass: 'text-slate-500' },
     ], []);
+
+    const fetchList = async () => {
+        const data = await invMovApi.list(cond);
+        setRowData(data.map(toEditableRow));
+    };
+
+    useEffect(() => {
+        invMovApi.list().then(d => setRowData(d.map(toEditableRow)));
+    }, []);
 
     const onCellValueChanged = (e) => {
         // 기본 텍스트 에디터는 문자열을 남긴다 — 빈 값은 null로, 그 외는 숫자로 맞춰 올린다

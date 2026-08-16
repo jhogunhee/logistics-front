@@ -5,17 +5,14 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { CheckCircle2, ClipboardList, Search, Trash2, Undo2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchItem, SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
-import VendorPickerModal from '@/components/common/VendorPickerModal';
 import { omsIbOrderApi } from '@/api/omsIbOrderApi';
 import { useCodes } from '@/hooks/useCodes';
 import { ASN_STATUS_META, OMS_IB_STATUS_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { OMS_IB_STATUS_OPTIONS } from '@/constants/codeOptions';
-import { Badge } from '@/components/common/Badge';
 import { daysAheadStr, num, todayStr } from '@/utils/format';
-
-// 오늘 날짜 "YYYY-MM-DD" (검색 기본값)
-
+import SearchBar, { SearchItem, SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
+import VendorPickerModal from '@/components/common/VendorPickerModal';
+import { Badge } from '@/components/common/Badge';
 
 const centered = { display: 'flex', alignItems: 'center', justifyContent: 'center' };
 
@@ -121,19 +118,19 @@ const LINE_COLUMN_DEFS = [
 ];
 
 export default function InboundOrderList() {
+    const navigate = useNavigate();
+    const odrDvsnCodes = useCodes('ODR_DVSN');
+    const [cond, setCond] = useState({ omsIbNo: '', vndrNm: '', status: '', dateFrom: todayStr(), dateTo: daysAheadStr(7) });
     const [rowData, setRowData] = useState([]);
     const [lineRows, setLineRows] = useState([]);
     const [selected, setSelected] = useState(null);
-    const [cond, setCond] = useState({ omsIbNo: '', vndrNm: '', status: '', dateFrom: todayStr(), dateTo: daysAheadStr(7) });
+    // 벤더 검색은 자유 입력 대신 등록 화면과 같은 팝업(VendorPickerModal)에서 고른다 —
+    // 서버 검색 파라미터가 vndrNm(contains)이라 값은 id가 아니라 이름 그대로 보낸다.
+    const [vendorPickerOpen, setVendorPickerOpen] = useState(false);
     const [confirmTarget, setConfirmTarget] = useState(null);             // 확정 확인 모달 대상
     const [confirmCancelTarget, setConfirmCancelTarget] = useState(null); // 확정취소 확인 모달 대상
     const [deleteTarget, setDeleteTarget] = useState(null);   // 삭제 확인 모달 대상
     const gridRef = useRef(null);
-    const navigate = useNavigate();
-    const odrDvsnCodes = useCodes('ODR_DVSN');
-    // 벤더 검색은 자유 입력 대신 등록 화면과 같은 팝업(VendorPickerModal)에서 고른다 —
-    // 서버 검색 파라미터가 vndrNm(contains)이라 값은 id가 아니라 이름 그대로 보낸다.
-    const [vendorPickerOpen, setVendorPickerOpen] = useState(false);
 
     const fetchList = async () => {
         const data = await omsIbOrderApi.list(cond);
@@ -176,11 +173,6 @@ export default function InboundOrderList() {
         }
         fetchList();
     };
-
-    // 모달 요약용 — "PO-... 외 2건"
-    const summarize = (orders) => orders.length === 1
-        ? orders[0].omsIbNo
-        : `${orders[0].omsIbNo} 외 ${orders.length - 1}건`;
 
     // ── 주문확정 (ASN 생성) ──────────────────────────────────
     // 사용자가 하는 행위는 "발주를 확정한다"이고 ASN 생성은 그 결과다 — 그래서 버튼은
@@ -244,6 +236,11 @@ export default function InboundOrderList() {
 
     const doDelete = (orders) =>
         runBatch(orders, o => omsIbOrderApi.remove(o.omsIbOrderId), '삭제');
+
+    // 모달 요약용 — "PO-... 외 2건"
+    const summarize = (orders) => orders.length === 1
+        ? orders[0].omsIbNo
+        : `${orders[0].omsIbNo} 외 ${orders.length - 1}건`;
 
     return (
         // min-h — 노트북처럼 낮은 화면에선 그리드를 짜부라뜨리는 대신 카드 스크롤(Layout의 overflow-auto)이 생긴다

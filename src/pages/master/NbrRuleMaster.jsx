@@ -3,41 +3,31 @@ import { AgGridReact } from 'ag-grid-react';
 import { Hash, ListOrdered, Plus, Save, Trash2, X, Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+import { nbrRuleApi } from '@/api/nbrRuleApi';
+import { useMasterGrid } from '@/hooks/useMasterGrid';
+import { DYNC_KY_TYP_META } from '@/constants/badgeMeta';
+import { fmtDe, fmtDtSec, num } from '@/utils/format';
 import SearchBar, { SearchText } from '@/components/common/SearchBar';
 import SelectCellEditor from '@/components/common/SelectCellEditor';
-import { nbrRuleApi } from '@/api/nbrRuleApi';
-import { DYNC_KY_TYP_META } from '@/constants/badgeMeta';
-import { useMasterGrid } from '@/hooks/useMasterGrid';
 import { Badge, RowStatusCell } from '@/components/common/Badge';
-import { fmtDe, fmtDtSec, num } from '@/utils/format';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import SaveCountSummary from '@/components/common/SaveCountSummary';
-
 
 const DLMT_OPTIONS = ['-', '_', ''];
 
 export default function NbrRuleMaster() {
-    const [rowData, setRowData] = useState([]);
-    const [cond, setCond] = useState({ ruleCd: '', ruleNm: '' });
-    const [counterModal, setCounterModal] = useState(null); // { ruleCd, rows } — 카운터 보기 모달 (null이면 닫힘)
     const {
         gridRef, rowCount, saveConfirm, setSaveConfirm,
         gridProps, addRow, deleteSelectedRows, requestSave,
     } = useMasterGrid();
+    const [cond, setCond] = useState({ ruleCd: '', ruleNm: '' });
+    const [rowData, setRowData] = useState([]);
+    const [counterModal, setCounterModal] = useState(null); // { ruleCd, rows } — 카운터 보기 모달 (null이면 닫힘)
 
     // 삭제(D) 표시된 행은 편집을 막는다
     const notDeleted = (p) => p.data._status !== 'D';
     // 카운터는 저장된 규칙에만 존재한다 — 아직 저장 전인 신규(C) 행은 조회할 대상이 없다
     const isPersisted = (data) => data._status !== 'C';
-
-    const handleShowCounters = async (ruleCd) => {
-        try {
-            const rows = await nbrRuleApi.seqs(ruleCd);
-            setCounterModal({ ruleCd, rows });
-        } catch {
-            // 실패 토스트는 axios 인터셉터가 띄운다 (조회는 GET)
-        }
-    };
 
     const columnDefs = [
         {
@@ -136,6 +126,15 @@ export default function NbrRuleMaster() {
     useEffect(() => {
         nbrRuleApi.list().then(setRowData);
     }, []);
+
+    const handleShowCounters = async (ruleCd) => {
+        try {
+            const rows = await nbrRuleApi.seqs(ruleCd);
+            setCounterModal({ ruleCd, rows });
+        } catch {
+            // 실패 토스트는 axios 인터셉터가 띄운다 (조회는 GET)
+        }
+    };
 
     // ── 행 추가 ──────────────────────────────────────────────
     const handleAddRow = () => addRow(

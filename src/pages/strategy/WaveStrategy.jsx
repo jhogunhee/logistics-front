@@ -3,13 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, History, Play, Plus, Rocket, ScrollText, Trash2, Waves } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+import { strategyApi } from '@/api/strategyApi';
+import { num } from '@/utils/format';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import ConditionBuilder from '@/components/strategy/ConditionBuilder';
 import ExecutionHistory from '@/components/strategy/ExecutionHistory';
 import RevisionHistory from '@/components/strategy/RevisionHistory';
 import WaveOrderTrace from '@/components/strategy/WaveOrderTrace';
-import { strategyApi } from '@/api/strategyApi';
-import { num } from '@/utils/format';
 import DatePicker from '@/components/common/DatePicker';
 
 const emptyDefinition = () => ({ stgyNm: '', prty: 0, condGrp: [] });
@@ -31,7 +31,6 @@ export default function WaveStrategy() {
     const [editingId, setEditingId] = useState(null);    // null = 신규
     const [def, setDef] = useState(emptyDefinition());
     const [baseline, setBaseline] = useState('');        // 마지막 저장 상태 — dirty 판정 기준
-
     const [fields, setFields] = useState([]);            // 웨이브 조건 필드 (메타)
     const [revisionOpen, setRevisionOpen] = useState(false);
     const [execOpen, setExecOpen] = useState(false);

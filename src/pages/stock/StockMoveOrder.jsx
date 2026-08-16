@@ -3,14 +3,14 @@ import { AgGridReact } from 'ag-grid-react';
 import { ArrowLeftRight, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchText, SearchProd, SearchLoc } from '@/components/common/SearchBar';
-import SelectCellEditor from '@/components/common/SelectCellEditor';
 import { invApi } from '@/api/invApi';
 import { invMovApi } from '@/api/invMovApi';
 import { locApi } from '@/api/locApi';
 import { TEMP_ZONE_META } from '@/constants/badgeMeta';
-import { Badge } from '@/components/common/Badge';
 import { num } from '@/utils/format';
+import SearchBar, { SearchText, SearchProd, SearchLoc } from '@/components/common/SearchBar';
+import SelectCellEditor from '@/components/common/SelectCellEditor';
+import { Badge } from '@/components/common/Badge';
 
 // 조회 결과에 입력 2필드를 붙인다 — 행이 곧 지시 후보라, 별도 담기 목록이 없다
 const toEditableRow = (r) => ({ ...r, qty: null, toLocCd: '' });
@@ -19,28 +19,11 @@ const toEditableRow = (r) => ({ ...r, qty: null, toLocCd: '' });
 const isEntered = (r) => r.qty != null || r.toLocCd !== '';
 
 export default function StockMoveOrder() {
-    const [rowData, setRowData] = useState([]);
     const [cond, setCond] = useState({ prodCd: '', locCd: '', lotNo: '' });
+    const [rowData, setRowData] = useState([]);
     const [storageLocs, setStorageLocs] = useState([]); // 보관 로케이션 전체 (TO 후보의 모집단)
     const [confirmTargets, setConfirmTargets] = useState(null);
     const gridRef = useRef(null);
-
-    // 이동 대상은 보관 재고뿐이다 (스테이징은 적치·출고확정의 소관) — locTyp을 STORAGE로 고정해 조회
-    const fetchStock = async () => {
-        const data = await invApi.list({ ...cond, locTyp: 'STORAGE' });
-        setRowData(data.filter(r => r.avalQty > 0).map(toEditableRow));
-    };
-
-    useEffect(() => {
-        invApi.list({ locTyp: 'STORAGE' }).then(data => setRowData(data.filter(r => r.avalQty > 0).map(toEditableRow)));
-        locApi.list({ locTyp: 'STORAGE' }).then(setStorageLocs);
-    }, []);
-
-    // 도착 로케이션 셀은 qty를 보고 그려진다 — 제 값이 안 바뀐 셀은 그리드가 다시 그리지 않으므로,
-    // 행이 갈릴 때마다 강제로 다시 그린다 (보류등록과 같은 판단)
-    useEffect(() => {
-        gridRef.current?.api?.refreshCells({ force: true });
-    }, [rowData]);
 
     const locZonByCd = useMemo(
         () => Object.fromEntries(storageLocs.map(l => [l.locCd, l.zonCd])),
@@ -122,6 +105,23 @@ export default function StockMoveOrder() {
             },
         },
     ], [storageLocs, locZonByCd]);
+
+    // 이동 대상은 보관 재고뿐이다 (스테이징은 적치·출고확정의 소관) — locTyp을 STORAGE로 고정해 조회
+    const fetchStock = async () => {
+        const data = await invApi.list({ ...cond, locTyp: 'STORAGE' });
+        setRowData(data.filter(r => r.avalQty > 0).map(toEditableRow));
+    };
+
+    useEffect(() => {
+        invApi.list({ locTyp: 'STORAGE' }).then(data => setRowData(data.filter(r => r.avalQty > 0).map(toEditableRow)));
+        locApi.list({ locTyp: 'STORAGE' }).then(setStorageLocs);
+    }, []);
+
+    // 도착 로케이션 셀은 qty를 보고 그려진다 — 제 값이 안 바뀐 셀은 그리드가 다시 그리지 않으므로,
+    // 행이 갈릴 때마다 강제로 다시 그린다 (보류등록과 같은 판단)
+    useEffect(() => {
+        gridRef.current?.api?.refreshCells({ force: true });
+    }, [rowData]);
 
     const onCellValueChanged = (e) => {
         // 기본 텍스트 에디터는 문자열을 남긴다 — 빈 값은 null로, 그 외는 숫자로 맞춰 올린다

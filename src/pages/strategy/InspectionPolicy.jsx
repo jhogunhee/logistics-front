@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { History, Play, Plus, ScrollText, ShieldCheck, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+import { strategyApi } from '@/api/strategyApi';
+import { asnApi } from '@/api/asnApi';
+import { todayStr } from '@/utils/format';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import ProdPickerModal from '@/components/common/ProdPickerModal';
@@ -10,12 +13,7 @@ import RuleParamForm, { RULE_PARA_DEFAULTS } from '@/components/strategy/RulePar
 import ExecutionHistory from '@/components/strategy/ExecutionHistory';
 import RevisionHistory from '@/components/strategy/RevisionHistory';
 import SortableList from '@/components/strategy/SortableList';
-import { strategyApi } from '@/api/strategyApi';
-import { asnApi } from '@/api/asnApi';
-import { todayStr } from '@/utils/format';
 import DatePicker from '@/components/common/DatePicker';
-
-// 오늘 "YYYY-MM-DD" (미리보기 로트 기본값)
 
 /**
  * SC-01 검수 정책관리. 정책은 전역 1개 — 목록 없이 바로 편집 화면이다.
@@ -45,8 +43,8 @@ export default function InspectionPolicy() {
     const confirmRef = useRef(null);
 
     const descriptorOf = (code) => descriptors.find(d => d.code === code);
-
     const snapshotOf = (nm, ruleList) => JSON.stringify({ stgyNm: nm, rules: ruleList });
+    const dirty = loaded && snapshotOf(stgyNm, rules) !== baseline;
 
     const applyPolicy = (data) => {
         const mapped = (data.rules ?? []).map(r => ({ ruleCd: r.ruleCd, para: r.para ?? {} }));
@@ -57,8 +55,6 @@ export default function InspectionPolicy() {
         setBaseline(snapshotOf(data.stgyNm ?? '', mapped));
         setLoaded(true);
     };
-
-    const dirty = loaded && snapshotOf(stgyNm, rules) !== baseline;
 
     const fetchPolicy = () => strategyApi.inspectionPolicy.get().then(applyPolicy);
 

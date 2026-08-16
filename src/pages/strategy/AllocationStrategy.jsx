@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, History, Layers, Play, Plus, ScrollText, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+import { strategyApi } from '@/api/strategyApi';
+import { num } from '@/utils/format';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import AllocPlanTrace from '@/components/strategy/AllocPlanTrace';
 import ComponentPicker from '@/components/strategy/ComponentPicker';
@@ -11,8 +13,6 @@ import RevisionHistory from '@/components/strategy/RevisionHistory';
 import SortCriteriaEditor from '@/components/strategy/SortCriteriaEditor';
 import SortableList from '@/components/strategy/SortableList';
 import { useFields } from '@/components/strategy/useOptions';
-import { strategyApi } from '@/api/strategyApi';
-import { num } from '@/utils/format';
 
 const emptyDefinition = () => ({ stgyNm: '', prty: 0, tgtCond: [], slots: [] });
 
@@ -67,12 +67,14 @@ const SECTIONS = [
  * DB를 바꾸지 않는 미리보기다.
  */
 export default function AllocationStrategy() {
+    const tgtFields = useFields('allocation-target');
+    const invnFields = useFields('allocation-invn');
+    const lineFields = useFields('allocation-line');
     const [mode, setMode] = useState('list');            // 'list' | 'edit'
     const [rows, setRows] = useState([]);
     const [editingId, setEditingId] = useState(null);    // null = 신규
     const [def, setDef] = useState(emptyDefinition());
     const [baseline, setBaseline] = useState('');        // 마지막 저장 상태 — dirty 판정 기준
-
     const [components, setComponents] = useState({});    // slotTyp → [{ code, name, dscr }]
     const [sortFields, setSortFields] = useState({});    // domain → [{ value, label }]
     const [picker, setPicker] = useState(null);          // 구현체 추가 중인 slotTyp
@@ -86,11 +88,7 @@ export default function AllocationStrategy() {
     const [wavIds, setWavIds] = useState([]);
     const [previewResult, setPreviewResult] = useState(null);
 
-    const tgtFields = useFields('allocation-target');
-    const invnFields = useFields('allocation-invn');
-    const lineFields = useFields('allocation-line');
     const condFieldsOf = (domain) => (domain === 'allocation-invn' ? invnFields : lineFields);
-
     const dirty = mode === 'edit' && JSON.stringify(def) !== baseline;
 
     const fetchList = () => strategyApi.allocationStrategies.list().then(setRows);

@@ -4,11 +4,11 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Hand, PackageCheck, Rocket, Unlink } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+import { outbAllocApi } from '@/api/outbAllocApi';
+import { fmtDe, fmtDt, num } from '@/utils/format';
 import SearchBar, { SearchText, SearchDateRange, SearchProd } from '@/components/common/SearchBar';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import AllocCandidateModal from '@/components/outbound/AllocCandidateModal';
-import { outbAllocApi } from '@/api/outbAllocApi';
-import { fmtDe, fmtDt, num } from '@/utils/format';
 
 /** 잔량 강조 — 0이면 흐리게, 남아 있으면 눈에 걸리게. 이 값이 이 화면의 결품 표시다 */
 const remainCell = (p) => (p.value > 0
@@ -101,7 +101,6 @@ export default function Allocation() {
     const [manualLine, setManualLine] = useState(null);
     const [confirmExec, setConfirmExec] = useState(null);
     const [confirmRelease, setConfirmRelease] = useState(null);
-
     const waveGridRef = useRef(null);
     const allocGridRef = useRef(null);
     // 재조회 뒤 보고 있던 웨이브를 다시 열기 위한 wavId (편성 화면과 같은 방식)
@@ -113,6 +112,16 @@ export default function Allocation() {
         if (!cond.outbNo && !cond.prodCd && !cond.storeCd) return false;
         return hit(line.outbNo, cond.outbNo) && hit(line.prodCd, cond.prodCd) && hit(line.storeCd, cond.storeCd);
     };
+
+    // 선택 라인의 할당 레코드만 아래에 보여준다. 라인을 안 고르면 웨이브 전체
+    const shownAllocs = useMemo(() => {
+        if (!detail) return [];
+        return selectedLine
+            ? detail.allocs.filter(a => a.outbLineId === selectedLine.outbLineId)
+            : detail.allocs;
+    }, [detail, selectedLine]);
+
+    const shortLines = execResult?.lines.filter(l => l.shortQty > 0) ?? [];
 
     const fetchWaves = async (keepSelection = true) => {
         pendingWaveRef.current = keepSelection ? detail?.wavId ?? null : null;
@@ -161,6 +170,15 @@ export default function Allocation() {
     const checkedAllocs = () => allocGridRef.current?.api.getSelectedRows() ?? [];
 
     // ── 실행 ─────────────────────────────────────────────────
+    const handleExecClick = () => {
+        const rows = checkedWaves();
+        if (rows.length === 0) {
+            toast('할당할 웨이브를 체크하세요.');
+            return;
+        }
+        setConfirmExec(rows);
+    };
+
     const doExec = async (rows) => {
         try {
             const res = await outbAllocApi.execute(rows.map(r => r.wavId));
@@ -177,15 +195,6 @@ export default function Allocation() {
         } catch (e) {
             toast.error(e.message || '할당에 실패했습니다.');
         }
-    };
-
-    const handleExecClick = () => {
-        const rows = checkedWaves();
-        if (rows.length === 0) {
-            toast('할당할 웨이브를 체크하세요.');
-            return;
-        }
-        setConfirmExec(rows);
     };
 
     const handleManualClick = () => {
@@ -225,16 +234,6 @@ export default function Allocation() {
             toast.error(e.message || '할당 해제에 실패했습니다.');
         }
     };
-
-    // 선택 라인의 할당 레코드만 아래에 보여준다. 라인을 안 고르면 웨이브 전체
-    const shownAllocs = useMemo(() => {
-        if (!detail) return [];
-        return selectedLine
-            ? detail.allocs.filter(a => a.outbLineId === selectedLine.outbLineId)
-            : detail.allocs;
-    }, [detail, selectedLine]);
-
-    const shortLines = execResult?.lines.filter(l => l.shortQty > 0) ?? [];
 
     return (
         // min-h — 노트북처럼 낮은 화면에선 그리드를 짜부라뜨리는 대신 카드 스크롤(Layout의 overflow-auto)이 생긴다

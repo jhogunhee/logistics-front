@@ -4,21 +4,15 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { ListTree, Plus, Save, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchText } from '@/components/common/SearchBar';
 import { codeApi } from '@/api/codeApi';
 import { useMasterGrid } from '@/hooks/useMasterGrid';
-import { RowStatusCell } from '@/components/common/Badge';
 import { fmtDe, num } from '@/utils/format';
+import SearchBar, { SearchText } from '@/components/common/SearchBar';
+import { RowStatusCell } from '@/components/common/Badge';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import SaveCountSummary from '@/components/common/SaveCountSummary';
 
-
 export default function CodeMaster() {
-    const [groups, setGroups] = useState([]);
-    const [selectedGroup, setSelectedGroup] = useState(null); // 상단에서 고른 그룹 (null이면 하단이 비어 있다)
-    const [rowData, setRowData] = useState([]);
-    const [cond, setCond] = useState({ codeCd: '', codeNm: '' });
-    const [groupSwitchConfirm, setGroupSwitchConfirm] = useState(null); // 미저장 상태에서 그룹을 바꾸려 할 때 보류된 그룹
     // 그리드가 둘이라 훅도 둘 — C/U/D 마킹·행추가·삭제·dirty 수집 규약을 다른 마스터 화면과 같은 훅으로 쓴다
     const {
         gridRef: groupGridRef, rowCount: groupRowCount, gridProps: groupGridProps,
@@ -28,12 +22,16 @@ export default function CodeMaster() {
         gridRef, rowCount, saveConfirm, setSaveConfirm,
         gridProps, addRow, deleteSelectedRows, collectDirty, requestSave,
     } = useMasterGrid();
+    const [cond, setCond] = useState({ codeCd: '', codeNm: '' });
+    const [groups, setGroups] = useState([]);
+    const [rowData, setRowData] = useState([]);
+    const [selectedGroup, setSelectedGroup] = useState(null); // 상단에서 고른 그룹 (null이면 하단이 비어 있다)
+    const [groupSwitchConfirm, setGroupSwitchConfirm] = useState(null); // 미저장 상태에서 그룹을 바꾸려 할 때 보류된 그룹
 
     // 삭제(D) 표시된 행은 편집을 막는다
     const notDeleted = (p) => p.data._status !== 'D';
     // 코드 값은 (grp_cd, code_cd) PK의 일부라 등록 후 변경 불가 — 신규(C) 행에서만 입력받는다
     const isNew = (p) => p.data._status === 'C';
-
 
     const GROUP_COLUMN_DEFS = [
         { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
@@ -116,16 +114,6 @@ export default function CodeMaster() {
         codeApi.groups().then(setGroups);
     }, []);
 
-    // 그룹 데이터가 들어올 때마다: 선택이 없으면 selectedGroup(없으면 첫 행)을 그리드 선택에 맞춘다.
-    // onFirstDataRendered는 1회만 발화해 데이터보다 먼저 불리면 자동선택이 영영 누락되고,
-    // 저장 후 rowData 교체로 사라진 선택도 되살릴 수 없다 — 그래서 onRowDataUpdated에 매단다.
-    const syncGroupSelection = (p) => {
-        if (p.api.getDisplayedRowCount() === 0 || p.api.getSelectedRows().length > 0) return;
-        let match = null;
-        p.api.forEachNode(n => { if (!match && n.data.grpCd === selectedGroup?.grpCd) match = n; });
-        (match ?? p.api.getDisplayedRowAtIndex(0))?.setSelected(true);
-    };
-
     /**
      * 코드 조회는 선택 이벤트가 아니라 selectedGroup 변화에 매단다.
      * 이벤트에 매달면 최초 자동 선택처럼 그리드 내부에서 발생한 선택에서 조회가 누락된다
@@ -147,6 +135,16 @@ export default function CodeMaster() {
             });
         return () => { ignore = true; };
     }, [selectedGroup]);
+
+    // 그룹 데이터가 들어올 때마다: 선택이 없으면 selectedGroup(없으면 첫 행)을 그리드 선택에 맞춘다.
+    // onFirstDataRendered는 1회만 발화해 데이터보다 먼저 불리면 자동선택이 영영 누락되고,
+    // 저장 후 rowData 교체로 사라진 선택도 되살릴 수 없다 — 그래서 onRowDataUpdated에 매단다.
+    const syncGroupSelection = (p) => {
+        if (p.api.getDisplayedRowCount() === 0 || p.api.getSelectedRows().length > 0) return;
+        let match = null;
+        p.api.forEachNode(n => { if (!match && n.data.grpCd === selectedGroup?.grpCd) match = n; });
+        (match ?? p.api.getDisplayedRowAtIndex(0))?.setSelected(true);
+    };
 
     /**
      * 그룹 전환. 저장하지 않은 코드 변경이 있으면 되묻는다 —

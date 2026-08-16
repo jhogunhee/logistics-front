@@ -4,16 +4,16 @@ import { Download, Plus, Ruler, Save, Trash2, Undo2, Upload } from 'lucide-react
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 
-import SearchBar, { SearchText } from '@/components/common/SearchBar';
-import SelectCellEditor from '@/components/common/SelectCellEditor';
 import { prodUomApi } from '@/api/prodUomApi';
 import { prodApi } from '@/api/prodApi';
 import { useCodes } from '@/hooks/useCodes';
 import { useMasterGrid } from '@/hooks/useMasterGrid';
+import { num } from '@/utils/format';
+import SearchBar, { SearchText } from '@/components/common/SearchBar';
+import SelectCellEditor from '@/components/common/SelectCellEditor';
 import { RowStatusCell } from '@/components/common/Badge';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import SaveCountSummary from '@/components/common/SaveCountSummary';
-import { num } from '@/utils/format';
 
 // 단위 코드 목록의 주인은 공통코드 UOM 그룹이다 (온도대·보관유형과 같은 API를 쓴다)
 const GRP_CD = 'UOM';
@@ -39,19 +39,19 @@ const RoleRadio = ({ node, field, onPick }) => (
 );
 
 export default function UomMaster() {
-    const [prods, setProds] = useState([]);
-    const [uomsByProd, setUomsByProd] = useState({});
-    const [cond, setCond] = useState({ prodCd: '', prodNm: '' });
     const uomCodes = useCodes(GRP_CD);                     // 공통코드 UOM — 단위 콤보 편집기용
-    const [selectedProd, setSelectedProd] = useState(null);
-    const [uploadConfirm, setUploadConfirm] = useState(null); // 엑셀 업로드 확인 모달
-    const prodGridRef = useRef(null);
-    const fileInputRef = useRef(null);
     // 우측 포장 그리드는 다른 마스터 화면과 같은 C/U/D 규약을 쓴다
     const {
         gridRef: uomGridRef, rowCount, dirtyCount, saveConfirm, setSaveConfirm,
         gridProps, addRow, deleteSelectedRows, requestSave,
     } = useMasterGrid();
+    const [cond, setCond] = useState({ prodCd: '', prodNm: '' });
+    const [prods, setProds] = useState([]);
+    const [uomsByProd, setUomsByProd] = useState({});
+    const [selectedProd, setSelectedProd] = useState(null);
+    const [uploadConfirm, setUploadConfirm] = useState(null); // 엑셀 업로드 확인 모달
+    const prodGridRef = useRef(null);
+    const fileInputRef = useRef(null);
 
     // 상품이 바뀌거나 재조회되면 원본에서 편집본을 새로 뜬다. 편집본은 ag-grid가 직접 고치기 때문에 원본과 달라진다
     const uomRows = useMemo(
@@ -154,11 +154,6 @@ export default function UomMaster() {
         setSelectedProd(prod);
     };
 
-    // 원본에서 새로 뜬 편집판을 그리드에 직접 밀어 넣는다 — 행추가분(applyTransaction)까지 함께 걷힌다
-    const revert = () => uomGridRef.current.api.setGridOption(
-        'rowData', (uomsByProd[selectedProd?.prodId] ?? []).map(u => ({ ...u }))
-    );
-
     /**
      * 입고/출고단위 지정. 이 그리드는 한 상품의 포장만 담으므로 전체를 훑어 하나만 켜면 된다.
      * setDataValue가 셀 갱신과 U 표시(onCellValueChanged)를 함께 처리한다.
@@ -171,6 +166,11 @@ export default function UomMaster() {
             n.setDataValue(field, next);
         });
     };
+
+    // 원본에서 새로 뜬 편집판을 그리드에 직접 밀어 넣는다 — 행추가분(applyTransaction)까지 함께 걷힌다
+    const revert = () => uomGridRef.current.api.setGridOption(
+        'rowData', (uomsByProd[selectedProd?.prodId] ?? []).map(u => ({ ...u }))
+    );
 
     // ── 포장 추가 ───────────────────────────────────────────
     const handleAddUom = () => {

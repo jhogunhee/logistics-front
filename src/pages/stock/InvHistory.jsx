@@ -2,13 +2,12 @@ import { useEffect, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { History } from 'lucide-react';
 
-import SearchBar, { SearchText, SearchSelect, SearchDateRange, SearchProd, SearchLoc } from '@/components/common/SearchBar';
 import { invHistApi } from '@/api/invHistApi';
 import { TEMP_ZONE_META, TX_TYPE_META } from '@/constants/badgeMeta';
 import { TX_TYPE_OPTIONS } from '@/constants/codeOptions';
-import { Badge } from '@/components/common/Badge';
 import { fmtDt, num } from '@/utils/format';
-
+import SearchBar, { SearchText, SearchSelect, SearchDateRange, SearchProd, SearchLoc } from '@/components/common/SearchBar';
+import { Badge } from '@/components/common/Badge';
 
 const REF_DOC_TYPE_LABEL = { INBOUND: '입고', OUTBOUND: '출고' };
 
@@ -54,8 +53,8 @@ const COLUMN_DEFS = [
 ];
 
 export default function InvHistory() {
-    const [rowData, setRowData] = useState([]);
     const [cond, setCond] = useState({ prodCd: '', locCd: '', txTyp: '', rfnDocNo: '', dateFrom: '', dateTo: '' });
+    const [rowData, setRowData] = useState([]);
 
     const fetchList = async () => {
         const data = await invHistApi.list(cond);

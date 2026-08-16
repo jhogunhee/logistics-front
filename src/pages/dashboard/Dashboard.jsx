@@ -8,7 +8,6 @@ import { invHistApi } from '@/api/invHistApi';
 import { ASN_PRGR_META, TX_TYPE_META } from '@/constants/badgeMeta';
 import { fmtDt, num, todayStr } from '@/utils/format';
 
-
 // 분포는 저장 상태(3값)가 아니라 진행 5단계 파생값(prgr)으로 그린다 — 저장 상태로는
 // 검수·적치·확정대기가 전부 「입고중」 한 칸에 뭉쳐 분포라 할 게 없다
 const STATUS_ORDER = ['SCHEDULED', 'RECEIVING', 'PTAWY_DRCT', 'PTAWY_CMPL', 'CONFIRMED'];
@@ -19,6 +18,65 @@ const STATUS_BAR_COLOR = {
     PTAWY_CMPL: 'bg-sky-400',
     CONFIRMED: 'bg-emerald-400',
 };
+
+export default function Dashboard() {
+    const [asns, setAsns] = useState([]);
+    const [putawayPending, setPutawayPending] = useState([]);
+    const [prodCount, setProdCount] = useState(0);
+    const [recentHist, setRecentHist] = useState([]);
+
+    const todayAsnCount = asns.filter(a => a.expctDe === todayStr()).length;
+    // 진행 단계 기준 — 저장 상태 RECEIVING은 적치 중·확정대기까지 포함해 「검수중」보다 넓다
+    const receivingCount = asns.filter(a => a.prgr === 'RECEIVING').length;
+
+    useEffect(() => {
+        Promise.all([
+            asnApi.list(),
+            putawayApi.lines(),
+            prodApi.list(),
+            invHistApi.list(),
+        ]).then(([asnData, putawayData, prodData, histData]) => {
+            setAsns(asnData);
+            setPutawayPending(putawayData);
+            setProdCount(prodData.length);
+            setRecentHist(histData.slice(0, 8));
+        });
+    }, []);
+
+    return (
+        <div className="flex flex-col gap-5">
+            <h2 className="text-lg font-bold text-slate-800">대시보드</h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <StatCard title="금일 입고예정" value={`${num(todayAsnCount)}건`} icon={Truck} hint={todayStr()} />
+                <StatCard title="검수중" value={`${num(receivingCount)}건`} icon={ClipboardCheck} hint="입고예정(ASN) 기준" />
+                <StatCard title="적치대기 Lot" value={`${num(putawayPending.length)}건`} icon={PackageOpen} hint="RCV-STAGE 미적치" />
+                <StatCard title="등록 상품" value={`${num(prodCount)}종`} icon={Barcode} hint="마스터 기준" />
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <Panel title="입고예정 상태 분포">
+                    <StatusDistribution asns={asns} />
+                </Panel>
+
+                <Panel
+                    title="최근 재고이력"
+                    action={<History size={15} className="text-slate-300" />}
+                >
+                    <RecentHistory items={recentHist} />
+                </Panel>
+            </div>
+
+            <div className="bg-white rounded-xl border border-dashed border-slate-200 p-6 flex items-center gap-4 text-slate-400">
+                <PackageSearch size={22} />
+                <div>
+                    <p className="text-sm font-bold text-slate-500">출고 프로세스 준비중</p>
+                    <p className="text-xs mt-0.5">할당/피킹/출고확정이 붙으면 이 자리에 출고 현황이 표시됩니다.</p>
+                </div>
+            </div>
+        </div>
+    );
+}
 
 const StatCard = ({ title, value, icon: Icon, hint }) => (
     <div className="bg-white rounded-xl border border-slate-200 p-5 flex items-center gap-4">
@@ -106,62 +164,3 @@ const RecentHistory = ({ items }) => {
         </div>
     );
 };
-
-export default function Dashboard() {
-    const [asns, setAsns] = useState([]);
-    const [putawayPending, setPutawayPending] = useState([]);
-    const [prodCount, setProdCount] = useState(0);
-    const [recentHist, setRecentHist] = useState([]);
-
-    useEffect(() => {
-        Promise.all([
-            asnApi.list(),
-            putawayApi.lines(),
-            prodApi.list(),
-            invHistApi.list(),
-        ]).then(([asnData, putawayData, prodData, histData]) => {
-            setAsns(asnData);
-            setPutawayPending(putawayData);
-            setProdCount(prodData.length);
-            setRecentHist(histData.slice(0, 8));
-        });
-    }, []);
-
-    const todayAsnCount = asns.filter(a => a.expctDe === todayStr()).length;
-    // 진행 단계 기준 — 저장 상태 RECEIVING은 적치 중·확정대기까지 포함해 「검수중」보다 넓다
-    const receivingCount = asns.filter(a => a.prgr === 'RECEIVING').length;
-
-    return (
-        <div className="flex flex-col gap-5">
-            <h2 className="text-lg font-bold text-slate-800">대시보드</h2>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard title="금일 입고예정" value={`${num(todayAsnCount)}건`} icon={Truck} hint={todayStr()} />
-                <StatCard title="검수중" value={`${num(receivingCount)}건`} icon={ClipboardCheck} hint="입고예정(ASN) 기준" />
-                <StatCard title="적치대기 Lot" value={`${num(putawayPending.length)}건`} icon={PackageOpen} hint="RCV-STAGE 미적치" />
-                <StatCard title="등록 상품" value={`${num(prodCount)}종`} icon={Barcode} hint="마스터 기준" />
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <Panel title="입고예정 상태 분포">
-                    <StatusDistribution asns={asns} />
-                </Panel>
-
-                <Panel
-                    title="최근 재고이력"
-                    action={<History size={15} className="text-slate-300" />}
-                >
-                    <RecentHistory items={recentHist} />
-                </Panel>
-            </div>
-
-            <div className="bg-white rounded-xl border border-dashed border-slate-200 p-6 flex items-center gap-4 text-slate-400">
-                <PackageSearch size={22} />
-                <div>
-                    <p className="text-sm font-bold text-slate-500">출고 프로세스 준비중</p>
-                    <p className="text-xs mt-0.5">할당/피킹/출고확정이 붙으면 이 자리에 출고 현황이 표시됩니다.</p>
-                </div>
-            </div>
-        </div>
-    );
-}

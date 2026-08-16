@@ -3,14 +3,13 @@ import { AgGridReact } from 'ag-grid-react';
 import { ClipboardList } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+import { putawayApi, PUTAWAY_TASK_STATUS_META } from '@/api/putawayApi';
+import { TEMP_ZONE_META } from '@/constants/badgeMeta';
+import { fmtDe, fmtDt, num } from '@/utils/format';
 import SearchBar, { SearchItem, SearchLoc, SearchProd } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import ConfirmModal from '@/components/common/ConfirmModal';
-import { TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { Badge } from '@/components/common/Badge';
-import { putawayApi, PUTAWAY_TASK_STATUS_META } from '@/api/putawayApi';
-import { fmtDe, fmtDt, num } from '@/utils/format';
-
 
 const STATUS_OPTIONS = [
     { value: '', label: '전체' },
@@ -32,30 +31,6 @@ export default function PutawayTaskList() {
     // 기본 상태 = 지시 — 이 탭의 유일한 동작(취소)이 가능한 상태다
     const [cond, setCond] = useState({ ibNo: '', prodCd: '', toLocCd: '', status: 'DIRECTED' });
     const [cancelTarget, setCancelTarget] = useState(null);
-
-    const fetchList = async () => {
-        try {
-            setRowData(await putawayApi.tasks(cond));
-        } catch (e) {
-            toast.error(e.message || '조회에 실패했습니다.');
-        }
-    };
-
-    useEffect(() => {
-        let ignore = false;
-        putawayApi.tasks(cond).then(data => { if (!ignore) setRowData(data); }).catch(() => {});
-        return () => { ignore = true; };
-    }, []);
-
-    const doCancel = async (target) => {
-        try {
-            await putawayApi.cancel(target.putawayTaskId);
-            toast.success(`${target.prodCd} ${num(target.remainingQty)}개의 적치지시를 취소했습니다.`);
-            fetchList();
-        } catch (e) {
-            toast.error(e.message || '적치지시 취소에 실패했습니다.');
-        }
-    };
 
     // 취소 버튼을 컬럼 안에 두는 탓에 셀 렌더러가 최신 핸들러를 봐야 한다 — 컬럼 정의를 컴포넌트 안에 둔다
     const columnDefs = [
@@ -118,6 +93,30 @@ export default function PutawayTaskList() {
             },
         },
     ];
+
+    const fetchList = async () => {
+        try {
+            setRowData(await putawayApi.tasks(cond));
+        } catch (e) {
+            toast.error(e.message || '조회에 실패했습니다.');
+        }
+    };
+
+    useEffect(() => {
+        let ignore = false;
+        putawayApi.tasks(cond).then(data => { if (!ignore) setRowData(data); }).catch(() => {});
+        return () => { ignore = true; };
+    }, []);
+
+    const doCancel = async (target) => {
+        try {
+            await putawayApi.cancel(target.putawayTaskId);
+            toast.success(`${target.prodCd} ${num(target.remainingQty)}개의 적치지시를 취소했습니다.`);
+            fetchList();
+        } catch (e) {
+            toast.error(e.message || '적치지시 취소에 실패했습니다.');
+        }
+    };
 
     return (
         <div className="flex flex-col gap-4 h-full">

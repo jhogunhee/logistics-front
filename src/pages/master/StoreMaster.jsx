@@ -3,27 +3,25 @@ import { AgGridReact } from 'ag-grid-react';
 import { Plus, Save, Store, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchSelect, SearchText } from '@/components/common/SearchBar';
 import { storeApi } from '@/api/storeApi';
-import { RowStatusCell } from '@/components/common/Badge';
-import SelectCellEditor from '@/components/common/SelectCellEditor';
 import { useCodes } from '@/hooks/useCodes';
 import { useMasterGrid } from '@/hooks/useMasterGrid';
 import { fmtDe, num } from '@/utils/format';
+import SearchBar, { SearchSelect, SearchText } from '@/components/common/SearchBar';
+import { RowStatusCell } from '@/components/common/Badge';
+import SelectCellEditor from '@/components/common/SelectCellEditor';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import SaveCountSummary from '@/components/common/SaveCountSummary';
 
-
-
 export default function StoreMaster() {
-    const [rowData, setRowData] = useState([]);
-    const [cond, setCond] = useState({ storeCd: '', storeNm: '', storeGrp: '', storeTyp: '' });
     const storeGrpCodes = useCodes('STORE_GRP');
     const storeTypCodes = useCodes('STORE_TYP');
     const {
         gridRef, rowCount, saveConfirm, setSaveConfirm,
         gridProps, addRow, deleteSelectedRows, requestSave,
     } = useMasterGrid();
+    const [cond, setCond] = useState({ storeCd: '', storeNm: '', storeGrp: '', storeTyp: '' });
+    const [rowData, setRowData] = useState([]);
 
     // 삭제(D) 표시된 행은 편집을 막는다
     const notDeleted = (p) => p.data._status !== 'D';

@@ -3,15 +3,13 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { FileInput, Info, Package, Plus, RotateCcw, Save, Search, Trash2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import ProdPickerModal from '@/components/common/ProdPickerModal';
-import VendorPickerModal from '@/components/common/VendorPickerModal';
 import { omsIbOrderApi } from '@/api/omsIbOrderApi';
 import { useCodes } from '@/hooks/useCodes';
 import { TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { eaQtyPerInbUomOf, num, todayStr } from '@/utils/format';
+import ProdPickerModal from '@/components/common/ProdPickerModal';
+import VendorPickerModal from '@/components/common/VendorPickerModal';
 import DatePicker from '@/components/common/DatePicker';
-
-// 오늘 날짜 "YYYY-MM-DD" (입고 예정일 기본값)
 
 const EMPTY_FORM = () => ({
     vendorId: '', expctDe: todayStr(),
@@ -43,15 +41,32 @@ export default function InboundOrder() {
     // 경로에 id가 있으면 수정, 없으면 등록. 화면 구성이 같아 컴포넌트를 나누지 않는다.
     const { omsIbOrderId } = useParams();
     const isEdit = Boolean(omsIbOrderId);
-
+    const navigate = useNavigate();
+    const odrDvsnCodes = useCodes('ODR_DVSN');
     const [form, setForm] = useState(EMPTY_FORM);
     const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(isEdit);
-    const odrDvsnCodes = useCodes('ODR_DVSN');
     // null이면 닫힘 / 'add'면 다중 추가 / 숫자면 그 인덱스 라인의 상품 교체
     const [pickerFor, setPickerFor] = useState(null);
     const [vendorPickerOpen, setVendorPickerOpen] = useState(false);
-    const navigate = useNavigate();
+
+    // 확정된 주문은 고칠 수 없다 (서버도 거부한다). 화면에서 미리 잠가 헛수고를 막는다.
+    const readOnly = isEdit && form.status && form.status !== 'CREATED';
+
+    // 발주 수량(입고단위) → 낱개(EA) 수. 저장하는 값이 아니라 표시용 미리보기다 —
+    // ASN에 넘어가는 예정수량은 별도의 출고단위 환산(Prod.toOutbQty)이고, 화면은 상품마다
+    // 단위가 갈리지 않는 낱개 기준으로 통일해 보여준다.
+    const convertedQty = (line) => (Number(line.odrQty) || 0) * eaQtyPerInbUomOf(line);
+
+    // 합계는 낱개(EA) 환산 쪽만 낸다 (발주 수량은 라인마다 입고단위가 달라 합이 어색하다).
+    // 낱개 기준이라 어떤 상품 조합이든 합이 깨끗하다.
+    const totalConvQty = form.lines.reduce((sum, l) => sum + convertedQty(l), 0);
+
+    // 팝업에서 이미 담긴 상품을 비활성 처리하기 위한 목록.
+    // 라인 교체 모드에선 그 라인 자신은 제외해야 "같은 상품 다시 고르기"가 막히지 않는다.
+    const excludeIds = form.lines
+        .filter((_, i) => i !== pickerFor)
+        .map(l => l.prodId);
 
     // 수정 진입 시 주문을 불러온다. 헤더는 목록 API에서, 라인은 라인 API에서 가져온다 —
     // 단건 조회 엔드포인트가 없어서 목록을 주문번호로 좁혀 한 건만 받는다.
@@ -92,9 +107,6 @@ export default function InboundOrder() {
         return () => { ignore = true; };
     }, [isEdit, omsIbOrderId, navigate]);
 
-    // 확정된 주문은 고칠 수 없다 (서버도 거부한다). 화면에서 미리 잠가 헛수고를 막는다.
-    const readOnly = isEdit && form.status && form.status !== 'CREATED';
-
     // 선택된 벤더는 코드/명까지 폼에 담아둔다 (표시용). 저장 시엔 vendorId만 보낸다.
     const pickVendor = (v) => setForm(prev => ({
         ...prev,
@@ -129,21 +141,6 @@ export default function InboundOrder() {
         ...prev,
         lines: prev.lines.filter((_, i) => i !== idx),
     }));
-
-    // 발주 수량(입고단위) → 낱개(EA) 수. 저장하는 값이 아니라 표시용 미리보기다 —
-    // ASN에 넘어가는 예정수량은 별도의 출고단위 환산(Prod.toOutbQty)이고, 화면은 상품마다
-    // 단위가 갈리지 않는 낱개 기준으로 통일해 보여준다.
-    const convertedQty = (line) => (Number(line.odrQty) || 0) * eaQtyPerInbUomOf(line);
-
-    // 합계는 낱개(EA) 환산 쪽만 낸다 (발주 수량은 라인마다 입고단위가 달라 합이 어색하다).
-    // 낱개 기준이라 어떤 상품 조합이든 합이 깨끗하다.
-    const totalConvQty = form.lines.reduce((sum, l) => sum + convertedQty(l), 0);
-
-    // 팝업에서 이미 담긴 상품을 비활성 처리하기 위한 목록.
-    // 라인 교체 모드에선 그 라인 자신은 제외해야 "같은 상품 다시 고르기"가 막히지 않는다.
-    const excludeIds = form.lines
-        .filter((_, i) => i !== pickerFor)
-        .map(l => l.prodId);
 
     const handleSave = async () => {
         if (readOnly) { toast.error('작성 상태의 주문만 수정할 수 있습니다.'); return; }

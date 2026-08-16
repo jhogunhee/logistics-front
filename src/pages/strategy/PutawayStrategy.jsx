@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, History, Play, Plus, ScrollText, Settings2, Trash2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+import { strategyApi } from '@/api/strategyApi';
+import { putawayApi } from '@/api/putawayApi';
+import { num } from '@/utils/format';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import ProdPickerModal from '@/components/common/ProdPickerModal';
@@ -13,9 +16,6 @@ import RevisionHistory from '@/components/strategy/RevisionHistory';
 import SortableList from '@/components/strategy/SortableList';
 import SortCriteriaEditor from '@/components/strategy/SortCriteriaEditor';
 import { useOptions, usePutawayMethods } from '@/components/strategy/useOptions';
-import { strategyApi } from '@/api/strategyApi';
-import { putawayApi } from '@/api/putawayApi';
-import { num } from '@/utils/format';
 
 const emptyDefinition = () => ({
     stgyNm: '', odrDvsn: null, untSpltYn: false, locSrt: [], stages: [],
@@ -27,6 +27,7 @@ const emptyDefinition = () => ({
  * "유형 일치 전략 → 전체 전략 → 수동 폴백" 순으로 선택된다 (우선순위 숫자 없음).
  */
 export default function PutawayStrategy() {
+    const methods = usePutawayMethods();
     const [mode, setMode] = useState('list');            // 'list' | 'edit'
     const [rows, setRows] = useState([]);
     const [editingId, setEditingId] = useState(null);    // null = 신규
@@ -45,15 +46,13 @@ export default function PutawayStrategy() {
     const [execAllOpen, setExecAllOpen] = useState(false);    // 목록 화면의 전체 실행 이력
     const confirmRef = useRef(null);
 
-    const dirty = mode === 'edit' && JSON.stringify(def) !== baseline;
-
     // 미리보기
     const [batches, setBatches] = useState([]);          // 적치 대기 배치 (실존 대상)
     const [previewTarget, setPreviewTarget] = useState({ kind: 'batch', batchKey: '', prod: null, qty: '' });
     const [prodPickerOpen, setProdPickerOpen] = useState(false);
     const [previewResult, setPreviewResult] = useState(null);
 
-    const methods = usePutawayMethods();
+    const dirty = mode === 'edit' && JSON.stringify(def) !== baseline;
     const methodOf = (code) => methods.find(m => m.code === code);
 
     const fetchList = () => strategyApi.putawayStrategies.list().then(setRows);

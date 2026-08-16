@@ -4,30 +4,29 @@ import { Download, MapPin, Plus, Save, Trash2, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 
-import SearchBar, { SearchText, SearchSelect } from '@/components/common/SearchBar';
-import SelectCellEditor from '@/components/common/SelectCellEditor';
 import { locApi } from '@/api/locApi';
 import { zonApi } from '@/api/zonApi';
-import { LOC_TYPE_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { useCodes } from '@/hooks/useCodes';
 import { useMasterGrid } from '@/hooks/useMasterGrid';
+import { LOC_TYPE_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
+import { fmtDe, num } from '@/utils/format';
+import SearchBar, { SearchText, SearchSelect } from '@/components/common/SearchBar';
+import SelectCellEditor from '@/components/common/SelectCellEditor';
 import { Badge } from '@/components/common/Badge';
 import { RowStatusCell } from '@/components/common/Badge';
-import { fmtDe, num } from '@/utils/format';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import SaveCountSummary from '@/components/common/SaveCountSummary';
 
-
 export default function LocMaster() {
-    const [rowData, setRowData] = useState([]);
-    const [cond, setCond] = useState({ locCd: '', zonCd: '', locTyp: '' });
-    const [zons, setZons] = useState([]); // 존 마스터 목록 (드롭다운 · 온도대 검증 · 엑셀 코드표의 원천)
     const tempZoneCodes = useCodes('TEMP_ZONE');
     const locTypeCodes = useCodes('LOC_TYPE');
     const {
         gridRef, rowCount, saveConfirm, setSaveConfirm,
         gridProps, addRow, deleteSelectedRows, requestSave,
     } = useMasterGrid();
+    const [cond, setCond] = useState({ locCd: '', zonCd: '', locTyp: '' });
+    const [rowData, setRowData] = useState([]);
+    const [zons, setZons] = useState([]); // 존 마스터 목록 (드롭다운 · 온도대 검증 · 엑셀 코드표의 원천)
     const fileInputRef = useRef(null); // 엑셀 업로드 파일 선택창
 
     // 삭제(D) 표시된 행은 편집을 막는다
@@ -37,7 +36,6 @@ export default function LocMaster() {
     const zonCodes = zons.map(z => z.zonCd);
     const zonOptions = [{ value: '', label: '전체' }, ...zons.map(z => ({ value: z.zonCd, label: `${z.zonCd} ${z.zonNm}` }))];
     const zonTmpMap = Object.fromEntries(zons.map(z => [z.zonCd, z.tmpZon]));
-
 
     // 온도대/유형 편집기 목록은 공통코드 상태를 직접 참조한다
     const columnDefs = [

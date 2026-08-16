@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { History } from 'lucide-react';
 
-import SearchBar, { SearchText, SearchSelect, SearchDateRange, SearchProd } from '@/components/common/SearchBar';
 import { lotAttrChngApi } from '@/api/lotAttrChngApi';
 import { useCodes } from '@/hooks/useCodes';
 import { LOT_ATTR_RSN_GRP } from '@/constants/rsnCodes';
 import { fmtDt, num } from '@/utils/format';
+import SearchBar, { SearchText, SearchSelect, SearchDateRange, SearchProd } from '@/components/common/SearchBar';
 
 /** 전 → 후 셀. 값이 그대로면 흐리게, 바뀌었으면 강조 — 한 행에서 무엇이 움직였는지 바로 보이게 */
 const DiffCell = ({ before, after }) => {
@@ -26,15 +26,9 @@ const DiffCell = ({ before, after }) => {
  * 취소 경로가 없어 되돌리는 정정도 새 행으로 쌓이므로, 왕복이 그대로 보인다.
  */
 export default function StockAttrChngHist() {
-    const [rowData, setRowData] = useState([]);
-    const [cond, setCond] = useState({ prodCd: '', lotNo: '', rsnCd: '', chngFrom: '', chngTo: '' });
     const rsn = useCodes(LOT_ATTR_RSN_GRP);
-
-    const fetchList = async () => setRowData(await lotAttrChngApi.listChngs(cond));
-
-    useEffect(() => {
-        lotAttrChngApi.listChngs({}).then(setRowData);
-    }, []);
+    const [cond, setCond] = useState({ prodCd: '', lotNo: '', rsnCd: '', chngFrom: '', chngTo: '' });
+    const [rowData, setRowData] = useState([]);
 
     const columnDefs = useMemo(() => [
         { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
@@ -61,6 +55,12 @@ export default function StockAttrChngHist() {
         },
         { field: 'createdBy', headerName: '정정자', width: 100, cellClass: 'text-slate-500' },
     ], [rsn]);
+
+    const fetchList = async () => setRowData(await lotAttrChngApi.listChngs(cond));
+
+    useEffect(() => {
+        lotAttrChngApi.listChngs({}).then(setRowData);
+    }, []);
 
     return (
         <div className="flex flex-col gap-4 h-full">

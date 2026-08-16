@@ -3,13 +3,13 @@ import { AgGridReact } from 'ag-grid-react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { PackageCheck } from 'lucide-react';
 
-import SearchBar, { SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
-import { Badge } from '@/components/common/Badge';
 import { outbOrderApi } from '@/api/outbOrderApi';
 import { useCodes } from '@/hooks/useCodes';
 import { OUTB_STATUS_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { OUTB_STATUS_OPTIONS } from '@/constants/codeOptions';
 import { daysAheadStr, num, todayStr } from '@/utils/format';
+import SearchBar, { SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
+import { Badge } from '@/components/common/Badge';
 
 const centered = { display: 'flex', alignItems: 'center', justifyContent: 'center' };
 
@@ -98,18 +98,17 @@ const LINE_COLUMN_DEFS = [
  * <p>이후 작업은 웨이브 편성 → 할당 화면으로 이어지고, 둘 다 이 화면과 같은 <code>outb_order</code>를 본다.
  */
 export default function OutbOrderList() {
-    const [rowData, setRowData] = useState([]);
-    const [lineRows, setLineRows] = useState([]);
-    const [selectedOrder, setSelectedOrder] = useState(null);
+    // 공통코드 (출고유형 · 차량편수) — 값 목록의 주인은 코드관리라 화면에 하드코딩하지 않는다
+    const outbTyps = useCodes('OUTB_TYP');
+    const vhclFltnos = useCodes('VHCL_FLTNO');
     const [cond, setCond] = useState({
         outbNo: '', status: '', outbTyp: '', vhclFltno: '',
         dateFrom: todayStr(), dateTo: daysAheadStr(7),
     });
+    const [rowData, setRowData] = useState([]);
+    const [lineRows, setLineRows] = useState([]);
+    const [selectedOrder, setSelectedOrder] = useState(null);
     const gridRef = useRef(null);
-
-    // 공통코드 (출고유형 · 차량편수) — 값 목록의 주인은 코드관리라 화면에 하드코딩하지 않는다
-    const outbTyps = useCodes('OUTB_TYP');
-    const vhclFltnos = useCodes('VHCL_FLTNO');
 
     const gridContext = useMemo(() => ({
         outbTypNm: (cd) => outbTyps.nmByCd[cd],

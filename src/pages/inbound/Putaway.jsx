@@ -4,16 +4,35 @@ import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
 import { Layers, PackageOpen } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+import { putawayApi } from '@/api/putawayApi';
+import { TEMP_ZONE_META } from '@/constants/badgeMeta';
+import { fmtDe, num } from '@/utils/format';
 import SearchBar, { SearchText, SearchProd } from '@/components/common/SearchBar';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import { Badge } from '@/components/common/Badge';
-import { TEMP_ZONE_META } from '@/constants/badgeMeta';
-import { putawayApi } from '@/api/putawayApi';
-import { fmtDe, num } from '@/utils/format';
 
 // 이 화면은 지시 기반 실행이다 — 직접 적치(로케이션 골라 즉시 이동) 경로는 적치지시 도입 때
 // 서버와 함께 제거됐다. 한때 병합 충돌이 이 파일만 옛 직접 적치 버전으로 되돌려 실행이
 // 존재하지 않는 API를 부르며 죽어 있었다(2026-08-14 복구). 지시 발행은 「적치지시」 화면 몫.
+
+/** 지시 목록을 상품별로 접는다 — 서버는 지시 1건씩 주고, 화면의 작업 단위인 상품은 여기서 만든다 */
+const groupByProd = (tasks) => {
+    const byProd = new Map();
+    for (const t of tasks) {
+        const group = byProd.get(t.prodCd) ?? {
+            prodCd: t.prodCd, prodNm: t.prodNm, tmpZon: t.tmpZon,
+            taskCount: 0, remainingQty: 0, nearestExpiryDt: null, locCds: new Set(), tasks: [],
+        };
+        group.taskCount += 1;
+        group.remainingQty += t.remainingQty;
+        group.locCds.add(t.toLocCd);
+        // 서버가 유통기한 순으로 주므로 첫 값이 곧 최단이다 (미관리는 null로 뒤에 온다)
+        if (group.nearestExpiryDt == null) group.nearestExpiryDt = t.expiryDt;
+        group.tasks.push(t);
+        byProd.set(t.prodCd, group);
+    }
+    return [...byProd.values()].map(g => ({ ...g, locCount: g.locCds.size }));
+};
 
 // 상단: 상품별 집계 — 작업자가 스테이징에서 집어 드는 단위가 상품이라 이 축으로 묶는다
 const PROD_COLUMN_DEFS = [
@@ -47,28 +66,9 @@ const PROD_COLUMN_DEFS = [
 // 하단 지시 그리드 컬럼은 실행 버튼이 컴포넌트 상태를 써야 해서 컴포넌트 안에 둔다
 // (적치지시 등록의 batchColumnDefs와 같은 이유)
 
-/** 지시 목록을 상품별로 접는다 — 서버는 지시 1건씩 주고, 화면의 작업 단위인 상품은 여기서 만든다 */
-const groupByProd = (tasks) => {
-    const byProd = new Map();
-    for (const t of tasks) {
-        const group = byProd.get(t.prodCd) ?? {
-            prodCd: t.prodCd, prodNm: t.prodNm, tmpZon: t.tmpZon,
-            taskCount: 0, remainingQty: 0, nearestExpiryDt: null, locCds: new Set(), tasks: [],
-        };
-        group.taskCount += 1;
-        group.remainingQty += t.remainingQty;
-        group.locCds.add(t.toLocCd);
-        // 서버가 유통기한 순으로 주므로 첫 값이 곧 최단이다 (미관리는 null로 뒤에 온다)
-        if (group.nearestExpiryDt == null) group.nearestExpiryDt = t.expiryDt;
-        group.tasks.push(t);
-        byProd.set(t.prodCd, group);
-    }
-    return [...byProd.values()].map(g => ({ ...g, locCount: g.locCds.size }));
-};
-
 export default function Putaway() {
-    const [tasks, setTasks] = useState([]);
     const [cond, setCond] = useState({ ibNo: '', prodCd: '' });
+    const [tasks, setTasks] = useState([]);
     const [selectedProdCd, setSelectedProdCd] = useState(null);
     const [confirmSave, setConfirmSave] = useState(null); // 적치 저장 확인 모달 대상 (수량 입력된 지시들)
     const prodGridRef = useRef(null);
@@ -76,82 +76,6 @@ export default function Putaway() {
 
     const prodRows = useMemo(() => groupByProd(tasks), [tasks]);
     const selectedProd = prodRows.find(g => g.prodCd === selectedProdCd) ?? null;
-
-    const fetchList = async (keepProd = false) => {
-        pendingProdRef.current = keepProd ? selectedProdCd : null;
-        if (!keepProd) {
-            setSelectedProdCd(null);
-        }
-        try {
-            const data = await putawayApi.tasks({ status: 'DIRECTED', ...cond });
-            // 적치수량 편집 컬럼의 기본값 = 잔여 전량 — 부분 실행할 때만 고친다
-            setTasks(data.map(t => ({ ...t, _execQty: t.remainingQty })));
-        } catch (e) {
-            toast.error(e.message || '조회에 실패했습니다.');
-        }
-    };
-
-    // 상품 목록이 다시 그려진 뒤 이전 선택을 복구한다 (부분 실행 후에도 자리를 지키도록)
-    const onProdModelUpdated = (p) => {
-        if (pendingProdRef.current == null) return;
-        const prodCd = pendingProdRef.current;
-        pendingProdRef.current = null;
-        p.api.forEachNode(n => { if (n.data.prodCd === prodCd) n.setSelected(true); });
-    };
-
-    useEffect(() => {
-        let ignore = false;
-        putawayApi.tasks({ status: 'DIRECTED' }).then(data => {
-            if (!ignore) setTasks(data.map(t => ({ ...t, _execQty: t.remainingQty })));
-        }).catch(() => {});
-        return () => { ignore = true; };
-    }, []);
-
-    const onProdSelectionChanged = (e) => {
-        const node = e.api.getSelectedNodes()[0];
-        setSelectedProdCd(node ? node.data.prodCd : null);
-    };
-
-    // ── 적치 저장 (일괄 실행) — 그리드에 입력 → 저장 → 확인 모달, 검수·이동확정과 같은 패턴 ──
-    // 적치수량 기본값이 잔여 전량이라 아무것도 안 고치고 저장하면 곧 전량 적치다 (별도 전량 버튼을 안 두는 이유).
-    // 안 옮길 행은 수량을 지운다 — 빈 값 = 제외 (검수 저장의 「입력한 라인만」 규칙과 동일)
-    const handleSaveClick = () => {
-        if (!selectedProd) {
-            toast('적치할 상품을 선택하세요.');
-            return;
-        }
-        const targets = selectedProd.tasks.filter(t => String(t._execQty ?? '').trim() !== '');
-        if (targets.length === 0) {
-            toast('적치수량을 입력한 지시가 없습니다.');
-            return;
-        }
-        for (const t of targets) {
-            const n = Number(t._execQty);
-            if (!(n > 0) || !Number.isInteger(n)) {
-                toast.error(`적치수량은 1 이상 정수여야 합니다: ${t.toLocCd}`);
-                return;
-            }
-            if (n > t.remainingQty) {
-                toast.error(`적치수량이 잔여수량(${num(t.remainingQty)})을 초과했습니다: ${t.toLocCd}`);
-                return;
-            }
-        }
-        setConfirmSave(targets);
-    };
-
-    const doSave = async (targets) => {
-        const totalQty = targets.reduce((s, t) => s + Number(t._execQty), 0);
-        try {
-            await putawayApi.executeAll(targets.map(t => ({ taskId: t.putawayTaskId, qty: Number(t._execQty) })));
-            toast.success(`${num(totalQty)}개를 ${new Set(targets.map(t => t.toLocCd)).size}개 로케이션에 적치했습니다.`);
-            // 잔여가 남으면 같은 상품 선택을 유지해 이어서 처리한다 (전량이면 상품이 목록에서 빠진다)
-            const partial = targets.length < selectedProd.tasks.length
-                || targets.some(t => Number(t._execQty) < t.remainingQty);
-            fetchList(partial);
-        } catch (e) {
-            toast.error(e.message || '적치 저장에 실패했습니다.');
-        }
-    };
 
     // 하단: 선택 상품의 지시들 — 어디에 얼마씩 넣는지가 한눈에 보여야 한 번 들고 나가 나눠 넣는다.
     // 작업 순서대로 [어디로(로케이션) → 얼마나(지시·완료·잔여) → 이번에 옮길 수량]을 앞에 모으고,
@@ -197,6 +121,41 @@ export default function Putaway() {
         { field: 'ibNo', headerName: '입고번호', flex: 1, minWidth: 165, cellClass: 'text-slate-500' },
     ];
 
+    const fetchList = async (keepProd = false) => {
+        pendingProdRef.current = keepProd ? selectedProdCd : null;
+        if (!keepProd) {
+            setSelectedProdCd(null);
+        }
+        try {
+            const data = await putawayApi.tasks({ status: 'DIRECTED', ...cond });
+            // 적치수량 편집 컬럼의 기본값 = 잔여 전량 — 부분 실행할 때만 고친다
+            setTasks(data.map(t => ({ ...t, _execQty: t.remainingQty })));
+        } catch (e) {
+            toast.error(e.message || '조회에 실패했습니다.');
+        }
+    };
+
+    useEffect(() => {
+        let ignore = false;
+        putawayApi.tasks({ status: 'DIRECTED' }).then(data => {
+            if (!ignore) setTasks(data.map(t => ({ ...t, _execQty: t.remainingQty })));
+        }).catch(() => {});
+        return () => { ignore = true; };
+    }, []);
+
+    // 상품 목록이 다시 그려진 뒤 이전 선택을 복구한다 (부분 실행 후에도 자리를 지키도록)
+    const onProdModelUpdated = (p) => {
+        if (pendingProdRef.current == null) return;
+        const prodCd = pendingProdRef.current;
+        pendingProdRef.current = null;
+        p.api.forEachNode(n => { if (n.data.prodCd === prodCd) n.setSelected(true); });
+    };
+
+    const onProdSelectionChanged = (e) => {
+        const node = e.api.getSelectedNodes()[0];
+        setSelectedProdCd(node ? node.data.prodCd : null);
+    };
+
     // 적치수량 초과는 적는 순간(편집 확정 시점) 한 번 알린다 — 값을 잔여로 깎아주지는 않는다.
     // 조용한 자동 수정은 그럴듯한 오답을 깔아주는 것(제조일자 기본값을 뺀 것과 같은 원칙).
     // 셀 붉은 표시가 남아 있고, [적치 저장] 검증과 서버 검증이 뒤를 받친다
@@ -204,6 +163,47 @@ export default function Putaway() {
         if (e.colDef.field !== '_execQty') return;
         if (Number(e.newValue) > e.data.remainingQty) {
             toast.error(`적치수량이 잔여수량(${num(e.data.remainingQty)})을 초과했습니다.`);
+        }
+    };
+
+    // ── 적치 저장 (일괄 실행) — 그리드에 입력 → 저장 → 확인 모달, 검수·이동확정과 같은 패턴 ──
+    // 적치수량 기본값이 잔여 전량이라 아무것도 안 고치고 저장하면 곧 전량 적치다 (별도 전량 버튼을 안 두는 이유).
+    // 안 옮길 행은 수량을 지운다 — 빈 값 = 제외 (검수 저장의 「입력한 라인만」 규칙과 동일)
+    const handleSaveClick = () => {
+        if (!selectedProd) {
+            toast('적치할 상품을 선택하세요.');
+            return;
+        }
+        const targets = selectedProd.tasks.filter(t => String(t._execQty ?? '').trim() !== '');
+        if (targets.length === 0) {
+            toast('적치수량을 입력한 지시가 없습니다.');
+            return;
+        }
+        for (const t of targets) {
+            const n = Number(t._execQty);
+            if (!(n > 0) || !Number.isInteger(n)) {
+                toast.error(`적치수량은 1 이상 정수여야 합니다: ${t.toLocCd}`);
+                return;
+            }
+            if (n > t.remainingQty) {
+                toast.error(`적치수량이 잔여수량(${num(t.remainingQty)})을 초과했습니다: ${t.toLocCd}`);
+                return;
+            }
+        }
+        setConfirmSave(targets);
+    };
+
+    const doSave = async (targets) => {
+        const totalQty = targets.reduce((s, t) => s + Number(t._execQty), 0);
+        try {
+            await putawayApi.executeAll(targets.map(t => ({ taskId: t.putawayTaskId, qty: Number(t._execQty) })));
+            toast.success(`${num(totalQty)}개를 ${new Set(targets.map(t => t.toLocCd)).size}개 로케이션에 적치했습니다.`);
+            // 잔여가 남으면 같은 상품 선택을 유지해 이어서 처리한다 (전량이면 상품이 목록에서 빠진다)
+            const partial = targets.length < selectedProd.tasks.length
+                || targets.some(t => Number(t._execQty) < t.remainingQty);
+            fetchList(partial);
+        } catch (e) {
+            toast.error(e.message || '적치 저장에 실패했습니다.');
         }
     };
 

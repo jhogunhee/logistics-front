@@ -4,20 +4,18 @@ import { Download, LayoutGrid, Plus, Save, Trash2, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 
-import SearchBar, { SearchText, SearchSelect } from '@/components/common/SearchBar';
-import SelectCellEditor from '@/components/common/SelectCellEditor';
 import { zonApi } from '@/api/zonApi';
-import { BIZ_DVSN_META, STRG_TYP_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { useCodes } from '@/hooks/useCodes';
 import { useMasterGrid } from '@/hooks/useMasterGrid';
-import { Badge, RowStatusCell } from '@/components/common/Badge';
+import { BIZ_DVSN_META, STRG_TYP_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { fmtDe, num } from '@/utils/format';
+import SearchBar, { SearchText, SearchSelect } from '@/components/common/SearchBar';
+import SelectCellEditor from '@/components/common/SelectCellEditor';
+import { Badge, RowStatusCell } from '@/components/common/Badge';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import SaveCountSummary from '@/components/common/SaveCountSummary';
 
 export default function ZonMaster() {
-    const [rowData, setRowData] = useState([]);
-    const [cond, setCond] = useState({ zonCd: '', tmpZon: '', bizDvsn: '' });
     const tmpZonCodes = useCodes('TEMP_ZONE');
     const strgTypCodes = useCodes('STRG_TYP');
     const bizDvsnCodes = useCodes('BIZ_DVSN');
@@ -25,11 +23,12 @@ export default function ZonMaster() {
         gridRef, rowCount, saveConfirm, setSaveConfirm,
         gridProps, addRow, deleteSelectedRows, requestSave,
     } = useMasterGrid();
+    const [cond, setCond] = useState({ zonCd: '', tmpZon: '', bizDvsn: '' });
+    const [rowData, setRowData] = useState([]);
     const fileInputRef = useRef(null); // 엑셀 업로드 파일 선택창
 
     // 삭제(D) 표시된 행은 편집을 막는다
     const notDeleted = (p) => p.data._status !== 'D';
-
 
     // 온도구분/보관유형/업무구분 편집기 목록은 공통코드 상태를 직접 참조한다
     const columnDefs = [

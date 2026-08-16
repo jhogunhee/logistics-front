@@ -2,11 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { History } from 'lucide-react';
 
-import SearchBar, { SearchText, SearchSelect, SearchProd, SearchLoc } from '@/components/common/SearchBar';
 import { invHldApi } from '@/api/invHldApi';
 import { useCodes } from '@/hooks/useCodes';
 import { fmtDt, num } from '@/utils/format';
-
+import SearchBar, { SearchText, SearchSelect, SearchProd, SearchLoc } from '@/components/common/SearchBar';
 
 /** 실적 종류. 보류/해제 실적은 별개 테이블이지만 화면 형태가 같아 토글로 오간다 */
 const KINDS = [
@@ -21,33 +20,12 @@ const INIT_COND = { hldNo: '', prodCd: '', locCd: '', rsnCd: '' };
  * 나오지 않는 유일한 처리라, 전용 실적 테이블을 여기서 조회한다. 부분 해제 N번이면 해제 실적 N행.
  */
 export default function StockHoldAcrst() {
-    const [kind, setKind] = useState('hold');
-    const [rowData, setRowData] = useState([]);
     const [cond, setCond] = useState(INIT_COND);
+    const [rowData, setRowData] = useState([]);
+    const [kind, setKind] = useState('hold');
 
     const meta = KINDS.find(k => k.key === kind);
     const rsn = useCodes(meta.rsnGrp); // 종류마다 사유 그룹이 다르다 (등록 사유 ≠ 해제 사유)
-
-    const fetchList = async (kindKey = kind, condOverride = cond) => {
-        const api = kindKey === 'hold' ? invHldApi.listAcrst : invHldApi.listRlzAcrst;
-        setRowData(await api(condOverride));
-    };
-
-    // 마운트 조회는 fetchList를 부르지 않고 API를 직접 호출한다 — 이펙트가 컴포넌트 함수를
-    // 의존성으로 잡게 되어 react-hooks 규칙에 걸린다 (Lot 속성 정정 화면과 같은 형태)
-    useEffect(() => {
-        invHldApi.listAcrst(INIT_COND).then(setRowData);
-    }, []);
-
-    // 종류 전환은 이펙트가 아니라 여기서 처리한다. kind를 바꾸는 곳이 토글 버튼 하나뿐이라
-    // 「kind가 바뀌면」을 이펙트로 뒤쫓을 이유가 없다 — 이펙트에 두면 렌더 중 setCond가 돌아
-    // 연쇄 렌더가 된다. 사유 그룹이 갈리므로(등록 사유 ≠ 해제 사유) 필터를 초기화하고 다시 조회한다.
-    const switchKind = (key) => {
-        if (key === kind) return;
-        setKind(key);
-        setCond(INIT_COND);
-        fetchList(key, INIT_COND);
-    };
 
     const columnDefs = useMemo(() => [
         { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
@@ -72,6 +50,27 @@ export default function StockHoldAcrst() {
         },
         { field: 'createdAt', headerName: '실적일시', width: 150, valueFormatter: (p) => fmtDt(p.value), cellClass: 'text-slate-500' },
     ], [meta, rsn]);
+
+    const fetchList = async (kindKey = kind, condOverride = cond) => {
+        const api = kindKey === 'hold' ? invHldApi.listAcrst : invHldApi.listRlzAcrst;
+        setRowData(await api(condOverride));
+    };
+
+    // 마운트 조회는 fetchList를 부르지 않고 API를 직접 호출한다 — 이펙트가 컴포넌트 함수를
+    // 의존성으로 잡게 되어 react-hooks 규칙에 걸린다 (Lot 속성 정정 화면과 같은 형태)
+    useEffect(() => {
+        invHldApi.listAcrst(INIT_COND).then(setRowData);
+    }, []);
+
+    // 종류 전환은 이펙트가 아니라 여기서 처리한다. kind를 바꾸는 곳이 토글 버튼 하나뿐이라
+    // 「kind가 바뀌면」을 이펙트로 뒤쫓을 이유가 없다 — 이펙트에 두면 렌더 중 setCond가 돌아
+    // 연쇄 렌더가 된다. 사유 그룹이 갈리므로(등록 사유 ≠ 해제 사유) 필터를 초기화하고 다시 조회한다.
+    const switchKind = (key) => {
+        if (key === kind) return;
+        setKind(key);
+        setCond(INIT_COND);
+        fetchList(key, INIT_COND);
+    };
 
     return (
         <div className="flex flex-col gap-4 h-full">

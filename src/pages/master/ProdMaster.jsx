@@ -4,35 +4,32 @@ import { Barcode, Download, Plus, Save, Trash2, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 
-import SearchBar, { SearchText, SearchSelect } from '@/components/common/SearchBar';
-import SelectCellEditor from '@/components/common/SelectCellEditor';
 import { prodApi } from '@/api/prodApi';
-import { TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { useCodes } from '@/hooks/useCodes';
 import { useMasterGrid } from '@/hooks/useMasterGrid';
-import { Badge, RowStatusCell } from '@/components/common/Badge';
+import { TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { fmtDe, num } from '@/utils/format';
+import SearchBar, { SearchText, SearchSelect } from '@/components/common/SearchBar';
+import SelectCellEditor from '@/components/common/SelectCellEditor';
+import { Badge, RowStatusCell } from '@/components/common/Badge';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import SaveCountSummary from '@/components/common/SaveCountSummary';
 
-
-
 export default function ProdMaster() {
-    const [rowData, setRowData] = useState([]);
-    const [cond, setCond] = useState({ prodCd: '', prodNm: '', tmpZon: '' });
     const tempZoneCodes = useCodes('TEMP_ZONE');
     const uomCodes = useCodes('UOM'); // 입고/출고단위 콤보박스 — 콤보에 "BOX 박스"로 보여준다
     const {
         gridRef, rowCount, saveConfirm, setSaveConfirm,
         gridProps, addRow, deleteSelectedRows, requestSave,
     } = useMasterGrid();
+    const [cond, setCond] = useState({ prodCd: '', prodNm: '', tmpZon: '' });
+    const [rowData, setRowData] = useState([]);
     const fileInputRef = useRef(null); // 엑셀 업로드 파일 선택창
 
     // 삭제(D) 표시된 행은 편집을 막는다
     const notDeleted = (p) => p.data._status !== 'D';
     // 단위 두 컬럼 전용 — 아직 저장 전인 신규 행에서만 연다 (아래 컬럼 정의 주석 참고)
     const isNewRow = (p) => p.data._status === 'C';
-
 
     // 온도대 편집기 목록은 공통코드 상태를 직접 참조한다
     const columnDefs = [

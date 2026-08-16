@@ -5,14 +5,14 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { CheckCircle2, FilePlus, Search, Trash2, Undo2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchItem, SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
-import StorePickerModal from '@/components/common/StorePickerModal';
 import { omsOutbOrderApi } from '@/api/omsOutbOrderApi';
 import { useCodes } from '@/hooks/useCodes';
 import { OMS_OUTB_STATUS_META, OUTB_STATUS_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { OMS_OUTB_STATUS_OPTIONS } from '@/constants/codeOptions';
-import { Badge } from '@/components/common/Badge';
 import { daysAheadStr, num, todayStr } from '@/utils/format';
+import SearchBar, { SearchItem, SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
+import StorePickerModal from '@/components/common/StorePickerModal';
+import { Badge } from '@/components/common/Badge';
 
 const centered = { display: 'flex', alignItems: 'center', justifyContent: 'center' };
 
@@ -117,23 +117,23 @@ const LINE_COLUMN_DEFS = [
 ];
 
 export default function OutboundOrderList() {
-    const [rowData, setRowData] = useState([]);
-    const [lineRows, setLineRows] = useState([]);
-    const [selected, setSelected] = useState(null);
+    const navigate = useNavigate();
+    const outbTypCodes = useCodes('OUTB_TYP');
+    const vhclFltnoCodes = useCodes('VHCL_FLTNO');
     const [cond, setCond] = useState({
         omsOutbNo: '', storeNm: '', status: '', outbTyp: '', vhclFltno: '',
         dateFrom: todayStr(), dateTo: daysAheadStr(7),
     });
+    const [rowData, setRowData] = useState([]);
+    const [lineRows, setLineRows] = useState([]);
+    const [selected, setSelected] = useState(null);
+    // 납품처 검색은 자유 입력 대신 등록 화면과 같은 팝업에서 고른다 —
+    // 서버 검색 파라미터가 storeNm(contains)이라 값은 id가 아니라 이름 그대로 보낸다.
+    const [storePickerOpen, setStorePickerOpen] = useState(false);
     const [confirmTarget, setConfirmTarget] = useState(null);             // 확정 확인 모달 대상
     const [confirmCancelTarget, setConfirmCancelTarget] = useState(null); // 확정취소 확인 모달 대상
     const [deleteTarget, setDeleteTarget] = useState(null);               // 삭제 확인 모달 대상
     const gridRef = useRef(null);
-    const navigate = useNavigate();
-    const outbTypCodes = useCodes('OUTB_TYP');
-    const vhclFltnoCodes = useCodes('VHCL_FLTNO');
-    // 납품처 검색은 자유 입력 대신 등록 화면과 같은 팝업에서 고른다 —
-    // 서버 검색 파라미터가 storeNm(contains)이라 값은 id가 아니라 이름 그대로 보낸다.
-    const [storePickerOpen, setStorePickerOpen] = useState(false);
 
     const fetchList = async () => {
         const data = await omsOutbOrderApi.list(cond);
@@ -176,11 +176,6 @@ export default function OutboundOrderList() {
         }
         fetchList();
     };
-
-    // 모달 요약용 — "SO-... 외 2건"
-    const summarize = (orders) => orders.length === 1
-        ? orders[0].omsOutbNo
-        : `${orders[0].omsOutbNo} 외 ${orders.length - 1}건`;
 
     // ── 주문확정 (창고 출고주문 생성) ─────────────────────────
     // 사용자가 하는 행위는 "수주를 확정한다"이고 창고 문서 생성은 그 결과다 — 그래서 버튼은
@@ -241,6 +236,11 @@ export default function OutboundOrderList() {
 
     const doDelete = (orders) =>
         runBatch(orders, o => omsOutbOrderApi.remove(o.omsOutbOrderId), '삭제');
+
+    // 모달 요약용 — "SO-... 외 2건"
+    const summarize = (orders) => orders.length === 1
+        ? orders[0].omsOutbNo
+        : `${orders[0].omsOutbNo} 외 ${orders.length - 1}건`;
 
     return (
         // min-h — 노트북처럼 낮은 화면에선 그리드를 짜부라뜨리는 대신 카드 스크롤(Layout의 overflow-auto)이 생긴다

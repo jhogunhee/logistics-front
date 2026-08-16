@@ -2,12 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { Box } from 'lucide-react';
 
-import SearchBar, { SearchText, SearchSelect, SearchProd, SearchLoc } from '@/components/common/SearchBar';
 import { invApi } from '@/api/invApi';
 import { LOC_TYPE_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
-import { Badge } from '@/components/common/Badge';
 import { num } from '@/utils/format';
-
+import SearchBar, { SearchText, SearchSelect, SearchProd, SearchLoc } from '@/components/common/SearchBar';
+import { Badge } from '@/components/common/Badge';
 
 const TEMP_ZONE_OPTIONS = [
     { value: '', label: '전체' },
@@ -18,7 +17,6 @@ const LOC_TYPE_OPTIONS = [
     { value: '', label: '전체' },
     ...Object.entries(LOC_TYPE_META).map(([value, m]) => ({ value, label: m.label })),
 ];
-
 
 const COLUMN_DEFS = [
     { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
@@ -66,25 +64,9 @@ const COLUMN_DEFS = [
     },
 ];
 
-const StatTile = ({ label, value, accent }) => (
-    <div className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-3 flex flex-col gap-0.5">
-        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{label}</span>
-        <span className={`text-xl font-bold tabular-nums ${accent ?? 'text-slate-800'}`}>{value}</span>
-    </div>
-);
-
 export default function StockStatus() {
-    const [rowData, setRowData] = useState([]);
     const [cond, setCond] = useState({ prodCd: '', locCd: '', lotNo: '', tmpZon: '', locTyp: '' });
-
-    const fetchList = async () => {
-        const data = await invApi.list(cond);
-        setRowData(data);
-    };
-
-    useEffect(() => {
-        invApi.list(cond).then(setRowData);
-    }, []);
+    const [rowData, setRowData] = useState([]);
 
     // 요약 지표는 조회 결과에서 파생 (별도 API 없이 화면에서 집계)
     const summary = useMemo(() => {
@@ -95,6 +77,15 @@ export default function StockStatus() {
         const hold = rowData.reduce((s, r) => s + Number(r.hldQty), 0);
         return { prodKinds, onHand, avail, alloc, hold };
     }, [rowData]);
+
+    const fetchList = async () => {
+        const data = await invApi.list(cond);
+        setRowData(data);
+    };
+
+    useEffect(() => {
+        invApi.list(cond).then(setRowData);
+    }, []);
 
     return (
         <div className="flex flex-col gap-4 h-full">
@@ -138,3 +129,10 @@ export default function StockStatus() {
         </div>
     );
 }
+
+const StatTile = ({ label, value, accent }) => (
+    <div className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-3 flex flex-col gap-0.5">
+        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{label}</span>
+        <span className={`text-xl font-bold tabular-nums ${accent ?? 'text-slate-800'}`}>{value}</span>
+    </div>
+);

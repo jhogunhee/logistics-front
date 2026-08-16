@@ -3,15 +3,15 @@ import { AgGridReact } from 'ag-grid-react';
 import { ClipboardCheck, Plus, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+import { invStktkApi } from '@/api/invStktkApi';
+import { locApi } from '@/api/locApi';
+import { zonApi } from '@/api/zonApi';
+import { INV_STKTK_STATUS_META } from '@/constants/badgeMeta';
+import { daysAheadStr, fmtDt, num, todayStr } from '@/utils/format';
 import SearchBar, { SearchText, SearchSelect, SearchDateRange, SearchProd } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import ProdPickerModal from '@/components/common/ProdPickerModal';
-import { invStktkApi } from '@/api/invStktkApi';
-import { INV_STKTK_STATUS_META } from '@/constants/badgeMeta';
-import { locApi } from '@/api/locApi';
-import { zonApi } from '@/api/zonApi';
 import { Badge } from '@/components/common/Badge';
-import { daysAheadStr, fmtDt, num, todayStr } from '@/utils/format';
 
 const STATUS_OPTIONS = [
     { value: '', label: '전체' },
@@ -63,16 +63,25 @@ const COLUMN_DEFS = [
 ];
 
 export default function StockCountList({ onOpen }) {
-    const [rowData, setRowData] = useState([]);
     const [cond, setCond] = useState({
         stktkNo: '', status: '', zonCd: '', prodCd: '',
         fromDe: daysAheadStr(-7), toDe: todayStr(),
     });
+    const [rowData, setRowData] = useState([]);
     const [zonCodes, setZonCodes] = useState([]);
     const [storageLocs, setStorageLocs] = useState([]);
-    const [createOpen, setCreateOpen] = useState(false);
     const [scope, setScope] = useState({ zonCd: '', locId: '', prod: null });
+    const [createOpen, setCreateOpen] = useState(false);
     const [prodPickerOpen, setProdPickerOpen] = useState(false);
+
+    const zonOptions = [{ value: '', label: '전체' }, ...zonCodes.map(z => ({ value: z.zonCd, label: z.zonCd }))];
+    const scopeZonOptions = [{ value: '', label: '전체 존' }, ...zonCodes.map(z => ({ value: z.zonCd, label: z.zonCd }))];
+    const scopeLocOptions = [
+        { value: '', label: '전체 로케이션' },
+        ...storageLocs
+            .filter(l => !scope.zonCd || l.zonCd === scope.zonCd)
+            .map(l => ({ value: String(l.locId), label: l.locCd })),
+    ];
 
     const fetchList = async () => {
         const data = await invStktkApi.list(cond);
@@ -86,15 +95,6 @@ export default function StockCountList({ onOpen }) {
         locApi.list({ locTyp: 'STORAGE' }).then(setStorageLocs);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-
-    const zonOptions = [{ value: '', label: '전체' }, ...zonCodes.map(z => ({ value: z.zonCd, label: z.zonCd }))];
-    const scopeZonOptions = [{ value: '', label: '전체 존' }, ...zonCodes.map(z => ({ value: z.zonCd, label: z.zonCd }))];
-    const scopeLocOptions = [
-        { value: '', label: '전체 로케이션' },
-        ...storageLocs
-            .filter(l => !scope.zonCd || l.zonCd === scope.zonCd)
-            .map(l => ({ value: String(l.locId), label: l.locCd })),
-    ];
 
     const openCreate = () => {
         setScope({ zonCd: '', locId: '', prod: null });

@@ -3,12 +3,12 @@ import { AgGridReact } from 'ag-grid-react';
 import { Split, AlertTriangle, GitMerge } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchText, SearchProd, SearchLoc } from '@/components/common/SearchBar';
-import SelectCellEditor from '@/components/common/SelectCellEditor';
 import { invLotChngApi } from '@/api/invLotChngApi';
 import { useCodes } from '@/hooks/useCodes';
 import { ETC_RSN_CD, LOT_ATTR_RSN_GRP } from '@/constants/rsnCodes';
 import { num } from '@/utils/format';
+import SearchBar, { SearchText, SearchProd, SearchLoc } from '@/components/common/SearchBar';
+import SelectCellEditor from '@/components/common/SelectCellEditor';
 import DatePicker from '@/components/common/DatePicker';
 
 /**
@@ -38,90 +38,16 @@ const isEntered = (r) => r.chngQty != null || r.newMfgDt !== '' || r.rsnCd !== '
  * Lot 단위로 조회하는 재고 속성변경(전량 일괄·재고 무이동)과 갈리는 지점.
  */
 export default function StockLotChngExec() {
-    const [rowData, setRowData] = useState([]);
+    const rsn = useCodes(LOT_ATTR_RSN_GRP); // 사유 성격이 속성 정정과 같아 그룹을 재사용한다
     const [cond, setCond] = useState({ prodCd: '', locCd: '', lotNo: '' });
+    const [rowData, setRowData] = useState([]);
     const [confirmTargets, setConfirmTargets] = useState(null);
     // 목적지 선택 모달 상태 — dest.row가 있으면 열림
     const [dest, setDest] = useState(null); // { row, cands: null(로딩)|[], mode: 'cand'|'manual', lotId, mfgDt, expiryDt }
     const gridRef = useRef(null);
-    const rsn = useCodes(LOT_ATTR_RSN_GRP); // 사유 성격이 속성 정정과 같아 그룹을 재사용한다
-
-    const fetchTargets = async () => {
-        const data = await invLotChngApi.listTargets(cond);
-        setRowData(data.map(toEditableRow));
-    };
-
-    useEffect(() => {
-        invLotChngApi.listTargets({}).then(d => setRowData(d.map(toEditableRow)));
-    }, []);
-
-    // 사유 셀은 isEntered를, 기타 사유 셀은 rsnCd를 보고 그려진다 — 제 값이 안 바뀐 셀은 그리드가
-    // 다시 그리지 않으므로, 행이 갈릴 때마다 강제로 다시 그린다 (보류등록·속성변경과 같은 판단)
-    useEffect(() => {
-        gridRef.current?.api?.refreshCells({ force: true });
-    }, [rowData]);
 
     const entered = useMemo(() => rowData.filter(isEntered), [rowData]);
     const totalQty = entered.reduce((s, r) => s + (Number(r.chngQty) || 0), 0);
-
-    /** 목적지 선택 모달 열기 + 후보 조회 (같은 상품+입고일자의 다른 Lot — 서버가 강제) */
-    const openDest = async (row) => {
-        setDest({ row, cands: null, mode: 'manual', lotId: null, mfgDt: row.newMfgDt || '', expiryDt: row.newExpiryDt || '' });
-        const cands = await invLotChngApi.listTargetLots(row.invId);
-        setDest(prev => (prev && prev.row.invId === row.invId
-            ? {
-                ...prev,
-                cands,
-                // 후보가 있으면 병합을 기본 선택지로 제안한다 (이미 고른 목적지가 있으면 그걸 복원)
-                mode: row._destLotNo ? 'cand' : (cands.length > 0 && !row.newMfgDt ? 'cand' : prev.mode),
-                lotId: row._destLotNo ? (cands.find(c => c.lotNo === row._destLotNo)?.lotId ?? null) : (cands[0]?.lotId ?? null),
-            }
-            : prev));
-    };
-
-    // 직접 입력한 제조일자가 기존 후보와 같으면 그 Lot으로 합쳐진다 — 유통기한도 그 Lot 값이 강제된다
-    const manualMatch = useMemo(() => {
-        if (!dest || dest.mode !== 'manual' || !dest.mfgDt || !dest.cands) return null;
-        return dest.cands.find(c => c.mfgDt === dest.mfgDt) ?? null;
-    }, [dest]);
-
-    /** 모달의 현재 선택을 검증하고 확정값 {mfgDt, expiryDt, destLotNo} 또는 오류 문자열을 돌려준다 */
-    const resolveDest = () => {
-        const row = dest.row;
-        if (dest.mode === 'cand') {
-            const cand = dest.cands?.find(c => c.lotId === dest.lotId);
-            if (!cand) return '합칠 Lot을 선택하세요.';
-            return { mfgDt: cand.mfgDt, expiryDt: cand.expiryDt, destLotNo: cand.lotNo };
-        }
-        if (!dest.mfgDt) return '제조일자를 입력하세요.';
-        if (dest.mfgDt === row.mfgDt) return '제조일자가 지금과 같습니다 — 유통기한만 고치려면 재고 속성변경을 쓰세요.';
-        if (row.receiptDt && dest.mfgDt > row.receiptDt) return `제조일자가 입고일자(${row.receiptDt})보다 미래일 수 없습니다.`;
-        if (manualMatch) {
-            // 같은 배치의 Lot이 이미 있다 — 그 Lot으로 병합 (유통기한은 그 Lot 값)
-            return { mfgDt: manualMatch.mfgDt, expiryDt: manualMatch.expiryDt, destLotNo: manualMatch.lotNo };
-        }
-        if (!dest.expiryDt) return '유통기한을 입력하세요.';
-        if (dest.expiryDt < dest.mfgDt) return '유통기한이 제조일자보다 이전일 수 없습니다.';
-        return { mfgDt: dest.mfgDt, expiryDt: dest.expiryDt, destLotNo: '' };
-    };
-
-    const destError = dest ? (() => { const r = resolveDest(); return typeof r === 'string' ? r : null; })() : null;
-
-    const applyDest = () => {
-        const resolved = resolveDest();
-        if (typeof resolved === 'string') return;
-        setRowData(prev => prev.map(r => (r.invId === dest.row.invId
-            ? { ...r, newMfgDt: resolved.mfgDt, newExpiryDt: resolved.expiryDt, _destLotNo: resolved.destLotNo }
-            : r)));
-        setDest(null);
-    };
-
-    const clearDest = () => {
-        setRowData(prev => prev.map(r => (r.invId === dest.row.invId
-            ? { ...r, newMfgDt: '', newExpiryDt: '', _destLotNo: '' }
-            : r)));
-        setDest(null);
-    };
 
     const columnDefs = useMemo(() => [
         { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
@@ -191,6 +117,21 @@ export default function StockLotChngExec() {
         },
     ], [rsn]);
 
+    const fetchTargets = async () => {
+        const data = await invLotChngApi.listTargets(cond);
+        setRowData(data.map(toEditableRow));
+    };
+
+    useEffect(() => {
+        invLotChngApi.listTargets({}).then(d => setRowData(d.map(toEditableRow)));
+    }, []);
+
+    // 사유 셀은 isEntered를, 기타 사유 셀은 rsnCd를 보고 그려진다 — 제 값이 안 바뀐 셀은 그리드가
+    // 다시 그리지 않으므로, 행이 갈릴 때마다 강제로 다시 그린다 (보류등록·속성변경과 같은 판단)
+    useEffect(() => {
+        gridRef.current?.api?.refreshCells({ force: true });
+    }, [rowData]);
+
     /** 목적지 배치 셀은 편집이 아니라 모달이다 */
     const onCellClicked = (e) => {
         if (e.colDef.field === 'newMfgDt') openDest(e.data);
@@ -201,6 +142,65 @@ export default function StockLotChngExec() {
         const raw = e.data.chngQty;
         const chngQty = raw === '' || raw == null ? null : Number(raw);
         setRowData(prev => prev.map(r => (r.invId === e.data.invId ? { ...r, ...e.data, chngQty } : r)));
+    };
+
+    /** 목적지 선택 모달 열기 + 후보 조회 (같은 상품+입고일자의 다른 Lot — 서버가 강제) */
+    const openDest = async (row) => {
+        setDest({ row, cands: null, mode: 'manual', lotId: null, mfgDt: row.newMfgDt || '', expiryDt: row.newExpiryDt || '' });
+        const cands = await invLotChngApi.listTargetLots(row.invId);
+        setDest(prev => (prev && prev.row.invId === row.invId
+            ? {
+                ...prev,
+                cands,
+                // 후보가 있으면 병합을 기본 선택지로 제안한다 (이미 고른 목적지가 있으면 그걸 복원)
+                mode: row._destLotNo ? 'cand' : (cands.length > 0 && !row.newMfgDt ? 'cand' : prev.mode),
+                lotId: row._destLotNo ? (cands.find(c => c.lotNo === row._destLotNo)?.lotId ?? null) : (cands[0]?.lotId ?? null),
+            }
+            : prev));
+    };
+
+    // 직접 입력한 제조일자가 기존 후보와 같으면 그 Lot으로 합쳐진다 — 유통기한도 그 Lot 값이 강제된다
+    const manualMatch = useMemo(() => {
+        if (!dest || dest.mode !== 'manual' || !dest.mfgDt || !dest.cands) return null;
+        return dest.cands.find(c => c.mfgDt === dest.mfgDt) ?? null;
+    }, [dest]);
+
+    /** 모달의 현재 선택을 검증하고 확정값 {mfgDt, expiryDt, destLotNo} 또는 오류 문자열을 돌려준다 */
+    const resolveDest = () => {
+        const row = dest.row;
+        if (dest.mode === 'cand') {
+            const cand = dest.cands?.find(c => c.lotId === dest.lotId);
+            if (!cand) return '합칠 Lot을 선택하세요.';
+            return { mfgDt: cand.mfgDt, expiryDt: cand.expiryDt, destLotNo: cand.lotNo };
+        }
+        if (!dest.mfgDt) return '제조일자를 입력하세요.';
+        if (dest.mfgDt === row.mfgDt) return '제조일자가 지금과 같습니다 — 유통기한만 고치려면 재고 속성변경을 쓰세요.';
+        if (row.receiptDt && dest.mfgDt > row.receiptDt) return `제조일자가 입고일자(${row.receiptDt})보다 미래일 수 없습니다.`;
+        if (manualMatch) {
+            // 같은 배치의 Lot이 이미 있다 — 그 Lot으로 병합 (유통기한은 그 Lot 값)
+            return { mfgDt: manualMatch.mfgDt, expiryDt: manualMatch.expiryDt, destLotNo: manualMatch.lotNo };
+        }
+        if (!dest.expiryDt) return '유통기한을 입력하세요.';
+        if (dest.expiryDt < dest.mfgDt) return '유통기한이 제조일자보다 이전일 수 없습니다.';
+        return { mfgDt: dest.mfgDt, expiryDt: dest.expiryDt, destLotNo: '' };
+    };
+
+    const destError = dest ? (() => { const r = resolveDest(); return typeof r === 'string' ? r : null; })() : null;
+
+    const applyDest = () => {
+        const resolved = resolveDest();
+        if (typeof resolved === 'string') return;
+        setRowData(prev => prev.map(r => (r.invId === dest.row.invId
+            ? { ...r, newMfgDt: resolved.mfgDt, newExpiryDt: resolved.expiryDt, _destLotNo: resolved.destLotNo }
+            : r)));
+        setDest(null);
+    };
+
+    const clearDest = () => {
+        setRowData(prev => prev.map(r => (r.invId === dest.row.invId
+            ? { ...r, newMfgDt: '', newExpiryDt: '', _destLotNo: '' }
+            : r)));
+        setDest(null);
     };
 
     const handleSubmit = () => {

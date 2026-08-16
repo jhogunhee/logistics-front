@@ -3,23 +3,21 @@ import { AgGridReact } from 'ag-grid-react';
 import { Building2, Plus, Save, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchText } from '@/components/common/SearchBar';
 import { vendorApi } from '@/api/vendorApi';
 import { useMasterGrid } from '@/hooks/useMasterGrid';
-import { RowStatusCell } from '@/components/common/Badge';
 import { fmtDe, num } from '@/utils/format';
+import SearchBar, { SearchText } from '@/components/common/SearchBar';
+import { RowStatusCell } from '@/components/common/Badge';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import SaveCountSummary from '@/components/common/SaveCountSummary';
 
-
-
 export default function VendorMaster() {
-    const [rowData, setRowData] = useState([]);
-    const [cond, setCond] = useState({ vndrCd: '', vndrNm: '' });
     const {
         gridRef, rowCount, saveConfirm, setSaveConfirm,
         gridProps, addRow, deleteSelectedRows, requestSave,
     } = useMasterGrid();
+    const [cond, setCond] = useState({ vndrCd: '', vndrNm: '' });
+    const [rowData, setRowData] = useState([]);
 
     // 삭제(D) 표시된 행은 편집을 막는다
     const notDeleted = (p) => p.data._status !== 'D';

@@ -4,12 +4,12 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { CheckCircle2, Search, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchItem, SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
 import { asnApi } from '@/api/asnApi';
 import { ASN_PRGR_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { ASN_PRGR_OPTIONS } from '@/constants/codeOptions';
-import { Badge } from '@/components/common/Badge';
 import { daysAheadStr, eaQtyPerInbUomOf, fmtDt, fmtInbQty, num } from '@/utils/format';
+import SearchBar, { SearchItem, SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
+import { Badge } from '@/components/common/Badge';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import VendorPickerModal from '@/components/common/VendorPickerModal';
 
@@ -94,17 +94,27 @@ const LINE_COLUMN_DEFS = [
 ];
 
 export default function InboundConfirm() {
-    const [rowData, setRowData] = useState([]);
-    const [lineRows, setLineRows] = useState([]);
-    const [selectedAsns, setSelectedAsns] = useState([]); // 체크된 입고건들 (일괄 확정 대상)
-    const [previewAsn, setPreviewAsn] = useState(null);   // 아래 라인 검토가 보여주는 한 건
     // 기본 진행단계 = 적치완료 — 이 화면의 유일한 동작(확정)이 가능한 단계다 (적치지시 관리의 기본 상태=지시와 같은 패턴).
     // 기본 기간 = ±7일 — 대상은 이미 도착한 건이라 과거가 주력이지만, 예정일보다 일찍 와서 적치까지
     // 끝난 건(예정일이 미래)도 확정 대상이다. 진행단계가 적치완료로 좁혀져 있어 미래를 포함해도 노이즈가 없다
     const [cond, setCond] = useState({ ibNo: '', vndrNm: '', prgr: 'PTAWY_CMPL', dateFrom: daysAheadStr(-7), dateTo: daysAheadStr(7) });
+    const [rowData, setRowData] = useState([]);
+    const [lineRows, setLineRows] = useState([]);
+    const [selectedAsns, setSelectedAsns] = useState([]); // 체크된 입고건들 (일괄 확정 대상)
+    const [previewAsn, setPreviewAsn] = useState(null);   // 아래 라인 검토가 보여주는 한 건
     const [vendorPickerOpen, setVendorPickerOpen] = useState(false);
     const [confirmTargets, setConfirmTargets] = useState(null); // 확정 확인 모달 대상 (배열)
     const gridRef = useRef(null);
+
+    const confirmables = selectedAsns.filter(confirmable);
+    const skippedCount = selectedAsns.length - confirmables.length;
+
+    // 버튼이 잠긴 이유를 말해준다 — 잠긴 버튼만 있으면 무엇을 먼저 해야 하는지 알 수 없다
+    const blockReason = selectedAsns.length === 0 ? '위 목록에서 입고건을 체크하세요'
+        : confirmables.length === 0 ? '체크한 건 중 확정 가능한 건이 없습니다 — 진행단계가 「적치완료」여야 합니다'
+        : null;
+
+    const shortageOf = (a) => a.totalExpctQty - a.totalRcvdQty;
 
     const fetchList = async () => {
         const data = await asnApi.list(cond);
@@ -130,16 +140,6 @@ export default function InboundConfirm() {
         setPreviewAsn(preview);
         setLineRows(preview ? await asnApi.lines(preview.ibOrderId) : []);
     };
-
-    const confirmables = selectedAsns.filter(confirmable);
-    const skippedCount = selectedAsns.length - confirmables.length;
-
-    // 버튼이 잠긴 이유를 말해준다 — 잠긴 버튼만 있으면 무엇을 먼저 해야 하는지 알 수 없다
-    const blockReason = selectedAsns.length === 0 ? '위 목록에서 입고건을 체크하세요'
-        : confirmables.length === 0 ? '체크한 건 중 확정 가능한 건이 없습니다 — 진행단계가 「적치완료」여야 합니다'
-        : null;
-
-    const shortageOf = (a) => a.totalExpctQty - a.totalRcvdQty;
 
     const doConfirm = async (targets) => {
         // 한 건씩 순서대로 보낸다 — 서버 API가 건 단위이고, 실패한 건이 성공한 건을 되돌리지 않는다.

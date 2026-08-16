@@ -3,13 +3,13 @@ import { AgGridReact } from 'ag-grid-react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Search, Truck, X } from 'lucide-react';
 
-import SearchBar, { SearchItem, SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
 import { asnApi } from '@/api/asnApi';
 import { ASN_PRGR_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { ASN_PRGR_OPTIONS } from '@/constants/codeOptions';
+import { daysAheadStr, eaQtyPerInbUomOf, fmtDt, fmtInbQty, num, todayStr } from '@/utils/format';
+import SearchBar, { SearchItem, SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
 import VendorPickerModal from '@/components/common/VendorPickerModal';
 import { Badge } from '@/components/common/Badge';
-import { daysAheadStr, eaQtyPerInbUomOf, fmtDt, fmtInbQty, num, todayStr } from '@/utils/format';
 
 /** 라인 수량 셀 — 저장값은 낱개(EA)이고 표시는 「입고단위 (낱개)」다 */
 const inbQtyFmt = (p) => fmtInbQty(p.value, eaQtyPerInbUomOf(p.data), p.data?.inbUomCd);
@@ -69,10 +69,10 @@ const LINE_COLUMN_DEFS = [
 ];
 
 export default function AsnList() {
+    const [cond, setCond] = useState({ ibNo: '', vndrNm: '', prgr: '', dateFrom: todayStr(), dateTo: daysAheadStr(7) });
     const [rowData, setRowData] = useState([]);
     const [lineRows, setLineRows] = useState([]);
     const [selectedAsn, setSelectedAsn] = useState(null);
-    const [cond, setCond] = useState({ ibNo: '', vndrNm: '', prgr: '', dateFrom: todayStr(), dateTo: daysAheadStr(7) });
     const [vendorPickerOpen, setVendorPickerOpen] = useState(false);
     const gridRef = useRef(null);
 

@@ -6,19 +6,19 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+import { outbWaveApi } from '@/api/outbWaveApi';
+import { outbOrderApi } from '@/api/outbOrderApi';
+import { strategyApi } from '@/api/strategyApi';
+import { useCodes } from '@/hooks/useCodes';
+import { WAVE_STATUS_META, WAV_REG_TYP_META } from '@/constants/badgeMeta';
+import { fmtDt, num } from '@/utils/format';
 import SearchBar, { SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import ConfirmModal from '@/components/common/ConfirmModal';
+import { Badge } from '@/components/common/Badge';
+import DatePicker from '@/components/common/DatePicker';
 import ExecutionHistory from '@/components/strategy/ExecutionHistory';
 import WaveOrderTrace from '@/components/strategy/WaveOrderTrace';
-import { outbWaveApi } from '@/api/outbWaveApi';
-import { outbOrderApi } from '@/api/outbOrderApi';
-import { WAVE_STATUS_META, WAV_REG_TYP_META } from '@/constants/badgeMeta';
-import { strategyApi } from '@/api/strategyApi';
-import { useCodes } from '@/hooks/useCodes';
-import { Badge } from '@/components/common/Badge';
-import { fmtDt, num } from '@/utils/format';
-import DatePicker from '@/components/common/DatePicker';
 
 const centered = { display: 'flex', alignItems: 'center', justifyContent: 'center' };
 
@@ -97,6 +97,10 @@ const WAVE_ORDER_COLUMN_DEFS = [
  * 실제 편성을 만드는 업무 처리이기 때문이다 (호출 API도 업무 도메인에 있다).
  */
 export default function Wave() {
+    // 공통코드 (출고유형 · 차량편수) — 조건 기준값의 주인은 코드관리라 화면에 하드코딩하지 않는다
+    const outbTyps = useCodes('OUTB_TYP');
+    const vhclFltnos = useCodes('VHCL_FLTNO');
+
     // ── 검색 조건 — 한 검색바지만 웨이브 조회와 주문 조회로 나뉘어 들어간다 ──
     const [cond, setCond] = useState({
         wavNo: '', wavStatus: '',
@@ -128,15 +132,12 @@ export default function Wave() {
     const [confirmDisband, setConfirmDisband] = useState(null);
     const [confirmUnassign, setConfirmUnassign] = useState(null);
 
-    // 공통코드 (출고유형 · 차량편수) — 조건 기준값의 주인은 코드관리라 화면에 하드코딩하지 않는다
-    const outbTyps = useCodes('OUTB_TYP');
-    const vhclFltnos = useCodes('VHCL_FLTNO');
-
     const gridContext = useMemo(() => ({
         outbTypNm: (cd) => outbTyps.nmByCd[cd],
         vhclFltnoNm: (cd) => vhclFltnos.nmByCd[cd],
         stgyNm: (id) => strategies.find(s => s.wavStgyId === id)?.stgyNm,
     }), [outbTyps, vhclFltnos, strategies]);
+    const canEditWave = selectedWave?.status === 'PLANNED';
 
     // ── 조회 ─────────────────────────────────────────────────
     // 조건을 통째로 넘기지 않고 조회마다 쓸 것만 골라 보낸다 — 웨이브 조건이 주문 API로,
@@ -309,8 +310,6 @@ export default function Wave() {
         { value: '', label: '전체 전략 (우선순위 순)' },
         ...strategies.map(s => ({ value: String(s.wavStgyId), label: `${s.prty}. ${s.stgyNm}` })),
     ];
-
-    const canEditWave = selectedWave?.status === 'PLANNED';
 
     return (
         // min-h — 노트북처럼 낮은 화면에선 그리드를 짜부라뜨리는 대신 카드 스크롤(Layout의 overflow-auto)이 생긴다

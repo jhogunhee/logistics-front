@@ -4,17 +4,14 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { ClipboardCheck, History, Search, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import SearchBar, { SearchItem, SearchText, SearchDateRange } from '@/components/common/SearchBar';
 import { asnApi } from '@/api/asnApi';
 import { ASN_STATUS_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
-import { Badge } from '@/components/common/Badge';
 import { eaQtyPerInbUomOf, fmtDt, num, todayStr, daysAheadStr } from '@/utils/format';
+import SearchBar, { SearchItem, SearchText, SearchDateRange } from '@/components/common/SearchBar';
+import { Badge } from '@/components/common/Badge';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import VendorPickerModal from '@/components/common/VendorPickerModal';
 import DateCellEditor from '@/components/common/DateCellEditor';
-
-
-// 오늘 날짜 "YYYY-MM-DD" (입고일자/제조일자 기본값)
 
 // 낱개(EA) 저장값(예정/누계/잔량)을 검수 입력 단위인 입고단위로 환산해 표시.
 // 입고단위로 딱 안 떨어지는 값(단위 변경 전 데이터)은 소수로 그대로 보여준다 — 반올림해서 감추면 잔량이 왜곡된다
@@ -69,16 +66,16 @@ const HEADER_COLUMN_DEFS = [
 ];
 
 export default function Receiving() {
+    // 기본 검색 = 오늘 ~ +7일 (입고주문·출고주문·ASN 관리와 통일. 예정일이 과거인 지연 도착은 기본 조회에 안 잡힌다)
+    const [cond, setCond] = useState({ ibNo: '', vndrNm: '', dateFrom: todayStr(), dateTo: daysAheadStr(7) });
     const [rowData, setRowData] = useState([]);
     const [lineRows, setLineRows] = useState([]);
     const [selectedAsn, setSelectedAsn] = useState(null);
-    // 기본 검색 = 오늘 ~ +7일 (입고주문·출고주문·ASN 관리와 통일. 예정일이 과거인 지연 도착은 기본 조회에 안 잡힌다)
-    const [cond, setCond] = useState({ ibNo: '', vndrNm: '', dateFrom: todayStr(), dateTo: daysAheadStr(7) });
+    const [receipts, setReceipts] = useState([]); // 선택한 입고건의 검수 이력 전부 (최근 순)
+    const [violations, setViolations] = useState([]); // 검수 제약 위반 목록 — 저장 거부 응답의 violations
+    const [tab, setTab] = useState('input'); // 'input' 검수 입력 / 'history' 검수 이력
     const [vendorPickerOpen, setVendorPickerOpen] = useState(false);
     const [receiveConfirm, setReceiveConfirm] = useState(null); // 검수 저장 확인 모달 대상 라인들
-    const [violations, setViolations] = useState([]); // 검수 제약 위반 목록 — 저장 거부 응답의 violations
-    const [receipts, setReceipts] = useState([]); // 선택한 입고건의 검수 이력 전부 (최근 순)
-    const [tab, setTab] = useState('input'); // 'input' 검수 입력 / 'history' 검수 이력
     const [cancelReceiptTarget, setCancelReceiptTarget] = useState(null); // 검수 취소 확인 대상 (receipt 1건)
     const gridRef = useRef(null);
     const lineGridRef = useRef(null);
@@ -87,82 +84,7 @@ export default function Receiving() {
     const detailSeq = useRef(0);
 
     const canReceive = !!selectedAsn && ['SCHEDULED', 'RECEIVING'].includes(selectedAsn.status);
-
-    const clearDetail = () => {
-        detailSeq.current++;
-        setSelectedAsn(null);
-        setLineRows([]);
-        setReceipts([]);
-    };
-
-    /**
-     * 선택한 입고건의 라인과 검수 이력을 읽는다.
-     * 선택할 때만이 아니라 검수 저장·취소 뒤에도 직접 부른다 — 헤더 그리드에 getRowId가 붙어
-     * 목록을 다시 읽어도 선택이 유지되므로 selectionChanged가 다시 발생하지 않기 때문이다.
-     * 원격 DB라 응답까지 초 단위가 걸린다 — 기다리는 사이 선택이 바뀌면(seq 불일치) 낡은 응답을 버린다.
-     * 안 버리면 지워진 선택의 라인이 되살아나, 라인은 떠 있는데 검수 입력이 잠긴 화면이 된다.
-     */
-    const loadDetail = async (asn) => {
-        const seq = ++detailSeq.current;
-        setViolations([]);
-        const receipts = await asnApi.orderReceipts(asn.ibOrderId);
-        if (seq !== detailSeq.current) return;
-        setReceipts(receipts);
-        const lines = await asnApi.lines(asn.ibOrderId);
-        if (seq !== detailSeq.current) return;
-        // 입고일자는 전 라인, 제조일자는 유통기한 관리 상품만 입력
-        // (입고일자만 기본값 오늘 — 제조일자는 거의 항상 과거라 오늘 기본값은 그럴듯한 오답, 직접 입력을 강제한다)
-        setLineRows(lines.map(l => ({
-            ...l,
-            _inspectQty: null, // 숫자 에디터라 빈 값은 ''가 아니라 null (''는 텍스트로 추론돼 에디터가 안 붙는다)
-            _receiptDt: todayStr(),
-            _mfgDt: '',
-        })));
-    };
-
-    // 검수 작업 화면이므로 검수/취소가 아직 의미 있는 것만 보여준다 (확정된 입고는 닫힌 문서라 제외)
-    const fetchList = async (keepSelection = false) => {
-        if (!keepSelection) {
-            // 비우는 것은 응답 후가 아니라 조회를 누르는 순간이다 — 응답 뒤에 비우면 조회~응답 사이에
-            // 사용자가 새로 선택한 것을 지워버려, 라인은 떠 있는데 검수 입력이 잠기는 경쟁이 생긴다(2026-08-14).
-            // 그리드 선택도 같이 풀어야 한다 — getRowId가 하이라이트를 유지해서, 안 풀면 상태만 비워지고
-            // 같은 행을 다시 클릭해도 selectionChanged가 울리지 않아 라인을 다시 못 연다.
-            gridRef.current?.api?.deselectAll();
-            clearDetail();
-        }
-        const data = await asnApi.list(cond);
-        const rows = data.filter(a => a.status !== 'CONFIRMED');
-        setRowData(rows);
-
-        if (!keepSelection) return;
-        // 선택한 건의 헤더 값(상태·검수 진행)도 새로 받은 것으로 바꾼다 — 옛 값을 들고 있으면
-        // 검수 진행·잔량 표시가 방금 저장한 것과 어긋나 보인다
-        const fresh = rows.find(a => a.ibOrderId === selectedAsn?.ibOrderId) ?? null;
-        if (fresh) {
-            setSelectedAsn(fresh);
-            await loadDetail(fresh);
-        } else {
-            clearDetail();
-        }
-    };
-
-    // 최초 1회 조회 (검색조건 기본값 = 오늘 ~ +7일)
-    useEffect(() => {
-        asnApi.list(cond).then(data => {
-            setRowData(data.filter(a => a.status !== 'CONFIRMED'));
-        });
-    }, []);
-
-    // 헤더 행 선택 시 라인 조회 + 검수 입력 컬럼 초기화
-    const onSelectionChanged = async (e) => {
-        const node = e.api.getSelectedNodes()[0];
-        if (!node) {
-            clearDetail();
-            return;
-        }
-        setSelectedAsn(node.data);
-        await loadDetail(node.data);
-    };
+    const canCancelReceipt = !!selectedAsn && selectedAsn.status === 'RECEIVING';
 
     // 라인 그리드: 작업 순서대로 [식별 → 단위·예정·잔량 → 입력 3개(파란색, 연속 배치)]를 앞에 두고,
     // 환산·누계 등 참고용은 뒤로 보낸다 (입력 컬럼이 가로 스크롤 없이 바로 보이게)
@@ -249,6 +171,120 @@ export default function Receiving() {
         },
     ];
 
+    // 검수 이력 그리드. 어느 상품인지가 행마다 필요하다 — 입고건 전체를 한 자리에 모으기 때문이다
+    const receiptColumnDefs = [
+        {
+            field: 'createdAt', headerName: '검수일시', width: 150,
+            valueFormatter: (p) => fmtDt(p.value),
+        },
+        { field: 'prodCd', headerName: '상품 코드', width: 105 },
+        { field: 'prodNm', headerName: '상품명', flex: 1, minWidth: 180 },
+        {
+            headerName: '검수수량', width: 150,
+            headerTooltip: '이 건에서 검수한 수량 — 입고단위, 괄호는 재고에서 빠질 낱개(EA) 환산. 취소된 건은 취소선으로 표시된다',
+            valueGetter: (p) => fmtStoredQty(p.data.qty, p.data),
+            // 취소된 건은 수량에 줄을 긋는다 — 흐리게만 두면 훑을 때 유효한 건과 섞여 보인다
+            cellClass: (p) => p.data.cancelled
+                ? 'ag-right-aligned-cell line-through text-slate-400'
+                : 'ag-right-aligned-cell',
+        },
+        { field: 'lotNo', headerName: 'Lot번호', width: 140 },
+        { field: 'receiptDt', headerName: '입고일자', width: 110 },
+        {
+            field: 'mfgDt', headerName: '제조일자', width: 110,
+            cellRenderer: (p) => p.value ?? <span className="text-slate-400">미관리</span>,
+        },
+        {
+            headerName: '취소', width: 80,
+            cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+            cellRenderer: (p) => p.data.cancelled
+                ? <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-500">취소됨</span>
+                : canCancelReceipt && (
+                    <button
+                        onClick={() => setCancelReceiptTarget(p.data)}
+                        className="text-[11px] font-bold text-rose-600 hover:text-rose-800">
+                        취소
+                    </button>
+                ),
+        },
+    ];
+
+    const clearDetail = () => {
+        detailSeq.current++;
+        setSelectedAsn(null);
+        setLineRows([]);
+        setReceipts([]);
+    };
+
+    /**
+     * 선택한 입고건의 라인과 검수 이력을 읽는다.
+     * 선택할 때만이 아니라 검수 저장·취소 뒤에도 직접 부른다 — 헤더 그리드에 getRowId가 붙어
+     * 목록을 다시 읽어도 선택이 유지되므로 selectionChanged가 다시 발생하지 않기 때문이다.
+     * 원격 DB라 응답까지 초 단위가 걸린다 — 기다리는 사이 선택이 바뀌면(seq 불일치) 낡은 응답을 버린다.
+     * 안 버리면 지워진 선택의 라인이 되살아나, 라인은 떠 있는데 검수 입력이 잠긴 화면이 된다.
+     */
+    const loadDetail = async (asn) => {
+        const seq = ++detailSeq.current;
+        setViolations([]);
+        const receipts = await asnApi.orderReceipts(asn.ibOrderId);
+        if (seq !== detailSeq.current) return;
+        setReceipts(receipts);
+        const lines = await asnApi.lines(asn.ibOrderId);
+        if (seq !== detailSeq.current) return;
+        // 입고일자는 전 라인, 제조일자는 유통기한 관리 상품만 입력
+        // (입고일자만 기본값 오늘 — 제조일자는 거의 항상 과거라 오늘 기본값은 그럴듯한 오답, 직접 입력을 강제한다)
+        setLineRows(lines.map(l => ({
+            ...l,
+            _inspectQty: null, // 숫자 에디터라 빈 값은 ''가 아니라 null (''는 텍스트로 추론돼 에디터가 안 붙는다)
+            _receiptDt: todayStr(),
+            _mfgDt: '',
+        })));
+    };
+
+    // 검수 작업 화면이므로 검수/취소가 아직 의미 있는 것만 보여준다 (확정된 입고는 닫힌 문서라 제외)
+    const fetchList = async (keepSelection = false) => {
+        if (!keepSelection) {
+            // 비우는 것은 응답 후가 아니라 조회를 누르는 순간이다 — 응답 뒤에 비우면 조회~응답 사이에
+            // 사용자가 새로 선택한 것을 지워버려, 라인은 떠 있는데 검수 입력이 잠기는 경쟁이 생긴다(2026-08-14).
+            // 그리드 선택도 같이 풀어야 한다 — getRowId가 하이라이트를 유지해서, 안 풀면 상태만 비워지고
+            // 같은 행을 다시 클릭해도 selectionChanged가 울리지 않아 라인을 다시 못 연다.
+            gridRef.current?.api?.deselectAll();
+            clearDetail();
+        }
+        const data = await asnApi.list(cond);
+        const rows = data.filter(a => a.status !== 'CONFIRMED');
+        setRowData(rows);
+
+        if (!keepSelection) return;
+        // 선택한 건의 헤더 값(상태·검수 진행)도 새로 받은 것으로 바꾼다 — 옛 값을 들고 있으면
+        // 검수 진행·잔량 표시가 방금 저장한 것과 어긋나 보인다
+        const fresh = rows.find(a => a.ibOrderId === selectedAsn?.ibOrderId) ?? null;
+        if (fresh) {
+            setSelectedAsn(fresh);
+            await loadDetail(fresh);
+        } else {
+            clearDetail();
+        }
+    };
+
+    // 최초 1회 조회 (검색조건 기본값 = 오늘 ~ +7일)
+    useEffect(() => {
+        asnApi.list(cond).then(data => {
+            setRowData(data.filter(a => a.status !== 'CONFIRMED'));
+        });
+    }, []);
+
+    // 헤더 행 선택 시 라인 조회 + 검수 입력 컬럼 초기화
+    const onSelectionChanged = async (e) => {
+        const node = e.api.getSelectedNodes()[0];
+        if (!node) {
+            clearDetail();
+            return;
+        }
+        setSelectedAsn(node.data);
+        await loadDetail(node.data);
+    };
+
     // ── 검수 저장 ────────────────────────────────────────────
     const handleReceiveClick = () => {
         if (!canReceive) {
@@ -328,8 +364,6 @@ export default function Receiving() {
     // ── 검수 이력 / 취소 ─────────────────────────────────────
     // 이력은 입고건 단위로 한 번에 받는다. 취소하면 라인 수량이 바뀌므로 목록·라인도 함께 다시 읽는다.
     // 확정된 입고는 결품까지 못박힌 닫힌 문서라 취소 불가 (서버도 같은 검증을 한다)
-    const canCancelReceipt = !!selectedAsn && selectedAsn.status === 'RECEIVING';
-
     const doCancelReceipt = async (receipt) => {
         try {
             await asnApi.cancelReceipt(selectedAsn.ibOrderId, receipt.invHistId);
@@ -339,44 +373,6 @@ export default function Receiving() {
             toast.error(e.message || '검수 취소에 실패했습니다.');
         }
     };
-
-    // 검수 이력 그리드. 어느 상품인지가 행마다 필요하다 — 입고건 전체를 한 자리에 모으기 때문이다
-    const receiptColumnDefs = [
-        {
-            field: 'createdAt', headerName: '검수일시', width: 150,
-            valueFormatter: (p) => fmtDt(p.value),
-        },
-        { field: 'prodCd', headerName: '상품 코드', width: 105 },
-        { field: 'prodNm', headerName: '상품명', flex: 1, minWidth: 180 },
-        {
-            headerName: '검수수량', width: 150,
-            headerTooltip: '이 건에서 검수한 수량 — 입고단위, 괄호는 재고에서 빠질 낱개(EA) 환산. 취소된 건은 취소선으로 표시된다',
-            valueGetter: (p) => fmtStoredQty(p.data.qty, p.data),
-            // 취소된 건은 수량에 줄을 긋는다 — 흐리게만 두면 훑을 때 유효한 건과 섞여 보인다
-            cellClass: (p) => p.data.cancelled
-                ? 'ag-right-aligned-cell line-through text-slate-400'
-                : 'ag-right-aligned-cell',
-        },
-        { field: 'lotNo', headerName: 'Lot번호', width: 140 },
-        { field: 'receiptDt', headerName: '입고일자', width: 110 },
-        {
-            field: 'mfgDt', headerName: '제조일자', width: 110,
-            cellRenderer: (p) => p.value ?? <span className="text-slate-400">미관리</span>,
-        },
-        {
-            headerName: '취소', width: 80,
-            cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-            cellRenderer: (p) => p.data.cancelled
-                ? <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-500">취소됨</span>
-                : canCancelReceipt && (
-                    <button
-                        onClick={() => setCancelReceiptTarget(p.data)}
-                        className="text-[11px] font-bold text-rose-600 hover:text-rose-800">
-                        취소
-                    </button>
-                ),
-        },
-    ];
 
     // 검수 입력 탭에는 아직 할 일이 남은 라인만 둔다 — 전량 검수된 라인은 입력할 것이 없고,
     // 예전에 그 라인들을 남겨둔 이유(이력을 열어 취소해야 해서)는 이력 탭이 생기며 사라졌다

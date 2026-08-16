@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { History } from 'lucide-react';
 
-import SearchBar, { SearchText, SearchSelect, SearchProd, SearchLoc } from '@/components/common/SearchBar';
 import { invLotChngApi } from '@/api/invLotChngApi';
 import { useCodes } from '@/hooks/useCodes';
 import { LOT_ATTR_RSN_GRP } from '@/constants/rsnCodes';
 import { fmtDt, num } from '@/utils/format';
+import SearchBar, { SearchText, SearchSelect, SearchProd, SearchLoc } from '@/components/common/SearchBar';
 
 /** 전 → 후 셀 — 원 Lot과 목적지 Lot의 값을 나란히 (실행 시점 스냅샷이라 이후 정정과 무관하다) */
 const DiffCell = ({ before, after }) => (
@@ -23,15 +23,9 @@ const DiffCell = ({ before, after }) => (
  * 이 탭은 「어느 Lot에서 어느 Lot으로, 왜」를 조작 단위로 보여주는 자기완결 기록이다.
  */
 export default function StockLotChngAcrst() {
-    const [rowData, setRowData] = useState([]);
-    const [cond, setCond] = useState({ lotChngNo: '', prodCd: '', locCd: '', lotNo: '', rsnCd: '' });
     const rsn = useCodes(LOT_ATTR_RSN_GRP);
-
-    const fetchList = async () => setRowData(await invLotChngApi.list(cond));
-
-    useEffect(() => {
-        invLotChngApi.list({}).then(setRowData);
-    }, []);
+    const [cond, setCond] = useState({ lotChngNo: '', prodCd: '', locCd: '', lotNo: '', rsnCd: '' });
+    const [rowData, setRowData] = useState([]);
 
     const columnDefs = useMemo(() => [
         { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
@@ -76,6 +70,12 @@ export default function StockLotChngAcrst() {
         },
         { field: 'createdBy', headerName: '실행자', width: 90, cellClass: 'text-slate-500' },
     ], [rsn]);
+
+    const fetchList = async () => setRowData(await invLotChngApi.list(cond));
+
+    useEffect(() => {
+        invLotChngApi.list({}).then(setRowData);
+    }, []);
 
     return (
         <div className="flex flex-col gap-4 h-full">
