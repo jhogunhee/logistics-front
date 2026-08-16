@@ -104,11 +104,6 @@ export default function CodeMaster() {
         },
     ];
 
-    const fetchCodes = async (grpCd = selectedGroup?.grpCd) => {
-        if (!grpCd) { setRowData([]); return; }
-        setRowData(await codeApi.search(grpCd));
-    };
-
     /**
      * 그룹 검색 — 검색조건(그룹코드/그룹명)은 상단 그룹 그리드에 걸린다.
      * 결과에 현재 선택 그룹이 남아 있으면 새 객체로 바꿔 끼우고, 없으면 선택을 풀고 하단도 비운다.
@@ -122,8 +117,7 @@ export default function CodeMaster() {
 
     /**
      * 그룹 선택 변경은 반드시 이 함수를 거친다.
-     * 선택이 풀리거나(null) 아직 저장 전인 신규 그룹(_status 'C')이면 서버에 없어 아래 useEffect가 조회를 건너뛰는데,
-     * 그때 앞 그룹의 코드를 남겨두면 "고른 그룹과 보이는 코드가 어긋난" 화면이 된다 — 여기서 비운다.
+     * 선택이 풀리거나(null) 아직 저장 전인 신규 그룹(_status 'C')이면 공통코드 데이터를 비운다.
      */
     const selectGroup = (group) => {
         setSelectedGroup(group);
@@ -156,7 +150,6 @@ export default function CodeMaster() {
     }, [selectedGroup]);
 
     // 그룹 데이터가 들어올 때마다(검색·저장 후 rowData 교체): 사라진 그리드 선택을 selectedGroup에 맞춰 되살린다.
-    // 첫 행 자동 선택은 하지 않는다 — 하단은 사용자가 그룹을 클릭할 때 채운다.
     const syncGroupSelection = (p) => {
         if (!selectedGroup || p.api.getSelectedRows().length > 0) return;
         p.api.forEachNode(n => { if (n.data.grpCd === selectedGroup.grpCd) n.setSelected(true); });
@@ -172,16 +165,16 @@ export default function CodeMaster() {
      * 저장이 그룹 단위(/master/codes/{grpCd}/bulk)로 나가므로 다른 그룹의 편집분이 섞이면 안 된다.
      */
     const onGroupSelected = (p) => {
-        const next = p.api.getSelectedRows()[0] ?? null;
-        if (!next || next.grpCd === selectedGroup?.grpCd) return;
+        const nextGroup = p.api.getSelectedRows()[0] ?? null;
+        if (!nextGroup || nextGroup.grpCd === selectedGroup?.grpCd) return;
 
         const dirty = gridRef.current ? collectDirty() : [];
         if (dirty.length > 0) {
             // 확인 모달은 비동기라 여기서 막을 수 없다 — 전환을 보류해 두고 응답을 기다린다
-            setGroupSwitchConfirm(next);
+            setGroupSwitchConfirm(nextGroup);
             return;
         }
-        selectGroup(next);
+        selectGroup(nextGroup);
     };
 
     // ── 그룹 편집 ────────────────────────────────────────────
@@ -212,9 +205,7 @@ export default function CodeMaster() {
         try {
             await codeApi.saveGroups(dirty);
             toast.success(`그룹 ${dirty.length}건 저장했습니다.`);
-            // 현재 검색조건으로 다시 조회한다. rowData 교체로 그리드 선택이 사라지고 selectedGroup은
-            // 옛 객체(옛 그룹명·삭제된 그룹)로 남는데, fetchGroups가 새 목록에서 같은 그룹을 되찾아
-            // 바꿔 끼운다 (그리드 선택은 syncGroupSelection이 잇는다)
+
             await fetchGroups();
         } catch (e) {
             toast.error(e.message || '그룹 저장에 실패했습니다.');
@@ -267,7 +258,8 @@ export default function CodeMaster() {
         try {
             await codeApi.saveAll(selectedGroup.grpCd, dirty);
             toast.success(`${dirty.length}건 저장했습니다.`);
-            fetchCodes();
+            // 같은 그룹 재조회 — selectedGroup이 바뀌지 않아 위 useEffect는 돌지 않는다
+            setRowData(await codeApi.search(selectedGroup.grpCd));
         } catch (e) {
             toast.error(e.message || '저장에 실패했습니다.');
         }
