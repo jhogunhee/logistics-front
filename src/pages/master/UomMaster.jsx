@@ -18,9 +18,6 @@ import { num } from '@/utils/format';
 // 단위 코드 목록의 주인은 공통코드 UOM 그룹이다 (온도대·보관유형과 같은 API를 쓴다)
 const GRP_CD = 'UOM';
 
-/** 서버가 준 포장 행들 → 편집판 */
-const snapshot = (rows) => (rows ?? []).map(u => ({ ...u }));
-
 /** prodId별 포장단위 묶음. 좌측 건수·우측 패널·업로드 중복검사가 같은 묶음을 쓴다 */
 const groupByProd = (uoms) => {
     const byProd = {};
@@ -59,7 +56,7 @@ export default function UomMaster() {
     // 상품이 바뀌거나 재조회되면 원본에서 편집판을 새로 뜬다. 복사하는 이유는
     // ag-grid가 행 객체를 직접 고치기 때문 — 원본이 남아 있어야 되돌릴 수 있다.
     const uomRows = useMemo(
-        () => snapshot(uomsByProd[selectedProd?.prodId]),
+        () => (uomsByProd[selectedProd?.prodId] ?? []).map(u => ({ ...u })),
         [uomsByProd, selectedProd]
     );
     // 삭제(D) 표시된 행은 편집을 막는다
@@ -162,7 +159,9 @@ export default function UomMaster() {
     };
 
     // 원본에서 새로 뜬 편집판을 그리드에 직접 밀어 넣는다 — 행추가분(applyTransaction)까지 함께 걷힌다
-    const revert = () => uomGridRef.current.api.setGridOption('rowData', snapshot(uomsByProd[selectedProd?.prodId]));
+    const revert = () => uomGridRef.current.api.setGridOption(
+        'rowData', (uomsByProd[selectedProd?.prodId] ?? []).map(u => ({ ...u }))
+    );
 
     /**
      * 입고/출고단위 지정. 이 그리드는 한 상품의 포장만 담으므로 전체를 훑어 하나만 켜면 된다.
