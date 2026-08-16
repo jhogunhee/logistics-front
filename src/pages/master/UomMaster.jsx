@@ -47,7 +47,7 @@ export default function UomMaster() {
     const [uomsByProd, setUomsByProd] = useState({});
     const [cond, setCond] = useState({ prodCd: '', prodNm: '' });
     const uomCodes = useCodes(GRP_CD);                     // 공통코드 UOM — 단위 콤보 편집기용
-    const [selectedProdId, setSelectedProdId] = useState(null);
+    const [selectedProd, setSelectedProd] = useState(null);
     const [uploadConfirm, setUploadConfirm] = useState(null); // 엑셀 업로드 확인 모달
     const prodGridRef = useRef(null);
     const fileInputRef = useRef(null);
@@ -58,15 +58,11 @@ export default function UomMaster() {
         gridProps, addRow, deleteSelectedRows, requestSave,
     } = useMasterGrid();
 
-    const selectedProd = useMemo(
-        () => prods.find(p => p.prodId === selectedProdId) ?? null,
-        [prods, selectedProdId]
-    );
     // 상품이 바뀌거나 재조회되면 원본에서 편집판을 새로 뜬다. 복사하는 이유는
     // ag-grid가 행 객체를 직접 고치기 때문 — 원본이 남아 있어야 되돌릴 수 있다.
     const uomRows = useMemo(
-        () => snapshot(uomsByProd[selectedProdId]),
-        [uomsByProd, selectedProdId]
+        () => snapshot(uomsByProd[selectedProd?.prodId]),
+        [uomsByProd, selectedProd]
     );
     // 삭제(D) 표시된 행은 편집을 막는다
     const notDeleted = (p) => p.data._status !== 'D';
@@ -144,8 +140,8 @@ export default function UomMaster() {
         const [prodData, uomData] = await Promise.all([prodApi.list(cond), prodUomApi.list()]);
         setProds(prodData);
         setUomsByProd(groupByProd(uomData));
-        // 조회 결과에 없는 상품을 고른 상태로 두면 오른쪽이 빈 채로 남는다
-        setSelectedProdId(prev => (prodData.some(p => p.prodId === prev) ? prev : null));
+        // 새 목록에서 같은 상품을 되찾아 바꿔 끼운다 — 조회 결과에 없으면 선택을 푼다
+        setSelectedProd(prev => prodData.find(p => p.prodId === prev?.prodId) ?? null);
     };
 
     useEffect(() => {
@@ -156,19 +152,19 @@ export default function UomMaster() {
     }, []);
 
     // 저장하지 않은 편집을 들고 다른 상품으로 넘어가면 조용히 사라진다 — 막고 알린다
-    const selectProd = (prodId) => {
-        if (prodId === selectedProdId) return;
+    const selectProd = (prod) => {
+        if (prod.prodId === selectedProd?.prodId) return;
         if (dirtyCount > 0) {
             toast.error('저장하지 않은 변경이 있습니다. 저장하거나 되돌린 뒤 이동하세요.');
             // 클릭으로 이미 옮겨간 그리드 선택 하이라이트를 현재 상품으로 되돌린다
-            prodGridRef.current?.api.forEachNode(n => n.setSelected(n.data.prodId === selectedProdId));
+            prodGridRef.current?.api.forEachNode(n => n.setSelected(n.data.prodId === selectedProd?.prodId));
             return;
         }
-        setSelectedProdId(prodId);
+        setSelectedProd(prod);
     };
 
     // 원본에서 새로 뜬 편집판을 그리드에 직접 밀어 넣는다 — 행추가분(applyTransaction)까지 함께 걷힌다
-    const revert = () => uomGridRef.current.api.setGridOption('rowData', snapshot(uomsByProd[selectedProdId]));
+    const revert = () => uomGridRef.current.api.setGridOption('rowData', snapshot(uomsByProd[selectedProd?.prodId]));
 
     /**
      * 입고/출고단위 지정. 이 그리드는 한 상품의 포장만 담으므로 전체를 훑어 하나만 켜면 된다.
@@ -395,7 +391,7 @@ export default function UomMaster() {
                             getRowId={(p) => String(p.data.prodId)}
                             // enableClickSelection이 없으면 v33+ 기본값(false) 탓에 클릭해도 행 하이라이트가 안 생긴다
                             rowSelection={{ mode: 'singleRow', checkboxes: false, enableClickSelection: true }}
-                            onRowClicked={(p) => selectProd(p.data.prodId)}
+                            onRowClicked={(p) => selectProd(p.data)}
                         />
                     </div>
                 </div>
