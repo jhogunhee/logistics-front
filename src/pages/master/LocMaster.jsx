@@ -223,8 +223,7 @@ export default function LocMaster() {
                 toast.error('로케이션 코드는 필수입니다.');
                 return false;
             }
-            // 존의 온도구분과 비교한다 (예전엔 존코드 문자열 자체를 온도대와 비교해서
-            // DRY/CHL/FRZ 세 존에만 보관 로케이션을 붙일 수 있었다)
+            // 존의 온도구분과 비교한다
             if (r.locTyp === 'STORAGE' && zonTmpMap[r.zonCd] !== r.tmpZon) {
                 toast.error(`보관 로케이션의 온도대는 존의 온도대와 같아야 합니다: ${r.locCd}`);
                 return false;
