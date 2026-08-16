@@ -114,11 +114,20 @@ export default function CodeMaster() {
      * 결과에 현재 선택 그룹이 남아 있으면 새 객체로 바꿔 끼우고, 없으면 선택을 풀고 하단도 비운다.
      */
     const fetchGroups = async (searchCond = cond) => {
-        const next = await codeApi.searchGroups(searchCond);
-        setGroups(next);
-        const kept = selectedGroup ? next.find(g => g.grpCd === selectedGroup.grpCd) ?? null : null;
-        setSelectedGroup(kept);
-        if (!kept) setRowData([]);
+        const newGroups = await codeApi.searchGroups(searchCond);
+        setGroups(newGroups);
+        const kept = selectedGroup ? newGroups.find(g => g.grpCd === selectedGroup.grpCd) ?? null : null;
+        selectGroup(kept);
+    };
+
+    /**
+     * 그룹 선택 변경은 반드시 이 함수를 거친다.
+     * 선택이 풀리거나(null) 아직 저장 전인 신규 그룹(_status 'C')이면 서버에 없어 아래 useEffect가 조회를 건너뛰는데,
+     * 그때 앞 그룹의 코드를 남겨두면 "고른 그룹과 보이는 코드가 어긋난" 화면이 된다 — 여기서 비운다.
+     */
+    const selectGroup = (group) => {
+        setSelectedGroup(group);
+        if (!group || group._status === 'C') setRowData([]);
     };
 
     // 최초 진입은 조건 없이 전체 그룹을 보여준다 — 하단은 그룹을 클릭할 때 채워진다
@@ -132,7 +141,6 @@ export default function CodeMaster() {
      * 상태를 기준으로 삼으면 사용자가 클릭하든 코드가 고르든 같은 경로를 탄다.
      */
     useEffect(() => {
-        // 아직 저장 전인 신규 그룹(_status 'C')은 서버에 없으므로 조회하지 않는다
         if (!selectedGroup || selectedGroup._status === 'C') return;
         let ignore = false;
         codeApi.search(selectedGroup.grpCd)
@@ -154,22 +162,15 @@ export default function CodeMaster() {
         p.api.forEachNode(n => { if (n.data.grpCd === selectedGroup.grpCd) n.setSelected(true); });
     };
 
-    /**
-     * 그룹 전환. 저장하지 않은 코드 변경이 있으면 되묻는다 —
-     * 저장이 그룹 단위(/master/codes/{grpCd}/bulk)로 나가므로 다른 그룹의 편집분이 섞이면 안 된다.
-     */
-    const applyGroupSwitch = (next) => {
-        // 아직 저장 전인 신규 그룹은 서버에 없어 조회를 건너뛴다 — 그때 앞 그룹의 코드를
-        // 남겨두면 "그룹은 신규인데 코드는 남의 것"인 화면이 된다. 여기서 비운다.
-        if (next._status === 'C') setRowData([]);
-        setSelectedGroup(next);   // 조회는 위 useEffect가 이어받는다
-    };
-
     /** 확인 모달에서 취소했을 때 — 선택을 앞 그룹으로 되돌린다 (이벤트가 다시 돌지만 grpCd가 같아 걸러진다) */
     const revertGroupSelection = () => {
         groupGridRef.current?.api.forEachNode(n => n.setSelected(n.data.grpCd === selectedGroup?.grpCd));
     };
 
+    /**
+     * 그룹 전환. 저장하지 않은 코드 변경이 있으면 되묻는다 —
+     * 저장이 그룹 단위(/master/codes/{grpCd}/bulk)로 나가므로 다른 그룹의 편집분이 섞이면 안 된다.
+     */
     const onGroupSelected = (p) => {
         const next = p.api.getSelectedRows()[0] ?? null;
         if (!next || next.grpCd === selectedGroup?.grpCd) return;
@@ -180,7 +181,7 @@ export default function CodeMaster() {
             setGroupSwitchConfirm(next);
             return;
         }
-        applyGroupSwitch(next);
+        selectGroup(next);
     };
 
     // ── 그룹 편집 ────────────────────────────────────────────
@@ -312,7 +313,7 @@ export default function CodeMaster() {
                     confirmText="그룹 바꾸기"
                     danger
                     onCancel={() => { setGroupSwitchConfirm(null); revertGroupSelection(); }}
-                    onConfirm={() => { applyGroupSwitch(groupSwitchConfirm); setGroupSwitchConfirm(null); }}
+                    onConfirm={() => { selectGroup(groupSwitchConfirm); setGroupSwitchConfirm(null); }}
                 >
                     <p className="text-sm text-slate-500">
                         <b className="text-slate-700">{selectedGroup?.grpNm}</b>에 저장하지 않은 코드 변경이 있습니다.
