@@ -13,6 +13,12 @@ export const codeApi = {
         return api.get(`/master/codes/${grpCd}`);
     },
 
+    /** 관리 화면용 그룹 검색 (그룹코드/그룹명 부분일치). cond: { grpCd, grpNm } */
+    searchGroups(cond = {}) {
+        const params = Object.fromEntries(Object.entries(cond).filter(([, v]) => v));
+        return api.get('/master/code-groups/search', { params });
+    },
+
     /** 그룹 일괄 저장. 그룹코드는 신규 행에서만, 삭제는 하위 코드가 없을 때만 (서버가 판정) */
     saveGroups(rows) {
         return api.post('/master/code-groups/bulk', rows);

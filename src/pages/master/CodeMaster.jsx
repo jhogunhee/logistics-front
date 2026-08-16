@@ -22,7 +22,7 @@ export default function CodeMaster() {
         gridRef, rowCount, saveConfirm, setSaveConfirm,
         gridProps, addRow, deleteSelectedRows, collectDirty, requestSave,
     } = useMasterGrid();
-    const [cond, setCond] = useState({ codeCd: '', codeNm: '' });
+    const [cond, setCond] = useState({ grpCd: '', grpNm: '' });
     const [groups, setGroups] = useState([]);
     const [rowData, setRowData] = useState([]);
     const [selectedGroup, setSelectedGroup] = useState(null); // 상단에서 고른 그룹 (null이면 하단이 비어 있다)
@@ -104,27 +104,38 @@ export default function CodeMaster() {
         },
     ];
 
-    const fetchCodes = async (grpCd = selectedGroup?.grpCd, searchCond = cond) => {
+    const fetchCodes = async (grpCd = selectedGroup?.grpCd) => {
         if (!grpCd) { setRowData([]); return; }
-        setRowData(await codeApi.search(grpCd, searchCond));
+        setRowData(await codeApi.search(grpCd));
     };
 
-    // 그룹 목록을 받고 첫 그룹을 바로 연다 — 빈 화면으로 시작하지 않게 한다
+    /**
+     * 그룹 검색 — 검색조건(그룹코드/그룹명)은 상단 그룹 그리드에 걸린다.
+     * 결과에 현재 선택 그룹이 남아 있으면 새 객체로 바꿔 끼우고, 없으면 선택을 풀고 하단도 비운다.
+     */
+    const fetchGroups = async (searchCond = cond) => {
+        const next = await codeApi.searchGroups(searchCond);
+        setGroups(next);
+        const kept = selectedGroup ? next.find(g => g.grpCd === selectedGroup.grpCd) ?? null : null;
+        setSelectedGroup(kept);
+        if (!kept) setRowData([]);
+    };
+
+    // 최초 진입은 조건 없이 전체 그룹을 보여준다 — 하단은 그룹을 클릭할 때 채워진다
     useEffect(() => {
-        codeApi.groups().then(setGroups);
+        codeApi.searchGroups().then(setGroups);
     }, []);
 
     /**
      * 코드 조회는 선택 이벤트가 아니라 selectedGroup 변화에 매단다.
-     * 이벤트에 매달면 최초 자동 선택처럼 그리드 내부에서 발생한 선택에서 조회가 누락된다
-     * (실제로 그랬다 — selectedGroup은 잡혔는데 /search 요청이 안 나갔다).
+     * 이벤트에 매달면 저장 후 되살린 선택처럼 그리드 내부에서 발생한 선택에서 조회가 누락된다.
      * 상태를 기준으로 삼으면 사용자가 클릭하든 코드가 고르든 같은 경로를 탄다.
      */
     useEffect(() => {
         // 아직 저장 전인 신규 그룹(_status 'C')은 서버에 없으므로 조회하지 않는다
         if (!selectedGroup || selectedGroup._status === 'C') return;
         let ignore = false;
-        codeApi.search(selectedGroup.grpCd, { codeCd: '', codeNm: '' })
+        codeApi.search(selectedGroup.grpCd)
             .then(d => { if (!ignore) setRowData(d); })
             .catch(() => {
                 // 실패를 삼키면 앞 그룹의 코드가 그대로 남아 "한 칸 밀린" 화면이 된다 —
@@ -136,14 +147,11 @@ export default function CodeMaster() {
         return () => { ignore = true; };
     }, [selectedGroup]);
 
-    // 그룹 데이터가 들어올 때마다: 선택이 없으면 selectedGroup(없으면 첫 행)을 그리드 선택에 맞춘다.
-    // onFirstDataRendered는 1회만 발화해 데이터보다 먼저 불리면 자동선택이 영영 누락되고,
-    // 저장 후 rowData 교체로 사라진 선택도 되살릴 수 없다 — 그래서 onRowDataUpdated에 매단다.
+    // 그룹 데이터가 들어올 때마다(검색·저장 후 rowData 교체): 사라진 그리드 선택을 selectedGroup에 맞춰 되살린다.
+    // 첫 행 자동 선택은 하지 않는다 — 하단은 사용자가 그룹을 클릭할 때 채운다.
     const syncGroupSelection = (p) => {
-        if (p.api.getDisplayedRowCount() === 0 || p.api.getSelectedRows().length > 0) return;
-        let match = null;
-        p.api.forEachNode(n => { if (!match && n.data.grpCd === selectedGroup?.grpCd) match = n; });
-        (match ?? p.api.getDisplayedRowAtIndex(0))?.setSelected(true);
+        if (!selectedGroup || p.api.getSelectedRows().length > 0) return;
+        p.api.forEachNode(n => { if (n.data.grpCd === selectedGroup.grpCd) n.setSelected(true); });
     };
 
     /**
@@ -151,7 +159,6 @@ export default function CodeMaster() {
      * 저장이 그룹 단위(/master/codes/{grpCd}/bulk)로 나가므로 다른 그룹의 편집분이 섞이면 안 된다.
      */
     const applyGroupSwitch = (next) => {
-        setCond({ codeCd: '', codeNm: '' });
         // 아직 저장 전인 신규 그룹은 서버에 없어 조회를 건너뛴다 — 그때 앞 그룹의 코드를
         // 남겨두면 "그룹은 신규인데 코드는 남의 것"인 화면이 된다. 여기서 비운다.
         if (next._status === 'C') setRowData([]);
@@ -204,11 +211,10 @@ export default function CodeMaster() {
         try {
             await codeApi.saveGroups(dirty);
             toast.success(`그룹 ${dirty.length}건 저장했습니다.`);
-            const next = await codeApi.groups();
-            setGroups(next);
-            // rowData 교체로 그리드 선택이 사라지고 selectedGroup은 옛 객체(옛 그룹명·삭제된 그룹)로
-            // 남는다 — 새 목록에서 같은 그룹을 되찾아 바꿔 끼운다 (그리드 선택은 syncGroupSelection이 잇는다)
-            setSelectedGroup(prev => prev ? next.find(g => g.grpCd === prev.grpCd) ?? null : null);
+            // 현재 검색조건으로 다시 조회한다. rowData 교체로 그리드 선택이 사라지고 selectedGroup은
+            // 옛 객체(옛 그룹명·삭제된 그룹)로 남는데, fetchGroups가 새 목록에서 같은 그룹을 되찾아
+            // 바꿔 끼운다 (그리드 선택은 syncGroupSelection이 잇는다)
+            await fetchGroups();
         } catch (e) {
             toast.error(e.message || '그룹 저장에 실패했습니다.');
         }
@@ -278,10 +284,10 @@ export default function CodeMaster() {
                 </span>
             </div>
 
-            {/* 검색 조건은 하단(코드)에만 걸린다 — 그룹은 5건 남짓이라 검색할 대상이 아니다 */}
-            <SearchBar label="코드 검색" cond={cond} setCond={setCond} onSearch={() => fetchCodes()}>
-                <SearchText name="codeCd" label="코드" placeholder="DRY" />
-                <SearchText name="codeNm" label="코드명" placeholder="상온" />
+            {/* 검색 조건은 상단(그룹)에 걸린다 — 하단 코드는 그룹 행을 클릭할 때 조회된다 */}
+            <SearchBar label="그룹 검색" cond={cond} setCond={setCond} onSearch={() => fetchGroups()}>
+                <SearchText name="grpCd" label="그룹코드" placeholder="TEMP_ZONE" />
+                <SearchText name="grpNm" label="그룹명" placeholder="온도대" />
             </SearchBar>
 
             {/* 저장 확인 모달 */}
@@ -370,7 +376,7 @@ export default function CodeMaster() {
                             <span className="text-xs text-slate-400">
                                 {selectedGroup
                                     ? `${selectedGroup.grpNm} (${selectedGroup.grpCd}) · ${num(rowCount)}건`
-                                    : '위에서 그룹을 선택하세요'}
+                                    : '위에서 그룹을 클릭하면 코드가 조회됩니다'}
                             </span>
                         </div>
                         <div className="flex gap-2">
