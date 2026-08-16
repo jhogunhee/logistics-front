@@ -63,7 +63,7 @@ export default function CodeMaster() {
         {
             field: 'codeCd', headerName: '코드', width: 140,
             editable: isNew,
-            headerTooltip: '로직이 리터럴로 참조하는 값입니다. 등록 후에는 변경할 수 없습니다',
+            headerTooltip: '등록 후에는 변경할 수 없습니다',
             valueParser: (p) => String(p.newValue ?? '').trim().toUpperCase(), // 코드는 대문자로 통일
             cellRenderer: (p) => p.value || <span className="text-slate-400">(입력)</span>,
         },
