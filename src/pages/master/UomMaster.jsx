@@ -142,12 +142,12 @@ export default function UomMaster() {
         });
     }, []);
 
-    // 저장하지 않은 편집을 들고 다른 상품으로 넘어가면 조용히 사라진다 — 막고 알린다
+    // 저장하지 않은 편집을 들고 다른 상품으로 넘어가면 막고 알린다
     const selectProd = (prod) => {
         if (prod.prodId === selectedProd?.prodId) return;
         if (dirtyCount > 0) {
             toast.error('저장하지 않은 변경이 있습니다. 저장하거나 되돌린 뒤 이동하세요.');
-            // 클릭으로 이미 옮겨간 그리드 선택 하이라이트를 현재 상품으로 되돌린다
+            // 그리드 선택 하이라이트를 전으로 돌린다
             prodGridRef.current?.api.forEachNode(n => n.setSelected(n.data.prodId === selectedProd?.prodId));
             return;
         }
@@ -162,7 +162,7 @@ export default function UomMaster() {
         uomGridRef.current.api.forEachNode(n => {
             if (n.data._status === 'D') return;
             const next = n === node;
-            if (!!n.data[field] === next) return; // 안 바뀌는 행은 U로 표시하지 않는다
+            if (!!n.data[field] === next) return; // 값이 바뀐 행인지 확인
             n.setDataValue(field, next);
         });
     };
@@ -370,6 +370,7 @@ export default function UomMaster() {
                             </button>
                             <button
                                 onClick={() => fileInputRef.current.click()}
+                                title="확인 후 즉시 저장됩니다 (되돌리기 불가)"
                                 className="btn-ghost">
                                 <Upload size={13} /> 엑셀 업로드
                             </button>
@@ -471,6 +472,9 @@ export default function UomMaster() {
                     <p className="text-sm text-slate-500">
                         상품 <b className="text-slate-700">{new Set(uploadConfirm.map(r => r.prodId)).size}</b>건에
                         포장 <b className="text-blue-500">{uploadConfirm.length}</b>건을 추가합니다.
+                    </p>
+                    <p className="text-xs text-amber-500 font-medium">
+                        엑셀 업로드는 그리드를 거치지 않고 등록 즉시 저장됩니다 — 저장 버튼이나 되돌리기로 취소할 수 없습니다.
                     </p>
                     <p className="text-xs text-slate-400">
                         입고단위·출고단위는 엑셀로 정하지 않습니다 — 등록 후 상품을 골라 라디오로 지정하세요.
