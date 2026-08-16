@@ -117,7 +117,7 @@ export default function InboundConfirm() {
     const shortageOf = (a) => a.totalExpctQty - a.totalRcvdQty;
 
     const fetchList = async () => {
-        const data = await asnApi.list(cond);
+        const data = await asnApi.listForCfm(cond);
         setRowData(data);
         // 선택 해제는 그리드에도 직접 건다 — getRowId로 행 정체성이 유지되면 ag-grid가 재조회 후에도
         // 체크 표시를 되살려, 상태(selectedAsns)는 비었는데 화면엔 체크가 남는 어긋남이 생긴다
@@ -128,7 +128,7 @@ export default function InboundConfirm() {
     };
 
     useEffect(() => {
-        asnApi.list(cond).then(setRowData);
+        asnApi.listForCfm(cond).then(setRowData);
     }, []);
 
     // 체크 목록과 라인 미리보기를 함께 관리한다 — 마지막으로 체크한 건의 라인을 아래에 보여준다.

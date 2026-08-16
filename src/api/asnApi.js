@@ -2,15 +2,34 @@
 import api from '@/utils/axios';
 
 export const asnApi = {
-    /** 헤더 목록 조회. cond: { ibNo, vndrNm, prgr, dateFrom, dateTo } — 빈 값 조건은 빼고 보낸다.
-     *  prgr 필터와 응답의 prgr는 진행 5단계(IbPrgr — 예정/검수/적치지시/적치완료/확정) 파생값이라
-     *  서버가 응답 파생 후 거른다 (저장 상태 3값 필터는 화면 뱃지와 체계가 달라 폐지).
-     *  lineCount/cmplLineCount와 수량 합계(totalExpct/totalRcvd/totalPtawyQty)도 서버가 라인에서 파생시켜 내려준다
-     *  (cmplLineCount는 착수한 라인이 아니라 전량 검수를 마친 라인 수 — 입고검수 화면이 쓴다).
-     *  inspDt는 라인 검수일시의 최댓값(inv_hist RECEIVE 기준)이고, cfmDt는 입고확정 버튼을 누른 시각이다. */
+    // 헤더 목록은 화면별로 셋이다. 뽑는 컬럼이 아니라 쿼리 모양이 갈려서 나눴다 —
+    // 진행단계(prgr)는 적치지시 EXISTS 서브쿼리를, 최종 검수일시(inspDt)는 inv_hist 서브쿼리를
+    // 부르는데, 화면마다 둘 중 하나만 쓴다. 공통 조건은 셋 다 { ibNo, vndrNm, dateFrom, dateTo }.
+
+    /** 입고예정(ASN) 관리 · 대시보드. cond에 prgr(진행 5단계) 필터를 더 받는다.
+     *  응답: ibOrderId, ibNo, prgr, vndrNm, expctDe, totalExpctQty, inspDt, cfmDt
+     *  prgr는 저장값이 아니라 서버가 수량·적치지시에서 파생시킨 값이고, 필터도 서버 쿼리가 건다
+     *  (저장 상태 3값 필터는 화면 뱃지와 체계가 달라 폐지). inspDt는 라인 검수일시의 최댓값. */
     list(cond = {}) {
         const params = Object.fromEntries(Object.entries(cond).filter(([, v]) => v));
         return api.get('/inbound/asns', { params });
+    },
+
+    /** 입고검수 · 검수정책 시뮬레이션. 진행 5단계 대신 저장 상태(status)를 준다 — 이 화면은
+     *  「검수할 수 있는가」만 보면 되고, 그 덕에 서버가 적치지시 조회를 건너뛴다.
+     *  응답: ibOrderId, ibNo, status, vndrNm, expctDe, lineCount, cmplLineCount, inspDt
+     *  cmplLineCount는 착수한 라인이 아니라 전량 검수를 마친 라인 수다. cond.prgr는 무시된다. */
+    listForInsp(cond = {}) {
+        const params = Object.fromEntries(Object.entries(cond).filter(([, v]) => v));
+        return api.get('/inbound/asns/inspection', { params });
+    },
+
+    /** 입고확정. 결품(예정−검수)·미적치(검수−적치) 계산용 수량 합계를 준다.
+     *  확정 가능 판정에 status와 prgr가 둘 다 필요해 둘 다 내려온다. 최종 검수일시는 없다.
+     *  응답: ibOrderId, ibNo, prgr, status, vndrNm, expctDe, totalExpctQty, totalRcvdQty, totalPtawyQty, cfmDt */
+    listForCfm(cond = {}) {
+        const params = Object.fromEntries(Object.entries(cond).filter(([, v]) => v));
+        return api.get('/inbound/asns/confirmation', { params });
     },
 
     /** 특정 ASN의 라인 목록 조회 */

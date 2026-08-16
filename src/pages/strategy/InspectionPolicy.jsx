@@ -131,7 +131,7 @@ export default function InspectionPolicy() {
     const switchPreviewKind = (kind) => {
         setPreviewKind(kind);
         if (kind === 'asn' && asnList.length === 0) {
-            asnApi.list().then(data =>
+            asnApi.listForInsp().then(data =>
                 setAsnList(data.filter(a => ['SCHEDULED', 'RECEIVING'].includes(a.status))));
         }
     };

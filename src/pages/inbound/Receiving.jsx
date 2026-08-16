@@ -251,7 +251,7 @@ export default function Receiving() {
             gridRef.current?.api?.deselectAll();
             clearDetail();
         }
-        const data = await asnApi.list(cond);
+        const data = await asnApi.listForInsp(cond);
         const rows = data.filter(a => a.status !== 'CONFIRMED');
         setRowData(rows);
 
@@ -269,7 +269,7 @@ export default function Receiving() {
 
     // 최초 1회 조회 (검색조건 기본값 = 오늘 ~ +7일)
     useEffect(() => {
-        asnApi.list(cond).then(data => {
+        asnApi.listForInsp(cond).then(data => {
             setRowData(data.filter(a => a.status !== 'CONFIRMED'));
         });
     }, []);
