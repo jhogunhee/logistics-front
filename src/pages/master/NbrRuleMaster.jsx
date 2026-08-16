@@ -14,6 +14,7 @@ import ConfirmModal from '@/components/common/ConfirmModal';
 import SaveCountSummary from '@/components/common/SaveCountSummary';
 
 const DLMT_OPTIONS = ['-', '_', ''];
+const DYNC_KY_TYPS = Object.keys(DYNC_KY_TYP_META);
 
 export default function NbrRuleMaster() {
     const {
@@ -27,8 +28,6 @@ export default function NbrRuleMaster() {
     // 삭제(D) 표시된 행은 편집을 막는다
     const notDeleted = (p) => p.data._status !== 'D';
     const isNew = (p) => p.data._status === 'C';
-    // 카운터는 저장된 규칙에만 존재한다 — 아직 저장 전인 신규(C) 행은 조회할 대상이 없다
-    const isPersisted = (data) => data._status !== 'C';
 
     const columnDefs = [
         {
@@ -78,7 +77,7 @@ export default function NbrRuleMaster() {
             editable: isNew,
             cellEditor: SelectCellEditor,
             cellEditorParams: {
-                values: ['NONE', 'YEAR', 'MONTH', 'DAY'],
+                values: DYNC_KY_TYPS,
                 labelMap: Object.fromEntries(
                     Object.entries(DYNC_KY_TYP_META).map(([cd, meta]) => [cd, meta.label])
                 ),
@@ -90,7 +89,8 @@ export default function NbrRuleMaster() {
         {
             headerName: '카운터', width: 80, editable: false,
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-            cellRenderer: (p) => isPersisted(p.data)
+            // 카운터는 저장된 규칙에만 존재한다 — 아직 저장 전인 신규(C) 행은 조회할 대상이 없다
+            cellRenderer: (p) => !isNew(p)
                 ? (
                     <button
                         onClick={() => handleShowCounters(p.data.ruleCd)}
@@ -198,7 +198,7 @@ export default function NbrRuleMaster() {
                 toast.error(`자릿수는 1~9 사이의 정수여야 합니다: ${r.ruleCd}`);
                 return false;
             }
-            if (!['NONE', 'YEAR', 'MONTH', 'DAY'].includes(r.dyncKyTyp)) {
+            if (!DYNC_KY_TYPS.includes(r.dyncKyTyp)) {
                 toast.error(`동적키유형이 올바르지 않습니다: ${r.ruleCd}`);
                 return false;
             }
