@@ -18,9 +18,8 @@ import { num } from '@/utils/format';
 // 단위 코드 목록의 주인은 공통코드 UOM 그룹이다 (온도대·보관유형과 같은 API를 쓴다)
 const GRP_CD = 'UOM';
 
-
-/** 서버가 준 포장 행들 → 편집판. `_key`는 getRowId용 — 신규 행에는 아직 prodUomId가 없다 */
-const snapshot = (rows) => (rows ?? []).map(u => ({ ...u, _key: `id-${u.prodUomId}` }));
+/** 서버가 준 포장 행들 → 편집판 */
+const snapshot = (rows) => (rows ?? []).map(u => ({ ...u }));
 
 /** prodId별 포장단위 묶음. 좌측 건수·우측 패널·업로드 중복검사가 같은 묶음을 쓴다 */
 const groupByProd = (uoms) => {
@@ -51,7 +50,6 @@ export default function UomMaster() {
     const [uploadConfirm, setUploadConfirm] = useState(null); // 엑셀 업로드 확인 모달
     const prodGridRef = useRef(null);
     const fileInputRef = useRef(null);
-    const newRowSeq = useRef(0);       // 신규 행의 임시 키 (getRowId가 id를 요구한다)
     // 우측 포장 그리드는 다른 마스터 화면과 같은 C/U/D 규약을 쓴다
     const {
         gridRef: uomGridRef, rowCount, dirtyCount, saveConfirm, setSaveConfirm,
@@ -186,7 +184,6 @@ export default function UomMaster() {
             return;
         }
         addRow({
-            _key: `new-${newRowSeq.current++}`,
             prodId: selectedProd.prodId,
             uomCd: '', eaQty: 1, wgt: null,
             inbUom: false, outbUom: false,
@@ -444,7 +441,6 @@ export default function UomMaster() {
                             ref={uomGridRef}
                             rowData={uomRows}
                             columnDefs={uomColumnDefs}
-                            getRowId={(p) => p.data._key}
                             {...gridProps}
                         />
                     </div>
