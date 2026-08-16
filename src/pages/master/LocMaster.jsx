@@ -31,6 +31,7 @@ export default function LocMaster() {
 
     // 삭제(D) 표시된 행은 편집을 막는다
     const notDeleted = (p) => p.data._status !== 'D';
+    const isNew = (p) => p.data._status === 'C';
 
     // 존 마스터에서 파생 — 하드코딩하지 않는다 (존이 추가되면 여기 자동 반영)
     const zonCodes = zons.map(z => z.zonCd);
@@ -47,7 +48,7 @@ export default function LocMaster() {
         {
             // 코드는 업무 식별자라 수정 불가 — 신규(C) 행에서만 입력받는다
             field: 'locCd', headerName: '로케이션 코드', width: 120,
-            editable: (p) => p.data._status === 'C',
+            editable: isNew,
         },
         {
             field: 'zonCd', headerName: '존', width: 110, editable: notDeleted,
@@ -222,8 +223,7 @@ export default function LocMaster() {
                 toast.error('로케이션 코드는 필수입니다.');
                 return false;
             }
-            // 존의 온도구분과 비교한다 (예전엔 존코드 문자열 자체를 온도대와 비교해서
-            // DRY/CHL/FRZ 세 존에만 보관 로케이션을 붙일 수 있었다)
+            // 존의 온도구분과 비교한다
             if (r.locTyp === 'STORAGE' && zonTmpMap[r.zonCd] !== r.tmpZon) {
                 toast.error(`보관 로케이션의 온도대는 존의 온도대와 같아야 합니다: ${r.locCd}`);
                 return false;

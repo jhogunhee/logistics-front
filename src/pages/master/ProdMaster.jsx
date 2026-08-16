@@ -29,7 +29,7 @@ export default function ProdMaster() {
     // 삭제(D) 표시된 행은 편집을 막는다
     const notDeleted = (p) => p.data._status !== 'D';
     // 단위 두 컬럼 전용 — 아직 저장 전인 신규 행에서만 연다 (아래 컬럼 정의 주석 참고)
-    const isNewRow = (p) => p.data._status === 'C';
+    const isNew = (p) => p.data._status === 'C';
 
     // 온도대 편집기 목록은 공통코드 상태를 직접 참조한다
     const columnDefs = [
@@ -58,17 +58,17 @@ export default function ProdMaster() {
         {
             // 신규 행(C)에서만 연다. 등록 후에는 못 고치고 변경은 단위 관리 화면의 라디오가 맡는다.
             // 이중 관리 방지
-            field: 'inbUomCd', headerName: '입고단위', width: 100, editable: isNewRow,
+            field: 'inbUomCd', headerName: '입고단위', width: 100, editable: isNew,
             cellEditor: SelectCellEditor,
             cellEditorParams: { values: uomCodes.values, labelMap: uomCodes.nmByCd },
-            cellClass: (p) => (isNewRow(p) ? undefined : 'text-slate-500'),
+            cellClass: (p) => (isNew(p) ? undefined : 'text-slate-500'),
             headerTooltip: '벤더에게 발주하고 납품받는 단위. 신규 등록 시에만 지정할 수 있고, 등록 후 변경은 단위 관리 화면에서 합니다',
         },
         {
-            field: 'outbUomCd', headerName: '출고단위', width: 100, editable: isNewRow,
+            field: 'outbUomCd', headerName: '출고단위', width: 100, editable: isNew,
             cellEditor: SelectCellEditor,
             cellEditorParams: { values: uomCodes.values, labelMap: uomCodes.nmByCd },
-            cellClass: (p) => (isNewRow(p) ? undefined : 'text-slate-500'),
+            cellClass: (p) => (isNew(p) ? undefined : 'text-slate-500'),
             headerTooltip: '출고주문에 쓰는 단위. 신규 등록 시에만 지정할 수 있고, 등록 후 변경은 단위 관리 화면에서 합니다',
         },
         {
