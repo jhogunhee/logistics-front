@@ -3,7 +3,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Search, Truck, X } from 'lucide-react';
 
-import { asnApi } from '@/api/asnApi';
+import { ibOrderApi } from '@/api/ibOrderApi';
 import { ASN_PRGR_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { ASN_PRGR_OPTIONS } from '@/constants/codeOptions';
 import { daysAheadStr, eaQtyPerInbUomOf, fmtDt, fmtInbQty, num, todayStr } from '@/utils/format';
@@ -77,7 +77,7 @@ export default function AsnList() {
     const gridRef = useRef(null);
 
     const fetchList = async () => {
-        const data = await asnApi.list(cond);
+        const data = await ibOrderApi.list(cond);
         setRowData(data);
         setSelectedAsn(null);
         setLineRows([]);
@@ -85,7 +85,7 @@ export default function AsnList() {
 
     // 최초 1회 조회 (기본 기간 = 오늘 ~ +7일)
     useEffect(() => {
-        asnApi.list(cond).then(setRowData);
+        ibOrderApi.list(cond).then(setRowData);
     }, []);
 
     // 헤더 행 선택 시 라인 조회
@@ -97,7 +97,7 @@ export default function AsnList() {
             return;
         }
         setSelectedAsn(node.data);
-        setLineRows(await asnApi.lines(node.data.ibOrderId));
+        setLineRows(await ibOrderApi.lines(node.data.ibOrderId));
     };
 
     // 등록도 취소도 없는 조회 전용 화면 — 예정만 없애면 주문 상태와 어긋나 OMS 입고주문이 주관한다

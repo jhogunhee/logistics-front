@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Barcode, ClipboardCheck, History, PackageOpen, PackageSearch, Truck } from 'lucide-react';
 
-import { asnApi } from '@/api/asnApi';
+import { ibOrderApi } from '@/api/ibOrderApi';
 import { putawayApi } from '@/api/putawayApi';
 import { prodApi } from '@/api/prodApi';
 import { invHistApi } from '@/api/invHistApi';
@@ -31,7 +31,7 @@ export default function Dashboard() {
 
     useEffect(() => {
         Promise.all([
-            asnApi.list(),
+            ibOrderApi.list(),
             putawayApi.lines(),
             prodApi.list(),
             invHistApi.list(),

@@ -4,7 +4,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { ClipboardCheck, History, Search, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import { asnApi } from '@/api/asnApi';
+import { ibOrderApi } from '@/api/ibOrderApi';
 import { ASN_STATUS_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { eaQtyPerInbUomOf, fmtDt, num, todayStr, daysAheadStr } from '@/utils/format';
 import SearchBar, { SearchItem, SearchText, SearchDateRange } from '@/components/common/SearchBar';
@@ -226,10 +226,10 @@ export default function Receiving() {
     const loadDetail = async (asn) => {
         const seq = ++detailSeq.current;
         setViolations([]);
-        const receipts = await asnApi.orderReceipts(asn.ibOrderId);
+        const receipts = await ibOrderApi.orderReceipts(asn.ibOrderId);
         if (seq !== detailSeq.current) return;
         setReceipts(receipts);
-        const lines = await asnApi.lines(asn.ibOrderId);
+        const lines = await ibOrderApi.lines(asn.ibOrderId);
         if (seq !== detailSeq.current) return;
         // 입고일자는 전 라인, 제조일자는 유통기한 관리 상품만 입력
         // (입고일자만 기본값 오늘 — 제조일자는 거의 항상 과거라 오늘 기본값은 그럴듯한 오답, 직접 입력을 강제한다)
@@ -251,7 +251,7 @@ export default function Receiving() {
             gridRef.current?.api?.deselectAll();
             clearDetail();
         }
-        const data = await asnApi.listForInsp(cond);
+        const data = await ibOrderApi.listForInsp(cond);
         const rows = data.filter(a => a.status !== 'CONFIRMED');
         setRowData(rows);
 
@@ -269,7 +269,7 @@ export default function Receiving() {
 
     // 최초 1회 조회 (검색조건 기본값 = 오늘 ~ +7일)
     useEffect(() => {
-        asnApi.listForInsp(cond).then(data => {
+        ibOrderApi.listForInsp(cond).then(data => {
             setRowData(data.filter(a => a.status !== 'CONFIRMED'));
         });
     }, []);
@@ -331,7 +331,7 @@ export default function Receiving() {
         try {
             setViolations([]);
             setLineRows(prev => prev.map(r => ({ ...r, _violationMsg: null })));
-            await asnApi.receive(selectedAsn.ibOrderId, {
+            await ibOrderApi.receive(selectedAsn.ibOrderId, {
                 lines: targets.map(r => ({
                     ibLineId: r.ibLineId,
                     inspectQty: Number(r._inspectQty),
@@ -366,7 +366,7 @@ export default function Receiving() {
     // 확정된 입고는 결품까지 못박힌 닫힌 문서라 취소 불가 (서버도 같은 검증을 한다)
     const doCancelReceipt = async (receipt) => {
         try {
-            await asnApi.cancelReceipt(selectedAsn.ibOrderId, receipt.invHistId);
+            await ibOrderApi.cancelReceipt(selectedAsn.ibOrderId, receipt.invHistId);
             toast.success('검수를 취소했습니다.');
             await fetchList(true); // 라인 수량이 줄어드므로 목록·라인·이력을 함께 다시 읽는다
         } catch (e) {

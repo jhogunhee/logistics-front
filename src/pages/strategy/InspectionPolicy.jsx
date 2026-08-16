@@ -3,7 +3,7 @@ import { History, Play, Plus, ScrollText, ShieldCheck, Trash2 } from 'lucide-rea
 import toast from 'react-hot-toast';
 
 import { strategyApi } from '@/api/strategyApi';
-import { asnApi } from '@/api/asnApi';
+import { ibOrderApi } from '@/api/ibOrderApi';
 import { todayStr } from '@/utils/format';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import DropdownSelect from '@/components/common/DropdownSelect';
@@ -131,14 +131,14 @@ export default function InspectionPolicy() {
     const switchPreviewKind = (kind) => {
         setPreviewKind(kind);
         if (kind === 'asn' && asnList.length === 0) {
-            asnApi.listForInsp().then(data =>
+            ibOrderApi.listForInsp().then(data =>
                 setAsnList(data.filter(a => ['SCHEDULED', 'RECEIVING'].includes(a.status))));
         }
     };
 
     const pickAsn = async (id) => {
         setAsnId(id);
-        const lines = await asnApi.lines(id);
+        const lines = await ibOrderApi.lines(id);
         setPreviewLots(lines.map(l => ({
             prodId: l.prodId, prodCd: l.prodCd, prodNm: l.prodNm,
             shelfLifeDays: l.shelfLifeDays,

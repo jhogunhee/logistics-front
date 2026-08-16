@@ -4,7 +4,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { CheckCircle2, Search, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import { asnApi } from '@/api/asnApi';
+import { ibOrderApi } from '@/api/ibOrderApi';
 import { ASN_PRGR_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { ASN_PRGR_OPTIONS } from '@/constants/codeOptions';
 import { daysAheadStr, eaQtyPerInbUomOf, fmtDt, fmtInbQty, num } from '@/utils/format';
@@ -117,7 +117,7 @@ export default function InboundConfirm() {
     const shortageOf = (a) => a.totalExpctQty - a.totalRcvdQty;
 
     const fetchList = async () => {
-        const data = await asnApi.listForCfm(cond);
+        const data = await ibOrderApi.listForCfm(cond);
         setRowData(data);
         // 선택 해제는 그리드에도 직접 건다 — getRowId로 행 정체성이 유지되면 ag-grid가 재조회 후에도
         // 체크 표시를 되살려, 상태(selectedAsns)는 비었는데 화면엔 체크가 남는 어긋남이 생긴다
@@ -128,7 +128,7 @@ export default function InboundConfirm() {
     };
 
     useEffect(() => {
-        asnApi.listForCfm(cond).then(setRowData);
+        ibOrderApi.listForCfm(cond).then(setRowData);
     }, []);
 
     // 체크 목록과 라인 미리보기를 함께 관리한다 — 마지막으로 체크한 건의 라인을 아래에 보여준다.
@@ -138,7 +138,7 @@ export default function InboundConfirm() {
         setSelectedAsns(rows);
         const preview = rows.length > 0 ? rows[rows.length - 1] : null;
         setPreviewAsn(preview);
-        setLineRows(preview ? await asnApi.lines(preview.ibOrderId) : []);
+        setLineRows(preview ? await ibOrderApi.lines(preview.ibOrderId) : []);
     };
 
     const doConfirm = async (targets) => {
@@ -147,7 +147,7 @@ export default function InboundConfirm() {
         const failed = [];
         for (const a of targets) {
             try {
-                await asnApi.confirm(a.ibOrderId);
+                await ibOrderApi.confirm(a.ibOrderId);
             } catch (e) {
                 failed.push(`${a.ibNo}: ${e.message || '실패'}`);
             }

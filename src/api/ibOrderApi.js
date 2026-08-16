@@ -1,7 +1,8 @@
-// 입고예정(ASN) API (wms-backend 연동)
+// 입고예정(ASN) API — 목록 조회 · 검수 · 입고확정. wms-backend IbOrderController(/inbound/asns) 한 벌과 대응한다.
+// 검수를 따로 떼지 않은 이유: 검수는 자기 URL이 없는 ASN의 하위 동작이고, lines()를 네 화면이 공유한다.
 import api from '@/utils/axios';
 
-export const asnApi = {
+export const ibOrderApi = {
     // 헤더 목록은 화면별로 셋이다. 뽑는 컬럼이 아니라 쿼리 모양이 갈려서 나눴다 —
     // 진행단계(prgr)는 적치지시 EXISTS 서브쿼리를, 최종 검수일시(inspDt)는 inv_hist 서브쿼리를
     // 부르는데, 화면마다 둘 중 하나만 쓴다. 공통 조건은 셋 다 { ibNo, vndrNm, dateFrom, dateTo }.
