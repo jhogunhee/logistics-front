@@ -49,7 +49,6 @@ export default function UomMaster() {
     const uomCodes = useCodes(GRP_CD);                     // 공통코드 UOM — 단위 콤보 편집기용
     const [selectedProdId, setSelectedProdId] = useState(null);
     const [uploadConfirm, setUploadConfirm] = useState(null); // 엑셀 업로드 확인 모달
-    const [prodDeleteConfirm, setProdDeleteConfirm] = useState(null); // 상품 삭제 확인 모달
     const prodGridRef = useRef(null);
     const fileInputRef = useRef(null);
     const newRowSeq = useRef(0);       // 신규 행의 임시 키 (getRowId가 id를 요구한다)
@@ -196,33 +195,6 @@ export default function UomMaster() {
             uomCd: '', eaQty: 1, wgt: null,
             inbUom: false, outbUom: false,
         }, 'uomCd');
-    };
-
-    // ── 상품 삭제 ───────────────────────────────────────────
-    // 포장이 아니라 상품 자체를 지운다. 반경이 큰 동작이라 버튼을 왼쪽(상품) 영역에 두고
-    // 오른쪽 「포장 삭제」와 라벨로 갈라 뒀다. 실제 차단은 서버가 한다 —
-    // 재고·이력·문서가 참조 중이면 ProdService가 거부한다(FK가 없어 DB는 안 막아준다).
-    const handleDeleteProd = () => {
-        if (!selectedProd) {
-            toast('삭제할 상품을 먼저 고르세요.');
-            return;
-        }
-        if (dirtyCount > 0) {
-            toast.error('저장하지 않은 포장 변경이 있습니다. 저장하거나 되돌린 뒤 삭제하세요.');
-            return;
-        }
-        setProdDeleteConfirm(selectedProd);
-    };
-
-    const doDeleteProd = async (prod) => {
-        try {
-            await prodApi.saveAll([{ _status: 'D', prodId: prod.prodId }]);
-            toast.success(`${prod.prodNm} 을(를) 삭제했습니다.`);
-            setSelectedProdId(null);
-            fetchList();
-        } catch (e) {
-            toast.error(e.message || '삭제에 실패했습니다.');
-        }
     };
 
     // ── 엑셀 양식 다운로드 ───────────────────────────────────
@@ -413,12 +385,6 @@ export default function UomMaster() {
                                 className="btn-ghost">
                                 <Upload size={13} /> 엑셀 업로드
                             </button>
-                            <button
-                                onClick={handleDeleteProd}
-                                disabled={!selectedProd}
-                                className="btn-danger">
-                                <Trash2 size={13} /> 상품 삭제
-                            </button>
                         </div>
                     </div>
                     <div className="flex-1 min-h-0">
@@ -461,7 +427,7 @@ export default function UomMaster() {
                                 onClick={deleteSelectedRows}
                                 disabled={!selectedProd}
                                 className="btn-danger">
-                                <Trash2 size={13} /> 포장 삭제
+                                <Trash2 size={13} /> 삭제
                             </button>
                             <button
                                 onClick={handleAddUom}
@@ -503,27 +469,6 @@ export default function UomMaster() {
                     />
                     <p className="text-xs text-slate-400">
                         입고단위·출고단위로 쓰이는 포장은 삭제되지 않습니다 — 다른 포장으로 옮긴 뒤 지우세요.
-                    </p>
-                </ConfirmModal>
-            )}
-
-            {/* 상품 삭제 확인 모달 — 포장까지 함께 사라지므로 건수를 먼저 보여준다 */}
-            {prodDeleteConfirm && (
-                <ConfirmModal
-                    title="상품을 삭제하시겠습니까?"
-                    confirmText="삭제"
-                    danger
-                    onCancel={() => setProdDeleteConfirm(null)}
-                    onConfirm={() => { doDeleteProd(prodDeleteConfirm); setProdDeleteConfirm(null); }}
-                >
-                    <p>
-                        <b className="text-slate-700">{prodDeleteConfirm.prodCd} {prodDeleteConfirm.prodNm}</b>
-                        <span className="text-red-500 font-bold"> 와 포장 {uomsByProd[prodDeleteConfirm.prodId]?.length ?? 0}건</span>이
-                        함께 삭제됩니다.
-                    </p>
-                    <p className="text-xs text-slate-400">
-                        재고·재고 이력·입고주문·입고예정·출고주문·Lot 중 한 곳이라도 이 상품을 쓰고 있으면
-                        삭제되지 않습니다.
                     </p>
                 </ConfirmModal>
             )}
