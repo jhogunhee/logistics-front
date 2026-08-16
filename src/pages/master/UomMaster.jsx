@@ -62,6 +62,15 @@ export default function UomMaster() {
     const notDeleted = (p) => p.data._status !== 'D';
     // 단위는 (상품, 단위) 유일키의 일부라 등록 후 변경 불가 — 신규(C) 행에서만 고른다
     const isNew = (p) => p.data._status === 'C';
+    // 그리드에 이미 있는 단위. 삭제(D) 표시 행도 포함한다 — 서버가 C·U를 다 처리한 뒤 D를 돌리므로
+    // 같은 저장 안에서 지운 단위를 다시 넣으면 "이미 등록된 단위" 오류가 난다
+    const usedUomCds = (exceptNode) => {
+        const cds = new Set();
+        uomGridRef.current?.api.forEachNode(n => {
+            if (n !== exceptNode && n.data.uomCd) cds.add(n.data.uomCd);
+        });
+        return cds;
+    };
 
     // ── 좌측: 상품 목록 ──────────────────────────────────────
     const prodColumnDefs = [
@@ -82,10 +91,14 @@ export default function UomMaster() {
             field: 'uomCd', headerName: '단위', width: 130,
             editable: isNew,
             cellEditor: SelectCellEditor,
-            cellEditorParams: {
-                values: uomCodes.values,
-                labelMap: uomCodes.nmByCd,
-                placeholder: '단위 선택',
+            // 다른 행이 이미 쓰는 단위는 목록에서 뺀다 (자기 행 값은 남긴다)
+            cellEditorParams: (p) => {
+                const used = usedUomCds(p.node);
+                return {
+                    values: uomCodes.values.filter(v => !used.has(v)),
+                    labelMap: uomCodes.nmByCd,
+                    placeholder: '단위 선택',
+                };
             },
             headerTooltip: '공통코드 UOM 그룹에서 가져옵니다. 등록 후에는 바꿀 수 없습니다',
             valueFormatter: (p) => (p.value ? `${p.value} ${uomCodes.nmByCd[p.value] ?? ''}`.trim() : ''),
@@ -142,12 +155,12 @@ export default function UomMaster() {
         });
     }, []);
 
-    // 저장하지 않은 편집을 들고 다른 상품으로 넘어가면 조용히 사라진다 — 막고 알린다
+    // 저장하지 않은 편집을 들고 다른 상품으로 넘어가면 막고 알린다
     const selectProd = (prod) => {
         if (prod.prodId === selectedProd?.prodId) return;
         if (dirtyCount > 0) {
             toast.error('저장하지 않은 변경이 있습니다. 저장하거나 되돌린 뒤 이동하세요.');
-            // 클릭으로 이미 옮겨간 그리드 선택 하이라이트를 현재 상품으로 되돌린다
+            // 그리드 선택 하이라이트를 전으로 돌린다
             prodGridRef.current?.api.forEachNode(n => n.setSelected(n.data.prodId === selectedProd?.prodId));
             return;
         }
@@ -162,7 +175,7 @@ export default function UomMaster() {
         uomGridRef.current.api.forEachNode(n => {
             if (n.data._status === 'D') return;
             const next = n === node;
-            if (!!n.data[field] === next) return; // 안 바뀌는 행은 U로 표시하지 않는다
+            if (!!n.data[field] === next) return; // 값이 바뀐 행인지 확인
             n.setDataValue(field, next);
         });
     };
@@ -176,6 +189,10 @@ export default function UomMaster() {
     const handleAddUom = () => {
         if (!selectedProd) {
             toast('포장을 추가할 상품을 먼저 고르세요.');
+            return;
+        }
+        if (uomCodes.values.every(v => usedUomCds(null).has(v))) {
+            toast('추가할 수 있는 단위가 없습니다. 모든 단위가 이미 등록돼 있습니다.');
             return;
         }
         addRow({
@@ -303,9 +320,9 @@ export default function UomMaster() {
                 return false;
             }
         }
-        // 한 상품 안에서 같은 단위를 두 번 넣는 것 (uq_prod_uom 위반) — 편집 안 한 행까지 포함해 본다
+        // 한 상품 안에서 같은 단위를 두 번 넣는 것 (uq_prod_uom 위반)
         const cds = [];
-        uomGridRef.current.api.forEachNode(n => { if (n.data._status !== 'D') cds.push(n.data.uomCd); });
+        uomGridRef.current.api.forEachNode(n => { cds.push(n.data.uomCd); });
         const dup = cds.find((cd, i) => cd && cds.indexOf(cd) !== i);
         if (dup) {
             toast.error(`같은 단위가 중복됩니다: ${dup}`);
@@ -370,6 +387,7 @@ export default function UomMaster() {
                             </button>
                             <button
                                 onClick={() => fileInputRef.current.click()}
+                                title="확인 후 즉시 저장됩니다 (되돌리기 불가)"
                                 className="btn-ghost">
                                 <Upload size={13} /> 엑셀 업로드
                             </button>
@@ -471,6 +489,9 @@ export default function UomMaster() {
                     <p className="text-sm text-slate-500">
                         상품 <b className="text-slate-700">{new Set(uploadConfirm.map(r => r.prodId)).size}</b>건에
                         포장 <b className="text-blue-500">{uploadConfirm.length}</b>건을 추가합니다.
+                    </p>
+                    <p className="text-xs text-amber-500 font-medium">
+                        엑셀 업로드는 그리드를 거치지 않고 등록 즉시 저장됩니다 — 저장 버튼이나 되돌리기로 취소할 수 없습니다.
                     </p>
                     <p className="text-xs text-slate-400">
                         입고단위·출고단위는 엑셀로 정하지 않습니다 — 등록 후 상품을 골라 라디오로 지정하세요.

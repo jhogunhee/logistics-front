@@ -3,7 +3,7 @@
 import api from '@/utils/axios';
 
 export const prodUomApi = {
-    /** 목록 조회 (평평한 포장 행 — prodId·prodCd·prodNm 포함). 단위 관리 화면이 prodId로 묶어 쓴다 */
+    /** 목록 조회 (포장 행 — prodId·prodCd·prodNm 포함). 단위 관리 화면이 prodId로 묶어 쓴다 */
     list(cond = {}) {
         const params = Object.fromEntries(Object.entries(cond).filter(([, v]) => v));
         return api.get('/master/prod-uoms', { params });
