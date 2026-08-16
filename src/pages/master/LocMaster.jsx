@@ -31,6 +31,7 @@ export default function LocMaster() {
 
     // 삭제(D) 표시된 행은 편집을 막는다
     const notDeleted = (p) => p.data._status !== 'D';
+    const isNew = (p) => p.data._status === 'C';
 
     // 존 마스터에서 파생 — 하드코딩하지 않는다 (존이 추가되면 여기 자동 반영)
     const zonCodes = zons.map(z => z.zonCd);
@@ -47,7 +48,7 @@ export default function LocMaster() {
         {
             // 코드는 업무 식별자라 수정 불가 — 신규(C) 행에서만 입력받는다
             field: 'locCd', headerName: '로케이션 코드', width: 120,
-            editable: (p) => p.data._status === 'C',
+            editable: isNew,
         },
         {
             field: 'zonCd', headerName: '존', width: 110, editable: notDeleted,

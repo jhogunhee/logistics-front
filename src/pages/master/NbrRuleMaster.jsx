@@ -26,6 +26,7 @@ export default function NbrRuleMaster() {
 
     // 삭제(D) 표시된 행은 편집을 막는다
     const notDeleted = (p) => p.data._status !== 'D';
+    const isNew = (p) => p.data._status === 'C';
     // 카운터는 저장된 규칙에만 존재한다 — 아직 저장 전인 신규(C) 행은 조회할 대상이 없다
     const isPersisted = (data) => data._status !== 'C';
 
@@ -38,7 +39,7 @@ export default function NbrRuleMaster() {
         {
             // 규칙코드는 발급 시 이 코드로 규칙을 참조하는 업무 식별자라 수정 불가 — 신규(C) 행에서만 입력받는다
             field: 'ruleCd', headerName: '규칙코드', width: 140,
-            editable: (p) => p.data._status === 'C',
+            editable: isNew,
             headerTooltip: '발급 호출부가 이 코드로 규칙을 참조하므로 등록 후에는 변경할 수 없습니다',
         },
         { field: 'ruleNm', headerName: '규칙명', width: 160, editable: notDeleted },
@@ -74,7 +75,7 @@ export default function NbrRuleMaster() {
         {
             // 동적키유형은 카운터 분리 기준이라 등록 후 바꾸면 기존 카운터와 정합이 깨진다 — 신규(C) 행에서만 입력받는다
             field: 'dyncKyTyp', headerName: '동적키유형', width: 110,
-            editable: (p) => p.data._status === 'C',
+            editable: isNew,
             cellEditor: SelectCellEditor,
             cellEditorParams: {
                 values: ['NONE', 'YEAR', 'MONTH', 'DAY'],

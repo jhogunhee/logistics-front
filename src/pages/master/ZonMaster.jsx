@@ -29,6 +29,7 @@ export default function ZonMaster() {
 
     // 삭제(D) 표시된 행은 편집을 막는다
     const notDeleted = (p) => p.data._status !== 'D';
+    const isNew = (p) => p.data._status === 'C';
 
     // 온도구분/보관유형/업무구분 편집기 목록은 공통코드 상태를 직접 참조한다
     const columnDefs = [
@@ -40,7 +41,7 @@ export default function ZonMaster() {
         {
             // 존코드는 하위 로케이션이 문자열로 참조하는 업무 식별자라 수정 불가 — 신규(C) 행에서만 입력받는다
             field: 'zonCd', headerName: '존코드', width: 120,
-            editable: (p) => p.data._status === 'C',
+            editable: isNew,
             headerTooltip: '하위 로케이션이 이 코드로 존을 참조하므로 등록 후에는 변경할 수 없습니다',
         },
         { field: 'zonNm', headerName: '존명', width: 160, editable: notDeleted },
