@@ -39,13 +39,12 @@ export default function OutboundOrder() {
     // 확정된 주문은 고칠 수 없다 (서버도 거부한다). 화면에서 미리 잠가 헛수고를 막는다.
     const readOnly = isEdit && form.status && form.status !== 'CREATED';
 
-    // 수량은 전부 출고단위(주문서 단위)라 그대로 더한다. 창고 저장은 낱개(EA)이고
-    // 환산은 확정 시 서버가 한다 — 이 화면은 주문서 단위만 안다.
+    // 수량은 전부 출고단위와 상관없이 단순합산을 한다. 환산은 확정 시 서버에서 계산.
     const totalQty = form.lines.reduce((sum, l) => sum + (Number(l.odrQty) || 0), 0);
 
     // 팝업에서 이미 담긴 상품을 비활성 처리하기 위한 목록.
-    // 라인 교체 모드에선 그 라인 자신은 제외해야 "같은 상품 다시 고르기"가 막히지 않는다.
     const excludeIds = form.lines
+        // 교체 모드에선 교체될 라인 자신은 뺀다
         .filter((_, i) => i !== pickerFor)
         .map(l => l.prodId);
 
