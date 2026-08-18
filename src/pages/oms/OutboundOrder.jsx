@@ -248,7 +248,6 @@ export default function OutboundOrder() {
                             className={inputCls + ' disabled:bg-slate-50 disabled:cursor-not-allowed'}
                         />
                     </FormField>
-                    {/* 편수도 웨이브 편성 조건이지만 배차가 늦게 정해져 앞의 6칸(입고주문과 같은 배치) 뒤에 둔다 */}
                     <FormField label="편수" hint="차량 배차 차수. 비우면 배차 미정이고, 미정인 주문은 편수 조건이 걸린 웨이브에 담기지 않습니다">
                         <select
                             value={form.vhclFltno}
