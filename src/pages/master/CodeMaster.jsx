@@ -160,7 +160,7 @@ export default function CodeMaster() {
         p.api.forEachNode(n => { if (n.data.grpCd === selectedGroup.grpCd) n.setSelected(true); });
     };
 
-    /** 확인 모달에서 취소했을 때 — 선택을 앞 그룹으로 되돌린다 (이벤트가 다시 돌지만 grpCd가 같아 걸러진다) */
+    /** 확인 모달에서 취소했을 때 — 선택을 앞 그룹으로 되돌린다 (이벤트가 다시 발생하지만 grpCd가 같아 걸러진다) */
     const revertGroupSelection = () => {
         groupGridRef.current?.api.forEachNode(n => n.setSelected(n.data.grpCd === selectedGroup?.grpCd));
     };

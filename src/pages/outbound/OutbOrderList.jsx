@@ -36,13 +36,6 @@ const HEADER_COLUMN_DEFS = [
     },
     { field: 'expctDe', headerName: '출고 예정일', width: 105 },
     {
-        // 입고예정에는 없는 컬럼이다 — 출고는 예정과 작업(피킹지시) 사이에 웨이브라는 단계가 하나 더 있고,
-        // 「이 주문이 언제 나가는 묶음에 들어갔나」가 이 화면에서 가장 먼저 확인할 값이다.
-        //
-        // 편입 출처(전략/수동) 뱃지는 일부러 빼뒀다. 한 셀에 번호와 함께 넣으면 좁은 폭에서 뱃지가
-        // 먼저 잘리고, 별도 컬럼으로 빼면 이 그리드가 가로 스크롤에 걸린다. 출처는 「전략 조건과 맞지
-        // 않는 주문이 웨이브에 들어 있나」를 보는 값이라 웨이브 편성 화면의 관심사이고, 거기서는
-        // 이미 독립 컬럼으로 보여준다. 이 화면의 질문은 「어느 웨이브에 들어갔나」다.
         field: 'wavNo', headerName: '웨이브', width: 155,
         headerTooltip: '편성된 웨이브. 비어 있으면 아직 미편성 — 웨이브 편성 화면의 후보로 잡힌다',
         cellRenderer: (p) => (p.value
@@ -79,7 +72,6 @@ const LINE_COLUMN_DEFS = [
         headerTooltip: '주문 - 할당수량. 남아 있으면 아직 채우지 못한 부분할당이다',
         valueGetter: (p) => p.data.odrQty - p.data.alocQty,
         // 입고의 잔량은 음수(과입고)가 날 수 있지만 여기는 나지 않는다 — 과할당은 ck_inv_qty가 막는다.
-        // 그래서 붉은색은 「초과」가 아니라 「아직 남았다」에 쓴다.
         cellClass: (p) => (p.value > 0
             ? 'ag-right-aligned-cell text-amber-600 font-bold'
             : 'ag-right-aligned-cell text-slate-400'),
@@ -88,17 +80,15 @@ const LINE_COLUMN_DEFS = [
 ];
 
 /**
- * 출고예정 (조회 전용). 입고예정(ASN) 화면과 같은 자리다 — <b>OMS 출고주문 확정이 만든 창고 문서</b>를
- * 헤더–라인 2단으로 보여준다.
+ * 출고예정 (조회 전용). — <b>OMS 출고주문 확정이 만든 창고 문서</b>를 헤더–라인 2단으로 보여준다.
  *
  * <p>등록도 취소도 여기 없다. 출고주문의 생성·소멸은 OMS 출고주문 관리의 주문확정/확정취소가
- * 주관한다 — 창고가 예정을 스스로 만들거나 없애면 주문 상태와 어긋난다. 서버에도 그 두
- * 엔드포인트가 없다(<code>OutbOrderController</code>).
+ * 주관한다 — 창고가 예정을 스스로 만들거나 없애면 주문 상태와 어긋난다.
  *
  * <p>이후 작업은 웨이브 편성 → 할당 화면으로 이어지고, 둘 다 이 화면과 같은 <code>outb_order</code>를 본다.
  */
 export default function OutbOrderList() {
-    // 공통코드 (출고유형 · 차량편수) — 값 목록의 주인은 코드관리라 화면에 하드코딩하지 않는다
+    // 공통코드 (출고유형 · 차량편수)
     const outbTyps = useCodes('OUTB_TYP');
     const vhclFltnos = useCodes('VHCL_FLTNO');
     const [cond, setCond] = useState({
