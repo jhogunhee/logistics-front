@@ -17,17 +17,23 @@ import { num } from '@/utils/format';
  */
 export default function StorePickerModal({ open, onClose, onSelect }) {
     const [stores, setStores] = useState(null); // null = 아직 안 받아옴
-    const [keyword, setKeyword] = useState('');
 
     useEffect(() => {
-        if (!open) return;
-        setKeyword('');
-        if (stores !== null) return;
+        if (!open || stores !== null) return;
 
         let ignore = false;
         storeApi.list().then(data => { if (!ignore) setStores(data); });
         return () => { ignore = true; };
-    }, [open]);
+    }, [open, stores]);
+
+    if (!open) return null;
+
+    return <StorePickerBody stores={stores} onClose={onClose} onSelect={onSelect} />;
+}
+
+/** 팝업 본문. 열릴 때마다 마운트되므로 검색어는 항상 빈 값으로 시작한다 */
+function StorePickerBody({ stores, onClose, onSelect }) {
+    const [keyword, setKeyword] = useState('');
 
     const filtered = useMemo(() => {
         if (!stores) return [];
@@ -38,8 +44,6 @@ export default function StorePickerModal({ open, onClose, onSelect }) {
             s.storeNm.toLowerCase().includes(kw)
         );
     }, [stores, keyword]);
-
-    if (!open) return null;
 
     return (
         <div className="fixed inset-0 z-50 flex items-start justify-center pt-12 bg-black/20" onMouseDown={onClose}>
