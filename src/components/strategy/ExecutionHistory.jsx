@@ -19,8 +19,10 @@ const TRGR_LABELS = { MANUAL: '화면 조작', AUTO: '자동', PREVIEW: '미리�
  *   onClose  () => void
  *   stgyTyp  'INSP' | 'PTAWY' | 'WAV' | 'ALOC' — trace 렌더링 형태가 갈린다
  *   stgyId   특정 전략으로 한정 (없으면 유형 전체)
+ *   stgyNmOf (stgyId) => 전략명. 유형 전체를 열 때 행이 어느 전략의 것인지 구분하는 데 쓴다 (없으면 표시 안 함)
+ *   openLatest 열릴 때 최신 행을 펼친 채로 시작 — 실행 직후 "방금 실행 결과"로 여는 용도
  */
-export default function ExecutionHistory({ open, onClose, stgyTyp, stgyId }) {
+export default function ExecutionHistory({ open, onClose, stgyTyp, stgyId, stgyNmOf, openLatest = false }) {
     const [rows, setRows] = useState([]);
     const [openId, setOpenId] = useState(null);
     // 기본은 실행 기록만. 미리보기는 결과를 반영하지 않은 산정이라 「무엇이 실제로 일어났나」와
@@ -31,10 +33,10 @@ export default function ExecutionHistory({ open, onClose, stgyTyp, stgyId }) {
         if (!open) return;
         let ignore = false;
         strategyApi.executions(stgyTyp, stgyId, withPreview ? ['MANUAL', 'AUTO', 'PREVIEW'] : null)
-            .then(data => { if (!ignore) { setRows(data); setOpenId(null); } })
+            .then(data => { if (!ignore) { setRows(data); setOpenId(openLatest ? data[0]?.id ?? null : null); } })
             .catch(() => {}); // 실패 토스트는 axios 인터셉터가 띄운다
         return () => { ignore = true; };
-    }, [open, stgyTyp, stgyId, withPreview]);
+    }, [open, stgyTyp, stgyId, withPreview, openLatest]);
 
     if (!open) return null;
 
@@ -76,6 +78,11 @@ export default function ExecutionHistory({ open, onClose, stgyTyp, stgyId }) {
                                 <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 font-bold shrink-0">
                                     {TRGR_LABELS[r.trgrTyp] ?? r.trgrTyp}
                                 </span>
+                                {stgyNmOf && (
+                                    <span className="text-xs font-bold text-indigo-600 shrink-0">
+                                        {stgyNmOf(r.stgyId) ?? `전략 #${r.stgyId} (삭제됨)`}
+                                    </span>
+                                )}
                                 {r.tgtRef && <span className="text-xs font-mono text-slate-500 shrink-0">{r.tgtRef}</span>}
                                 <span className="text-xs font-bold text-slate-700 truncate">{r.rsltSmry}</span>
                                 <span className="ml-auto text-[11px] text-slate-400 shrink-0">리비전 {r.rvsnNo}</span>
