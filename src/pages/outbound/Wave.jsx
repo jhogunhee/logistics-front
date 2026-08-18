@@ -8,7 +8,7 @@ import { outbWaveApi } from '@/api/outbWaveApi';
 import { outbOrderApi } from '@/api/outbOrderApi';
 import { strategyApi } from '@/api/strategyApi';
 import { useCodes } from '@/hooks/useCodes';
-import { WAVE_STATUS_META, WAV_REG_TYP_META } from '@/constants/badgeMeta';
+import { WAVE_STATUS_META, WAV_REG_TYP_META, OUTB_STATUS_META } from '@/constants/badgeMeta';
 import { fmtDt, num } from '@/utils/format';
 import SearchBar, { SearchText } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
@@ -23,8 +23,8 @@ const centered = { display: 'flex', alignItems: 'center', justifyContent: 'cente
 
 /**
  * 웨이브 목록. 다른 그리드와 같은 단일 행이고, 컬럼 순서가 곧 폭 우선순위다 —
- * 좌측 컬럼이 좁아 뒤쪽 일자 컬럼은 가로 스크롤로 밀리므로, <b>웨이브를 고를 때 필요한 셋</b>
- * (번호 · 상태 · 생성 전략)을 앞에 둬 기본 폭에서 스크롤 없이 보이게 한다.
+ * 좌측 컬럼이 좁아 뒤쪽 일자 컬럼은 가로 스크롤로 밀리므로, <b>웨이브를 고를 때 필요한 것</b>
+ * (번호 · 상태 · 주문 수 · 생성 전략)을 앞에 둬 기본 폭에서 스크롤 없이 보이게 한다.
  */
 const WAVE_COLUMN_DEFS = [
     { field: 'wavNo', headerName: '웨이브번호', width: 168, cellClass: 'font-bold text-slate-700' },
@@ -32,6 +32,21 @@ const WAVE_COLUMN_DEFS = [
         field: 'status', headerName: '상태', width: 74, cellStyle: centered,
         headerTooltip: '편성중 = 주문을 담고 뺄 수 있음 / 지시발행 = 피킹지시가 나가 편성이 잠김',
         cellRenderer: (p) => <Badge meta={WAVE_STATUS_META} value={p.value} show="label" />,
+    },
+    {
+        field: 'orderCount', headerName: '주문', width: 96, cellClass: 'ag-right-aligned-cell',
+        headerTooltip: '편성된 주문 수. 「할당 N」은 할당이 시작된 주문 수 — 그 주문은 뺄 수 없고 웨이브도 해체할 수 없다',
+        // 웨이브 상태는 할당을 기록하지 않으므로(편성중/지시발행 둘뿐) 편성 변경 가능 여부는 이 파생값으로 보여준다
+        cellRenderer: (p) => (
+            <>
+                {num(p.value)}
+                {p.data.alocStartedCount > 0 && (
+                    <span className="text-amber-600 font-bold" title={`할당이 시작된 주문 ${p.data.alocStartedCount}건`}>
+                        {' '}· 할당 {num(p.data.alocStartedCount)}
+                    </span>
+                )}
+            </>
+        ),
     },
     {
         field: 'wavStgyId', headerName: '생성 전략', flex: 1, minWidth: 140,
@@ -78,6 +93,11 @@ const UNASSIGNED_COLUMN_DEFS = orderColumns();
 
 const WAVE_ORDER_COLUMN_DEFS = [
     ...orderColumns(),
+    {
+        field: 'status', headerName: '상태', width: 74, cellStyle: centered,
+        headerTooltip: '할당이 시작된(신규가 아닌) 주문은 웨이브에서 뺄 수 없어 체크가 막힌다',
+        cellRenderer: (p) => <Badge meta={OUTB_STATUS_META} value={p.value} show="label" />,
+    },
     {
         field: 'wavRegTyp', headerName: '편입', width: 80, cellStyle: centered,
         headerTooltip: '전략 실행으로 편입됐는지, 화면에서 수동으로 담았는지. 수동 편입분은 전략 조건과 맞지 않을 수 있다',
@@ -366,8 +386,10 @@ export default function Wave() {
                         <span className="text-xs text-slate-500 font-medium">{waves.length}건</span>
                         <button
                             onClick={() => setConfirmDisband(selectedWave)}
-                            disabled={!canEditWave}
-                            title="선택한 웨이브를 지우고 소속 주문을 전부 미편성으로 되돌립니다"
+                            disabled={!canEditWave || selectedWave.alocStartedCount > 0}
+                            title={selectedWave?.alocStartedCount > 0
+                                ? `할당이 시작된 주문이 ${selectedWave.alocStartedCount}건 있어 해체할 수 없습니다 — 할당을 먼저 해제하세요`
+                                : '선택한 웨이브를 지우고 소속 주문을 전부 미편성으로 되돌립니다'}
                             className="ml-auto btn-danger disabled:text-slate-300 disabled:border-slate-200 disabled:hover:bg-white">
                             <Trash2 size={13} /> 해체
                         </button>
@@ -423,7 +445,11 @@ export default function Wave() {
                             context={gridContext}
                             rowHeight={34}
                             headerHeight={38}
-                            rowSelection={{ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false }}
+                            rowSelection={{
+                                mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false,
+                                // 할당이 시작된 주문은 서버가 빼기를 거부한다 — 체크 단계에서 막아 눌러보고 아는 일을 없앤다
+                                isRowSelectable: (node) => node.data.status === 'CREATED',
+                            }}
                         />
                     </div>
                 </Panel>
