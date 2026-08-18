@@ -33,6 +33,9 @@ export const num = (v) => (v == null || String(v).trim() === '' ? '' : Number(v)
  */
 export const eaQtyPerInbUomOf = (prodOrLine) => prodOrLine?.inbEaQty ?? 1;
 
+/** 출고단위 1개 = 낱개(EA) 몇 개인가. 출고주문 라인이 쓰는 환산이며 값이 없으면 1로 본다. */
+export const eaQtyPerOutbUomOf = (prodOrLine) => prodOrLine?.outbEaQty ?? 1;
+
 /**
  * 낱개(EA)로 저장된 수량을 「입고단위 (낱개)」로 표시 — "2 BOX (48)".
  *

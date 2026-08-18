@@ -4,7 +4,7 @@ import { Check, Package, Search, X } from 'lucide-react';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import { prodApi } from '@/api/prodApi';
 import { TEMP_ZONE_META } from '@/constants/badgeMeta';
-import { eaQtyPerInbUomOf, num } from '@/utils/format';
+import { eaQtyPerInbUomOf, eaQtyPerOutbUomOf, num } from '@/utils/format';
 
 const TEMP_ZONE_OPTIONS = [
     { value: '', label: '전체' },
@@ -12,17 +12,16 @@ const TEMP_ZONE_OPTIONS = [
 ];
 
 /**
- * 상품의 단위 구성. 부르는 화면의 작업 단위를 보여준다 — 발주(입고주문)는 입고단위,
- * 출고주문은 출고단위. 환산수량은 어느 쪽이든 낱개(EA) 기준이다.
+ * 상품의 단위 구성. 부르는 화면의 작업 단위를 보여준다
+ * — 발주(입고주문)는 입고단위, 출고주문은 출고단위.
+ * 환산수량은 어느 쪽이든 낱개(EA) 기준이다.
  *
  * 작업단위가 낱개 그 자체면(×1) 화살표 없이 단위 하나만 보여준다 —
  * 전부 "EA → EA ×1"로 그리면 정작 환산이 있는 상품이 눈에 안 띈다.
  */
 const UomFlow = ({ prod, uomRole }) => {
     const uomCd = uomRole === 'outb' ? prod.outbUomCd : prod.inbUomCd;
-    const eaQty = uomRole === 'outb'
-        ? (prod.outbEaQty ?? 1)
-        : eaQtyPerInbUomOf(prod);
+    const eaQty = uomRole === 'outb' ? eaQtyPerOutbUomOf(prod) : eaQtyPerInbUomOf(prod);
     return (
         <span className="flex items-center justify-center gap-1 text-[11px]">
             <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-bold">{uomCd}</span>
@@ -178,7 +177,7 @@ function ProdPickerBody({ prods, onClose, onSelect, multiple, excludeIds, uomRol
                         <span className="flex-1 min-w-0">상품명</span>
                         <span className="w-24 shrink-0 text-center">온도대</span>
                         <span className="w-20 shrink-0 text-right">유통기한</span>
-                        <span className="w-44 shrink-0 text-center">{uomRole === 'outb' ? '단위 (주문 → 낱개)' : '단위 (발주 → 낱개)'}</span>
+                        <span className="w-44 shrink-0 text-center">{uomRole === 'outb' ? '출고단위 (낱개 환산)' : '입고단위 (낱개 환산)'}</span>
                     </div>
                     <div className="divide-y divide-slate-100">
                     {prods === null && (
