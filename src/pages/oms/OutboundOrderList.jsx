@@ -129,6 +129,7 @@ export default function OutboundOrderList() {
     const [confirmTarget, setConfirmTarget] = useState(null);             // 확정 확인 모달 대상
     const [confirmCancelTarget, setConfirmCancelTarget] = useState(null); // 확정취소 확인 모달 대상
     const [deleteTarget, setDeleteTarget] = useState(null);               // 삭제 확인 모달 대상
+    const [busy, setBusy] = useState(false); // 일괄 처리 중 — 버튼을 잠가 이중 실행을 막는다 (원격 DB라 수십 건이면 수십 초)
     const gridRef = useRef(null);
 
     const fetchList = async () => {
@@ -154,12 +155,15 @@ export default function OutboundOrderList() {
     // 일괄 실행 — 체크된 주문의 id를 한 요청으로 보낸다. 건마다 왕복하면 100건에 100번 기다린다.
     // 서버가 건별 트랜잭션으로 처리해 성공/실패를 나눠 돌려주므로(BatchResult) 한 건 실패가 나머지를 막지 않는다.
     const runBatch = async (orders, call, verb) => {
+        setBusy(true);
         let result;
         try {
             result = await call(orders.map(o => o.omsOutbOrderId));
         } catch (e) {
             toast.error(e.message || `${verb} 실패`); // 요청 자체가 실패 — 건별 결과 없음
             return;
+        } finally {
+            setBusy(false);
         }
         toastBatchResult(orders, result, verb);
         fetchList();
@@ -288,18 +292,21 @@ export default function OutboundOrderList() {
                         <div className="flex gap-2">
                             <button
                                 onClick={handleDeleteClick}
+                                disabled={busy}
                                 title="체크한 주문을 일괄 삭제합니다 (작성 상태만). 확정된 주문은 확정취소가 먼저입니다"
                                 className="btn-danger">
                                 <Trash2 size={13} /> 주문삭제
                             </button>
                             <button
                                 onClick={handleConfirmCancelClick}
+                                disabled={busy}
                                 title="체크한 주문의 창고 출고주문을 삭제하고 작성 상태로 일괄 원복합니다 (웨이브 편성 전만)"
-                                className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[12px] font-bold text-slate-600 hover:border-amber-300 hover:text-amber-600 transition-colors">
+                                className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[12px] font-bold text-slate-600 hover:border-amber-300 hover:text-amber-600 transition-colors disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:text-slate-600">
                                 <Undo2 size={13} /> 확정취소
                             </button>
                             <button
                                 onClick={handleConfirmClick}
+                                disabled={busy}
                                 title="체크한 주문을 일괄 확정해 창고 출고주문을 생성합니다"
                                 className="btn-primary">
                                 <CheckCircle2 size={13} /> 주문확정
