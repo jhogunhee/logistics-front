@@ -10,7 +10,7 @@ import { strategyApi } from '@/api/strategyApi';
 import { useCodes } from '@/hooks/useCodes';
 import { WAVE_STATUS_META, WAV_REG_TYP_META } from '@/constants/badgeMeta';
 import { fmtDt, num } from '@/utils/format';
-import SearchBar, { SearchText, SearchSelect } from '@/components/common/SearchBar';
+import SearchBar, { SearchText } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import { Badge } from '@/components/common/Badge';
@@ -101,7 +101,7 @@ export default function Wave() {
     const vhclFltnos = useCodes('VHCL_FLTNO');
 
     // ── 검색 조건 — 웨이브 목록에만 걸린다. 주문 조건은 주문 담기 팝업 안에 있다 ──
-    const [cond, setCond] = useState({ wavNo: '', status: '' });
+    const [cond, setCond] = useState({ wavNo: '' });
 
     // ── 웨이브 목록 ──────────────────────────────────────────
     const [waves, setWaves] = useState([]);
@@ -304,15 +304,6 @@ export default function Wave() {
             {/* 검색 조건 — 웨이브 목록에만 걸린다. 주문 조건은 주문 담기 팝업 안에 있다 */}
             <SearchBar cond={cond} setCond={setCond} onSearch={search}>
                 <SearchText name="wavNo" label="웨이브번호" placeholder="WV-20260803-001" />
-                <SearchSelect
-                    name="status"
-                    label="웨이브상태"
-                    options={[
-                        { value: '', label: '전체' },
-                        { value: 'PLANNED', label: '편성중' },
-                        { value: 'ISSUED', label: '지시발행' },
-                    ]}
-                />
             </SearchBar>
 
             {/* 전략 실행 — 조건에 맞는 미편성 주문을 전략별 웨이브로 자동 편성한다 */}

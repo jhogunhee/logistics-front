@@ -10,10 +10,6 @@ export const outbWaveApi = {
         return api.get('/outbound/waves', { params });
     },
 
-    detail(wavId) {
-        return api.get(`/outbound/waves/${wavId}`);
-    },
-
     /** 빈 웨이브 생성. orderIds를 함께 주면 생성과 동시에 편성한다 (선택) */
     create(orderIds = []) {
         return api.post('/outbound/waves', { orderIds });
