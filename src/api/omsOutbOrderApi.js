@@ -10,6 +10,11 @@ export const omsOutbOrderApi = {
         return api.get('/oms/outbound-orders', { params });
     },
 
+    /** 단건 조회. 응답 형태는 목록 한 건과 같다 (WMS 출고주문 정보 포함) */
+    get(omsOutbOrderId) {
+        return api.get(`/oms/outbound-orders/${omsOutbOrderId}`);
+    },
+
     /** 특정 주문의 라인 목록 */
     lines(omsOutbOrderId) {
         return api.get(`/oms/outbound-orders/${omsOutbOrderId}/lines`);

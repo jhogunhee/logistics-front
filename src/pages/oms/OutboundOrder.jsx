@@ -48,24 +48,17 @@ export default function OutboundOrder() {
         .filter((_, i) => i !== pickerFor)
         .map(l => l.prodId);
 
-    // 수정 진입 시 주문을 불러온다. 헤더는 목록 API에서, 라인은 라인 API에서 가져온다 —
-    // 단건 조회 엔드포인트가 없어서 목록을 받아 한 건만 골라낸다.
+    // 수정 진입 시 주문을 불러온다. 헤더는 단건 API에서, 라인은 라인 API에서 가져온다.
     useEffect(() => {
         if (!isEdit) return;
         let ignore = false;
         (async () => {
             try {
-                const [orders, lines] = await Promise.all([
-                    omsOutbOrderApi.list(),
+                const [order, lines] = await Promise.all([
+                    omsOutbOrderApi.get(omsOutbOrderId),
                     omsOutbOrderApi.lines(omsOutbOrderId),
                 ]);
                 if (ignore) return;
-                const order = orders.find(o => String(o.omsOutbOrderId) === String(omsOutbOrderId));
-                if (!order) {
-                    toast.error('주문을 찾을 수 없습니다.');
-                    navigate('/oms/outbound-orders');
-                    return;
-                }
                 setForm({
                     omsOutbNo: order.omsOutbNo,
                     status: order.status,
@@ -80,7 +73,9 @@ export default function OutboundOrder() {
                     lines,
                 });
             } catch (e) {
-                if (!ignore) toast.error(e.message || '주문을 불러오지 못했습니다.');
+                if (ignore) return;
+                toast.error(e.message || '주문을 불러오지 못했습니다.');
+                navigate('/oms/outbound-orders');
             } finally {
                 if (!ignore) setLoading(false);
             }

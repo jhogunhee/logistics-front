@@ -9,6 +9,11 @@ export const omsIbOrderApi = {
         return api.get('/oms/inbound-orders', { params });
     },
 
+    /** 단건 조회. 응답 형태는 목록 한 건과 같다 (ASN 정보 포함) */
+    get(omsIbOrderId) {
+        return api.get(`/oms/inbound-orders/${omsIbOrderId}`);
+    },
+
     /** 특정 주문의 라인 목록 */
     lines(omsIbOrderId) {
         return api.get(`/oms/inbound-orders/${omsIbOrderId}/lines`);
