@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import {
-    ArrowDown, ArrowUp, Layers, Play, Plus, Rocket, ScrollText, Trash2, X,
-} from 'lucide-react';
+import { Layers, ListPlus, Minus, Play, Plus, Rocket, ScrollText, Trash2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { outbWaveApi } from '@/api/outbWaveApi';
@@ -12,13 +10,14 @@ import { strategyApi } from '@/api/strategyApi';
 import { useCodes } from '@/hooks/useCodes';
 import { WAVE_STATUS_META, WAV_REG_TYP_META } from '@/constants/badgeMeta';
 import { fmtDt, num } from '@/utils/format';
-import SearchBar, { SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
+import SearchBar, { SearchText, SearchSelect } from '@/components/common/SearchBar';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import { Badge } from '@/components/common/Badge';
 import DatePicker from '@/components/common/DatePicker';
 import ExecutionHistory from '@/components/strategy/ExecutionHistory';
 import WaveOrderTrace from '@/components/strategy/WaveOrderTrace';
+import WaveOrderPickerModal from '@/components/outbound/WaveOrderPickerModal';
 
 const centered = { display: 'flex', alignItems: 'center', justifyContent: 'center' };
 
@@ -50,7 +49,7 @@ const WAVE_COLUMN_DEFS = [
     },
 ];
 
-/** 좌·우 주문 그리드의 공통 컬럼. 편입 출처는 웨이브 소속 목록에만 의미가 있어 따로 붙인다 */
+/** 미편성 후보(주문 담기 팝업)·웨이브 소속 주문 그리드의 공통 컬럼. 편입 출처는 웨이브 소속 목록에만 의미가 있어 따로 붙인다 */
 const orderColumns = () => [
     { headerName: 'No.', width: 56, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
     { field: 'outbNo', headerName: '출고번호', width: 150, cellClass: 'font-bold text-slate-700' },
@@ -101,11 +100,8 @@ export default function Wave() {
     const outbTyps = useCodes('OUTB_TYP');
     const vhclFltnos = useCodes('VHCL_FLTNO');
 
-    // ── 검색 조건 — 한 검색바지만 웨이브 조회와 주문 조회로 나뉘어 들어간다 ──
-    const [cond, setCond] = useState({
-        wavNo: '', wavStatus: '',
-        outbNo: '', outbTyp: '', vhclFltno: '', dateFrom: '', dateTo: '',
-    });
+    // ── 검색 조건 — 웨이브 목록에만 걸린다. 주문 조건은 주문 담기 팝업 안에 있다 ──
+    const [cond, setCond] = useState({ wavNo: '', status: '' });
 
     // ── 웨이브 목록 ──────────────────────────────────────────
     const [waves, setWaves] = useState([]);
@@ -113,11 +109,11 @@ export default function Wave() {
     const waveGridRef = useRef(null);
     const pendingWaveRef = useRef(null); // 재조회 후 같은 웨이브를 다시 선택하기 위한 wavId
 
-    // ── 주문 목록 (좌: 미편성 / 우: 선택 웨이브 소속) ────────
+    // ── 주문 목록 — 선택 웨이브 소속. 미편성은 건수만 보여주고 목록은 담기 팝업에서 본다 ──
     const [unassigned, setUnassigned] = useState([]);
     const [waveOrders, setWaveOrders] = useState([]);
-    const unassignedGridRef = useRef(null);
     const waveOrderGridRef = useRef(null);
+    const [pickerWave, setPickerWave] = useState(null); // 주문 담기 팝업 대상 웨이브 (null이면 닫힘)
 
     // ── 전략 실행 ────────────────────────────────────────────
     const [strategies, setStrategies] = useState([]);
@@ -140,29 +136,17 @@ export default function Wave() {
     const canEditWave = selectedWave?.status === 'PLANNED';
 
     // ── 조회 ─────────────────────────────────────────────────
-    // 조건을 통째로 넘기지 않고 조회마다 쓸 것만 골라 보낸다 — 웨이브 조건이 주문 API로,
-    // 주문 조건이 웨이브 API로 새는 것을 막는다 (status는 양쪽에서 의미가 다르다)
-    const waveParams = () => ({ wavNo: cond.wavNo, status: cond.wavStatus });
-
     const fetchWaves = async (keepSelection = true) => {
         pendingWaveRef.current = keepSelection ? selectedWave?.wavId ?? null : null;
         if (!keepSelection) {
             setSelectedWave(null);
             setWaveOrders([]);
         }
-        setWaves(await outbWaveApi.list(waveParams()));
+        setWaves(await outbWaveApi.list(cond));
     };
 
     const fetchUnassigned = async () => {
-        setUnassigned(await outbOrderApi.list({
-            outbNo: cond.outbNo,
-            outbTyp: cond.outbTyp,
-            vhclFltno: cond.vhclFltno,
-            dateFrom: cond.dateFrom,
-            dateTo: cond.dateTo,
-            status: 'CREATED',
-            unassigned: true,
-        }));
+        setUnassigned(await outbOrderApi.list({ status: 'CREATED', unassigned: true }));
     };
 
     const fetchWaveOrders = async (wavId) => {
@@ -170,13 +154,13 @@ export default function Wave() {
     };
 
     /**
-     * 조회 버튼 — 웨이브 목록과 미편성 후보를 함께 다시 읽는다 (선택은 유지).
+     * 조회 버튼 — 웨이브 목록을 다시 읽는다 (선택은 유지).
      * 소속 주문은 여기서 직접 읽지 않는다 — 목록이 갱신되면 onWaveModelUpdated가 같은 웨이브를
      * 다시 선택하고 그 선택 이벤트가 읽는다. 여기서도 읽으면 검색 조건 때문에 선택이 풀리는 경우와
      * 경쟁해서, 선택되지 않은 웨이브의 주문이 우측에 남을 수 있다.
      */
     const search = async () => {
-        await Promise.all([fetchWaves(), fetchUnassigned()]);
+        await fetchWaves();
     };
 
     useEffect(() => {
@@ -207,29 +191,15 @@ export default function Wave() {
             const wavId = await outbWaveApi.create([]);
             toast.success('빈 웨이브를 만들었습니다 — 주문을 담아 편성하세요.');
             pendingWaveRef.current = wavId;
-            setWaves(await outbWaveApi.list(waveParams()));
+            setWaves(await outbWaveApi.list(cond));
         } catch (e) {
             toast.error(e.message || '웨이브 생성에 실패했습니다.');
         }
     };
 
-    const addOrders = async () => {
-        if (!selectedWave) {
-            toast('주문을 담을 웨이브를 먼저 선택하세요.');
-            return;
-        }
-        const rows = checkedRows(unassignedGridRef);
-        if (rows.length === 0) {
-            toast('담을 주문을 체크하세요.');
-            return;
-        }
-        try {
-            await outbWaveApi.addOrders(selectedWave.wavId, rows.map(r => r.outbOrderId));
-            toast.success(`${selectedWave.wavNo}에 주문 ${rows.length}건을 담았습니다.`);
-            await Promise.all([fetchWaves(), fetchUnassigned(), fetchWaveOrders(selectedWave.wavId)]);
-        } catch (e) {
-            toast.error(e.message || '편성에 실패했습니다.');
-        }
+    // 담기 자체는 팝업이 처리하고, 여기선 담긴 뒤 세 목록을 다시 읽는다
+    const onOrdersAdded = async () => {
+        await Promise.all([fetchWaves(), fetchUnassigned(), fetchWaveOrders(selectedWave.wavId)]);
     };
 
     const handleUnassignClick = () => {
@@ -331,11 +301,11 @@ export default function Wave() {
                 </div>
             </div>
 
-            {/* 검색 조건 — 웨이브 목록(위)과 미편성 후보(아래)에 함께 적용된다 */}
+            {/* 검색 조건 — 웨이브 목록에만 걸린다. 주문 조건은 주문 담기 팝업 안에 있다 */}
             <SearchBar cond={cond} setCond={setCond} onSearch={search}>
                 <SearchText name="wavNo" label="웨이브번호" placeholder="WV-20260803-001" />
                 <SearchSelect
-                    name="wavStatus"
+                    name="status"
                     label="웨이브상태"
                     options={[
                         { value: '', label: '전체' },
@@ -343,10 +313,6 @@ export default function Wave() {
                         { value: 'ISSUED', label: '지시발행' },
                     ]}
                 />
-                <SearchText name="outbNo" label="출고번호" placeholder="OB-20260803-001" />
-                <SearchDateRange from="dateFrom" to="dateTo" label="주문일" />
-                <SearchSelect name="outbTyp" label="출고유형" options={outbTyps.searchOptions} />
-                <SearchSelect name="vhclFltno" label="차량편수" options={vhclFltnos.searchOptions} />
             </SearchBar>
 
             {/* 전략 실행 — 조건에 맞는 미편성 주문을 전략별 웨이브로 자동 편성한다 */}
@@ -397,12 +363,10 @@ export default function Wave() {
             </div>
 
             {/*
-              * 좌: 웨이브 목록 / 우: 위 미편성 주문 — 아래 웨이브 소속 주문.
-              *
-              * 셋을 세로로 쌓으면 그리드마다 높이가 1/3씩밖에 안 남아 어느 것도 몇 행 못 보여준다.
-              * 웨이브 목록은 컬럼이 적어 좁은 폭으로 충분하므로 좌측 컬럼으로 세워 세로를 통째로 쓰고,
-              * 컬럼이 많은 주문 그리드 둘이 남은 폭 전부를 쓰며 세로를 반씩 나눈다.
-              * 그래서 담기/빼기 방향도 좌우(→ ←)가 아니라 위아래(↓ ↑)다.
+              * 좌: 웨이브 목록 / 우: 선택 웨이브 소속 주문.
+              * 미편성 후보는 상시 그리드로 두지 않고 「주문 담기」 팝업에서 본다 — 수동 편입은
+              * 예외 경로라 자주 쓰지 않는데, 상시로 두면 세 그리드가 화면을 나눠 매번 보는
+              * 웨이브 목록·소속 주문이 좁아진다. 미편성이 얼마나 남았는지는 담기 버튼의 건수로 보인다.
               */}
             <PanelGroup direction="horizontal" autoSaveId="outb-wave-split-v2" className="flex-1 min-h-0">
                 <Panel defaultSize={33} minSize={16} className="flex flex-col gap-2 min-h-0">
@@ -436,71 +400,56 @@ export default function Wave() {
                     <div className="w-1 h-16 rounded-full bg-slate-200 group-hover:bg-indigo-400 group-data-[resize-handle-active]:bg-indigo-500 transition-colors" />
                 </PanelResizeHandle>
 
-                <Panel defaultSize={67} minSize={40} className="min-h-0">
-                    <PanelGroup direction="vertical" autoSaveId="outb-wave-orders-split-v2" className="h-full">
-                        {/* 위: 미편성 주문 */}
-                        <Panel defaultSize={50} minSize={20} className="flex flex-col gap-2 min-h-0">
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm font-bold text-slate-700 shrink-0">미편성 주문</span>
-                                <span className="text-xs text-slate-400 truncate">아직 어느 웨이브에도 속하지 않은 신규 주문</span>
-                                <span className="text-xs text-slate-500 font-medium ml-auto shrink-0">{unassigned.length}건</span>
-                                <button onClick={addOrders} disabled={!canEditWave}
-                                        title="체크한 주문을 선택한 웨이브에 담습니다 (편입 출처: 수동)"
-                                        className="btn-primary shrink-0 disabled:bg-slate-200 disabled:text-slate-400">
-                                    담기 <ArrowDown size={13} />
-                                </button>
-                            </div>
-                            <div className="flex-1 min-h-0">
-                                <AgGridReact
-                                    ref={unassignedGridRef}
-                                    rowData={unassigned}
-                                    columnDefs={UNASSIGNED_COLUMN_DEFS}
-                                    context={gridContext}
-                                    rowHeight={34}
-                                    headerHeight={38}
-                                    rowSelection={{ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false }}
-                                />
-                            </div>
-                        </Panel>
-
-                        <PanelResizeHandle className="h-2.5 flex items-center justify-center group cursor-row-resize">
-                            <div className="h-1 w-16 rounded-full bg-slate-200 group-hover:bg-indigo-400 group-data-[resize-handle-active]:bg-indigo-500 transition-colors" />
-                        </PanelResizeHandle>
-
-                        {/* 아래: 선택 웨이브 소속 주문 */}
-                        <Panel defaultSize={50} minSize={20} className="flex flex-col gap-2 min-h-0">
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm font-bold text-slate-700 shrink-0">웨이브 소속 주문</span>
-                                {/* 어느 웨이브를 편집 중인지만 짚는다 — 전략·생성일시는 왼쪽 목록이 이미 보여준다 */}
-                                <span className="text-xs text-slate-400 truncate">
-                                    {selectedWave
-                                        ? (canEditWave
-                                            ? selectedWave.wavNo
-                                            : `${selectedWave.wavNo} — 피킹지시가 발행돼 편성을 바꿀 수 없습니다`)
-                                        : '왼쪽에서 작업할 웨이브를 선택하세요'}
-                                </span>
-                                <span className="text-xs text-slate-500 font-medium ml-auto shrink-0">{waveOrders.length}건</span>
-                                <button onClick={handleUnassignClick} disabled={!canEditWave}
-                                        title="체크한 주문을 이 웨이브에서 빼 미편성으로 되돌립니다"
-                                        className="btn-ghost shrink-0 disabled:text-slate-300 disabled:border-slate-200 disabled:hover:bg-white">
-                                    <ArrowUp size={13} /> 빼기
-                                </button>
-                            </div>
-                            <div className="flex-1 min-h-0">
-                                <AgGridReact
-                                    ref={waveOrderGridRef}
-                                    rowData={waveOrders}
-                                    columnDefs={WAVE_ORDER_COLUMN_DEFS}
-                                    context={gridContext}
-                                    rowHeight={34}
-                                    headerHeight={38}
-                                    rowSelection={{ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false }}
-                                />
-                            </div>
-                        </Panel>
-                    </PanelGroup>
+                <Panel defaultSize={67} minSize={40} className="flex flex-col gap-2 min-h-0">
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-slate-700 shrink-0">웨이브 소속 주문</span>
+                        {/* 어느 웨이브를 편집 중인지만 짚는다 — 전략·생성일시는 왼쪽 목록이 이미 보여준다 */}
+                        <span className="text-xs text-slate-400 truncate">
+                            {selectedWave
+                                ? (canEditWave
+                                    ? selectedWave.wavNo
+                                    : `${selectedWave.wavNo} — 피킹지시가 발행돼 편성을 바꿀 수 없습니다`)
+                                : '왼쪽에서 작업할 웨이브를 선택하세요'}
+                        </span>
+                        <span className="text-xs text-slate-500 font-medium ml-auto shrink-0">{waveOrders.length}건</span>
+                        <button onClick={() => setPickerWave(selectedWave)} disabled={!canEditWave}
+                                title="미편성 주문 중에서 골라 이 웨이브에 담습니다 (편입 출처: 수동)"
+                                className="btn-primary shrink-0 disabled:bg-slate-200 disabled:text-slate-400">
+                            <ListPlus size={13} /> 주문 담기
+                            <span className="font-normal opacity-80">(미편성 {num(unassigned.length)})</span>
+                        </button>
+                        <button onClick={handleUnassignClick} disabled={!canEditWave}
+                                title="체크한 주문을 이 웨이브에서 빼 미편성으로 되돌립니다"
+                                className="btn-ghost shrink-0 disabled:text-slate-300 disabled:border-slate-200 disabled:hover:bg-white">
+                            <Minus size={13} /> 빼기
+                        </button>
+                    </div>
+                    <div className="flex-1 min-h-0">
+                        <AgGridReact
+                            ref={waveOrderGridRef}
+                            rowData={waveOrders}
+                            columnDefs={WAVE_ORDER_COLUMN_DEFS}
+                            context={gridContext}
+                            rowHeight={34}
+                            headerHeight={38}
+                            rowSelection={{ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false }}
+                        />
+                    </div>
                 </Panel>
             </PanelGroup>
+
+            {/* 주문 담기 팝업 — 열려 있는 동안만 마운트해 열 때마다 조건·후보가 새로 시작된다 */}
+            {pickerWave && (
+                <WaveOrderPickerModal
+                    wave={pickerWave}
+                    columnDefs={UNASSIGNED_COLUMN_DEFS}
+                    context={gridContext}
+                    outbTyps={outbTyps}
+                    vhclFltnos={vhclFltnos}
+                    onClose={() => setPickerWave(null)}
+                    onAdded={onOrdersAdded}
+                />
+            )}
 
             {/* 전략 실행 확인 */}
             {confirmExec && (
