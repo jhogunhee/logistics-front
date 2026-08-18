@@ -19,8 +19,7 @@ const centered = { display: 'flex', alignItems: 'center', justifyContent: 'cente
 const HEADER_COLUMN_DEFS = [
     { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
     {
-        // 주문번호를 눌러 수정 화면으로. 컬럼 정의가 모듈 상수라 navigate를 직접 못 잡아
-        // 그리드 context로 콜백을 넘겨 받는다.
+        // 주문번호를 눌러 수정 화면으로.
         field: 'omsOutbNo', headerName: '주문번호', width: 150,
         cellRenderer: (p) => (
             <button
@@ -41,8 +40,6 @@ const HEADER_COLUMN_DEFS = [
         cellRenderer: (p) => <Badge meta={OMS_OUTB_STATUS_META} value={p.value} show="label" />,
     },
     {
-        // 표시명은 공통코드에서 받아 context로 넘긴다 (코드값만으론 화면에서 못 읽는다).
-        // 반품출고만 색으로 띄운다 — 일반이 대부분이라 전부 뱃지를 달면 오히려 안 보인다.
         field: 'outbTyp', headerName: '출고유형', width: 100,
         cellStyle: centered,
         cellRenderer: (p) => {
@@ -68,7 +65,7 @@ const HEADER_COLUMN_DEFS = [
     { field: 'lineCount', headerName: '라인수', width: 80, cellClass: 'ag-right-aligned-cell', valueFormatter: (p) => num(p.value) },
     {
         field: 'totalOrderQty', headerName: '총 주문수량', width: 120, cellClass: 'ag-right-aligned-cell',
-        headerTooltip: '라인 주문수량(출고단위 = 주문서 단위)의 합',
+        headerTooltip: '라인 주문수량(출고단위)의 합',
         valueFormatter: (p) => num(p.value),
     },
     {
@@ -100,7 +97,7 @@ const LINE_COLUMN_DEFS = [
     },
     {
         field: 'odrQty', headerName: '주문수량', width: 120, cellClass: 'ag-right-aligned-cell',
-        headerTooltip: '출고단위(주문서 단위) 기준 — 확정 시 낱개(EA)로 환산돼 창고로 넘어간다',
+        headerTooltip: '출고단위 기준 — 확정 시 낱개(EA)로 환산돼 창고로 넘어간다',
         cellRenderer: (p) => (
             <>
                 {num(p.value)}
@@ -127,8 +124,7 @@ export default function OutboundOrderList() {
     const [rowData, setRowData] = useState([]);
     const [lineRows, setLineRows] = useState([]);
     const [selected, setSelected] = useState(null);
-    // 납품처 검색은 자유 입력 대신 등록 화면과 같은 팝업에서 고른다 —
-    // 서버 검색 파라미터가 storeNm(contains)이라 값은 id가 아니라 이름 그대로 보낸다.
+
     const [storePickerOpen, setStorePickerOpen] = useState(false);
     const [confirmTarget, setConfirmTarget] = useState(null);             // 확정 확인 모달 대상
     const [confirmCancelTarget, setConfirmCancelTarget] = useState(null); // 확정취소 확인 모달 대상
@@ -142,13 +138,11 @@ export default function OutboundOrderList() {
         setLineRows([]);
     };
 
-    // 최초 1회 조회 (검색조건 기본값 = 오늘 ~ 7일 뒤)
     useEffect(() => {
         omsOutbOrderApi.list(cond).then(setRowData);
     }, []);
 
     // 행 클릭 시 라인 조회 — 체크박스(일괄 처리 대상)와 역할을 분리한다.
-    // 클릭은 "들여다본다", 체크는 "처리한다".
     const onRowClicked = async (e) => {
         setSelected(e.data);
         setLineRows(await omsOutbOrderApi.lines(e.data.omsOutbOrderId));
@@ -157,24 +151,29 @@ export default function OutboundOrderList() {
     // 버튼들이 처리할 대상 = 체크된 행들
     const checkedRows = () => gridRef.current?.api?.getSelectedRows() ?? [];
 
-    // 일괄 실행 — 한 건 실패가 나머지를 막지 않도록 순차 처리 후 결과를 요약한다.
-    // 화면 검증을 통과해도 서버(엔티티)가 거부할 수 있으므로 실패는 건별로 모은다.
+    // 일괄 실행 — 체크된 주문의 id를 한 요청으로 보낸다. 건마다 왕복하면 100건에 100번 기다린다.
+    // 서버가 건별 트랜잭션으로 처리해 성공/실패를 나눠 돌려주므로(BatchResult) 한 건 실패가 나머지를 막지 않는다.
     const runBatch = async (orders, call, verb) => {
-        let ok = 0;
-        const fails = [];
-        for (const o of orders) {
-            try {
-                await call(o);
-                ok += 1;
-            } catch (e) {
-                fails.push(`${o.omsOutbNo}: ${e.message || '실패'}`);
-            }
+        let result;
+        try {
+            result = await call(orders.map(o => o.omsOutbOrderId));
+        } catch (e) {
+            toast.error(e.message || `${verb} 실패`); // 요청 자체가 실패 — 건별 결과 없음
+            return;
         }
-        if (ok > 0) toast.success(`${ok}건 ${verb} 완료`);
-        if (fails.length > 0) {
-            toast.error(`${fails.length}건 실패 — ${fails[0]}${fails.length > 1 ? ` 외 ${fails.length - 1}건` : ''}`);
-        }
+        toastBatchResult(orders, result, verb);
         fetchList();
+    };
+
+    // 건별 결과 요약 — 성공은 건수만, 실패는 첫 건의 주문번호·사유 + "외 N건"
+    const toastBatchResult = (orders, { succeeded, failed }, verb) => {
+        if (succeeded.length > 0) toast.success(`${succeeded.length}건 ${verb} 완료`);
+        if (failed.length === 0) return;
+
+        const [first, ...others] = failed;
+        const omsOutbNo = orders.find(o => o.omsOutbOrderId === first.id)?.omsOutbNo ?? first.id;
+        const tail = others.length > 0 ? ` 외 ${others.length}건` : '';
+        toast.error(`${failed.length}건 실패 — ${omsOutbNo}: ${first.reason}${tail}`);
     };
 
     // ── 주문확정 (창고 출고주문 생성) ─────────────────────────
@@ -195,7 +194,7 @@ export default function OutboundOrderList() {
     };
 
     const doConfirm = (orders) =>
-        runBatch(orders, o => omsOutbOrderApi.confirm(o.omsOutbOrderId), '확정');
+        runBatch(orders, omsOutbOrderApi.confirm, '확정');
 
     // ── 확정취소 (창고 출고주문 삭제 + 주문 원복) ──────────────
     // 웨이브에 담긴 주문은 서버가 거부한다 — 화면도 같은 기준으로 미리 걸러 헛수고를 막는다.
@@ -215,7 +214,7 @@ export default function OutboundOrderList() {
     };
 
     const doConfirmCancel = (orders) =>
-        runBatch(orders, o => omsOutbOrderApi.cancelConfirm(o.omsOutbOrderId), '확정취소');
+        runBatch(orders, omsOutbOrderApi.cancelConfirm, '확정취소');
 
     // ── 주문삭제 ─────────────────────────────────────────────
     // 취소 상태를 두지 않으므로 "없앤다"는 조작은 이것 하나뿐이다.
@@ -235,7 +234,7 @@ export default function OutboundOrderList() {
     };
 
     const doDelete = (orders) =>
-        runBatch(orders, o => omsOutbOrderApi.remove(o.omsOutbOrderId), '삭제');
+        runBatch(orders, omsOutbOrderApi.remove, '삭제');
 
     // 모달 요약용 — "SO-... 외 2건"
     const summarize = (orders) => orders.length === 1

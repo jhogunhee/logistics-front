@@ -154,24 +154,29 @@ export default function InboundOrderList() {
     // 버튼들이 처리할 대상 = 체크된 행들
     const checkedRows = () => gridRef.current?.api?.getSelectedRows() ?? [];
 
-    // 일괄 실행 — 한 건 실패가 나머지를 막지 않도록 순차 처리 후 결과를 요약한다.
-    // 화면 검증을 통과해도 서버(엔티티)가 거부할 수 있으므로 실패는 건별로 모은다.
+    // 일괄 실행 — 체크된 주문의 id를 한 요청으로 보낸다. 건마다 왕복하면 100건에 100번 기다린다.
+    // 서버가 건별 트랜잭션으로 처리해 성공/실패를 나눠 돌려주므로(BatchResult) 한 건 실패가 나머지를 막지 않는다.
     const runBatch = async (orders, call, verb) => {
-        let ok = 0;
-        const fails = [];
-        for (const o of orders) {
-            try {
-                await call(o);
-                ok += 1;
-            } catch (e) {
-                fails.push(`${o.omsIbNo}: ${e.message || '실패'}`);
-            }
+        let result;
+        try {
+            result = await call(orders.map(o => o.omsIbOrderId));
+        } catch (e) {
+            toast.error(e.message || `${verb} 실패`); // 요청 자체가 실패 — 건별 결과 없음
+            return;
         }
-        if (ok > 0) toast.success(`${ok}건 ${verb} 완료`);
-        if (fails.length > 0) {
-            toast.error(`${fails.length}건 실패 — ${fails[0]}${fails.length > 1 ? ` 외 ${fails.length - 1}건` : ''}`);
-        }
+        toastBatchResult(orders, result, verb);
         fetchList();
+    };
+
+    // 건별 결과 요약 — 성공은 건수만, 실패는 첫 건의 주문번호·사유 + "외 N건"
+    const toastBatchResult = (orders, { succeeded, failed }, verb) => {
+        if (succeeded.length > 0) toast.success(`${succeeded.length}건 ${verb} 완료`);
+        if (failed.length === 0) return;
+
+        const [first, ...others] = failed;
+        const omsIbNo = orders.find(o => o.omsIbOrderId === first.id)?.omsIbNo ?? first.id;
+        const tail = others.length > 0 ? ` 외 ${others.length}건` : '';
+        toast.error(`${failed.length}건 실패 — ${omsIbNo}: ${first.reason}${tail}`);
     };
 
     // ── 주문확정 (ASN 생성) ──────────────────────────────────
@@ -196,7 +201,7 @@ export default function InboundOrderList() {
     };
 
     const doConfirm = (orders) =>
-        runBatch(orders, o => omsIbOrderApi.confirm(o.omsIbOrderId), '확정');
+        runBatch(orders, omsIbOrderApi.confirm, '확정');
 
     // ── 확정취소 (ASN 삭제 + 주문 원복) ───────────────────────
     const handleConfirmCancelClick = () => {
@@ -215,7 +220,7 @@ export default function InboundOrderList() {
     };
 
     const doConfirmCancel = (orders) =>
-        runBatch(orders, o => omsIbOrderApi.cancelConfirm(o.omsIbOrderId), '확정취소');
+        runBatch(orders, omsIbOrderApi.cancelConfirm, '확정취소');
 
     // ── 주문삭제 ─────────────────────────────────────────────
     // 취소 상태를 두지 않으므로 "없앤다"는 조작은 이것 하나뿐이다.
@@ -235,7 +240,7 @@ export default function InboundOrderList() {
     };
 
     const doDelete = (orders) =>
-        runBatch(orders, o => omsIbOrderApi.remove(o.omsIbOrderId), '삭제');
+        runBatch(orders, omsIbOrderApi.remove, '삭제');
 
     // 모달 요약용 — "PO-... 외 2건"
     const summarize = (orders) => orders.length === 1
