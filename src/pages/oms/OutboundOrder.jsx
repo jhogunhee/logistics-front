@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FileOutput, Info, Package, Plus, RotateCcw, Save, Search, Trash2, X } from 'lucide-react';
+import { FileOutput, Package, Plus, RotateCcw, Save, Search, Trash2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { omsOutbOrderApi } from '@/api/omsOutbOrderApi';
@@ -10,6 +10,7 @@ import { num, todayStr } from '@/utils/format';
 import ProdPickerModal from '@/components/common/ProdPickerModal';
 import StorePickerModal from '@/components/common/StorePickerModal';
 import DatePicker from '@/components/common/DatePicker';
+import FormField from '@/components/common/FormField';
 
 const EMPTY_FORM = () => ({
     storeId: '', expctDe: todayStr(),
@@ -20,23 +21,6 @@ const EMPTY_FORM = () => ({
 });
 
 const inputCls = 'input-base w-full';
-
-/** 마스터 영역 필드 (라벨 위 / 입력 아래) */
-const Field = ({ label, required, hint, children, className = '' }) => (
-    <div className={`flex flex-col gap-1 min-w-0 ${className}`}>
-        <label className="text-xs font-bold text-slate-500 flex items-center gap-1">
-            {label}
-            {required && <span className="text-red-500 font-black">*</span>}
-            {/* 힌트는 아이콘 툴팁으로 — 문구 줄을 없애 마스터 영역 높이를 상품 리스트에 양보 */}
-            {hint && (
-                <span title={hint} className="cursor-help">
-                    <Info size={12} className="text-slate-300" />
-                </span>
-            )}
-        </label>
-        {children}
-    </div>
-);
 
 export default function OutboundOrder() {
     // 경로에 id가 있으면 수정, 없으면 등록. 화면 구성이 같아 컴포넌트를 나누지 않는다.
@@ -203,7 +187,7 @@ export default function OutboundOrder() {
                     <span className="text-xs font-bold text-slate-600">주문 정보</span>
                 </div>
                 <div className="px-4 py-3 grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-3">
-                    <Field
+                    <FormField
                         label="주문번호"
                         hint={isEdit ? '채번된 번호는 바뀌지 않습니다 (예정일을 고쳐도 그대로)' : '등록 시 서버가 채번합니다'}>
                         <input
@@ -213,9 +197,9 @@ export default function OutboundOrder() {
                             className={inputCls + ` bg-slate-50 cursor-not-allowed ${
                                 form.omsOutbNo ? 'text-slate-600 font-medium' : 'text-slate-400'}`}
                         />
-                    </Field>
+                    </FormField>
                     {/* 출고유형은 웨이브 편성 조건의 기준값이라 주문 시점에 정해져야 한다 */}
-                    <Field label="출고유형" hint="웨이브 편성 조건의 기준값입니다 — 확정 시 창고로 그대로 넘어갑니다">
+                    <FormField label="출고유형" hint="웨이브 편성 조건의 기준값입니다 — 확정 시 창고로 그대로 넘어갑니다">
                         <select
                             value={form.outbTyp}
                             onChange={(e) => setForm(prev => ({ ...prev, outbTyp: e.target.value }))}
@@ -225,9 +209,9 @@ export default function OutboundOrder() {
                                 <option key={o.value} value={o.value}>{o.label}</option>
                             ))}
                         </select>
-                    </Field>
+                    </FormField>
                     {/* 상품과 같은 팝업 방식으로 통일 — 한 폼 안에서 선택 UI가 갈리지 않게 한다 */}
-                    <Field
+                    <FormField
                         label="납품처"
                         required
                         hint={form.storeCd ? `점포 코드 ${form.storeCd}` : '납품할 점포를 고릅니다 — 할당 시 이 점포의 잔여수명 기준으로 Lot이 걸러집니다'}>
@@ -240,15 +224,15 @@ export default function OutboundOrder() {
                             </span>
                             <Search size={13} className="shrink-0 text-slate-400" />
                         </button>
-                    </Field>
-                    <Field label="출고 예정일" required hint="확정 시 생성될 출고번호(OB-)의 채번 기준일이자 웨이브 편성 단위">
+                    </FormField>
+                    <FormField label="출고 예정일" required hint="확정 시 생성될 출고번호(OB-)의 채번 기준일이자 웨이브 편성 단위">
                         <DatePicker
                             value={form.expctDe}
                             onChange={(v) => setForm(prev => ({ ...prev, expctDe: v }))}
                             disabled={readOnly}
                         />
-                    </Field>
-                    <Field label="담당자" hint="수주를 받은 사람. 등록자 계정과는 별개입니다">
+                    </FormField>
+                    <FormField label="담당자" hint="수주를 받은 사람. 등록자 계정과는 별개입니다">
                         <input
                             type="text"
                             value={form.picNm}
@@ -258,8 +242,8 @@ export default function OutboundOrder() {
                             placeholder="김상현"
                             className={inputCls + ' disabled:bg-slate-50 disabled:cursor-not-allowed'}
                         />
-                    </Field>
-                    <Field label="비고" hint="점포 전달사항 등 (창고로 넘어가지 않습니다)">
+                    </FormField>
+                    <FormField label="비고" hint="점포 전달사항 등 (창고로 넘어가지 않습니다)">
                         <input
                             type="text"
                             value={form.rmk}
@@ -269,9 +253,9 @@ export default function OutboundOrder() {
                             placeholder="오전 도착 요청"
                             className={inputCls + ' disabled:bg-slate-50 disabled:cursor-not-allowed'}
                         />
-                    </Field>
+                    </FormField>
                     {/* 편수도 웨이브 편성 조건이지만 배차가 늦게 정해져 앞의 6칸(입고주문과 같은 배치) 뒤에 둔다 */}
-                    <Field label="편수" hint="차량 배차 차수. 비우면 배차 미정이고, 미정인 주문은 편수 조건이 걸린 웨이브에 담기지 않습니다">
+                    <FormField label="편수" hint="차량 배차 차수. 비우면 배차 미정이고, 미정인 주문은 편수 조건이 걸린 웨이브에 담기지 않습니다">
                         <select
                             value={form.vhclFltno}
                             onChange={(e) => setForm(prev => ({ ...prev, vhclFltno: e.target.value }))}
@@ -282,7 +266,7 @@ export default function OutboundOrder() {
                                 <option key={o.value} value={o.value}>{o.label}</option>
                             ))}
                         </select>
-                    </Field>
+                    </FormField>
                 </div>
             </section>
 

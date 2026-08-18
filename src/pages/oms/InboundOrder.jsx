@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FileInput, Info, Package, Plus, RotateCcw, Save, Search, Trash2, X } from 'lucide-react';
+import { FileInput, Package, Plus, RotateCcw, Save, Search, Trash2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { omsIbOrderApi } from '@/api/omsIbOrderApi';
@@ -10,6 +10,7 @@ import { eaQtyPerInbUomOf, num, todayStr } from '@/utils/format';
 import ProdPickerModal from '@/components/common/ProdPickerModal';
 import VendorPickerModal from '@/components/common/VendorPickerModal';
 import DatePicker from '@/components/common/DatePicker';
+import FormField from '@/components/common/FormField';
 
 const EMPTY_FORM = () => ({
     vendorId: '', expctDe: todayStr(),
@@ -19,23 +20,6 @@ const EMPTY_FORM = () => ({
 });
 
 const inputCls = 'input-base w-full';
-
-/** 마스터 영역 필드 (라벨 위 / 입력 아래) */
-const Field = ({ label, required, hint, children, className = '' }) => (
-    <div className={`flex flex-col gap-1 min-w-0 ${className}`}>
-        <label className="text-xs font-bold text-slate-500 flex items-center gap-1">
-            {label}
-            {required && <span className="text-red-500 font-black">*</span>}
-            {/* 힌트는 아이콘 툴팁으로 — 문구 줄을 없애 마스터 영역 높이를 상품 리스트에 양보 */}
-            {hint && (
-                <span title={hint} className="cursor-help">
-                    <Info size={12} className="text-slate-300" />
-                </span>
-            )}
-        </label>
-        {children}
-    </div>
-);
 
 export default function InboundOrder() {
     // 경로에 id가 있으면 수정, 없으면 등록. 화면 구성이 같아 컴포넌트를 나누지 않는다.
@@ -204,7 +188,7 @@ export default function InboundOrder() {
                     <span className="text-xs font-bold text-slate-600">주문 정보</span>
                 </div>
                 <div className="px-4 py-3 grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-3">
-                    <Field
+                    <FormField
                         label="주문번호"
                         hint={isEdit ? '채번된 번호는 바뀌지 않습니다 (예정일을 고쳐도 그대로)' : '등록 시 서버가 채번합니다'}>
                         <input
@@ -214,9 +198,9 @@ export default function InboundOrder() {
                             className={inputCls + ` bg-slate-50 cursor-not-allowed ${
                                 form.omsIbNo ? 'text-slate-600 font-medium' : 'text-slate-400'}`}
                         />
-                    </Field>
+                    </FormField>
                     {/* 발주구분은 지금 표시·분류용이다 — 긴급이라고 적치·피킹 순서가 바뀌지는 않는다 */}
-                    <Field label="발주구분" hint="분류용입니다 — 창고 작업 순서를 바꾸지는 않습니다">
+                    <FormField label="발주구분" hint="분류용입니다 — 창고 작업 순서를 바꾸지는 않습니다">
                         <select
                             value={form.odrDvsn}
                             onChange={(e) => setForm(prev => ({ ...prev, odrDvsn: e.target.value }))}
@@ -226,9 +210,9 @@ export default function InboundOrder() {
                                 <option key={o.value} value={o.value}>{o.label}</option>
                             ))}
                         </select>
-                    </Field>
+                    </FormField>
                     {/* 상품과 같은 팝업 방식으로 통일 — 한 폼 안에서 선택 UI가 갈리지 않게 한다 */}
-                    <Field
+                    <FormField
                         label="벤더"
                         required
                         hint={form.vndrCd ? `벤더 코드 ${form.vndrCd}` : '거래중인 벤더만 선택할 수 있습니다'}>
@@ -241,15 +225,15 @@ export default function InboundOrder() {
                             </span>
                             <Search size={13} className="shrink-0 text-slate-400" />
                         </button>
-                    </Field>
-                    <Field label="입고 예정일" required hint="확정 시 생성될 입고번호(IB-)의 채번 기준일">
+                    </FormField>
+                    <FormField label="입고 예정일" required hint="확정 시 생성될 입고번호(IB-)의 채번 기준일">
                         <DatePicker
                             value={form.expctDe}
                             onChange={(v) => setForm(prev => ({ ...prev, expctDe: v }))}
                             disabled={readOnly}
                         />
-                    </Field>
-                    <Field label="담당자" hint="발주를 낸 사람. 등록자 계정과는 별개입니다">
+                    </FormField>
+                    <FormField label="담당자" hint="발주를 낸 사람. 등록자 계정과는 별개입니다">
                         <input
                             type="text"
                             value={form.picNm}
@@ -259,8 +243,8 @@ export default function InboundOrder() {
                             placeholder="김상현"
                             className={inputCls + ' disabled:bg-slate-50 disabled:cursor-not-allowed'}
                         />
-                    </Field>
-                    <Field label="비고" hint="벤더 전달사항 등 (ASN으로 넘어가지 않습니다)">
+                    </FormField>
+                    <FormField label="비고" hint="벤더 전달사항 등 (ASN으로 넘어가지 않습니다)">
                         <input
                             type="text"
                             value={form.rmk}
@@ -270,7 +254,7 @@ export default function InboundOrder() {
                             placeholder="오전 도착 요청"
                             className={inputCls + ' disabled:bg-slate-50 disabled:cursor-not-allowed'}
                         />
-                    </Field>
+                    </FormField>
                 </div>
             </section>
 
