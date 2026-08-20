@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
-import { Layers, PackageOpen } from 'lucide-react';
+import { Layers, PackageOpen, Pencil } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { putawayApi } from '@/api/putawayApi';
@@ -71,6 +71,7 @@ export default function Putaway() {
     const [tasks, setTasks] = useState([]);
     const [selectedProdCd, setSelectedProdCd] = useState(null);
     const [confirmSave, setConfirmSave] = useState(null); // 적치 저장 확인 모달 대상 (수량 입력된 지시들)
+    const [locChange, setLocChange] = useState(null); // 로케이션 변경 팝업 { task, locs, locId } — locs null = 조회 중
     const prodGridRef = useRef(null);
     const pendingProdRef = useRef(null); // 재조회 후 같은 상품을 다시 선택하기 위한 키
 
@@ -82,10 +83,22 @@ export default function Putaway() {
     // 근거(Lot·유통기한·입고번호)는 뒤로 보낸다. 입고번호가 flex로 남는 폭을 흡수해 행이 끝까지 찬다
     const taskColumnDefs = [
         {
-            // 이 화면의 핵심 정보 — 작업자는 여기 적힌 로케이션으로만 물건을 넣는다
+            // 이 화면의 핵심 정보 — 작업자는 여기 적힌 로케이션으로만 물건을 넣는다.
+            // 자리에 못 넣는 상황(파손·실물 점유)은 연필 버튼으로 지시 자체를 고친 뒤 실행한다
             field: 'toLocCd', headerName: '대상 로케이션', width: 160,
-            headerTooltip: '지시된 적치 위치. 다른 곳에 넣으려면 적치지시 화면에서 취소 후 재지시해야 한다',
-            cellClass: 'font-mono font-bold text-indigo-700',
+            headerTooltip: '지시된 적치 위치. 다른 곳에 넣으려면 연필 버튼으로 지시를 변경한 뒤 실행한다 — 수량을 줄이면 그만큼만 새 지시로 분할',
+            cellRenderer: (p) => (
+                <div className="flex items-center gap-1.5">
+                    <span className="font-mono font-bold text-indigo-700">{p.value}</span>
+                    <button
+                        title="대상 로케이션 변경 — 수량을 줄이면 그만큼 새 지시로 분할"
+                        onClick={() => openLocChange(p.data)}
+                        className="text-slate-300 hover:text-indigo-600"
+                    >
+                        <Pencil size={13} />
+                    </button>
+                </div>
+            ),
         },
         {
             field: 'drctQty', headerName: '지시수량', width: 100,
@@ -163,6 +176,48 @@ export default function Putaway() {
         if (e.colDef.field !== '_execQty') return;
         if (Number(e.newValue) > e.data.remainingQty) {
             toast.error(`적치수량이 잔여수량(${num(e.data.remainingQty)})을 초과했습니다.`);
+        }
+    };
+
+    // ── 로케이션 변경·분할 — 지시받은 자리에 못 넣을 때 지시 자체를 고친다 (실행은 여전히 지시대로).
+    //    수량을 잔여보다 적게 입력하면 그만큼만 새 지시로 떨어져 나간다 ──
+    const openLocChange = async (task) => {
+        setLocChange({ task, locs: null, locId: '', qty: String(task.remainingQty) });
+        try {
+            const locs = await putawayApi.candidateLocs(task.ibLineId);
+            setLocChange(prev => (prev?.task === task ? { ...prev, locs } : prev));
+        } catch (e) {
+            toast.error(e.message || '로케이션 후보 조회에 실패했습니다.');
+            setLocChange(null);
+        }
+    };
+
+    const doChangeLoc = async () => {
+        const { task, locs, locId, qty } = locChange;
+        const n = Number(qty);
+        if (!(n > 0) || !Number.isInteger(n)) {
+            toast.error('변경 수량은 1 이상 정수여야 합니다.');
+            return;
+        }
+        if (n > task.remainingQty) {
+            toast.error(`변경 수량이 잔여수량(${num(task.remainingQty)})을 초과했습니다.`);
+            return;
+        }
+        if (!locId) {
+            toast('변경할 로케이션을 선택하세요.');
+            return;
+        }
+        const loc = locs.find(l => l.locId === locId);
+        const isSplit = n < task.remainingQty || task.cmplQty > 0;
+        try {
+            await putawayApi.changeLoc(task.putawayTaskId, locId, n);
+            toast.success(isSplit
+                ? `${num(n)}개를 ${loc.locCd}(으)로 분할 지시했습니다.`
+                : `대상 로케이션을 ${loc.locCd}(으)로 변경했습니다.`);
+            setLocChange(null);
+            fetchList(true);
+        } catch (e) {
+            toast.error(e.message || '로케이션 변경에 실패했습니다.');
         }
     };
 
@@ -322,6 +377,73 @@ export default function Putaway() {
                     </p>
                 </ConfirmModal>
             )}
+
+            {/* 로케이션 변경·분할 팝업 — 실물을 옮기지 않고 지시만 고친다.
+                수량 < 잔여면 그만큼만 새 지시로 분할 (부분 실행된 지시의 잔여분도 이 경로) */}
+            {locChange && (() => {
+                const moveQty = Number(locChange.qty) > 0 ? Number(locChange.qty) : locChange.task.remainingQty;
+                return (
+                <ConfirmModal
+                    title="대상 로케이션 변경"
+                    confirmText="변경"
+                    onCancel={() => setLocChange(null)}
+                    onConfirm={doChangeLoc}
+                >
+                    <p className="text-sm text-slate-500">
+                        {selectedProd?.prodCd} {selectedProd?.prodNm} · 잔여 <b className="text-slate-700">{num(locChange.task.remainingQty)}</b>개
+                        <br />현재 <b className="font-mono text-indigo-700">{locChange.task.toLocCd}</b> → 아래에서 새 위치를 선택하세요
+                    </p>
+                    <div className="flex items-center gap-2">
+                        <label className="text-xs font-medium text-slate-600 shrink-0">변경 수량</label>
+                        <input
+                            type="number"
+                            min={1}
+                            max={locChange.task.remainingQty}
+                            value={locChange.qty}
+                            onChange={(e) => setLocChange(prev => ({ ...prev, qty: e.target.value }))}
+                            className="w-24 input-base text-right tabular-nums"
+                        />
+                        <span className="text-xs text-slate-400">
+                            {moveQty < locChange.task.remainingQty
+                                ? `${num(moveQty)}개만 새 지시로 분할되고 ${num(locChange.task.remainingQty - moveQty)}개는 현재 위치에 남습니다`
+                                : '잔여 전량을 새 위치로 보냅니다'}
+                        </span>
+                    </div>
+                    {locChange.locs === null ? (
+                        <p className="text-xs text-slate-400">로케이션 후보를 불러오는 중…</p>
+                    ) : (
+                        <div className="flex flex-col max-h-64 overflow-y-auto border border-slate-200 rounded-lg divide-y divide-slate-100">
+                            {locChange.locs.map(l => {
+                                const isCurrent = l.locCd === locChange.task.toLocCd;
+                                const short = l.availQty != null && l.availQty < moveQty;
+                                return (
+                                    <button
+                                        key={l.locId}
+                                        disabled={isCurrent || short}
+                                        onClick={() => setLocChange(prev => ({ ...prev, locId: l.locId }))}
+                                        className={`flex items-center gap-3 px-3 py-2 text-left text-xs
+                                            ${locChange.locId === l.locId ? 'bg-indigo-50' : 'hover:bg-slate-50'}
+                                            ${isCurrent || short ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                    >
+                                        <span className="font-mono font-bold text-slate-700">{l.locCd}</span>
+                                        <span className="text-slate-400">{l.zonCd}</span>
+                                        <span className="tabular-nums ml-auto text-slate-500">
+                                            {isCurrent ? '현재 지시 위치'
+                                                : l.availQty == null ? '적재가능 무제한'
+                                                : short ? `적재가능 ${num(l.availQty)} — 부족`
+                                                : `적재가능 ${num(l.availQty)}`}
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
+                    <p className="text-xs text-slate-400">
+                        실물은 움직이지 않습니다 — 지시만 바뀌고, 적치는 저장할 때 각 지시의 위치로 실행됩니다.
+                    </p>
+                </ConfirmModal>
+                );
+            })()}
         </div>
     );
 }
