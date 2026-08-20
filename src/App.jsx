@@ -9,6 +9,7 @@ import ProdMaster from "@/pages/master/ProdMaster.jsx";
 import UomMaster from "@/pages/master/UomMaster.jsx";
 import ZonMaster from "@/pages/master/ZonMaster.jsx";
 import LocMaster from "@/pages/master/LocMaster.jsx";
+import FxngLocMaster from "@/pages/master/FxngLocMaster.jsx";
 import VendorMaster from "@/pages/master/VendorMaster.jsx";
 import StoreMaster from "@/pages/master/StoreMaster.jsx";
 import NbrRuleMaster from "@/pages/master/NbrRuleMaster.jsx";
@@ -101,6 +102,7 @@ export default function App() {
                         <Route path="/master/uom" element={<UomMaster/>}/>
                         <Route path="/master/zone" element={<ZonMaster/>}/>
                         <Route path="/master/location" element={<LocMaster/>}/>
+                        <Route path="/master/fxng-loc" element={<FxngLocMaster/>}/>
                         <Route path="/master/vendor" element={<VendorMaster/>}/>
                         <Route path="/master/store" element={<StoreMaster/>}/>
                         <Route path="/master/nbr-rules" element={<NbrRuleMaster/>}/>
