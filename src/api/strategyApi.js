@@ -98,12 +98,12 @@ export const strategyApi = {
         remove(id) {
             return api.delete(`/strategy/wave-strategies/${id}`);
         },
-        /** 미저장 정의 미리보기. payload: { definition, expctDeFrom?, expctDeTo? } — DB 변경 없음 */
+        /** 미저장 정의 미리보기. payload: { definition, expctDe } — 대상 출고예정일 하루 필수, DB 변경 없음 */
         preview(payload) {
             return api.post('/strategy/wave-strategies/preview', payload);
         },
         /**
-         * 저장본 미리보기. payload: { expctDeFrom?, expctDeTo? } — 정의는 서버가 저장본에서 채운다.
+         * 저장본 미리보기. payload: { expctDe } — 대상 출고예정일 하루 필수, 정의는 서버가 저장본에서 채운다.
          * 편성 화면이 "실행하면 무엇이 편입되나"를 실행 전에 확인하는 데 쓴다 (DB 변경 없음).
          */
         previewSaved(id, payload) {
@@ -111,7 +111,7 @@ export const strategyApi = {
         },
         /**
          * 전략 실행 — 실제 편성(웨이브 생성 + 주문 편입). 전략 관리가 아니라 업무 API다.
-         * payload: { wavStgyId?: 없으면 전 전략 순회, expctDeFrom?, expctDeTo? }
+         * payload: { wavStgyId?: 없으면 전 전략 순회, expctDe: 대상 출고예정일(하루 필수) }
          */
         execute(payload) {
             return api.post('/outbound/waves/stgy-exec', payload);

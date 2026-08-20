@@ -25,16 +25,19 @@ import WaveOrderTrace from '@/components/strategy/WaveOrderTrace';
  */
 export default function WaveStrategyRunner({ strategies, onExecuted }) {
     const [execStgyId, setExecStgyId] = useState('');   // '' = 전 전략 자동실행
-    const [execRange, setExecRange] = useState({ expctDeFrom: todayStr(), expctDeTo: todayStr() });
+    const [execDe, setExecDe] = useState(todayStr());   // 대상 출고예정일 — 하루 단위 (웨이브 = 같은 날 주문 묶음)
     const [previewResult, setPreviewResult] = useState(null); // 미리보기 결과 (주문별 판정 근거)
     const [confirmExec, setConfirmExec] = useState(null);
 
-    const rangePayload = () => ({
-        expctDeFrom: execRange.expctDeFrom || null,
-        expctDeTo: execRange.expctDeTo || null,
-    });
-
     const execStgyNm = () => strategies.find(s => s.wavStgyId === Number(execStgyId))?.stgyNm;
+
+    const requireExecDe = () => {
+        if (!execDe) {
+            toast('대상 출고예정일을 지정하세요 — 전략 실행은 하루 단위입니다.');
+            return false;
+        }
+        return true;
+    };
 
     const runPreview = async () => {
         if (!execStgyId) {
@@ -43,8 +46,9 @@ export default function WaveStrategyRunner({ strategies, onExecuted }) {
             toast('미리보기는 전략을 하나 골랐을 때만 가능합니다 — 전체 실행은 선점 순서가 결과를 바꿉니다.');
             return;
         }
+        if (!requireExecDe()) return;
         try {
-            setPreviewResult(await strategyApi.waveStrategies.previewSaved(Number(execStgyId), rangePayload()));
+            setPreviewResult(await strategyApi.waveStrategies.previewSaved(Number(execStgyId), { expctDe: execDe }));
         } catch (e) {
             toast.error(e.message || '미리보기에 실패했습니다.');
         }
@@ -54,7 +58,7 @@ export default function WaveStrategyRunner({ strategies, onExecuted }) {
         try {
             const res = await outbWaveApi.stgyExec({
                 wavStgyId: execStgyId ? Number(execStgyId) : null,
-                ...rangePayload(),
+                expctDe: execDe,
             });
             setPreviewResult(null);
             const created = res.results.filter(r => r.wavId != null);
@@ -90,24 +94,18 @@ export default function WaveStrategyRunner({ strategies, onExecuted }) {
                             placeholder="전략 선택"
                         />
                     </div>
-                    {/* 출고예정일은 편성 조건이 아니라 판정할 대상 주문의 범위다 */}
-                    <label className="text-xs font-bold text-slate-500" title="편성 조건이 아니라 대상 주문을 좁히는 실행 범위입니다">대상 출고예정일</label>
-                    <DatePicker value={execRange.expctDeFrom}
-                                onChange={(v) => setExecRange(prev => ({ ...prev, expctDeFrom: v }))}
-                                max={execRange.expctDeTo || undefined}
+                    {/* 출고예정일은 편성 조건이 아니라 판정할 대상 주문의 범위다 — 하루 단위 (웨이브 = 같은 날 주문 묶음) */}
+                    <label className="text-xs font-bold text-slate-500" title="편성 조건이 아니라 대상 주문을 좁히는 실행 범위입니다. 웨이브는 같은 출고예정일 주문만 묶으므로 하루 단위로 실행합니다">대상 출고예정일</label>
+                    <DatePicker value={execDe}
+                                onChange={setExecDe}
                                 className="w-36" />
-                    <span className="text-slate-400">~</span>
-                    <DatePicker value={execRange.expctDeTo}
-                                onChange={(v) => setExecRange(prev => ({ ...prev, expctDeTo: v }))}
-                                min={execRange.expctDeFrom || undefined}
-                                className="w-36" />
-                    <span className="text-[11px] text-slate-400">비우면 미편성 주문 전체</span>
+                    <span className="text-[11px] text-slate-400">이 날짜 출고분의 미편성 주문이 대상</span>
 
                     <div className="ml-auto flex items-center gap-2">
                         <button onClick={runPreview} className="btn-ghost" title="DB를 바꾸지 않고 편입 여부만 판정합니다">
                             <Play size={13} /> 미리보기
                         </button>
-                        <button onClick={() => setConfirmExec(true)} disabled={strategies.length === 0}
+                        <button onClick={() => { if (requireExecDe()) setConfirmExec(true); }} disabled={strategies.length === 0}
                                 className="flex items-center gap-1 px-3 py-1.5 border border-emerald-200 rounded-lg text-[12px] font-bold text-emerald-700 hover:bg-emerald-50 disabled:text-slate-300 disabled:border-slate-200">
                             <Rocket size={13} /> 전략 실행
                         </button>
@@ -130,7 +128,7 @@ export default function WaveStrategyRunner({ strategies, onExecuted }) {
                     onConfirm={() => { doExec(); setConfirmExec(null); }}
                 >
                     <p className="text-sm text-slate-500">
-                        {execStgyId ? <b>{execStgyNm()}</b> : <b>등록된 전략 전부</b>}를 실행합니다.
+                        {execStgyId ? <b>{execStgyNm()}</b> : <b>등록된 전략 전부</b>}를 <b>{execDe}</b> 출고분에 실행합니다.
                         {!execStgyId && ' 우선순위 순으로 돌며, 앞 전략이 가져간 주문은 뒤 전략의 후보에서 빠집니다.'}
                     </p>
                     <p className="text-xs text-slate-600 bg-slate-50 rounded-lg px-3 py-2 leading-relaxed">

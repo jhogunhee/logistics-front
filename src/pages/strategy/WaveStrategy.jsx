@@ -4,7 +4,7 @@ import { ArrowLeft, History, Play, Plus, Rocket, ScrollText, Trash2, Waves } fro
 import toast from 'react-hot-toast';
 
 import { strategyApi } from '@/api/strategyApi';
-import { num } from '@/utils/format';
+import { num, todayStr } from '@/utils/format';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import ConditionBuilder from '@/components/strategy/ConditionBuilder';
 import ExecutionHistory from '@/components/strategy/ExecutionHistory';
@@ -37,8 +37,8 @@ export default function WaveStrategy() {
     const [execAllOpen, setExecAllOpen] = useState(false);
     const confirmRef = useRef(null);
 
-    // 미리보기 (대상 주문일 범위 — 비우면 미편성 주문 전체)
-    const [range, setRange] = useState({ expctDeFrom: '', expctDeTo: '' });
+    // 미리보기 (대상 출고예정일 — 실행과 같은 기준으로 하루 단위)
+    const [previewDe, setPreviewDe] = useState(todayStr());
     const [previewResult, setPreviewResult] = useState(null);
 
     const dirty = mode === 'edit' && JSON.stringify(def) !== baseline;
@@ -158,19 +158,18 @@ export default function WaveStrategy() {
     };
 
     // ── 미리보기 / 실행 ──────────────────────────────────────
-    const rangePayload = () => ({
-        expctDeFrom: range.expctDeFrom || null,
-        expctDeTo: range.expctDeTo || null,
-    });
-
     const runPreview = async () => {
         if (def.condGrp.length === 0 || def.condGrp.some(g => g.length === 0)) {
             toast.error('조건그룹이 비어 있으면 미리보기할 수 없습니다.');
             return;
         }
+        if (!previewDe) {
+            toast('대상 출고예정일을 지정하세요 — 실행과 같은 하루 단위로 판정합니다.');
+            return;
+        }
         try {
             setPreviewResult(await strategyApi.waveStrategies.preview({
-                definition: definition(), ...rangePayload(),
+                definition: definition(), expctDe: previewDe,
             }));
         } catch (e) {
             toast.error(e.message || '미리보기에 실패했습니다.');
@@ -339,21 +338,15 @@ export default function WaveStrategy() {
                         <span className="text-[11px] text-slate-400">저장 전 정의 그대로 판정 — DB 변경 없음</span>
                     </div>
 
-                    {/* 출고예정일은 편성 조건이 아니라 대상 주문을 좁히는 실행 스코프다 */}
+                    {/* 출고예정일은 편성 조건이 아니라 대상 주문을 좁히는 실행 스코프다 — 하루 단위 (실행과 같은 기준) */}
                     <div className="flex items-center gap-2">
-                        <label className="text-xs font-bold text-slate-500 shrink-0" title="편성 조건이 아니라 판정할 대상 주문의 범위입니다">출고예정일</label>
-                        <DatePicker value={range.expctDeFrom}
-                                    onChange={(v) => setRange(prev => ({ ...prev, expctDeFrom: v }))}
-                                    max={range.expctDeTo || undefined}
-                                    className="flex-1 min-w-0" />
-                        <span className="text-slate-400">~</span>
-                        <DatePicker value={range.expctDeTo}
-                                    onChange={(v) => setRange(prev => ({ ...prev, expctDeTo: v }))}
-                                    min={range.expctDeFrom || undefined}
+                        <label className="text-xs font-bold text-slate-500 shrink-0" title="편성 조건이 아니라 판정할 대상 주문의 범위입니다. 웨이브는 같은 출고예정일 주문만 묶으므로 하루 단위로 판정합니다">출고예정일</label>
+                        <DatePicker value={previewDe}
+                                    onChange={setPreviewDe}
                                     className="flex-1 min-w-0" />
                     </div>
                     <div className="flex items-center justify-between">
-                        <span className="text-[11px] text-slate-400">비우면 미편성 주문 전체가 대상</span>
+                        <span className="text-[11px] text-slate-400">이 날짜 출고분의 미편성 주문이 대상</span>
                         <button onClick={runPreview}
                                 className="flex items-center gap-1 px-3 py-2 bg-indigo-600 rounded-lg text-[12px] font-bold text-white hover:bg-indigo-700">
                             <Play size={13} /> 미리보기 실행

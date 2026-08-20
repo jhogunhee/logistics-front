@@ -34,7 +34,7 @@ export const outbWaveApi = {
     },
 
     /**
-     * 웨이브 전략 실행. payload: { wavStgyId?, expctDeFrom?, expctDeTo? }
+     * 웨이브 전략 실행. payload: { wavStgyId?, expctDe } — 대상 출고예정일 하루 필수
      * wavStgyId를 주면 그 전략만(선택실행), 비우면 전 전략을 우선순위 순으로(자동실행).
      * 편입 0건인 전략은 웨이브를 만들지 않으므로 재실행해도 빈 웨이브가 쌓이지 않는다.
      */

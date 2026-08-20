@@ -22,7 +22,7 @@ const centered = { display: 'flex', alignItems: 'center', justifyContent: 'cente
 /**
  * 웨이브 목록. 다른 그리드와 같은 단일 행이고, 컬럼 순서가 곧 폭 우선순위다 —
  * 좌측 컬럼이 좁아 뒤쪽 일자 컬럼은 가로 스크롤로 밀리므로, <b>웨이브를 고를 때 필요한 것</b>
- * (번호 · 상태 · 주문 수 · 생성 전략)을 앞에 둬 기본 폭에서 스크롤 없이 보이게 한다.
+ * (번호 · 상태 · 출고예정일 · 주문 수 · 생성 전략)을 앞에 둬 기본 폭에서 스크롤 없이 보이게 한다.
  */
 const WAVE_COLUMN_DEFS = [
     { field: 'wavNo', headerName: '웨이브번호', width: 168, cellClass: 'font-bold text-slate-700' },
@@ -30,6 +30,11 @@ const WAVE_COLUMN_DEFS = [
         field: 'status', headerName: '상태', width: 74, cellStyle: centered,
         headerTooltip: '편성중 = 주문을 담고 뺄 수 있음 / 지시발행 = 피킹지시가 나가 편성이 잠김',
         cellRenderer: (p) => <Badge meta={WAVE_STATUS_META} value={p.value} show="label" />,
+    },
+    {
+        field: 'expctDe', headerName: '출고예정일', width: 105,
+        headerTooltip: '소속 주문의 출고예정일 — 같은 날짜의 주문만 담을 수 있다. 빈 웨이브는 첫 주문이 날짜를 정한다',
+        cellRenderer: (p) => (p.value ?? <span className="text-slate-400">빈 웨이브</span>),
     },
     {
         field: 'orderCount', headerName: '주문', width: 96, cellClass: 'ag-right-aligned-cell',
