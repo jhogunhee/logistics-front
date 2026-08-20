@@ -18,11 +18,16 @@ const remainCell = (p) => (p.value > 0
 
 /**
  * 웨이브 목록. 좌측 패널이 좁아 뒤쪽 컬럼은 가로 스크롤로 밀리므로, <b>실행 대상을 고를 때
- * 필요한 것</b>(번호 · 잔량)을 앞에 둬 기본 폭에서 스크롤 없이 보이게 한다 (편성 화면과 같은 원칙).
+ * 필요한 것</b>(번호 · 출고예정일 · 잔량)을 앞에 둬 기본 폭에서 스크롤 없이 보이게 한다 (편성 화면과 같은 원칙).
  * 체크박스 컬럼을 따로 두지 않는다 — rowSelection.checkboxes가 이미 앞에 하나를 그린다.
  */
 const WAVE_COLUMN_DEFS = [
     { field: 'wavNo', headerName: '웨이브번호', width: 168, cellClass: 'font-bold text-slate-700' },
+    {
+        field: 'expctDe', headerName: '출고예정일', width: 105,
+        headerTooltip: '이 웨이브가 나가는 날 — 웨이브는 같은 출고예정일 주문만 묶는다. 기간으로 조회했을 때 어느 날 출고분인지 여기서 본다',
+        valueFormatter: (p) => fmtDe(p.value),
+    },
     {
         field: 'remainQty', headerName: '잔량', width: 90, cellClass: 'ag-right-aligned-cell',
         headerTooltip: '주문수량 − 할당수량. 별도 결품 테이블을 두지 않고 이 파생값으로 부족분을 본다',
