@@ -1,23 +1,33 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import { Hand, PackageCheck, Rocket, Unlink } from 'lucide-react';
+import { Hand, PackageCheck, Rocket, ScrollText } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { outbAllocApi } from '@/api/outbAllocApi';
-import { fmtDe, fmtDt, num } from '@/utils/format';
+import { fmtDe, fmtDt, num, todayStr } from '@/utils/format';
 import SearchBar, { SearchText, SearchDateRange, SearchProd } from '@/components/common/SearchBar';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import AllocCandidateModal from '@/components/outbound/AllocCandidateModal';
+import AllocRecordsModal from '@/components/outbound/AllocRecordsModal';
 
 /** 잔량 강조 — 0이면 흐리게, 남아 있으면 눈에 걸리게. 이 값이 이 화면의 결품 표시다 */
 const remainCell = (p) => (p.value > 0
     ? <span className="font-bold text-amber-600 tabular-nums">{num(p.value)}</span>
     : <span className="text-slate-300 tabular-nums">0</span>);
 
-// 체크박스 컬럼을 따로 두지 않는다 — rowSelection.checkboxes가 이미 앞에 하나를 그린다
+/**
+ * 웨이브 목록. 좌측 패널이 좁아 뒤쪽 컬럼은 가로 스크롤로 밀리므로, <b>실행 대상을 고를 때
+ * 필요한 것</b>(번호 · 잔량)을 앞에 둬 기본 폭에서 스크롤 없이 보이게 한다 (편성 화면과 같은 원칙).
+ * 체크박스 컬럼을 따로 두지 않는다 — rowSelection.checkboxes가 이미 앞에 하나를 그린다.
+ */
 const WAVE_COLUMN_DEFS = [
     { field: 'wavNo', headerName: '웨이브번호', width: 168, cellClass: 'font-bold text-slate-700' },
+    {
+        field: 'remainQty', headerName: '잔량', width: 90, cellClass: 'ag-right-aligned-cell',
+        headerTooltip: '주문수량 − 할당수량. 별도 결품 테이블을 두지 않고 이 파생값으로 부족분을 본다',
+        cellRenderer: remainCell,
+    },
     {
         field: 'orderCount', headerName: '주문', width: 70,
         cellClass: 'ag-right-aligned-cell text-slate-500', valueFormatter: (p) => num(p.value),
@@ -29,11 +39,6 @@ const WAVE_COLUMN_DEFS = [
     {
         field: 'alocQty', headerName: '할당수량', width: 100,
         cellClass: 'ag-right-aligned-cell tabular-nums text-slate-600', valueFormatter: (p) => num(p.value),
-    },
-    {
-        field: 'remainQty', headerName: '잔량', width: 90, cellClass: 'ag-right-aligned-cell',
-        headerTooltip: '주문수량 − 할당수량. 별도 결품 테이블을 두지 않고 이 파생값으로 부족분을 본다',
-        cellRenderer: remainCell,
     },
     { field: 'createdAt', headerName: '생성일시', flex: 1, minWidth: 120, valueFormatter: (p) => fmtDt(p.value) },
 ];
@@ -56,31 +61,6 @@ const LINE_COLUMN_DEFS = [
     { field: 'remainQty', headerName: '잔량', width: 90, cellClass: 'ag-right-aligned-cell', cellRenderer: remainCell },
 ];
 
-const ALLOC_COLUMN_DEFS = [
-    { field: 'locCd', headerName: '로케이션', width: 130, cellClass: 'font-medium text-slate-700' },
-    { field: 'lotNo', headerName: 'Lot', width: 160, cellClass: 'text-slate-500' },
-    { field: 'expiryDt', headerName: '유통기한', width: 110, valueFormatter: (p) => fmtDe(p.value) },
-    {
-        field: 'alocQty', headerName: '할당수량', width: 100,
-        cellClass: 'ag-right-aligned-cell tabular-nums', valueFormatter: (p) => num(p.value),
-    },
-    {
-        field: 'pikngQty', headerName: '피킹수량', width: 100, cellClass: 'ag-right-aligned-cell',
-        headerTooltip: '피킹이 시작된 할당은 해제할 수 없다 — 실물이 이미 나갔거나 나가는 중이다',
-        cellRenderer: (p) => (p.value > 0
-            ? <span className="font-bold text-emerald-600 tabular-nums">{num(p.value)}</span>
-            : <span className="text-slate-300 tabular-nums">0</span>),
-    },
-    {
-        field: 'alocStgyId', headerName: '출처', width: 90,
-        headerTooltip: '전략 = 할당 전략이 만든 행 / 기본·수동 = 전략 없이 만들어진 행 '
-            + '(수동할당이거나, 매칭되는 전략이 없어 기본 동작으로 할당된 행)',
-        cellRenderer: (p) => (p.value != null
-            ? <span className="text-indigo-600 font-medium">전략</span>
-            : <span className="text-slate-400">기본·수동</span>),
-    },
-];
-
 /**
  * 재고 할당 (SC — 출고). <b>웨이브를 대상으로 실행해서 그 안의 출고주문 라인을 채운다.</b>
  *
@@ -93,33 +73,24 @@ const ALLOC_COLUMN_DEFS = [
  * 재고가 들어오면 같은 웨이브를 다시 할당하면 된다.
  */
 export default function Allocation() {
-    const [cond, setCond] = useState({ wavNo: '', outbNo: '', prodCd: '', storeCd: '', expctDeFrom: '', expctDeTo: '' });
+    const [cond, setCond] = useState({ wavNo: '', outbNo: '', prodCd: '', storeCd: '', expctDeFrom: todayStr(), expctDeTo: todayStr() });
     const [waves, setWaves] = useState([]);
     const [detail, setDetail] = useState(null);      // { wavId, wavNo, lines, allocs }
     const [selectedLine, setSelectedLine] = useState(null);
     const [execResult, setExecResult] = useState(null);
+    const [recordsOpen, setRecordsOpen] = useState(false); // 할당 내역 팝업
     const [manualLine, setManualLine] = useState(null);
     const [confirmExec, setConfirmExec] = useState(null);
-    const [confirmRelease, setConfirmRelease] = useState(null);
     const waveGridRef = useRef(null);
-    const allocGridRef = useRef(null);
     // 재조회 뒤 보고 있던 웨이브를 다시 열기 위한 wavId (편성 화면과 같은 방식)
     const pendingWaveRef = useRef(null);
 
-    // 검색 조건이 웨이브를 거르므로, 조건에 맞는 라인이 어느 것인지 하단에서 짚어준다
+    // 검색 조건이 웨이브를 거르므로, 조건에 맞는 라인이 어느 것인지 우측에서 짚어준다
     const matchesCond = (line) => {
         const hit = (v, kw) => !kw || String(v ?? '').toLowerCase().includes(kw.toLowerCase());
         if (!cond.outbNo && !cond.prodCd && !cond.storeCd) return false;
         return hit(line.outbNo, cond.outbNo) && hit(line.prodCd, cond.prodCd) && hit(line.storeCd, cond.storeCd);
     };
-
-    // 선택 라인의 할당 레코드만 아래에 보여준다. 라인을 안 고르면 웨이브 전체
-    const shownAllocs = useMemo(() => {
-        if (!detail) return [];
-        return selectedLine
-            ? detail.allocs.filter(a => a.outbLineId === selectedLine.outbLineId)
-            : detail.allocs;
-    }, [detail, selectedLine]);
 
     const shortLines = execResult?.lines.filter(l => l.shortQty > 0) ?? [];
 
@@ -148,8 +119,9 @@ export default function Allocation() {
         }
     };
 
+    // 최초 1회 조회 (검색조건 기본값 = 출고예정일 오늘)
     useEffect(() => {
-        outbAllocApi.targetWaves({}).then(setWaves).catch(() => {});
+        outbAllocApi.targetWaves(cond).then(setWaves).catch(() => {});
     }, []);
 
     const onWaveModelUpdated = (p) => {
@@ -159,7 +131,7 @@ export default function Allocation() {
         p.api.forEachNode(n => { if (n.data.wavId === wavId) n.setSelected(true); });
     };
 
-    /** 체크가 곧 실행 대상이다. 마지막으로 체크한 웨이브의 상세를 아래에 편다 */
+    /** 체크가 곧 실행 대상이다. 마지막으로 체크한 웨이브의 상세를 우측에 편다 */
     const onWaveSelectionChanged = (e) => {
         const rows = e.api.getSelectedRows();
         const target = rows[rows.length - 1] ?? null;
@@ -167,7 +139,6 @@ export default function Allocation() {
     };
 
     const checkedWaves = () => waveGridRef.current?.api.getSelectedRows() ?? [];
-    const checkedAllocs = () => allocGridRef.current?.api.getSelectedRows() ?? [];
 
     // ── 실행 ─────────────────────────────────────────────────
     const handleExecClick = () => {
@@ -209,30 +180,11 @@ export default function Allocation() {
         setManualLine(selectedLine);
     };
 
-    const handleReleaseClick = () => {
-        const rows = checkedAllocs();
-        if (rows.length === 0) {
-            toast('해제할 할당을 체크하세요.');
-            return;
-        }
-        const picked = rows.filter(r => r.pikngQty > 0);
-        if (picked.length > 0) {
-            toast.error(`피킹이 시작된 할당이 ${picked.length}건 있습니다 — 해제할 수 없습니다.`);
-            return;
-        }
-        setConfirmRelease(rows);
-    };
-
-    const doRelease = async (rows) => {
-        try {
-            await outbAllocApi.release(rows.map(r => r.outbAllocId));
-            toast.success(`할당 ${rows.length}건을 해제했습니다 — 재고 예약이 풀립니다.`);
-            setExecResult(null);
-            await fetchWaves();
-            if (detail) await fetchDetail(detail.wavId);
-        } catch (e) {
-            toast.error(e.message || '할당 해제에 실패했습니다.');
-        }
+    // 해제 자체는 팝업이 처리하고, 여기선 해제된 뒤 목록을 다시 읽는다 (팝업 목록도 따라 갱신된다)
+    const onReleased = async () => {
+        setExecResult(null);
+        await fetchWaves();
+        if (detail) await fetchDetail(detail.wavId);
     };
 
     return (
@@ -299,15 +251,16 @@ export default function Allocation() {
             )}
 
             {/*
-              * 상: 대상 웨이브(체크 = 실행 대상) / 하: 선택 웨이브의 라인 — 그 라인의 할당 레코드.
-              * 웨이브는 컬럼이 적어 위에 눕히고, 라인·할당 둘이 아래를 좌우로 나눈다.
+              * 좌: 대상 웨이브(체크 = 실행 대상) / 우: 선택 웨이브의 주문 라인 — 편성 화면과 같은 구성.
+              * 할당 레코드는 상시 그리드로 두지 않고 「할당 내역」 팝업에서 본다 — 해제는 예외 경로라
+              * 자주 쓰지 않는데, 상시로 두면 세 그리드가 화면을 나눠 매번 보는 웨이브·라인이 좁아진다.
               */}
-            <PanelGroup direction="vertical" autoSaveId="outb-alloc-split-v1" className="flex-1 min-h-0">
-                <Panel defaultSize={38} minSize={18} className="flex flex-col gap-2 min-h-0">
+            <PanelGroup direction="horizontal" autoSaveId="outb-alloc-split-v2" className="flex-1 min-h-0">
+                <Panel defaultSize={33} minSize={16} className="flex flex-col gap-2 min-h-0">
                     <div className="flex items-center gap-2">
                         <span className="text-sm font-bold text-slate-700 shrink-0">할당 대상 웨이브</span>
                         <span className="text-xs text-slate-400 truncate">
-                            잔량이 남은 편성중 웨이브만 — 지시가 발행된 웨이브는 대상이 아닙니다
+                            잔량이 남은 편성중 웨이브만
                         </span>
                         <span className="text-xs text-slate-500 font-medium ml-auto shrink-0">{waves.length}건</span>
                         <button onClick={handleExecClick} className="btn-primary shrink-0"
@@ -329,74 +282,55 @@ export default function Allocation() {
                     </div>
                 </Panel>
 
-                <PanelResizeHandle className="h-2.5 flex items-center justify-center group cursor-row-resize">
-                    <div className="h-1 w-16 rounded-full bg-slate-200 group-hover:bg-indigo-400 group-data-[resize-handle-active]:bg-indigo-500 transition-colors" />
+                <PanelResizeHandle className="w-2.5 flex items-center justify-center group cursor-col-resize">
+                    <div className="w-1 h-16 rounded-full bg-slate-200 group-hover:bg-indigo-400 group-data-[resize-handle-active]:bg-indigo-500 transition-colors" />
                 </PanelResizeHandle>
 
-                <Panel defaultSize={62} minSize={25} className="min-h-0">
-                    <PanelGroup direction="horizontal" autoSaveId="outb-alloc-detail-split-v1" className="h-full">
-                        {/* 좌: 라인 */}
-                        <Panel defaultSize={62} minSize={35} className="flex flex-col gap-2 min-h-0">
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm font-bold text-slate-700 shrink-0">주문 라인</span>
-                                <span className="text-xs text-slate-400 truncate">
-                                    {detail ? detail.wavNo : '위에서 웨이브를 선택하세요'}
-                                </span>
-                                <span className="text-xs text-slate-500 font-medium ml-auto shrink-0">
-                                    {detail?.lines.length ?? 0}건
-                                </span>
-                                <button onClick={handleManualClick} disabled={!selectedLine} className="btn-ghost shrink-0
-                                        disabled:text-slate-300 disabled:border-slate-200 disabled:hover:bg-white"
-                                        title="선택한 라인에 Lot·로케이션을 직접 골라 할당합니다">
-                                    <Hand size={13} /> 수동할당
-                                </button>
-                            </div>
-                            <div className="flex-1 min-h-0">
-                                <AgGridReact
-                                    rowData={detail?.lines ?? []}
-                                    columnDefs={LINE_COLUMN_DEFS}
-                                    rowHeight={34}
-                                    headerHeight={38}
-                                    rowSelection={{ mode: 'singleRow', checkboxes: false, enableClickSelection: true }}
-                                    onSelectionChanged={(e) => setSelectedLine(e.api.getSelectedNodes()[0]?.data ?? null)}
-                                    // 검색 조건이 웨이브를 거르므로 「왜 안 찾은 주문까지 보이나」가 생긴다 —
-                                    // 조건에 맞는 라인을 강조해 화면이 그 사실을 설명한다
-                                    getRowClass={(p) => (matchesCond(p.data) ? 'bg-indigo-50/60' : '')}
-                                />
-                            </div>
-                        </Panel>
-
-                        <PanelResizeHandle className="w-2.5 flex items-center justify-center group cursor-col-resize">
-                            <div className="w-1 h-16 rounded-full bg-slate-200 group-hover:bg-indigo-400 group-data-[resize-handle-active]:bg-indigo-500 transition-colors" />
-                        </PanelResizeHandle>
-
-                        {/* 우: 할당 레코드 */}
-                        <Panel defaultSize={38} minSize={25} className="flex flex-col gap-2 min-h-0">
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm font-bold text-slate-700 shrink-0">할당 내역</span>
-                                <span className="text-xs text-slate-400 truncate">
-                                    {selectedLine ? `${selectedLine.prodCd} · ${selectedLine.outbNo}` : '웨이브 전체'}
-                                </span>
-                                <span className="text-xs text-slate-500 font-medium ml-auto shrink-0">{shownAllocs.length}건</span>
-                                <button onClick={handleReleaseClick} className="btn-danger shrink-0"
-                                        title="체크한 할당을 지우고 재고 예약을 되돌립니다">
-                                    <Unlink size={13} /> 해제
-                                </button>
-                            </div>
-                            <div className="flex-1 min-h-0">
-                                <AgGridReact
-                                    ref={allocGridRef}
-                                    rowData={shownAllocs}
-                                    columnDefs={ALLOC_COLUMN_DEFS}
-                                    rowHeight={34}
-                                    headerHeight={38}
-                                    rowSelection={{ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false }}
-                                />
-                            </div>
-                        </Panel>
-                    </PanelGroup>
+                <Panel defaultSize={67} minSize={40} className="flex flex-col gap-2 min-h-0">
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-slate-700 shrink-0">주문 라인</span>
+                        <span className="text-xs text-slate-400 truncate">
+                            {detail ? detail.wavNo : '왼쪽에서 웨이브를 선택하세요'}
+                        </span>
+                        <span className="text-xs text-slate-500 font-medium ml-auto shrink-0">
+                            {detail?.lines.length ?? 0}건
+                        </span>
+                        <button onClick={handleManualClick} disabled={!selectedLine} className="btn-ghost shrink-0
+                                disabled:text-slate-300 disabled:border-slate-200 disabled:hover:bg-white"
+                                title="선택한 라인에 Lot·로케이션을 직접 골라 할당합니다">
+                            <Hand size={13} /> 수동할당
+                        </button>
+                        <button onClick={() => setRecordsOpen(true)} disabled={!detail}
+                                title="이 웨이브의 할당 레코드를 보고 체크해서 해제합니다"
+                                className="btn-ghost shrink-0 disabled:text-slate-300 disabled:border-slate-200 disabled:hover:bg-white">
+                            <ScrollText size={13} /> 할당 내역
+                            <span className="font-normal opacity-80">({num(detail?.allocs.length ?? 0)})</span>
+                        </button>
+                    </div>
+                    <div className="flex-1 min-h-0">
+                        <AgGridReact
+                            rowData={detail?.lines ?? []}
+                            columnDefs={LINE_COLUMN_DEFS}
+                            rowHeight={34}
+                            headerHeight={38}
+                            rowSelection={{ mode: 'singleRow', checkboxes: false, enableClickSelection: true }}
+                            onSelectionChanged={(e) => setSelectedLine(e.api.getSelectedNodes()[0]?.data ?? null)}
+                            // 검색 조건이 웨이브를 거르므로 「왜 안 찾은 주문까지 보이나」가 생긴다 —
+                            // 조건에 맞는 라인을 강조해 화면이 그 사실을 설명한다
+                            getRowClass={(p) => (matchesCond(p.data) ? 'bg-indigo-50/60' : '')}
+                        />
+                    </div>
                 </Panel>
             </PanelGroup>
+
+            {/* 할당 내역 팝업 — 열려 있는 동안만 마운트. 해제 후에도 열린 채 갱신된 목록을 보여준다 */}
+            {recordsOpen && detail && (
+                <AllocRecordsModal
+                    detail={detail}
+                    onClose={() => setRecordsOpen(false)}
+                    onReleased={onReleased}
+                />
+            )}
 
             {/* 수동할당 팝업 */}
             <AllocCandidateModal
@@ -426,26 +360,6 @@ export default function Allocation() {
                         재고가 모자라면 앞 순번 주문이 채울 수 있는 만큼 가져가고 나머지는 잔량으로 남습니다 —
                         나눠서 배분하지 않습니다. 여러 웨이브를 함께 실행해도 <b>한 트랜잭션</b>이라,
                         도중에 오류가 나면 이번 실행 전체가 되돌아갑니다.
-                    </p>
-                </ConfirmModal>
-            )}
-
-            {/* 해제 확인 */}
-            {confirmRelease && (
-                <ConfirmModal
-                    title="할당을 해제할까요?"
-                    confirmText="해제"
-                    danger
-                    onCancel={() => setConfirmRelease(null)}
-                    onConfirm={() => { doRelease(confirmRelease); setConfirmRelease(null); }}
-                >
-                    <p className="text-sm text-slate-500">
-                        할당 <b>{confirmRelease.length}건</b>({num(confirmRelease.reduce((s, a) => s + a.alocQty, 0))}개)을 지우고
-                        재고 예약을 되돌립니다.
-                    </p>
-                    <p className="text-xs text-slate-600 bg-slate-50 rounded-lg px-3 py-2 leading-relaxed">
-                        재고는 물리적으로 움직이지 않고 가용수량만 복원됩니다.
-                        해제 후 주문에 할당이 한 건도 남지 않으면 그 주문은 할당 이전(생성) 상태로 돌아갑니다.
                     </p>
                 </ConfirmModal>
             )}
