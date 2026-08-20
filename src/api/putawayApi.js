@@ -54,8 +54,9 @@ export const putawayApi = {
     },
 
     /**
-     * 지시 로케이션 변경·분할. qty가 잔여 전량(미실행)이면 목적지만 바뀌고,
-     * 일부면 그만큼 새 지시로 떨어져 나간다 — 부분 실행된 지시의 잔여분도 이 경로로 옮긴다
+     * 지시 로케이션 변경·분할. qty가 잔여 전량(미실행)이면 목적지만 바뀌고(null = 잔여 전량),
+     * 일부면 그만큼 새 지시로 떨어져 나간다 — 부분 실행된 지시의 잔여분도 이 경로로 옮긴다.
+     * 옮긴 수량이 실린 지시의 id(분할이면 새 지시)를 돌려줘 저장 흐름이 이어서 실행에 쓴다
      */
     changeLoc(taskId, locId, qty) {
         return api.post(`/inbound/putaway/tasks/${taskId}/change-loc`, { locId, qty });

@@ -25,7 +25,7 @@ const groupByProd = (tasks) => {
         };
         group.taskCount += 1;
         group.remainingQty += t.remainingQty;
-        group.locCds.add(t.toLocCd);
+        group.locCds.add(t._pendingLoc ? t._pendingLoc.locCd : t.toLocCd);
         // 서버가 유통기한 순으로 주므로 첫 값이 곧 최단이다 (미관리는 null로 뒤에 온다)
         if (group.nearestExpiryDt == null) group.nearestExpiryDt = t.expiryDt;
         group.tasks.push(t);
@@ -85,20 +85,33 @@ export default function Putaway() {
         {
             // 이 화면의 핵심 정보 — 작업자는 여기 적힌 로케이션으로만 물건을 넣는다.
             // 자리에 못 넣는 상황(파손·실물 점유)은 연필 버튼으로 지시 자체를 고친 뒤 실행한다
-            field: 'toLocCd', headerName: '대상 로케이션', width: 160,
-            headerTooltip: '지시된 적치 위치. 다른 곳에 넣으려면 연필 버튼으로 지시를 변경한 뒤 실행한다 — 수량을 줄이면 그만큼만 새 지시로 분할',
-            cellRenderer: (p) => (
-                <div className="flex items-center gap-1.5">
-                    <span className="font-mono font-bold text-indigo-700">{p.value}</span>
-                    <button
-                        title="대상 로케이션 변경 — 수량을 줄이면 그만큼 새 지시로 분할"
-                        onClick={() => openLocChange(p.data)}
-                        className="text-slate-300 hover:text-indigo-600"
-                    >
-                        <Pencil size={13} />
-                    </button>
-                </div>
-            ),
+            field: 'toLocCd', headerName: '대상 로케이션', width: 175,
+            headerTooltip: '지시된 적치 위치. 연필로 다른 위치를 담아두면(수량을 줄이면 그만큼 분할) [적치 저장]이 지시 변경과 적치를 함께 반영한다',
+            cellRenderer: (p) => {
+                const pending = p.data._pendingLoc;
+                const isVirtual = !!p.data._virtualOf;
+                return (
+                    <div className="flex items-center gap-1.5">
+                        <span className={`font-mono font-bold ${pending ? 'text-amber-600' : 'text-indigo-700'}`}>
+                            {pending ? pending.locCd : p.value}
+                        </span>
+                        {pending && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold shrink-0">
+                                {isVirtual ? '분할 예정' : '변경 예정'}
+                            </span>
+                        )}
+                        {!isVirtual && (
+                            <button
+                                title="대상 로케이션 변경 — 수량을 줄이면 그만큼 새 지시로 분할. 저장할 때 반영"
+                                onClick={() => openLocChange(p.data)}
+                                className="text-slate-300 hover:text-indigo-600"
+                            >
+                                <Pencil size={13} />
+                            </button>
+                        )}
+                    </div>
+                );
+            },
         },
         {
             field: 'drctQty', headerName: '지시수량', width: 100,
@@ -180,9 +193,16 @@ export default function Putaway() {
     };
 
     // ── 로케이션 변경·분할 — 지시받은 자리에 못 넣을 때 지시 자체를 고친다 (실행은 여전히 지시대로).
-    //    수량을 잔여보다 적게 입력하면 그만큼만 새 지시로 떨어져 나간다 ──
+    //    팝업은 화면에 담아두기만 하고, 서버 반영은 [적치 저장]이 변경과 실행을 이어서 한다.
+    //    저장 전에는 조회만 다시 해도 원상복구다 ──
     const openLocChange = async (task) => {
-        setLocChange({ task, locs: null, locId: '', qty: String(task.remainingQty) });
+        // 이미 담아둔 변경이 있으면 그 값으로 열어 고치거나 취소할 수 있게 한다
+        setLocChange({
+            task,
+            locs: null,
+            locId: task._stagedLoc ? task._stagedLoc.locId : '',
+            qty: String(task._stagedQty ?? task.remainingQty),
+        });
         try {
             const locs = await putawayApi.candidateLocs(task.ibLineId);
             setLocChange(prev => (prev?.task === task ? { ...prev, locs } : prev));
@@ -192,15 +212,26 @@ export default function Putaway() {
         }
     };
 
-    const doChangeLoc = async () => {
+    /** 행 목록에서 taskId의 담아둔 변경을 걷어낸 사본 — 분할 예정 행 제거 + 원 행 복원 */
+    const clearStage = (rows, taskId) => rows
+        .filter(r => r._virtualOf !== taskId)
+        .map(r => r.putawayTaskId === taskId
+            ? {
+                ...r, _pendingLoc: null, _stagedLoc: null, _stagedQty: null,
+                remainingQty: r.drctQty - r.cmplQty, _execQty: r.drctQty - r.cmplQty,
+            }
+            : r);
+
+    const stageLocChange = () => {
         const { task, locs, locId, qty } = locChange;
         const n = Number(qty);
+        const baseRemaining = task.drctQty - task.cmplQty; // 서버 기준 잔여 (담아둔 분할과 무관)
         if (!(n > 0) || !Number.isInteger(n)) {
             toast.error('변경 수량은 1 이상 정수여야 합니다.');
             return;
         }
-        if (n > task.remainingQty) {
-            toast.error(`변경 수량이 잔여수량(${num(task.remainingQty)})을 초과했습니다.`);
+        if (n > baseRemaining) {
+            toast.error(`변경 수량이 잔여수량(${num(baseRemaining)})을 초과했습니다.`);
             return;
         }
         if (!locId) {
@@ -208,17 +239,29 @@ export default function Putaway() {
             return;
         }
         const loc = locs.find(l => l.locId === locId);
-        const isSplit = n < task.remainingQty || task.cmplQty > 0;
-        try {
-            await putawayApi.changeLoc(task.putawayTaskId, locId, n);
-            toast.success(isSplit
-                ? `${num(n)}개를 ${loc.locCd}(으)로 분할 지시했습니다.`
-                : `대상 로케이션을 ${loc.locCd}(으)로 변경했습니다.`);
-            setLocChange(null);
-            fetchList(true);
-        } catch (e) {
-            toast.error(e.message || '로케이션 변경에 실패했습니다.');
-        }
+        setTasks(prev => clearStage(prev, task.putawayTaskId).flatMap(r => {
+            if (r.putawayTaskId !== task.putawayTaskId) return [r];
+            if (n === baseRemaining && r.cmplQty === 0) {
+                // 전량·미실행 — 목적지만 바꿔 담는다
+                return [{ ...r, _pendingLoc: loc, _stagedLoc: loc, _stagedQty: n }];
+            }
+            // 분할 — 원 행 잔여를 줄이고 분할 예정 행을 바로 아래에 끼운다
+            const rest = baseRemaining - n;
+            return [
+                { ...r, _stagedLoc: loc, _stagedQty: n, remainingQty: rest, _execQty: rest > 0 ? rest : '' },
+                {
+                    ...r, putawayTaskId: `v-${r.putawayTaskId}`, _virtualOf: r.putawayTaskId,
+                    _pendingLoc: loc, _stagedLoc: null, _stagedQty: null, _fromLocCd: r.toLocCd,
+                    drctQty: n, cmplQty: 0, remainingQty: n, _execQty: n,
+                },
+            ];
+        }));
+        setLocChange(null);
+    };
+
+    const unstageLocChange = () => {
+        setTasks(prev => clearStage(prev, locChange.task.putawayTaskId));
+        setLocChange(null);
     };
 
     // ── 적치 저장 (일괄 실행) — 그리드에 입력 → 저장 → 확인 모달, 검수·이동확정과 같은 패턴 ──
@@ -230,35 +273,55 @@ export default function Putaway() {
             return;
         }
         const targets = selectedProd.tasks.filter(t => String(t._execQty ?? '').trim() !== '');
-        if (targets.length === 0) {
+        const staged = selectedProd.tasks.filter(t => t._pendingLoc); // 담아둔 지시 변경 (전량 변경 원 행 + 분할 예정 행)
+        if (targets.length === 0 && staged.length === 0) {
             toast('적치수량을 입력한 지시가 없습니다.');
             return;
         }
         for (const t of targets) {
             const n = Number(t._execQty);
             if (!(n > 0) || !Number.isInteger(n)) {
-                toast.error(`적치수량은 1 이상 정수여야 합니다: ${t.toLocCd}`);
+                toast.error(`적치수량은 1 이상 정수여야 합니다: ${t._pendingLoc?.locCd ?? t.toLocCd}`);
                 return;
             }
             if (n > t.remainingQty) {
-                toast.error(`적치수량이 잔여수량(${num(t.remainingQty)})을 초과했습니다: ${t.toLocCd}`);
+                toast.error(`적치수량이 잔여수량(${num(t.remainingQty)})을 초과했습니다: ${t._pendingLoc?.locCd ?? t.toLocCd}`);
                 return;
             }
         }
-        setConfirmSave(targets);
+        setConfirmSave({ targets, staged });
     };
 
-    const doSave = async (targets) => {
+    // 지시 변경(건별 트랜잭션)이 먼저, 실행(전체 한 트랜잭션)이 뒤 — 실행이 실패해도 지시는
+    // 유효하게 바뀐 상태라 재조회 후 다시 저장하면 이어진다
+    const doSave = async ({ targets, staged }) => {
         const totalQty = targets.reduce((s, t) => s + Number(t._execQty), 0);
         try {
-            await putawayApi.executeAll(targets.map(t => ({ taskId: t.putawayTaskId, qty: Number(t._execQty) })));
-            toast.success(`${num(totalQty)}개를 ${new Set(targets.map(t => t.toLocCd)).size}개 로케이션에 적치했습니다.`);
+            const idByRow = new Map(); // 화면 행 키 → 실행할 서버 지시 id (분할이면 새 지시)
+            for (const s of staged) {
+                const serverTaskId = s._virtualOf ?? s.putawayTaskId;
+                const qty = s._virtualOf ? s.drctQty : null; // null = 잔여 전량 (전량 변경)
+                const executableId = await putawayApi.changeLoc(serverTaskId, s._pendingLoc.locId, qty);
+                idByRow.set(s.putawayTaskId, executableId ?? serverTaskId);
+            }
+            if (targets.length > 0) {
+                await putawayApi.executeAll(targets.map(t => ({
+                    taskId: idByRow.get(t.putawayTaskId) ?? t.putawayTaskId,
+                    qty: Number(t._execQty),
+                })));
+            }
+            const changed = staged.length > 0 ? `지시 변경 ${staged.length}건 · ` : '';
+            toast.success(targets.length > 0
+                ? `${changed}${num(totalQty)}개를 ${new Set(targets.map(t => t._pendingLoc?.locCd ?? t.toLocCd)).size}개 로케이션에 적치했습니다.`
+                : `지시 변경 ${staged.length}건을 반영했습니다.`);
             // 잔여가 남으면 같은 상품 선택을 유지해 이어서 처리한다 (전량이면 상품이 목록에서 빠진다)
             const partial = targets.length < selectedProd.tasks.length
                 || targets.some(t => Number(t._execQty) < t.remainingQty);
             fetchList(partial);
         } catch (e) {
             toast.error(e.message || '적치 저장에 실패했습니다.');
+            // 지시 변경이 일부 반영됐을 수 있어 서버 상태로 재동기화한다
+            fetchList(true);
         }
     };
 
@@ -357,12 +420,26 @@ export default function Putaway() {
                 >
                     <p className="text-sm text-slate-500">
                         {selectedProd?.prodCd} {selectedProd?.prodNm} · <b className="text-emerald-600">
-                        {num(confirmSave.reduce((s, t) => s + Number(t._execQty), 0))}개</b>
+                        {num(confirmSave.targets.reduce((s, t) => s + Number(t._execQty), 0))}개</b>
                     </p>
+                    {confirmSave.staged.length > 0 && (
+                        <div className="flex flex-col gap-1 text-xs font-mono bg-amber-50 rounded-lg px-3 py-2">
+                            <span className="font-sans font-bold text-amber-700">지시 변경 {confirmSave.staged.length}건이 함께 반영됩니다</span>
+                            {confirmSave.staged.map(s => (
+                                <div key={s.putawayTaskId} className="flex justify-between gap-3">
+                                    <span className="text-slate-500">
+                                        {s._fromLocCd ?? s.toLocCd} → <b className="text-amber-700">{s._pendingLoc.locCd}</b>
+                                        {s._virtualOf && <span className="font-sans"> (분할)</span>}
+                                    </span>
+                                    <span className="tabular-nums text-slate-700">{num(s._virtualOf ? s.drctQty : s.remainingQty)}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                     <div className="flex flex-col gap-1 text-xs font-mono bg-slate-50 rounded-lg px-3 py-2">
-                        {confirmSave.map(t => (
+                        {confirmSave.targets.map(t => (
                             <div key={t.putawayTaskId} className="flex justify-between gap-3">
-                                <span className="text-slate-500">RCV-STAGE → <b className="text-indigo-700">{t.toLocCd}</b></span>
+                                <span className="text-slate-500">RCV-STAGE → <b className="text-indigo-700">{t._pendingLoc?.locCd ?? t.toLocCd}</b></span>
                                 <span className="tabular-nums text-slate-700">
                                     {num(t._execQty)}
                                     {Number(t._execQty) < t.remainingQty && (
@@ -373,24 +450,25 @@ export default function Putaway() {
                         ))}
                     </div>
                     <p className="text-xs text-slate-400">
-                        {confirmSave.length}건이 한 트랜잭션으로 처리됩니다 — 하나라도 실패하면 전부 되돌아갑니다.
+                        적치 {confirmSave.targets.length}건이 한 트랜잭션으로 처리됩니다 — 하나라도 실패하면 적치 전부가 되돌아갑니다.
                     </p>
                 </ConfirmModal>
             )}
 
-            {/* 로케이션 변경·분할 팝업 — 실물을 옮기지 않고 지시만 고친다.
+            {/* 로케이션 변경·분할 팝업 — 화면에 담아두기만 한다 (서버 반영은 [적치 저장]).
                 수량 < 잔여면 그만큼만 새 지시로 분할 (부분 실행된 지시의 잔여분도 이 경로) */}
             {locChange && (() => {
-                const moveQty = Number(locChange.qty) > 0 ? Number(locChange.qty) : locChange.task.remainingQty;
+                const baseRemaining = locChange.task.drctQty - locChange.task.cmplQty;
+                const moveQty = Number(locChange.qty) > 0 ? Number(locChange.qty) : baseRemaining;
                 return (
                 <ConfirmModal
                     title="대상 로케이션 변경"
-                    confirmText="변경"
+                    confirmText="담기"
                     onCancel={() => setLocChange(null)}
-                    onConfirm={doChangeLoc}
+                    onConfirm={stageLocChange}
                 >
                     <p className="text-sm text-slate-500">
-                        {selectedProd?.prodCd} {selectedProd?.prodNm} · 잔여 <b className="text-slate-700">{num(locChange.task.remainingQty)}</b>개
+                        {selectedProd?.prodCd} {selectedProd?.prodNm} · 잔여 <b className="text-slate-700">{num(baseRemaining)}</b>개
                         <br />현재 <b className="font-mono text-indigo-700">{locChange.task.toLocCd}</b> → 아래에서 새 위치를 선택하세요
                     </p>
                     <div className="flex items-center gap-2">
@@ -398,14 +476,14 @@ export default function Putaway() {
                         <input
                             type="number"
                             min={1}
-                            max={locChange.task.remainingQty}
+                            max={baseRemaining}
                             value={locChange.qty}
                             onChange={(e) => setLocChange(prev => ({ ...prev, qty: e.target.value }))}
                             className="w-24 input-base text-right tabular-nums"
                         />
                         <span className="text-xs text-slate-400">
-                            {moveQty < locChange.task.remainingQty
-                                ? `${num(moveQty)}개만 새 지시로 분할되고 ${num(locChange.task.remainingQty - moveQty)}개는 현재 위치에 남습니다`
+                            {moveQty < baseRemaining
+                                ? `${num(moveQty)}개만 새 지시로 분할되고 ${num(baseRemaining - moveQty)}개는 현재 위치에 남습니다`
                                 : '잔여 전량을 새 위치로 보냅니다'}
                         </span>
                     </div>
@@ -438,9 +516,19 @@ export default function Putaway() {
                             })}
                         </div>
                     )}
-                    <p className="text-xs text-slate-400">
-                        실물은 움직이지 않습니다 — 지시만 바뀌고, 적치는 저장할 때 각 지시의 위치로 실행됩니다.
-                    </p>
+                    <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs text-slate-400">
+                            담아두기만 하고 서버에는 아직 반영되지 않습니다 — [적치 저장]이 지시 변경과 적치를 함께 처리합니다.
+                        </p>
+                        {locChange.task._stagedLoc && (
+                            <button
+                                onClick={unstageLocChange}
+                                className="text-xs text-rose-500 hover:text-rose-700 font-medium shrink-0"
+                            >
+                                담아둔 변경 취소
+                            </button>
+                        )}
+                    </div>
                 </ConfirmModal>
                 );
             })()}
