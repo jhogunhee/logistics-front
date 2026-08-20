@@ -36,6 +36,7 @@ import StockLotChng from "@/pages/stock/StockLotChng.jsx";
 import OutbOrderList from "@/pages/outbound/OutbOrderList.jsx";
 import Wave from "@/pages/outbound/Wave.jsx";
 import Allocation from "@/pages/outbound/Allocation.jsx";
+import PickOrder from "@/pages/outbound/PickOrder.jsx";
 
 export default function App() {
     return (
@@ -88,7 +89,8 @@ export default function App() {
                         <Route path="/outbound/wave" element={<Wave/>}/>
                         {/* 할당은 웨이브를 대상으로 실행하고 결과는 주문 라인에 남는다 */}
                         <Route path="/outbound/allocation" element={<Allocation/>}/>
-                        <Route path="/outbound/pick-order" element={<Placeholder title="피킹지시"/>}/>
+                        {/* 피킹지시는 웨이브의 할당을 로케이션 순으로 정렬해 발행 — 지시 행 = 할당과 1:1 */}
+                        <Route path="/outbound/pick-order" element={<PickOrder/>}/>
                         <Route path="/outbound/picking" element={<Placeholder title="피킹"/>}/>
                         <Route path="/outbound/shipping" element={<Placeholder title="출고확정"/>}/>
 
