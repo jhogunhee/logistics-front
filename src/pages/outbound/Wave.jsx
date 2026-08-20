@@ -331,8 +331,11 @@ export default function Wave() {
                                 : '왼쪽에서 작업할 웨이브를 선택하세요'}
                         </span>
                         <span className="text-xs text-slate-500 font-medium ml-auto shrink-0">{waveOrders.length}건</span>
-                        <button onClick={() => setPickerWave(selectedWave)} disabled={!canEditWave}
-                                title="미편성 주문 중에서 골라 이 웨이브에 담습니다 (편입 출처: 수동)"
+                        <button onClick={() => setPickerWave(selectedWave)}
+                                disabled={!canEditWave || selectedWave.alocStartedCount > 0}
+                                title={selectedWave?.alocStartedCount > 0
+                                    ? `할당이 시작된 주문이 ${selectedWave.alocStartedCount}건 있어 주문을 추가할 수 없습니다 — 할당을 먼저 해제하세요`
+                                    : '미편성 주문 중에서 골라 이 웨이브에 담습니다 (편입 출처: 수동)'}
                                 className="btn-primary shrink-0 disabled:bg-slate-200 disabled:text-slate-400">
                             <ListPlus size={13} /> 주문 담기
                             <span className="font-normal opacity-80">(미편성 {num(unassigned.length)})</span>
