@@ -2,8 +2,8 @@
 //
 // 발행 단위는 웨이브이고 지시 행(pikng_task)은 할당 레코드와 1:1이다 — 상품별로 뭉치는
 // 배치 피킹이 없어, 집품한 것을 주문별로 다시 나누는 분배 공정도 없다.
-// 발행은 재고에 손대지 않는다 — 예약은 할당이 이미 잡았고 실행이 소진한다.
-
+// 발행은 재고에 손대지 않고(예약은 할당이 이미 잡았다), 실행이 보관 → SHIP-STAGE로
+// 실물을 옮기며 예약을 소진한다.
 import api from '@/utils/axios';
 
 const params = (cond = {}) => Object.fromEntries(
@@ -46,5 +46,24 @@ export const outbPikngApi = {
      */
     cancel(wavIds) {
         return api.post('/outbound/picking-tasks/cancel', { wavIds });
+    },
+
+    /** 지시의 실행 실적 로그 (부분 피킹이 N번이면 N행) — 실적 내역 모달 */
+    acrsts(taskId) {
+        return api.get(`/outbound/picking-tasks/${taskId}/acrsts`);
+    },
+
+    /** 피킹 화면의 웨이브 목록 — ISSUED 웨이브의 지시/피킹/잔량 집계. cond: { wavNo, prodCd, expctDeFrom, expctDeTo } */
+    pickingWaves(cond = {}) {
+        return api.get('/outbound/picking/waves', { params: params(cond) });
+    },
+
+    /**
+     * 피킹 실행. items: [{ pikngTaskId, qty }] — 행마다 부분 수량 허용(잔량은 재피킹으로 소진),
+     * 요청은 한 트랜잭션(한 건이라도 걸리면 전량 롤백). 재고가 보관 → SHIP-STAGE로 실제 이동한다.
+     * 지시 잔량은 항상 피킹 가능하다 — 할당 예약이 실재고를 선점하고 있어 재고 확인이 따로 없다.
+     */
+    execute(items) {
+        return api.post('/outbound/picking/execute', { items });
     },
 };
