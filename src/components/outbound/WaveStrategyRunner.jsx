@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 
 import { outbWaveApi } from '@/api/outbWaveApi';
 import { strategyApi } from '@/api/strategyApi';
-import { num } from '@/utils/format';
+import { num, todayStr } from '@/utils/format';
 import DropdownSelect from '@/components/common/DropdownSelect';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import DatePicker from '@/components/common/DatePicker';
@@ -25,7 +25,7 @@ import WaveOrderTrace from '@/components/strategy/WaveOrderTrace';
  */
 export default function WaveStrategyRunner({ strategies, onExecuted }) {
     const [execStgyId, setExecStgyId] = useState('');   // '' = 전 전략 자동실행
-    const [execRange, setExecRange] = useState({ expctDeFrom: '', expctDeTo: '' });
+    const [execRange, setExecRange] = useState({ expctDeFrom: todayStr(), expctDeTo: todayStr() });
     const [previewResult, setPreviewResult] = useState(null); // 미리보기 결과 (주문별 판정 근거)
     const [confirmExec, setConfirmExec] = useState(null);
 
