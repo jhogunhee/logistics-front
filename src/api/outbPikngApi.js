@@ -61,9 +61,18 @@ export const outbPikngApi = {
     /**
      * 피킹 실행. items: [{ pikngTaskId, qty }] — 행마다 부분 수량 허용(잔량은 재피킹으로 소진),
      * 요청은 한 트랜잭션(한 건이라도 걸리면 전량 롤백). 재고가 보관 → SHIP-STAGE로 실제 이동한다.
-     * 지시 잔량은 항상 피킹 가능하다 — 할당 예약이 실재고를 선점하고 있어 재고 확인이 따로 없다.
      */
     execute(items) {
         return api.post('/outbound/picking/execute', { items });
+    },
+
+    /**
+     * 결품 종결. items: [{ pikngTaskId, rsnCd, rsnDscr }] — 수량은 보내지 않는다(잔량 전부가 결품).
+     * 시킨 만큼 실물이 없어 끝내 못 집을 때, 지시·할당수량을 실적까지 낮춰 닫고 잔량만큼의
+     * 예약을 푼다. 실적이 있는 지시만 대상이다 — 실적 0은 웨이브 단위 지시취소가 덮는다.
+     * 장부에만 남은 수량은 건드리지 않는다(재고조사 소관) — 다만 예약이 풀려 그 실사가 열린다.
+     */
+    closeShort(items) {
+        return api.post('/outbound/picking/close-short', { items });
     },
 };
