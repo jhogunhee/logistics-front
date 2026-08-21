@@ -17,10 +17,24 @@ const remainCell = (p) => (p.value > 0
     ? <span className="font-bold text-amber-600 tabular-nums">{num(p.value)}</span>
     : <span className="text-slate-300 tabular-nums">0</span>);
 
+/**
+ * 미종결 지시 강조 — <b>0이 아니면 언제나 강조한다.</b> 결품 종결을 강제하는 마감·배치가
+ * 없어서, 이 값이 「끝내 닫히지 않은 잔량」의 유일한 신호다. 시간 임계를 두면 임계 미만
+ * 구간이 조용해지는데 잊히는 일은 정확히 그 구간에서 시작한다.
+ */
+const openCell = (p) => (p.value > 0
+    ? <span className="font-bold text-indigo-600 tabular-nums">{num(p.value)}</span>
+    : <span className="text-slate-300 tabular-nums">0</span>);
+
 /** 웨이브 목록 — 지시발행(ISSUED)된 웨이브의 진행 집계. 잔량 0도 당일 확인용으로 남는다 */
 const WAVE_COLUMN_DEFS = [
     { field: 'wavNo', headerName: '웨이브번호', width: 168, cellClass: 'font-bold text-slate-700' },
     { field: 'remainQty', headerName: '잔량', width: 90, cellClass: 'ag-right-aligned-cell', cellRenderer: remainCell },
+    {
+        field: 'openTaskCount', headerName: '미종결', width: 82, cellClass: 'ag-right-aligned-cell',
+        headerTooltip: '아직 닫히지 않은 지시 건수 — 더 집거나 결품 종결해야 하는 것이다. 종결을 강제하는 마감이 없으므로 잊히면 예약이 무기한 남고 주문이 피킹중에 머문다. 0이 아니면 항상 강조한다',
+        cellRenderer: openCell,
+    },
     { field: 'expctDe', headerName: '출고예정일', width: 105, valueFormatter: (p) => fmtDe(p.value) },
     {
         field: 'drctQty', headerName: '지시수량', width: 100,
