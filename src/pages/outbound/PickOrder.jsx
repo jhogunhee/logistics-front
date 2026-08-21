@@ -328,11 +328,10 @@ export default function PickOrder() {
                             rowSelection={detail?.status === 'ISSUED' ? {
                                 mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false,
                                 // 취소 대상은 「지시 상태 + 실적 0」뿐이다 — 실적이 있으면 결품 종결(피킹 화면)의 몫이고,
-                                // 이미 닫힌(완료·취소) 지시는 작업 여지가 없다
+                                // 완료된 지시는 작업 여지가 없다. 취소된 지시는 애초에 이 목록에 오지 않는다(서버가 거른다)
                                 isRowSelectable: (node) => node.data.status === 'DIRECTED' && node.data.cmplQty === 0,
                             } : undefined}
                             onSelectionChanged={(e) => setCheckedTaskCount(e.api.getSelectedRows().length)}
-                            getRowClass={(p) => (p.data.status === 'CANCELLED' ? 'opacity-45 line-through' : '')}
                         />
                     </div>
                 </Panel>
@@ -358,7 +357,8 @@ export default function PickOrder() {
                         </p>
                     )}
                     <p className="text-xs text-slate-600 bg-slate-50 rounded-lg px-3 py-2 leading-relaxed">
-                        발행 후 편성 변경과 할당 변경(추가 할당·해제)이 잠깁니다 — 되돌리려면 피킹 전에 발행취소하세요.
+                        발행 후 편성 변경과 추가 할당이 잠깁니다 — 되돌리려면 피킹 전에 발행취소하세요.
+                        할당해제는 그 할당의 지시를 취소한 뒤에 열립니다(웨이브 전체가 아니라 할당 하나 단위입니다).
                         여러 웨이브를 함께 발행해도 <b>한 트랜잭션</b>입니다.
                     </p>
                 </ConfirmModal>
@@ -375,7 +375,8 @@ export default function PickOrder() {
                 >
                     <p className="text-sm text-slate-500">
                         지시 <b>{confirmTaskCancel.length}건</b>(지시수량 <b>{num(confirmTaskCancel.reduce((s, r) => s + r.drctQty, 0))}</b>)을
-                        취소합니다. 지시 행은 삭제되지 않고 <b>취소</b> 상태로 남습니다.
+                        취소합니다. 지시 행은 삭제되지 않고 <b>취소</b> 상태로 남지만(이력 보존),
+                        <b>이 목록에서는 사라집니다</b> — 목록은 살아 있는 지시만 보여줍니다.
                     </p>
                     <p className="text-xs text-slate-600 bg-slate-50 rounded-lg px-3 py-2 leading-relaxed">
                         재고는 움직이지 않고 <b>예약도 아직 풀리지 않습니다</b> — 예약을 쥐고 있는 것은 지시가 아니라 할당입니다.
