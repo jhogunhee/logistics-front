@@ -1,10 +1,12 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink } from "react-router-dom";
 import {
     ArrowLeftRight,
     Barcode,
     Box,
     Calculator,
+    ChevronsLeft,
+    ChevronsRight,
     CheckCircle2,
     ClipboardCheck,
     ClipboardList,
@@ -120,21 +122,29 @@ const MENU = [
     },
 ];
 
-const MenuGroup = ({ title, children }) => (
-    <div className="mb-5">
-        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em] mb-2 px-4">
-            {title}
-        </div>
+// 아이콘 모드에서는 그룹 제목을 쓸 자리가 없어 얇은 구분선으로 대신한다
+const MenuGroup = ({ title, compact, children }) => (
+    <div className={compact ? "mb-3" : "mb-5"}>
+        {compact
+            ? <div className="mx-3 mb-2 border-t border-slate-100" aria-hidden="true" />
+            : (
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em] mb-2 px-4 whitespace-nowrap">
+                    {title}
+                </div>
+            )}
         <div className="space-y-0.5">{children}</div>
     </div>
 );
 
-const MenuItem = ({ to, label, icon: Icon, badge }) => (
+const MenuItem = ({ to, label, icon: Icon, badge, compact }) => (
     <NavLink
         to={to}
         end={to === "/"}
+        title={compact ? label : undefined}
+        aria-label={compact ? label : undefined}
         className={({ isActive }) =>
-            `flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200
+            `flex items-center rounded-xl text-sm font-medium transition-all duration-200
+            ${compact ? "justify-center w-11 h-11 mx-auto" : "justify-between px-4 py-3"}
             ${
                 isActive
                     ? "bg-indigo-600 text-white shadow-md shadow-indigo-200"
@@ -145,9 +155,9 @@ const MenuItem = ({ to, label, icon: Icon, badge }) => (
         {/* break-keep: 괄호 딸린 긴 라벨이 단어 중간(「지·정」)에서 꺾이지 않게 어절 단위로만 줄바꿈 */}
         <div className="flex items-center gap-3 break-keep">
             {Icon && <Icon size={20} />}
-            {label}
+            {!compact && label}
         </div>
-        {badge && (
+        {badge && !compact && (
             <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">
                 {badge}
             </span>
@@ -155,9 +165,26 @@ const MenuItem = ({ to, label, icon: Icon, badge }) => (
     </NavLink>
 );
 
-export default function Sidebar() {
+/**
+ * mode
+ *  - expanded  : 데스크톱 기본. 256px, 라벨·검색·그룹 제목 전부
+ *  - collapsed : 데스크톱 아이콘 모드. 72px, 아이콘만 (라벨은 title로). 검색 아이콘을 누르면 펼치면서 검색창에 포커스
+ *  - drawer    : lg 미만. expanded와 같은 모양이지만 화면을 덮는 드로어라 닫기 버튼이 있고 접기 버튼은 없다
+ */
+export default function Sidebar({ mode = "expanded", onToggle, onClose }) {
     const [q, setQ] = useState("");
     const inputRef = useRef(null);
+    const compact = mode === "collapsed";
+    const wantFocus = useRef(false);
+
+    // 아이콘 모드의 검색 버튼 → 펼친 뒤 검색창 포커스. 펼쳐진 다음 렌더에서 input이 생기므로 effect로 잇는다
+    useEffect(() => {
+        if (!compact && wantFocus.current) {
+            wantFocus.current = false;
+            inputRef.current?.focus();
+        }
+    }, [compact]);
+    const openSearch = () => { wantFocus.current = true; onToggle?.(); };
 
     // 검색어는 라벨 · 그룹명 · 보조어 · 경로를 한 문자열로 합쳐 본다.
     // 경로까지 넣은 덕에 'uom', 'master', 'outbound' 같은 영문 URL 조각으로도 찾히고,
@@ -177,21 +204,65 @@ export default function Sidebar() {
     const hitCount = groups.reduce((n, g) => n + g.items.length, 0);
 
     return (
-        <aside className="w-64 bg-white border-r border-slate-200 flex flex-col h-screen sticky top-0">
+        <aside
+            className={`relative z-10 bg-white border-r border-slate-200 flex flex-col h-screen sticky top-0 shrink-0
+                        transition-[width] duration-200 ease-out ${compact ? "w-[72px]" : "w-64"}`}
+        >
+            {/* 접기/펼치기 — 로고 높이의 오른쪽 경계선 위에 걸친 핸들. 접혀도 같은 자리라 찾기 쉽고,
+                하단은 사용자·로그아웃 자리라 거기 두면 섞인다. 드로어는 닫기 버튼이 이 역할이다 */}
+            {onToggle && (
+                <button
+                    type="button"
+                    onClick={onToggle}
+                    title={compact ? "메뉴 펼치기" : "메뉴 접기"}
+                    aria-label={compact ? "메뉴 펼치기" : "메뉴 접기"}
+                    className="absolute -right-3 top-7 w-6 h-6 rounded-full bg-white border border-slate-200 shadow-sm
+                               flex items-center justify-center text-slate-400
+                               hover:text-indigo-600 hover:border-indigo-300 transition-colors"
+                >
+                    {compact ? <ChevronsRight size={13} /> : <ChevronsLeft size={13} />}
+                </button>
+            )}
             {/* 로고 영역 */}
-            <div className="flex items-center gap-3 px-6 h-20">
-                <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-inner">
+            <div className={`flex items-center h-20 ${compact ? "justify-center" : "gap-3 px-6"}`}>
+                <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-inner shrink-0">
                     <Warehouse size={24} className="text-white" />
                 </div>
-                <div>
-                    <h3 className="font-bold text-slate-800 leading-none">WMS</h3>
-                    <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
-                        <span className="w-2 h-2 bg-green-500 rounded-full"></span> 운영 중
-                    </p>
-                </div>
+                {!compact && (
+                    <div className="flex-1 min-w-0 whitespace-nowrap">
+                        <h3 className="font-bold text-slate-800 leading-none">WMS</h3>
+                        <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
+                            <span className="w-2 h-2 bg-green-500 rounded-full"></span> 운영 중
+                        </p>
+                    </div>
+                )}
+                {mode === "drawer" && (
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        aria-label="메뉴 닫기"
+                        className="p-2 -mr-2 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                    >
+                        <X size={18} />
+                    </button>
+                )}
             </div>
 
             {/* 화면 검색 */}
+            {compact ? (
+                <div className="px-4 pb-3">
+                    <button
+                        type="button"
+                        onClick={openSearch}
+                        title="화면 검색"
+                        aria-label="화면 검색"
+                        className="w-10 h-10 mx-auto flex items-center justify-center rounded-lg bg-slate-50 border border-slate-200
+                                   text-slate-400 hover:text-indigo-600 hover:border-indigo-300"
+                    >
+                        <Search size={15} />
+                    </button>
+                </div>
+            ) : (
             <div className="px-4 pb-3">
                 <div className="relative">
                     <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
@@ -220,19 +291,20 @@ export default function Sidebar() {
                     )}
                 </div>
             </div>
+            )}
 
             {/* 메뉴 영역 */}
-            <nav className="flex-1 overflow-y-auto px-4 pb-4 custom-scrollbar">
+            <nav className={`flex-1 overflow-y-auto overflow-x-hidden pb-4 custom-scrollbar ${compact ? "px-2" : "px-4"}`}>
                 {/* 검색 중에는 그룹이 일치한 항목만 남기고 접힌다 */}
                 {groups.map(g => (
-                    <MenuGroup key={g.title} title={g.title}>
+                    <MenuGroup key={g.title} title={g.title} compact={compact}>
                         {g.items.map(i => (
-                            <MenuItem key={i.to} to={i.to} label={i.label} icon={i.icon} badge={i.badge} />
+                            <MenuItem key={i.to} to={i.to} label={i.label} icon={i.icon} badge={i.badge} compact={compact} />
                         ))}
                     </MenuGroup>
                 ))}
 
-                {q && hitCount === 0 && (
+                {!compact && q && hitCount === 0 && (
                     <div className="px-4 py-6 text-center text-sm text-slate-400">
                         <p>‘{q}’에 맞는 화면이 없습니다.</p>
                         <p className="text-[11px] mt-1">Esc를 누르면 전체 메뉴로 돌아갑니다.</p>
@@ -241,12 +313,13 @@ export default function Sidebar() {
             </nav>
 
             {/* 하단 사용자 정보 + 로그아웃 (상단바를 없애면서 여기로 옮겼다) */}
-            <div className="p-4 bg-slate-50 border-t border-slate-200">
-                <div className="flex items-center gap-3 px-2 py-2">
-                    <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
+            <div className={`bg-slate-50 border-t border-slate-200 ${compact ? "p-3" : "p-4"}`}>
+                <div className={`flex items-center ${compact ? "flex-col gap-1" : "gap-3 px-2 py-2"}`}>
+                    <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold shrink-0"
+                         title={compact ? "관리자" : undefined}>
                         A
                     </div>
-                    <span className="flex-1 text-sm font-semibold text-slate-700">관리자</span>
+                    {!compact && <span className="flex-1 text-sm font-semibold text-slate-700 whitespace-nowrap">관리자</span>}
                     {/* 로그아웃 (인증 붙이기 전까지는 로그인 화면 이동만) */}
                     <button
                         onClick={() => {
@@ -254,6 +327,7 @@ export default function Sidebar() {
                             window.location.href = "/login";
                         }}
                         title="로그아웃"
+                        aria-label="로그아웃"
                         className="p-2 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
                     >
                         <LogOut size={16} />
