@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
-import { Box } from 'lucide-react';
+import { Box, Scale } from 'lucide-react';
 
 import { invApi } from '@/api/invApi';
 import { LOC_TYPE_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { num } from '@/utils/format';
 import SearchBar, { SearchText, SearchSelect, SearchProd, SearchLoc } from '@/components/common/SearchBar';
 import { Badge } from '@/components/common/Badge';
+import AlocRecModal from '@/components/stock/AlocRecModal';
 
 const TEMP_ZONE_OPTIONS = [
     { value: '', label: '전체' },
@@ -87,6 +88,8 @@ export default function StockStatus() {
         invApi.list(cond).then(setRowData);
     }, []);
 
+    const [recOpen, setRecOpen] = useState(false);
+
     return (
         <div className="flex flex-col gap-4 h-full">
             {/* 타이틀 */}
@@ -94,6 +97,10 @@ export default function StockStatus() {
                 <Box size={18} className="text-indigo-600" />
                 <h2 className="text-lg font-bold text-slate-800">현재고 조회</h2>
                 <span className="text-xs text-slate-400 mt-0.5">상품 + 로케이션 + Lot 단위 실시간 재고 · 가용 = 보유 − 할당 − 보류</span>
+                <button onClick={() => setRecOpen(true)} className="btn-ghost ml-auto shrink-0"
+                        title="장부 예약(aloc)을 원천별 미소진 합(할당 · 이동지시 · 스테이징 피킹분)과 대사합니다 — 예약은 이력에 남지 않아 이 비교가 유일한 검증입니다">
+                    <Scale size={13} /> 예약 대사
+                </button>
             </div>
 
             {/* 요약 지표 */}
@@ -126,6 +133,7 @@ export default function StockStatus() {
                     />
                 </div>
             </div>
+            {recOpen && <AlocRecModal onClose={() => setRecOpen(false)} />}
         </div>
     );
 }
