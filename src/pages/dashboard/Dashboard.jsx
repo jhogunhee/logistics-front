@@ -644,6 +644,7 @@ const MonthlyFlow = ({ rows, today }) => {
     const barW = Math.max(2, Math.min(10, (slot - 6) / 2));
     const y = (v) => PAD.top + plotH - (v / yMax) * plotH;
     const ticks = [0, 0.2, 0.4, 0.6, 0.8, 1].map(f => yMax * f);
+    const todayNo = today ? rows.findIndex(r => r.date === today) + 1 : 0;
 
     return (
         <div className="flex flex-col gap-3">
@@ -680,8 +681,9 @@ const MonthlyFlow = ({ rows, today }) => {
                             const dayNo = i + 1;
                             const isToday = r.date === today;
                             const isHover = hover === i;
-                            // 날짜 라벨은 1·5·10·…일과 오늘만 — 31개를 다 쓰면 겹친다
-                            const showLabel = isToday || dayNo === 1 || dayNo % 5 === 0;
+                            // 날짜 라벨은 1·5·10·…일과 오늘만 — 31개를 다 쓰면 겹친다.
+                            // 오늘 바로 옆 날짜도 뺀다 — 좁은 폭에서 「20일」과 「오늘」이 포개진다
+                            const showLabel = isToday || ((dayNo === 1 || dayNo % 5 === 0) && Math.abs(dayNo - todayNo) > 1);
                             return (
                                 <g key={r.date}>
                                     {(isToday || isHover) && (
@@ -756,13 +758,13 @@ const RecentHistory = ({ items }) => {
                                 {meta?.label ?? h.txTyp}
                             </span>
                             <span className="font-medium text-slate-700 truncate flex-1 min-w-0">
-                                <span className="text-slate-400 mr-1.5 font-mono text-[11px]">{h.prodCd}</span>{h.prodNm}
+                                <span className="hidden md:inline text-slate-400 mr-1.5 font-mono text-[11px]">{h.prodCd}</span>{h.prodNm}
                             </span>
-                            <span className="text-slate-400 shrink-0 truncate max-w-[200px] font-mono text-[11px]">{loc}</span>
+                            <span className="hidden sm:block text-slate-400 shrink-0 truncate max-w-[200px] font-mono text-[11px]">{loc}</span>
                             <span className={`font-bold shrink-0 w-16 text-right tabular-nums ${minus ? 'text-rose-500' : 'text-emerald-600'}`}>
                                 {h.qty > 0 ? `+${num(h.qty)}` : num(h.qty)}
                             </span>
-                            <span className="text-slate-400 shrink-0 w-24 text-right tabular-nums">{fmtDt(h.createdAt).slice(5)}</span>
+                            <span className="text-slate-400 shrink-0 text-right tabular-nums">{fmtDt(h.createdAt).slice(5)}</span>
                         </div>
                     );
                 })}
