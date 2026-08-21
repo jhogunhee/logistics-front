@@ -10,7 +10,7 @@ import { zonApi } from '@/api/zonApi';
 import { useMasterGrid } from '@/hooks/useMasterGrid';
 import { TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { fmtDe, num } from '@/utils/format';
-import SearchBar, { SearchText, SearchSelect } from '@/components/common/SearchBar';
+import SearchBar, { SearchSelect, SearchProd, SearchLoc } from '@/components/common/SearchBar';
 import SelectCellEditor from '@/components/common/SelectCellEditor';
 import { Badge } from '@/components/common/Badge';
 import { RowStatusCell } from '@/components/common/Badge';
@@ -48,7 +48,7 @@ export default function FxngLocMaster() {
             cellEditor: SelectCellEditor,
             cellEditorParams: {
                 values: prods.map(p => p.prodCd),
-                labelMap: Object.fromEntries(prods.map(p => [p.prodCd, `${p.prodCd} ${p.prodNm}`])),
+                labelMap: Object.fromEntries(prods.map(p => [p.prodCd, p.prodNm])),
             },
         },
         {
@@ -196,9 +196,9 @@ export default function FxngLocMaster() {
 
             {/* 검색 조건 */}
             <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
-                <SearchText name="prodCd" label="상품" placeholder="PROD-0001" />
-                <SearchText name="locCd" label="로케이션" placeholder="PIK-DRY-01-01" />
-                <SearchSelect name="zonCd" label="존" options={zonOptions} />
+                <SearchProd name="prodCd" />
+                <SearchLoc name="locCd" placeholder="PIK-DRY-01-01" wide />
+                <SearchSelect name="zonCd" label="존" options={zonOptions} wide />
             </SearchBar>
 
             {/* 그리드 툴바 */}

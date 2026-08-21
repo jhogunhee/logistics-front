@@ -10,7 +10,7 @@ import { useCodes } from '@/hooks/useCodes';
 import { useMasterGrid } from '@/hooks/useMasterGrid';
 import { LOC_TYPE_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { fmtDe, num } from '@/utils/format';
-import SearchBar, { SearchText, SearchSelect } from '@/components/common/SearchBar';
+import SearchBar, { SearchSelect, SearchLoc } from '@/components/common/SearchBar';
 import SelectCellEditor from '@/components/common/SelectCellEditor';
 import { Badge } from '@/components/common/Badge';
 import { RowStatusCell } from '@/components/common/Badge';
@@ -20,11 +20,12 @@ import SaveCountSummary from '@/components/common/SaveCountSummary';
 export default function LocMaster() {
     const tempZoneCodes = useCodes('TEMP_ZONE');
     const locTypeCodes = useCodes('LOC_TYPE');
+    const bizDvsnCodes = useCodes('BIZ_DVSN');
     const {
         gridRef, rowCount, saveConfirm, setSaveConfirm,
         gridProps, addRow, deleteSelectedRows, requestSave,
     } = useMasterGrid();
-    const [cond, setCond] = useState({ locCd: '', zonCd: '', locTyp: '' });
+    const [cond, setCond] = useState({ locCd: '', zonCd: '', locTyp: '', bizDvsn: '' });
     const [rowData, setRowData] = useState([]);
     const [zons, setZons] = useState([]); // 존 마스터 목록 (드롭다운 · 온도대 검증 · 엑셀 코드표의 원천)
     const fileInputRef = useRef(null); // 엑셀 업로드 파일 선택창
@@ -47,13 +48,23 @@ export default function LocMaster() {
         },
         {
             // 코드는 업무 식별자라 수정 불가 — 신규(C) 행에서만 입력받는다
-            field: 'locCd', headerName: '로케이션 코드', width: 120,
+            // 폭은 가장 긴 코드 「PIK-DRY-01-01」(실측 123px)이 잘리지 않는 값
+            field: 'locCd', headerName: '로케이션 코드', width: 135,
             editable: isNew,
         },
         {
-            field: 'zonCd', headerName: '존', width: 110, editable: notDeleted,
+            // 가장 긴 표기 「SHIP-STAGE 출고 스테이징」(실측 189px)이 잘리지 않는 폭
+            field: 'zonCd', headerName: '존', width: 195, editable: notDeleted,
             cellEditor: SelectCellEditor,
-            cellEditorParams: { values: zonCodes },
+            cellEditorParams: {
+                values: zonCodes,
+                labelMap: Object.fromEntries(zons.map(z => [z.zonCd, z.zonNm])),
+            },
+            // 편집기와 같은 「코드 존명」 표기 — 값은 코드 그대로라 저장·검증 경로는 안 바뀐다
+            valueFormatter: (p) => {
+                const nm = zons.find(z => z.zonCd === p.value)?.zonNm;
+                return nm ? `${p.value} ${nm}` : (p.value ?? '');
+            },
         },
         {
             field: 'tmpZon', headerName: '온도대', width: 100, editable: notDeleted,
@@ -78,6 +89,12 @@ export default function LocMaster() {
             },
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
             cellRenderer: (p) => <Badge meta={LOC_TYPE_META} value={p.value} show="label" />,
+        },
+        {
+            // 이 로케이션에 고정된 상품 (고정 로케이션 마스터). 빈 칸 = 고정 없음 — 여부를 겸한다.
+            // 유형 옆에 두는 이유 — 코드·존·온도대·유형과 함께 「이 자리가 무엇인가」를 말하는 컬럼이라서다
+            field: 'fxngProdNm', headerName: '고정 상품', width: 150, editable: false,
+            cellClass: 'text-slate-500',
         },
         {
             field: 'pikngPrty', headerName: '피킹 우선순위', width: 120, editable: notDeleted,
@@ -284,9 +301,10 @@ export default function LocMaster() {
 
             {/* 검색 조건 */}
             <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
-                <SearchText name="locCd" label="로케이션" placeholder="DRY-A-01-01" />
-                <SearchSelect name="zonCd" label="존" options={zonOptions} />
+                <SearchLoc name="locCd" wide />
+                <SearchSelect name="zonCd" label="존" options={zonOptions} wide />
                 <SearchSelect name="locTyp" label="유형" options={locTypeCodes.searchOptions} />
+                <SearchSelect name="bizDvsn" label="업무구분" options={bizDvsnCodes.searchOptions} />
             </SearchBar>
 
             {/* 그리드 툴바 */}
