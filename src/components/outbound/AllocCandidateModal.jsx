@@ -12,6 +12,10 @@ import { fmtDe, num } from '@/utils/format';
  * 수동할당의 존재 이유가 곧 예외 처리라서, 여기서 차단하면 자동할당과 다를 게 없어진다.
  * (유통기한이 지난 Lot은 서버가 후보에서 빼므로 애초에 목록에 오지 않는다.)
  *
+ * 통과 판정(lifePass)은 <b>자동할당이 쓰는 그 기준</b>이다 — 할당 전략에 고정 기준값 슬롯이
+ * 있으면 그 값으로, 없으면 점포 기준으로 판정한다. 적용된 기준은 lifeRjctRsn 툴팁에 그대로 실린다.
+ * 화면이 점포 기준으로만 판정하면 「여기선 초록인데 자동할당은 거르는」 Lot이 생겨 화면을 못 믿게 된다.
+ *
  * 수량은 행마다 입력하고, 넣은 행만 할당 대상이 된다 — 체크박스를 따로 두면
  * 「체크했는데 수량이 0」·「수량을 넣었는데 체크 안 함」 두 어긋남이 생긴다.
  *
@@ -143,7 +147,8 @@ export default function AllocCandidateModal({ line, wavId, onClose, onSaved }) {
                                         {c.lifeRate == null
                                             ? <span className="text-slate-300">미관리</span>
                                             : (
-                                                <span className={`tabular-nums font-bold ${c.lifePass ? 'text-slate-600' : 'text-rose-600'}`}>
+                                                <span title={c.lifeRjctRsn ?? undefined}
+                                                      className={`tabular-nums font-bold ${c.lifePass ? 'text-slate-600' : 'text-rose-600'}`}>
                                                     {c.lifeRate}%
                                                     {!c.lifePass && <TriangleAlert size={11} className="inline ml-1 -mt-0.5" />}
                                                 </span>
@@ -168,7 +173,8 @@ export default function AllocCandidateModal({ line, wavId, onClose, onSaved }) {
                 {/* 안내 + 저장 */}
                 <div className="px-6 py-4 border-t border-slate-200 flex items-center gap-3">
                     <p className="text-[11px] text-slate-400 leading-relaxed">
-                        잔여수명이 점포 기준에 못 미치는 Lot도 고를 수 있습니다 (붉은 행) — 수동할당은 예외 처리를 위한 경로입니다.
+                        잔여수명이 기준에 못 미치는 Lot도 고를 수 있습니다 (붉은 행) — 수동할당은 예외 처리를 위한 경로입니다.
+                        기준은 자동할당과 같습니다(전략의 고정 기준값 또는 점포 기준) — 비율에 마우스를 올리면 적용된 기준이 보입니다.
                         <br />유통기한이 지난 Lot은 후보에 나오지 않습니다.
                     </p>
                     <div className="ml-auto flex items-center gap-2 shrink-0">
