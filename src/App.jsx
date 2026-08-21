@@ -4,7 +4,7 @@ import {Toaster} from "react-hot-toast";
 import Layout from "./layout/Layout";
 import Login from "@/pages/auth/Login.jsx";
 import Dashboard from "@/pages/dashboard/Dashboard.jsx";
-import Placeholder from "@/pages/common/Placeholder.jsx";
+
 import ProdMaster from "@/pages/master/ProdMaster.jsx";
 import UomMaster from "@/pages/master/UomMaster.jsx";
 import ZonMaster from "@/pages/master/ZonMaster.jsx";
@@ -39,6 +39,7 @@ import Wave from "@/pages/outbound/Wave.jsx";
 import Allocation from "@/pages/outbound/Allocation.jsx";
 import PickOrder from "@/pages/outbound/PickOrder.jsx";
 import Picking from "@/pages/outbound/Picking.jsx";
+import Shipping from "@/pages/outbound/Shipping.jsx";
 
 export default function App() {
     return (
@@ -95,7 +96,8 @@ export default function App() {
                         <Route path="/outbound/pick-order" element={<PickOrder/>}/>
                         {/* 피킹 = 보관 → SHIP-STAGE 실이동 (tx PICK). 재고가 물리적으로 움직이는 첫 지점 */}
                         <Route path="/outbound/picking" element={<Picking/>}/>
-                        <Route path="/outbound/shipping" element={<Placeholder title="출고확정"/>}/>
+                        {/* 출고확정 = SHIP-STAGE 반출 (tx SHIP) — 재고가 창고 밖으로 나가는 유일한 지점. 주문이 전부 닫힌 웨이브는 종료 */}
+                        <Route path="/outbound/shipping" element={<Shipping/>}/>
 
                         {/* 마스터 */}
                         <Route path="/master/prod" element={<ProdMaster/>}/>

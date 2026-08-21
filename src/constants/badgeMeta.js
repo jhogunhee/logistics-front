@@ -106,6 +106,7 @@ export const WAV_REG_TYP_META = {
 export const WAVE_STATUS_META = {
     PLANNED: { label: '편성중',   badge: 'bg-amber-100 text-amber-700' },
     ISSUED:  { label: '지시발행', badge: 'bg-emerald-100 text-emerald-700' },
+    CLOSED:  { label: '종료',     badge: 'bg-slate-200 text-slate-600' },
 };
 
 
