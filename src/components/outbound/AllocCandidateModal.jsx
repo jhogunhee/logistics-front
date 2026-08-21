@@ -15,6 +15,8 @@ import { fmtDe, num } from '@/utils/format';
  * 통과 판정(lifePass)은 <b>자동할당이 쓰는 그 기준</b>이다 — 할당 전략에 고정 기준값 슬롯이
  * 있으면 그 값으로, 없으면 점포 기준으로 판정한다. 적용된 기준은 lifeRjctRsn 툴팁에 그대로 실린다.
  * 화면이 점포 기준으로만 판정하면 「여기선 초록인데 자동할당은 거르는」 Lot이 생겨 화면을 못 믿게 된다.
+ * 재고위치 계층(tierSeq)도 같은 이유로 내려온다 — 어느 계층에도 안 맞는 재고는 자동할당이 쓰지 않으므로
+ * 「대상 아님」으로 표시한다. 수동할당은 그 재고도 고를 수 있다.
  *
  * 수량은 행마다 입력하고, 넣은 행만 할당 대상이 된다 — 체크박스를 따로 두면
  * 「체크했는데 수량이 0」·「수량을 넣었는데 체크 안 함」 두 어긋남이 생긴다.
@@ -126,6 +128,7 @@ export default function AllocCandidateModal({ line, wavId, onClose, onSaved }) {
                             <thead>
                             <tr className="text-[11px] text-slate-400 border-b border-slate-200">
                                 <Th>로케이션</Th>
+                                <Th>계층</Th>
                                 <Th>Lot</Th>
                                 <Th>제조일자</Th>
                                 <Th>유통기한</Th>
@@ -137,8 +140,18 @@ export default function AllocCandidateModal({ line, wavId, onClose, onSaved }) {
                             <tbody>
                             {candidates.map(c => (
                                 <tr key={c.invId}
-                                    className={`border-b border-slate-100 ${c.lifePass ? '' : 'bg-rose-50/50'}`}>
+                                    className={`border-b border-slate-100 ${c.lifePass && c.tierSeq != null ? '' : 'bg-rose-50/50'}`}>
                                     <Td className="font-medium text-slate-700">{c.locCd}</Td>
+                                    <Td>
+                                        {c.tierSeq == null
+                                            ? (
+                                                <span title="전략의 어느 재고위치 계층에도 맞지 않아 자동할당은 이 재고를 쓰지 않습니다"
+                                                      className="text-rose-600 font-bold text-xs">
+                                                    대상 아님 <TriangleAlert size={11} className="inline -mt-0.5" />
+                                                </span>
+                                            )
+                                            : <span title={c.tierCond} className="text-slate-500 text-xs">{c.tierSeq}계층</span>}
+                                    </Td>
                                     <Td className="text-slate-500">{c.lotNo}</Td>
                                     <Td className="text-slate-500">{fmtDe(c.mfgDt)}</Td>
                                     <Td className="text-slate-500">{fmtDe(c.expiryDt)}</Td>
@@ -175,6 +188,7 @@ export default function AllocCandidateModal({ line, wavId, onClose, onSaved }) {
                     <p className="text-[11px] text-slate-400 leading-relaxed">
                         잔여수명이 기준에 못 미치는 Lot도 고를 수 있습니다 (붉은 행) — 수동할당은 예외 처리를 위한 경로입니다.
                         기준은 자동할당과 같습니다(전략의 고정 기준값 또는 점포 기준) — 비율에 마우스를 올리면 적용된 기준이 보입니다.
+                        <br />계층은 자동할당이 이 재고를 몇 번째로 쓰는지입니다 — 「대상 아님」은 자동할당이 쓰지 않는 재고이고, 여기서는 고를 수 있습니다.
                         <br />유통기한이 지난 Lot은 후보에 나오지 않습니다.
                     </p>
                     <div className="ml-auto flex items-center gap-2 shrink-0">
