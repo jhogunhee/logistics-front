@@ -11,6 +11,18 @@ import SearchBar, { SearchText, SearchDateRange, SearchProd, SearchSelect } from
 import ConfirmModal from '@/components/common/ConfirmModal';
 import { Badge } from '@/components/common/Badge';
 
+/**
+ * 미발행 할당 강조 — <b>0이 아니면 언제나 강조한다.</b> 시간 임계를 두면 임계 미만 구간이
+ * 화면에서 조용해지는데, 잊히는 일은 정확히 그 구간에서 시작한다. 세는 대상이 「비정상」이
+ * 아니라 「아직 안 끝난 일」이라 상시 노출이 맞다.
+ */
+const PENDING_TIP = '아직 지시가 나가지 않은 할당 건수. 발행 전에는 발행 대상 수이고, 발행 후에 남아 있으면 '
+    + '「할당은 됐는데 지시가 안 나간 것」이라 추가 발행 대상이다 — 0이 아니면 항상 강조한다';
+
+const pendingCell = (p) => (p.value > 0
+    ? <span className="font-bold text-indigo-600 tabular-nums">{num(p.value)}</span>
+    : <span className="text-slate-300 tabular-nums">0</span>);
+
 /** 미할당 잔량 강조 — 발행을 막지는 않지만(주문 단위 가드만 있다) 부족 출고의 예고다 */
 const remainCell = (p) => (p.value > 0
     ? <span className="font-bold text-amber-600 tabular-nums">{num(p.value)}</span>
@@ -24,13 +36,18 @@ const WAVE_COLUMN_DEFS = [
     { field: 'wavNo', headerName: '웨이브번호', width: 168, cellClass: 'font-bold text-slate-700' },
     {
         field: 'status', headerName: '상태', width: 92,
-        headerTooltip: '편성중 = 발행 대상 / 지시발행 = 확인·취소 대상 (발행 통째 취소는 실적 0일 때만 — 실적이 섞였으면 지시 단위로 취소한다)',
+        headerTooltip: '편성중 = 발행 대상 / 지시발행 = 확인·취소·추가발행 대상 (발행 통째 취소는 실적 0일 때만 — 실적이 섞였으면 지시 단위로 취소한다)',
         cellRenderer: (p) => <Badge meta={WAVE_STATUS_META} value={p.value} show="label" />,
     },
     {
         field: 'remainQty', headerName: '미할당', width: 90, cellClass: 'ag-right-aligned-cell',
         headerTooltip: '주문수량 − 할당수량. 발행돼도 이 잔량은 이 웨이브에서 채워지지 않는다 — 부족 출고로 진행 (백오더 없음)',
         cellRenderer: remainCell,
+    },
+    {
+        field: 'pendingAllocCount', headerName: '미발행', width: 82, cellClass: 'ag-right-aligned-cell',
+        headerTooltip: PENDING_TIP,
+        cellRenderer: pendingCell,
     },
     { field: 'expctDe', headerName: '출고예정일', width: 105, valueFormatter: (p) => fmtDe(p.value) },
     {
@@ -95,7 +112,8 @@ const ROW_COLUMN_DEFS = [
  * 지시가 같은 웨이브의 다른 실적에 막혀 영영 닫히지 않는다.
  *
  * 할당이 0건인 주문이 섞인 웨이브는 발행이 거부된다 — 그대로 발행하면 그 주문이 발행된
- * 웨이브에 갇혀(편성 변경은 편성중에만, 발행된 웨이브는 할당 대상이 아님) 영영 진행하지 못한다.
+ * 웨이브에서 편성 변경을 못 받는다. 재할당·추가 발행은 발행 후에도 열려 있지만, 애초에
+ * 할당이 0건인 주문을 실은 채 발행하면 현장은 그 주문을 볼 수 없다.
  * 부분할당은 막지 않는다 — 미할당 잔량은 부족 출고로 진행한다(백오더 없음).
  */
 export default function PickOrder() {
@@ -105,6 +123,7 @@ export default function PickOrder() {
     const [confirmIssue, setConfirmIssue] = useState(null);
     const [confirmCancel, setConfirmCancel] = useState(null);
     const [confirmTaskCancel, setConfirmTaskCancel] = useState(null);
+    const [confirmAddIssue, setConfirmAddIssue] = useState(null);
     const [checkedTaskCount, setCheckedTaskCount] = useState(0);
     const waveGridRef = useRef(null);
     const rowGridRef = useRef(null);
@@ -199,6 +218,34 @@ export default function PickOrder() {
         }
     };
 
+    const noAlloc = detail?.noAllocOrders ?? [];
+    // 발행 후에도 할당이 붙을 수 있다(결품 종결이 잔량을 키우거나 재할당이 들어온다).
+    // 서버가 발행 후에만 채워 보낸다 — 발행 전에는 rows가 곧 미발행 할당이다
+    const pending = detail?.pendingRows ?? [];
+    // 발행 후에는 지시 행 뒤에 미발행 할당을 이어 붙인다 — 「이 웨이브에 아직 안 나간 것이 있다」가
+    // 한 화면에서 보여야 한다
+    const detailRows = detail?.status === 'ISSUED' ? [...detail.rows, ...pending] : (detail?.rows ?? []);
+
+    // ── 추가 발행 ────────────────────────────────────────────
+    const handleAddIssueClick = () => {
+        if (!detail || pending.length === 0) {
+            toast('추가로 발행할 할당이 없습니다.');
+            return;
+        }
+        setConfirmAddIssue(detail);
+    };
+
+    const doAddIssue = async (wave) => {
+        try {
+            const res = await outbPikngApi.issueAdditional([wave.wavId]);
+            toast.success(`지시 ${num(res.taskCount)}건을 추가 발행했습니다 — 집품 순번은 기존 뒤에 이어집니다.`);
+            pendingWaveRef.current = wave.wavId;
+            await search();
+        } catch (e) {
+            toast.error(e.message || '추가 발행에 실패했습니다.');
+        }
+    };
+
     // ── 지시취소 (지시 단위) ──────────────────────────────────
     const handleTaskCancelClick = () => {
         const rows = rowGridRef.current?.api.getSelectedRows() ?? [];
@@ -219,8 +266,6 @@ export default function PickOrder() {
             toast.error(e.message || '지시취소에 실패했습니다.');
         }
     };
-
-    const noAlloc = detail?.noAllocOrders ?? [];
 
     return (
         <div className="flex flex-col gap-4 h-full min-h-[36rem]">
@@ -296,9 +341,15 @@ export default function PickOrder() {
                         </span>
                         <span className="text-xs text-slate-500 font-medium ml-auto shrink-0">
                             {detail?.status === 'ISSUED'
-                                ? `선택 ${checkedTaskCount} / ${detail.rows.length}건`
+                                ? `선택 ${checkedTaskCount} / 지시 ${detail.rows.length}건${pending.length > 0 ? ` · 미발행 ${pending.length}건` : ''}`
                                 : `${detail?.rows.length ?? 0}건`}
                         </span>
+                        {detail?.status === 'ISSUED' && pending.length > 0 && (
+                            <button onClick={handleAddIssueClick} className="btn-primary shrink-0"
+                                    title="아직 지시가 나가지 않은 할당을 지시로 냅니다 — 집품 순번은 기존 뒤에 이어붙습니다">
+                                <Send size={13} /> 추가 발행 {pending.length}
+                            </button>
+                        )}
                         {detail?.status === 'ISSUED' && (
                             <button onClick={handleTaskCancelClick} className="btn-ghost shrink-0"
                                     title="체크한 지시만 취소합니다 — 아직 한 개도 집지 않은 지시가 대상입니다. 같은 웨이브의 다른 지시가 이미 집혔어도 상관없습니다">
@@ -306,13 +357,27 @@ export default function PickOrder() {
                             </button>
                         )}
                     </div>
+                    {/* 미발행 할당 — 지시 목록(rows)에는 안 나오므로 배너가 유일한 신호다. 0이 아니면 항상 띄운다 */}
+                    {detail?.status === 'ISSUED' && pending.length > 0 && (
+                        <div className="text-[11px] bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2 leading-relaxed shrink-0">
+                            <span className="inline-flex items-center gap-1 font-bold text-indigo-700">
+                                <Send size={12} /> 아직 지시가 나가지 않은 할당 {pending.length}건
+                            </span>
+                            <span className="text-slate-500"> — 「추가 발행」을 눌러야 현장에 나갑니다. 그전까지 그 물량은 예약만 잡힌 채 움직이지 않습니다.</span>
+                        </div>
+                    )}
                     {/* 할당 0건 주문 — 라인 목록에는 아예 나타나지 않으므로 배너로 설명한다 (발행 차단 사유) */}
                     {noAlloc.length > 0 && (
                         <div className="text-[11px] bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 leading-relaxed shrink-0">
                             <span className="inline-flex items-center gap-1 font-bold text-rose-700">
-                                <AlertTriangle size={12} /> 할당이 없는 주문 {noAlloc.length}건 — 이 웨이브는 발행할 수 없습니다.
+                                <AlertTriangle size={12} /> 할당이 없는 주문 {noAlloc.length}건 —
+                                {detail?.status === 'ISSUED' ? ' 추가 발행이 막힙니다.' : ' 이 웨이브는 발행할 수 없습니다.'}
                             </span>
-                            <span className="text-slate-500"> 웨이브에서 빼거나 할당 후 다시 시도하세요: </span>
+                            <span className="text-slate-500">
+                                {detail?.status === 'ISSUED'
+                                    ? ' 지시취소 후 할당해제로 할당이 사라진 주문입니다 — 할당 화면에서 다시 할당하세요: '
+                                    : ' 웨이브에서 빼거나 할당 후 다시 시도하세요: '}
+                            </span>
                             {noAlloc.map(o => (
                                 <span key={o.outbNo} className="mr-2 text-rose-700 font-medium">{o.outbNo} ({o.storeNm})</span>
                             ))}
@@ -321,7 +386,7 @@ export default function PickOrder() {
                     <div className="flex-1 min-h-0">
                         <AgGridReact
                             ref={rowGridRef}
-                            rowData={detail?.rows ?? []}
+                            rowData={detailRows}
                             columnDefs={ROW_COLUMN_DEFS}
                             rowHeight={34}
                             headerHeight={38}
@@ -332,6 +397,9 @@ export default function PickOrder() {
                                 isRowSelectable: (node) => node.data.status === 'DIRECTED' && node.data.cmplQty === 0,
                             } : undefined}
                             onSelectionChanged={(e) => setCheckedTaskCount(e.api.getSelectedRows().length)}
+                            // 미발행 할당 행은 지시 id가 없다 — 아직 지시가 아니라는 것을 색으로 구분한다
+                            getRowClass={(p) => (detail?.status === 'ISSUED' && p.data.taskId == null
+                                ? 'bg-indigo-50/60' : '')}
                         />
                     </div>
                 </Panel>
@@ -352,14 +420,34 @@ export default function PickOrder() {
                     {confirmIssue.some(w => w.remainQty > 0) && (
                         <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 leading-relaxed">
                             미할당 잔량 <b>{num(confirmIssue.reduce((s, w) => s + w.remainQty, 0))}</b>개는 이 웨이브에서
-                            더 채워지지 않습니다 — 발행된 웨이브는 할당 대상이 아니라서, 부족한 채 출고로 진행됩니다.
-                            잔량을 채우려면 발행 전에 할당을 먼저 하세요.
+                            지금 발행하는 지시에는 담기지 않습니다 — 부족한 채 출고로 진행됩니다.
+                            발행 후에 채우려면 할당 화면에서 다시 할당한 뒤 <b>추가 발행</b>해야 합니다.
                         </p>
                     )}
                     <p className="text-xs text-slate-600 bg-slate-50 rounded-lg px-3 py-2 leading-relaxed">
-                        발행 후 편성 변경과 추가 할당이 잠깁니다 — 되돌리려면 피킹 전에 발행취소하세요.
+                        발행 후에는 <b>편성 변경만</b> 잠깁니다 — 되돌리려면 피킹 전에 발행취소하세요.
+                        할당은 발행 뒤에도 계속 붙일 수 있고(추가분은 「추가 발행」으로 나갑니다),
                         할당해제는 그 할당의 지시를 취소한 뒤에 열립니다(웨이브 전체가 아니라 할당 하나 단위입니다).
                         여러 웨이브를 함께 발행해도 <b>한 트랜잭션</b>입니다.
+                    </p>
+                </ConfirmModal>
+            )}
+
+            {/* 추가 발행 확인 — 「순번이 뒤에 붙는다」를 짚는다 (현장 동선이 1차 → 추가분 순이다) */}
+            {confirmAddIssue && (
+                <ConfirmModal
+                    title="추가 발행할까요?"
+                    confirmText="추가 발행"
+                    onCancel={() => setConfirmAddIssue(null)}
+                    onConfirm={() => { doAddIssue(confirmAddIssue); setConfirmAddIssue(null); }}
+                >
+                    <p className="text-sm text-slate-500">
+                        아직 지시가 나가지 않은 할당 <b>{pending.length}건</b>(지시수량{' '}
+                        <b>{num(pending.reduce((s, r) => s + r.drctQty, 0))}</b>)을 지시로 냅니다.
+                    </p>
+                    <p className="text-xs text-slate-600 bg-slate-50 rounded-lg px-3 py-2 leading-relaxed">
+                        웨이브는 <b>지시발행 상태 그대로</b>이고 기존 지시는 건드리지 않습니다.
+                        집품 순번은 <b>기존 뒤에 이어붙습니다</b> — 1차 동선을 다 돈 뒤의 추가분입니다.
                     </p>
                 </ConfirmModal>
             )}
@@ -375,16 +463,16 @@ export default function PickOrder() {
                 >
                     <p className="text-sm text-slate-500">
                         지시 <b>{confirmTaskCancel.length}건</b>(지시수량 <b>{num(confirmTaskCancel.reduce((s, r) => s + r.drctQty, 0))}</b>)을
-                        취소합니다. 지시 행은 삭제되지 않고 <b>취소</b> 상태로 남지만(이력 보존),
-                        <b>이 목록에서는 사라집니다</b> — 목록은 살아 있는 지시만 보여줍니다.
+                        취소합니다. 지시 행은 삭제되지 않고 <b>취소</b> 상태로 남고(이력 보존),
+                        그 할당은 <b>미발행 할당</b>으로 이 목록에 다시 나타납니다.
                     </p>
                     <p className="text-xs text-slate-600 bg-slate-50 rounded-lg px-3 py-2 leading-relaxed">
                         재고는 움직이지 않고 <b>예약도 아직 풀리지 않습니다</b> — 예약을 쥐고 있는 것은 지시가 아니라 할당입니다.
                         취소는 그 할당의 <b>해제를 열어줄 뿐</b>입니다.
                     </p>
-                    <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 leading-relaxed">
-                        다만 <b>할당 화면은 편성중 웨이브만 다룹니다</b> — 발행된 웨이브의 할당을 푸는 화면 경로는 아직 없습니다.
-                        예약을 지금 꼭 돌려야 하면 담당자에게 문의하세요.
+                    <p className="text-xs text-slate-600 bg-slate-50 rounded-lg px-3 py-2 leading-relaxed">
+                        다음 걸음은 둘입니다 — 같은 재고로 다시 내보내려면 <b>추가 발행</b>,
+                        예약을 풀어 다른 주문에 쓰려면 <b>할당 화면에서 할당해제</b>.
                     </p>
                 </ConfirmModal>
             )}

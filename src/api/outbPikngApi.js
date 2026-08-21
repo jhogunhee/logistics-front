@@ -13,7 +13,8 @@ const params = (cond = {}) => Object.fromEntries(
 export const outbPikngApi = {
     /**
      * 피킹지시 화면의 웨이브 목록 — 할당이 있는 편성중(PLANNED, 발행 대상) + 지시발행(ISSUED,
-     * 확인·취소 대상). 발행된 웨이브도 피킹 전이면 실적 0 조건으로 취소할 수 있어 목록에 남는다.
+     * 확인·취소·추가발행 대상). 발행된 웨이브도 피킹 전이면 실적 0 조건으로 취소할 수 있어 목록에 남고,
+     * 발행 뒤에 붙은 할당이 있으면 추가 발행 대상이 된다.
      *
      * cond: { wavNo, prodCd, outbNo, storeCd, status, expctDeFrom, expctDeTo }
      * ⚠ 주문 쪽 조건은 할당 화면과 같은 EXISTS — 라인이 아니라 웨이브를 거른다.
@@ -41,6 +42,16 @@ export const outbPikngApi = {
     },
 
     /**
+     * 추가 발행 — 이미 발행된 웨이브에 <b>나중에 붙은 할당</b>의 지시를 낸다. 웨이브 상태는
+     * ISSUED 그대로이고 집품 순번은 기존 뒤에 이어붙는다. 결품 종결이 잔량을 사후에 키웠거나,
+     * 지시취소 후 할당해제로 할당이 0건이 된 주문을 재할당했을 때 쓰는 문이다.
+     * 발행 가드(할당 0건 주문 차단)는 최초 발행과 같다.
+     */
+    issueAdditional(wavIds) {
+        return api.post('/outbound/picking-tasks/issue-additional', { wavIds });
+    },
+
+    /**
      * 지시취소(웨이브 단위) — 발행을 통째로 무른다. 웨이브에 실적이 하나라도 있으면 거부된다.
      * 지시 행은 삭제가 아니라 취소(CANCELLED)로 남고 웨이브는 PLANNED로 복귀한다.
      * 재고 변동 없음(발행이 재고에 손대지 않았으므로).
@@ -53,6 +64,9 @@ export const outbPikngApi = {
      * 지시취소(지시 단위) — 판정이 <b>그 지시 자신의 실적</b>이라 같은 웨이브의 다른 지시가
      * 이미 집혔어도 막히지 않는다. 한 개도 못 집은 지시의 유일한 출구다(결품 종결은 실적이 있어야 열린다).
      * 살아 있는 지시가 남지 않으면 웨이브도 PLANNED로 복귀한다.
+     *
+     * <b>취소된 할당은 「미발행 할당」으로 돌아온다</b> — 같은 재고로 다시 내보내려면 추가 발행,
+     * 예약을 풀려면 할당해제다. 취소 자체는 예약을 건드리지 않는다.
      */
     cancelTasks(taskIds) {
         return api.post('/outbound/picking-tasks/cancel', { taskIds });

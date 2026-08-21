@@ -5,6 +5,8 @@ import { Hand, PackageCheck, Rocket, ScrollText } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { outbAllocApi } from '@/api/outbAllocApi';
+import { WAVE_STATUS_META } from '@/constants/badgeMeta';
+import { Badge } from '@/components/common/Badge';
 import { fmtDe, fmtDt, num, todayStr } from '@/utils/format';
 import SearchBar, { SearchText, SearchDateRange, SearchProd } from '@/components/common/SearchBar';
 import ConfirmModal from '@/components/common/ConfirmModal';
@@ -23,6 +25,11 @@ const remainCell = (p) => (p.value > 0
  */
 const WAVE_COLUMN_DEFS = [
     { field: 'wavNo', headerName: '웨이브번호', width: 168, cellClass: 'font-bold text-slate-700' },
+    {
+        field: 'status', headerName: '상태', width: 92,
+        headerTooltip: '지시발행된 웨이브도 잔량이 남으면 대상이다 — 결품 종결이 잔량을 사후에 키우거나, 지시취소 후 해제로 할당이 0건이 된 주문이 있을 때다. 추가 할당분은 피킹지시 화면에서 「추가 발행」해야 현장에 나간다',
+        cellRenderer: (p) => <Badge meta={WAVE_STATUS_META} value={p.value} show="label" />,
+    },
     {
         field: 'expctDe', headerName: '출고예정일', width: 105,
         headerTooltip: '이 웨이브가 나가는 날 — 웨이브는 같은 출고예정일 주문만 묶는다. 기간으로 조회했을 때 어느 날 출고분인지 여기서 본다',
@@ -159,12 +166,16 @@ export default function Allocation() {
         try {
             const res = await outbAllocApi.execute(rows.map(r => r.wavId));
             setExecResult(res);
+            // 발행된 웨이브에 붙인 할당은 지시가 따로 나가야 현장에 도달한다 — 다음 걸음을 함께 알린다
+            const issuedTail = rows.some(r => r.status === 'ISSUED')
+                ? ' 지시발행된 웨이브의 추가분은 피킹지시 화면에서 「추가 발행」해야 나갑니다.'
+                : '';
             if (res.alocQty === 0) {
                 toast(`요청 ${num(res.reqQty)} 중 할당 0 — 쓸 수 있는 재고가 없습니다.`);
             } else if (res.shortQty > 0) {
-                toast.success(`${num(res.alocQty)}개 할당 · 재고 부족으로 ${num(res.shortQty)}개가 잔량으로 남았습니다.`);
+                toast.success(`${num(res.alocQty)}개 할당 · 재고 부족으로 ${num(res.shortQty)}개가 잔량으로 남았습니다.${issuedTail}`);
             } else {
-                toast.success(`요청 ${num(res.reqQty)}개를 전량 할당했습니다.`);
+                toast.success(`요청 ${num(res.reqQty)}개를 전량 할당했습니다.${issuedTail}`);
             }
             await fetchWaves();
             if (detail) await fetchDetail(detail.wavId);
@@ -265,7 +276,7 @@ export default function Allocation() {
                     <div className="flex items-center gap-2">
                         <span className="text-sm font-bold text-slate-700 shrink-0">할당 대상 웨이브</span>
                         <span className="text-xs text-slate-400 truncate">
-                            잔량이 남은 편성중 웨이브만
+                            잔량이 남은 웨이브만 (지시발행 포함)
                         </span>
                         <span className="text-xs text-slate-500 font-medium ml-auto shrink-0">{waves.length}건</span>
                         <button onClick={handleExecClick} className="btn-primary shrink-0"
