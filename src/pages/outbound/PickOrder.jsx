@@ -24,7 +24,7 @@ const WAVE_COLUMN_DEFS = [
     { field: 'wavNo', headerName: '웨이브번호', width: 168, cellClass: 'font-bold text-slate-700' },
     {
         field: 'status', headerName: '상태', width: 92,
-        headerTooltip: '편성중 = 발행 대상 / 지시발행 = 확인·취소 대상 (피킹 실적이 없을 때만 취소 가능)',
+        headerTooltip: '편성중 = 발행 대상 / 지시발행 = 확인·취소 대상 (발행 통째 취소는 실적 0일 때만 — 실적이 섞였으면 지시 단위로 취소한다)',
         cellRenderer: (p) => <Badge meta={WAVE_STATUS_META} value={p.value} show="label" />,
     },
     {
@@ -47,7 +47,7 @@ const WAVE_COLUMN_DEFS = [
     },
     {
         field: 'pikngQty', headerName: '피킹수량', width: 100,
-        headerTooltip: '발행 후 진행 확인용 — 실적이 생기면 지시취소가 막힌다',
+        headerTooltip: '발행 후 진행 확인용 — 실적이 생기면 발행 통째 취소가 막힌다 (지시 단위 취소는 계속 열려 있다)',
         cellClass: (p) => `ag-right-aligned-cell tabular-nums ${p.value > 0 ? 'text-emerald-600 font-bold' : 'text-slate-300'}`,
         valueFormatter: (p) => num(p.value),
     },
@@ -89,8 +89,10 @@ const ROW_COLUMN_DEFS = [
  * 피킹지시 (SC — 출고). <b>웨이브의 할당 레코드를 로케이션 순으로 정렬해 지시로 발행한다.</b>
  *
  * 지시 행은 할당과 1:1이다 — 상품별로 뭉치는 배치 피킹이 없어, 집품 후 주문별 분류 공정도 없다.
- * 발행은 재고에 손대지 않는다(예약은 할당이 이미 잡았다). 그래서 취소도 문서 조작뿐이고,
- * 웨이브 단위 · 피킹 실적 0일 때만 가능하다.
+ * 발행은 재고에 손대지 않는다(예약은 할당이 이미 잡았다). 그래서 취소도 문서 조작뿐이고
+ * 실적 0인 지시만 대상이다. 취소 단위는 둘 — <b>발행취소</b>(웨이브 통째, 실적이 하나라도 있으면
+ * 거부)와 <b>지시취소</b>(고른 지시만, 그 지시 자신의 실적만 본다). 뒤쪽이 없으면 한 개도 못 집은
+ * 지시가 같은 웨이브의 다른 실적에 막혀 영영 닫히지 않는다.
  *
  * 할당이 0건인 주문이 섞인 웨이브는 발행이 거부된다 — 그대로 발행하면 그 주문이 발행된
  * 웨이브에 갇혀(편성 변경은 편성중에만, 발행된 웨이브는 할당 대상이 아님) 영영 진행하지 못한다.
@@ -102,7 +104,10 @@ export default function PickOrder() {
     const [detail, setDetail] = useState(null);      // { wavId, wavNo, status, rows, noAllocOrders }
     const [confirmIssue, setConfirmIssue] = useState(null);
     const [confirmCancel, setConfirmCancel] = useState(null);
+    const [confirmTaskCancel, setConfirmTaskCancel] = useState(null);
+    const [checkedTaskCount, setCheckedTaskCount] = useState(0);
     const waveGridRef = useRef(null);
+    const rowGridRef = useRef(null);
     // 재조회 뒤 보고 있던 웨이브를 다시 열기 위한 wavId (할당 화면과 같은 방식)
     const pendingWaveRef = useRef(null);
 
@@ -113,6 +118,7 @@ export default function PickOrder() {
     };
 
     const fetchDetail = async (wavId) => {
+        setCheckedTaskCount(0);   // 웨이브를 갈아타면 이전 체크는 사라진다
         setDetail(wavId == null ? null : await outbPikngApi.taskDetail(wavId));
     };
 
@@ -173,10 +179,11 @@ export default function PickOrder() {
             toast('취소할 발행 웨이브를 체크하세요.');
             return;
         }
-        // 서버도 같은 검증을 한다 — 체크 단계에서 막아 눌러보고 아는 일을 없앤다
+        // 서버도 같은 검증을 한다 — 체크 단계에서 막되, 남은 출구를 함께 알려 막다른 길로 보내지 않는다
         const picked = rows.find(w => w.pikngQty > 0);
         if (picked) {
-            toast.error(`피킹이 시작된 웨이브는 취소할 수 없습니다: ${picked.wavNo}`);
+            toast.error(`피킹이 시작된 웨이브는 발행을 통째로 취소할 수 없습니다: ${picked.wavNo}`
+                + ' — 오른쪽 지시 목록에서 아직 한 개도 집지 않은 지시만 골라 「지시취소」하세요.');
             return;
         }
         setConfirmCancel(rows);
@@ -186,6 +193,27 @@ export default function PickOrder() {
         try {
             const res = await outbPikngApi.cancel(rows.map(r => r.wavId));
             toast.success(`웨이브 ${res.waveCount}건의 지시 ${num(res.cancelledCount)}건을 취소했습니다 — 편성중으로 돌아갑니다.`);
+            await search();
+        } catch (e) {
+            toast.error(e.message || '지시취소에 실패했습니다.');
+        }
+    };
+
+    // ── 지시취소 (지시 단위) ──────────────────────────────────
+    const handleTaskCancelClick = () => {
+        const rows = rowGridRef.current?.api.getSelectedRows() ?? [];
+        if (rows.length === 0) {
+            toast('취소할 지시를 체크하세요.');
+            return;
+        }
+        setConfirmTaskCancel(rows);
+    };
+
+    const doTaskCancel = async (rows) => {
+        try {
+            const res = await outbPikngApi.cancelTasks(rows.map(r => r.taskId));
+            toast.success(`지시 ${num(res.cancelledCount)}건을 취소했습니다`
+                + ' — 예약은 할당이 그대로 쥐고 있습니다 (해제가 열렸을 뿐).');
             await search();
         } catch (e) {
             toast.error(e.message || '지시취소에 실패했습니다.');
@@ -267,8 +295,16 @@ export default function PickOrder() {
                             {detail ? `${detail.wavNo} · 집품 순서(로케이션 순)대로 표시` : '왼쪽에서 웨이브를 선택하세요'}
                         </span>
                         <span className="text-xs text-slate-500 font-medium ml-auto shrink-0">
-                            {detail?.rows.length ?? 0}건
+                            {detail?.status === 'ISSUED'
+                                ? `선택 ${checkedTaskCount} / ${detail.rows.length}건`
+                                : `${detail?.rows.length ?? 0}건`}
                         </span>
+                        {detail?.status === 'ISSUED' && (
+                            <button onClick={handleTaskCancelClick} className="btn-ghost shrink-0"
+                                    title="체크한 지시만 취소합니다 — 아직 한 개도 집지 않은 지시가 대상입니다. 같은 웨이브의 다른 지시가 이미 집혔어도 상관없습니다">
+                                <Undo2 size={13} /> 지시취소
+                            </button>
+                        )}
                     </div>
                     {/* 할당 0건 주문 — 라인 목록에는 아예 나타나지 않으므로 배너로 설명한다 (발행 차단 사유) */}
                     {noAlloc.length > 0 && (
@@ -284,10 +320,19 @@ export default function PickOrder() {
                     )}
                     <div className="flex-1 min-h-0">
                         <AgGridReact
+                            ref={rowGridRef}
                             rowData={detail?.rows ?? []}
                             columnDefs={ROW_COLUMN_DEFS}
                             rowHeight={34}
                             headerHeight={38}
+                            rowSelection={detail?.status === 'ISSUED' ? {
+                                mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false,
+                                // 취소 대상은 「지시 상태 + 실적 0」뿐이다 — 실적이 있으면 결품 종결(피킹 화면)의 몫이고,
+                                // 이미 닫힌(완료·취소) 지시는 작업 여지가 없다
+                                isRowSelectable: (node) => node.data.status === 'DIRECTED' && node.data.cmplQty === 0,
+                            } : undefined}
+                            onSelectionChanged={(e) => setCheckedTaskCount(e.api.getSelectedRows().length)}
+                            getRowClass={(p) => (p.data.status === 'CANCELLED' ? 'opacity-45 line-through' : '')}
                         />
                     </div>
                 </Panel>
@@ -319,7 +364,31 @@ export default function PickOrder() {
                 </ConfirmModal>
             )}
 
-            {/* 취소 확인 */}
+            {/* 지시 단위 취소 확인 — 「예약은 아직 잡혀 있다」를 반드시 짚는다 (다음 걸음이 할당해제다) */}
+            {confirmTaskCancel && (
+                <ConfirmModal
+                    title="선택한 지시를 취소할까요?"
+                    confirmText="지시취소"
+                    danger
+                    onCancel={() => setConfirmTaskCancel(null)}
+                    onConfirm={() => { doTaskCancel(confirmTaskCancel); setConfirmTaskCancel(null); }}
+                >
+                    <p className="text-sm text-slate-500">
+                        지시 <b>{confirmTaskCancel.length}건</b>(지시수량 <b>{num(confirmTaskCancel.reduce((s, r) => s + r.drctQty, 0))}</b>)을
+                        취소합니다. 지시 행은 삭제되지 않고 <b>취소</b> 상태로 남습니다.
+                    </p>
+                    <p className="text-xs text-slate-600 bg-slate-50 rounded-lg px-3 py-2 leading-relaxed">
+                        재고는 움직이지 않고 <b>예약도 아직 풀리지 않습니다</b> — 예약을 쥐고 있는 것은 지시가 아니라 할당입니다.
+                        취소는 그 할당의 <b>해제를 열어줄 뿐</b>입니다.
+                    </p>
+                    <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 leading-relaxed">
+                        다만 <b>할당 화면은 편성중 웨이브만 다룹니다</b> — 발행된 웨이브의 할당을 푸는 화면 경로는 아직 없습니다.
+                        예약을 지금 꼭 돌려야 하면 담당자에게 문의하세요.
+                    </p>
+                </ConfirmModal>
+            )}
+
+            {/* 발행취소 확인 */}
             {confirmCancel && (
                 <ConfirmModal
                     title="피킹지시를 취소할까요?"
@@ -329,7 +398,7 @@ export default function PickOrder() {
                     onConfirm={() => { doCancel(confirmCancel); setConfirmCancel(null); }}
                 >
                     <p className="text-sm text-slate-500">
-                        웨이브 <b>{confirmCancel.length}건</b>의 지시 전량을 취소하고 편성중으로 되돌립니다.
+                        웨이브 <b>{confirmCancel.length}건</b>의 지시 <b>전량</b>을 취소하고 편성중으로 되돌립니다.
                     </p>
                     <p className="text-xs text-slate-600 bg-slate-50 rounded-lg px-3 py-2 leading-relaxed">
                         재고는 움직이지 않습니다 — 예약은 할당이 그대로 쥐고 있습니다.

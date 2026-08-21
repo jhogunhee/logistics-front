@@ -186,11 +186,13 @@ export default function Picking() {
             toast('결품 종결할 지시를 체크하세요.');
             return;
         }
-        // 실적이 없는 지시는 종결이 아니라 지시취소 대상이다 — 두 경로가 겹치지 않게 여기서 갈라준다
+        // 실적이 없는 지시는 종결이 아니라 지시취소 대상이다 — 두 경로가 겹치지 않게 여기서 갈라준다.
+        // 그 취소는 지시 단위라, 같은 웨이브의 다른 지시가 이미 집혔어도 막히지 않는다
         const untouched = picked.filter(r => r.cmplQty === 0);
         if (untouched.length > 0) {
             toast.error(`아직 한 개도 집지 않은 지시가 ${untouched.length}건 있습니다`
-                + ` — 결품 종결이 아니라 피킹지시 화면의 지시취소로 되돌리세요 (순번 ${untouched.map(r => r.srtSeq).join(', ')})`);
+                + ` — 결품 종결이 아니라 피킹지시 화면에서 그 지시만 골라 「지시취소」하세요`
+                + ` (순번 ${untouched.map(r => r.srtSeq).join(', ')})`);
             return;
         }
         setCloseShort({ rows: picked, rsnCd: '', rsnDscr: '' });
