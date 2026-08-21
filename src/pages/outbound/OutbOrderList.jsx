@@ -7,7 +7,7 @@ import { outbOrderApi } from '@/api/outbOrderApi';
 import { useCodes } from '@/hooks/useCodes';
 import { OUTB_STATUS_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { OUTB_STATUS_OPTIONS } from '@/constants/codeOptions';
-import { daysAheadStr, num, todayStr } from '@/utils/format';
+import { daysAheadStr, fmtDt, num, todayStr } from '@/utils/format';
 import SearchBar, { SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
 import { Badge } from '@/components/common/Badge';
 
@@ -54,6 +54,11 @@ const HEADER_COLUMN_DEFS = [
     {
         field: 'totalAlocQty', headerName: '할당수량', width: 95,
         cellClass: 'ag-right-aligned-cell', valueFormatter: (p) => num(p.value),
+    },
+    {
+        field: 'shmtDt', headerName: '출고확정', width: 130,
+        headerTooltip: '출고확정된 시각. 이때 재고가 창고에서 나갔다',
+        valueFormatter: (p) => fmtDt(p.value),
     },
 ];
 

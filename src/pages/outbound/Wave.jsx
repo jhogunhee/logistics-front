@@ -65,6 +65,11 @@ const WAVE_COLUMN_DEFS = [
         headerTooltip: '피킹지시가 발행된 시각. 발행 이후에는 편성을 바꿀 수 없다',
         valueFormatter: (p) => fmtDt(p.value),
     },
+    {
+        field: 'closDt', headerName: '종료', width: 130,
+        headerTooltip: '소속 주문이 전부 출고확정돼 웨이브가 종료된 시각',
+        valueFormatter: (p) => fmtDt(p.value),
+    },
 ];
 
 /** 미편성 후보(주문 담기 팝업)·웨이브 소속 주문 그리드의 공통 컬럼. 편입 출처는 웨이브 소속 목록에만 의미가 있어 따로 붙인다 */
