@@ -39,12 +39,15 @@ export default function ProdMaster() {
             cellClass: 'text-slate-400',
         },
         {
-            field: 'prodCd', headerName: '상품 코드', width: 140, editable: false,
+            // 서버 채번이라 입력은 안 받지만 반드시 값이 생기는 컬럼 — 필수 표시를 유지한다
+            field: 'prodCd', headerName: '상품 코드', width: 140,
+            headerClass: 'header-required', editable: false,
             cellRenderer: (p) => p.value || <span className="text-slate-400">(저장 시 채번)</span>,
         },
-        { field: 'prodNm', headerName: '상품명', minWidth: 200, editable: notDeleted },
+        { field: 'prodNm', headerName: '상품명', minWidth: 200, headerClass: 'header-required', editable: notDeleted },
         {
-            field: 'tmpZon', headerName: '온도대', width: 100, editable: notDeleted,
+            field: 'tmpZon', headerName: '온도대', width: 100,
+            headerClass: 'header-required', editable: notDeleted,
             cellEditor: SelectCellEditor,
             cellEditorParams: {
                 values: tempZoneCodes.values,
@@ -58,14 +61,16 @@ export default function ProdMaster() {
         {
             // 신규 행(C)에서만 연다. 등록 후에는 못 고치고 변경은 단위 관리 화면의 라디오가 맡는다.
             // 이중 관리 방지
-            field: 'inbUomCd', headerName: '입고단위', width: 100, editable: isNew,
+            field: 'inbUomCd', headerName: '입고단위', width: 100,
+            headerClass: 'header-required', editable: isNew,
             cellEditor: SelectCellEditor,
             cellEditorParams: { values: uomCodes.values, labelMap: uomCodes.nmByCd },
             cellClass: (p) => (isNew(p) ? undefined : 'text-slate-500'),
             headerTooltip: '벤더에게 발주하고 납품받는 단위. 신규 등록 시에만 지정할 수 있고, 등록 후 변경은 단위 관리 화면에서 합니다',
         },
         {
-            field: 'outbUomCd', headerName: '출고단위', width: 100, editable: isNew,
+            field: 'outbUomCd', headerName: '출고단위', width: 100,
+            headerClass: 'header-required', editable: isNew,
             cellEditor: SelectCellEditor,
             cellEditorParams: { values: uomCodes.values, labelMap: uomCodes.nmByCd },
             cellClass: (p) => (isNew(p) ? undefined : 'text-slate-500'),

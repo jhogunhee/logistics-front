@@ -33,10 +33,12 @@ export default function StoreMaster() {
             cellClass: 'text-slate-400',
         },
         {
-            field: 'storeCd', headerName: '점포 코드', width: 110, editable: false,
+            // 서버 채번이라 입력은 안 받지만 반드시 값이 생기는 컬럼 — 필수 표시를 유지한다
+            field: 'storeCd', headerName: '점포 코드', width: 110,
+            headerClass: 'header-required', editable: false,
             cellRenderer: (p) => p.value || <span className="text-slate-400">(저장 시 채번)</span>,
         },
-        { field: 'storeNm', headerName: '점포명', minWidth: 180, flex: 1, editable: notDeleted },
+        { field: 'storeNm', headerName: '점포명', minWidth: 180, flex: 1, headerClass: 'header-required', editable: notDeleted },
         {
             field: 'storeGrp', headerName: '그룹', width: 110, editable: notDeleted,
             cellEditor: SelectCellEditor,
@@ -53,7 +55,8 @@ export default function StoreMaster() {
             headerTooltip: '업태(편의점·마트·급식)입니다. 웨이브 편성 조건 「납품처유형」과 할당 분배 대상 선별이 이 값을 봅니다',
         },
         {
-            field: 'outbLifeRate', headerName: '잔여수명 허용률(%)', width: 150, editable: notDeleted,
+            field: 'outbLifeRate', headerName: '잔여수명 허용률(%)', width: 150,
+            headerClass: 'header-required', editable: notDeleted,
             type: 'numericColumn',
             cellEditor: 'agNumberCellEditor',
             cellEditorParams: { min: 0, max: 100 },

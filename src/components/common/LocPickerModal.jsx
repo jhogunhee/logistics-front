@@ -14,8 +14,9 @@ import { num } from '@/utils/format';
  * @param open     열림 여부
  * @param onClose  닫기
  * @param onSelect 선택 확정 콜백. 로케이션 객체 하나를 넘긴다
+ * @param locTyp   주면 그 유형만 보여준다 (예: 'STORAGE' — 고를 수 없는 유형을 애초에 안 보이게)
  */
-export default function LocPickerModal({ open, onClose, onSelect }) {
+export default function LocPickerModal({ open, onClose, onSelect, locTyp }) {
     const [locs, setLocs] = useState(null); // null = 아직 안 받아옴
     const [keyword, setKeyword] = useState('');
 
@@ -31,14 +32,15 @@ export default function LocPickerModal({ open, onClose, onSelect }) {
 
     const filtered = useMemo(() => {
         if (!locs) return [];
+        const base = locTyp ? locs.filter(l => l.locTyp === locTyp) : locs;
         const kw = keyword.trim().toLowerCase();
-        if (!kw) return locs;
+        if (!kw) return base;
         // 코드/존 어디에 걸려도 찾히게 한다 — 코드가 존으로 시작하는 체계라 한 칸이면 충분하다
-        return locs.filter(l =>
+        return base.filter(l =>
             l.locCd.toLowerCase().includes(kw) ||
             l.zonCd.toLowerCase().includes(kw)
         );
-    }, [locs, keyword]);
+    }, [locs, keyword, locTyp]);
 
     if (!open) return null;
 

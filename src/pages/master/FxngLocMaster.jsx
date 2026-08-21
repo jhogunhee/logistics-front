@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
-import { Pin, Plus, Save, Trash2 } from 'lucide-react';
+import { Pin, Plus, Save, Search, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { fxngLocApi } from '@/api/fxngLocApi';
@@ -11,10 +11,11 @@ import { useMasterGrid } from '@/hooks/useMasterGrid';
 import { TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { fmtDe, num } from '@/utils/format';
 import SearchBar, { SearchSelect, SearchProd, SearchLoc } from '@/components/common/SearchBar';
-import SelectCellEditor from '@/components/common/SelectCellEditor';
 import { Badge } from '@/components/common/Badge';
 import { RowStatusCell } from '@/components/common/Badge';
 import ConfirmModal from '@/components/common/ConfirmModal';
+import LocPickerModal from '@/components/common/LocPickerModal';
+import ProdPickerModal from '@/components/common/ProdPickerModal';
 import SaveCountSummary from '@/components/common/SaveCountSummary';
 
 export default function FxngLocMaster() {
@@ -24,7 +25,9 @@ export default function FxngLocMaster() {
     } = useMasterGrid();
     const [cond, setCond] = useState({ prodCd: '', locCd: '', zonCd: '' });
     const [rowData, setRowData] = useState([]);
-    const [prods, setProds] = useState([]); // 상품 마스터 목록 (드롭다운 · 온도대 검증의 원천)
+    const [prods, setProds] = useState([]); // 상품 마스터 목록 (온도대 검증·상품명 표시의 원천)
+    const [prodPicker, setProdPicker] = useState(null); // 상품 팝업이 채울 대상 행 노드 (null = 닫힘)
+    const [locPicker, setLocPicker] = useState(null);   // 로케이션 팝업이 채울 대상 행 노드 (null = 닫힘)
     const [locs, setLocs] = useState([]);   // 로케이션 마스터 목록 (드롭다운 — STORAGE만)
     const [zons, setZons] = useState([]);   // 존 마스터 목록 (검색 드롭다운)
 
@@ -44,12 +47,24 @@ export default function FxngLocMaster() {
             cellClass: 'text-slate-400',
         },
         {
-            field: 'prodCd', headerName: '상품', width: 130, editable: notDeleted,
-            cellEditor: SelectCellEditor,
-            cellEditorParams: {
-                values: prods.map(p => p.prodCd),
-                labelMap: Object.fromEntries(prods.map(p => [p.prodCd, p.prodNm])),
-            },
+            // 상품은 건수가 많아 드롭다운 대신 검색 팝업으로 고른다 — 값 반영(setDataValue)도
+            // 셀 수정 이벤트를 타므로 C/U 더티 추적은 직접 편집과 동일하다
+            field: 'prodCd', headerName: '상품', width: 130,
+            headerClass: 'header-required', editable: false,
+            cellRenderer: (p) => (
+                <div className="flex items-center justify-between gap-1 w-full">
+                    <span>{p.value || <span className="text-slate-300">상품 선택</span>}</span>
+                    {p.data._status !== 'D' && (
+                        <button
+                            type="button"
+                            onClick={() => setProdPicker(p.node)}
+                            title="상품 팝업에서 선택"
+                            className="p-0.5 text-slate-400 hover:text-indigo-600 shrink-0">
+                            <Search size={13} />
+                        </button>
+                    )}
+                </div>
+            ),
         },
         {
             field: 'prodNm', headerName: '상품명', width: 180, editable: false,
@@ -57,9 +72,23 @@ export default function FxngLocMaster() {
             valueGetter: (p) => prodMap[p.data.prodCd]?.prodNm ?? p.data.prodNm ?? '',
         },
         {
-            field: 'locCd', headerName: '로케이션', width: 140, editable: notDeleted,
-            cellEditor: SelectCellEditor,
-            cellEditorParams: { values: storageLocs.map(l => l.locCd) },
+            // 상품과 같은 팝업 방식 — 고를 수 있는 건 보관(STORAGE) 로케이션뿐이라 팝업도 그렇게 거른다
+            field: 'locCd', headerName: '로케이션', width: 140,
+            headerClass: 'header-required', editable: false,
+            cellRenderer: (p) => (
+                <div className="flex items-center justify-between gap-1 w-full">
+                    <span>{p.value || <span className="text-slate-300">로케이션 선택</span>}</span>
+                    {p.data._status !== 'D' && (
+                        <button
+                            type="button"
+                            onClick={() => setLocPicker(p.node)}
+                            title="로케이션 팝업에서 선택"
+                            className="p-0.5 text-slate-400 hover:text-indigo-600 shrink-0">
+                            <Search size={13} />
+                        </button>
+                    )}
+                </div>
+            ),
         },
         {
             field: 'zonCd', headerName: '존', width: 100, editable: false,
@@ -79,13 +108,15 @@ export default function FxngLocMaster() {
             valueFormatter: (p) => (p.value == null || p.value === '') ? '' : num(p.value),
         },
         {
-            field: 'minQty', headerName: '재보충점', width: 110, editable: notDeleted,
+            field: 'minQty', headerName: '재보충점', width: 110,
+            headerClass: 'header-required', editable: notDeleted,
             cellClass: 'ag-right-aligned-cell',
             headerTooltip: '재고가 이 아래로 내려가면 보충 대상 (보충 프로세스 구현 시 사용)',
             valueFormatter: (p) => (p.value == null || p.value === '') ? '' : num(p.value),
         },
         {
-            field: 'maxQty', headerName: '보충 상한', width: 110, editable: notDeleted,
+            field: 'maxQty', headerName: '보충 상한', width: 110,
+            headerClass: 'header-required', editable: notDeleted,
             cellClass: 'ag-right-aligned-cell',
             headerTooltip: '보충이 채우는 목표 수량. 로케이션 최대 적재 수량 이하',
             valueFormatter: (p) => (p.value == null || p.value === '') ? '' : num(p.value),
@@ -120,10 +151,8 @@ export default function FxngLocMaster() {
     }, []);
 
     // ── 행 추가 ──────────────────────────────────────────────
-    const handleAddRow = () => addRow(
-        { prodCd: '', locCd: '', minQty: 0, maxQty: null },
-        'prodCd'
-    );
+    // 상품·로케이션은 셀의 돋보기 버튼으로 고른다 — 행추가는 빈 행만 만든다
+    const handleAddRow = () => addRow({ prodCd: '', locCd: '', minQty: 0, maxQty: null });
 
     // ── 저장 ────────────────────────────────────────────────
     // 검증 (삭제 행은 id만 쓰므로 검증 대상 아님) — 서버 검증과 같은 규칙을 저장 전에 걸러준다
@@ -222,6 +251,19 @@ export default function FxngLocMaster() {
                     </button>
                 </div>
             </div>
+
+            {/* 상품·로케이션 선택 팝업 — 고른 코드를 대상 행에 반영한다 (선택 시 스스로 닫힘) */}
+            <ProdPickerModal
+                open={prodPicker != null}
+                onClose={() => setProdPicker(null)}
+                onSelect={(p) => prodPicker.setDataValue('prodCd', p.prodCd)}
+            />
+            <LocPickerModal
+                open={locPicker != null}
+                locTyp="STORAGE"
+                onClose={() => setLocPicker(null)}
+                onSelect={(l) => locPicker.setDataValue('locCd', l.locCd)}
+            />
 
             {/* 저장 확인 모달 */}
             {saveConfirm && (

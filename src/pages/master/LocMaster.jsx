@@ -50,11 +50,12 @@ export default function LocMaster() {
             // 코드는 업무 식별자라 수정 불가 — 신규(C) 행에서만 입력받는다
             // 폭은 가장 긴 코드 「PIK-DRY-01-01」(실측 123px)이 잘리지 않는 값
             field: 'locCd', headerName: '로케이션 코드', width: 135,
-            editable: isNew,
+            headerClass: 'header-required', editable: isNew,
         },
         {
             // 가장 긴 표기 「SHIP-STAGE 출고 스테이징」(실측 189px)이 잘리지 않는 폭
-            field: 'zonCd', headerName: '존', width: 195, editable: notDeleted,
+            field: 'zonCd', headerName: '존', width: 195,
+            headerClass: 'header-required', editable: notDeleted,
             cellEditor: SelectCellEditor,
             cellEditorParams: {
                 values: zonCodes,
@@ -67,7 +68,8 @@ export default function LocMaster() {
             },
         },
         {
-            field: 'tmpZon', headerName: '온도대', width: 100, editable: notDeleted,
+            field: 'tmpZon', headerName: '온도대', width: 100,
+            headerClass: 'header-required', editable: notDeleted,
             cellEditor: SelectCellEditor,
             cellEditorParams: {
                 values: tempZoneCodes.values,
@@ -79,7 +81,8 @@ export default function LocMaster() {
             cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
         },
         {
-            field: 'locTyp', headerName: '유형', width: 100, editable: notDeleted,
+            field: 'locTyp', headerName: '유형', width: 100,
+            headerClass: 'header-required', editable: notDeleted,
             cellEditor: SelectCellEditor,
             cellEditorParams: {
                 values: locTypeCodes.values,

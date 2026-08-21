@@ -41,12 +41,14 @@ export default function ZonMaster() {
         {
             // 존코드는 하위 로케이션이 문자열로 참조하는 업무 식별자라 수정 불가 — 신규(C) 행에서만 입력받는다
             field: 'zonCd', headerName: '존코드', width: 120,
+            headerClass: 'header-required',
             editable: isNew,
             headerTooltip: '하위 로케이션이 이 코드로 존을 참조하므로 등록 후에는 변경할 수 없습니다',
         },
-        { field: 'zonNm', headerName: '존명', width: 160, editable: notDeleted },
+        { field: 'zonNm', headerName: '존명', width: 160, headerClass: 'header-required', editable: notDeleted },
         {
-            field: 'tmpZon', headerName: '온도구분', width: 110, editable: notDeleted,
+            field: 'tmpZon', headerName: '온도구분', width: 110,
+            headerClass: 'header-required', editable: notDeleted,
             cellEditor: SelectCellEditor,
             cellEditorParams: {
                 values: tmpZonCodes.values,
@@ -58,7 +60,8 @@ export default function ZonMaster() {
             cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
         },
         {
-            field: 'strgTyp', headerName: '보관유형', width: 100, editable: notDeleted,
+            field: 'strgTyp', headerName: '보관유형', width: 100,
+            headerClass: 'header-required', editable: notDeleted,
             cellEditor: SelectCellEditor,
             cellEditorParams: {
                 values: strgTypCodes.values,
@@ -70,7 +73,8 @@ export default function ZonMaster() {
             cellRenderer: (p) => <Badge meta={STRG_TYP_META} value={p.value} show="label" />,
         },
         {
-            field: 'bizDvsn', headerName: '업무구분', width: 110, editable: notDeleted,
+            field: 'bizDvsn', headerName: '업무구분', width: 110,
+            headerClass: 'header-required', editable: notDeleted,
             cellEditor: SelectCellEditor,
             cellEditorParams: {
                 values: bizDvsnCodes.values,

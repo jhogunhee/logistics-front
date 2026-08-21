@@ -38,12 +38,14 @@ export default function NbrRuleMaster() {
         {
             // 규칙코드는 발급 시 이 코드로 규칙을 참조하는 업무 식별자라 수정 불가 — 신규(C) 행에서만 입력받는다
             field: 'ruleCd', headerName: '규칙코드', width: 140,
+            headerClass: 'header-required',
             editable: isNew,
             headerTooltip: '발급 호출부가 이 코드로 규칙을 참조하므로 등록 후에는 변경할 수 없습니다',
         },
-        { field: 'ruleNm', headerName: '규칙명', width: 160, editable: notDeleted },
+        { field: 'ruleNm', headerName: '규칙명', width: 160, headerClass: 'header-required', editable: notDeleted },
         {
-            field: 'prfx', headerName: '접두어', width: 110, editable: notDeleted,
+            field: 'prfx', headerName: '접두어', width: 110,
+            headerClass: 'header-required', editable: notDeleted,
             headerTooltip: '채번 앞에 붙는 고정 문자열 (예: IB, PROD)',
         },
         {
@@ -55,7 +57,8 @@ export default function NbrRuleMaster() {
             headerTooltip: '접두어 뒤 구분자. 동적키유형이 고정이면 접두어-SEQ 사이 유일한 경계로 쓰입니다',
         },
         {
-            field: 'seqDgt', headerName: '자릿수', width: 90, editable: notDeleted,
+            field: 'seqDgt', headerName: '자릿수', width: 90,
+            headerClass: 'header-required', editable: notDeleted,
             cellEditor: 'agNumberCellEditor',
             cellEditorParams: { min: 1, max: 9, precision: 0 },
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
@@ -74,6 +77,7 @@ export default function NbrRuleMaster() {
         {
             // 동적키유형은 카운터 분리 기준이라 등록 후 바꾸면 기존 카운터와 정합이 깨진다 — 신규(C) 행에서만 입력받는다
             field: 'dyncKyTyp', headerName: '동적키유형', width: 110,
+            headerClass: 'header-required',
             editable: isNew,
             cellEditor: SelectCellEditor,
             cellEditorParams: {

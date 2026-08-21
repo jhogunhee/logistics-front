@@ -29,10 +29,12 @@ export default function VendorMaster() {
             cellClass: 'text-slate-400',
         },
         {
-            field: 'vndrCd', headerName: '벤더 코드', width: 110, editable: false,
+            // 서버 채번이라 입력은 안 받지만 반드시 값이 생기는 컬럼 — 필수 표시를 유지한다
+            field: 'vndrCd', headerName: '벤더 코드', width: 110,
+            headerClass: 'header-required', editable: false,
             cellRenderer: (p) => p.value || <span className="text-slate-400">(저장 시 채번)</span>,
         },
-        { field: 'vndrNm', headerName: '벤더명', minWidth: 180, flex: 1, editable: notDeleted },
+        { field: 'vndrNm', headerName: '벤더명', minWidth: 180, flex: 1, headerClass: 'header-required', editable: notDeleted },
         { field: 'picNm', headerName: '담당자', width: 110, editable: notDeleted },
         { field: 'telNo', headerName: '연락처', width: 140, editable: notDeleted },
         {

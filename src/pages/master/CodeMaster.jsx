@@ -42,12 +42,13 @@ export default function CodeMaster() {
         {
             // 그룹코드는 PK이자 코드가 리터럴로 참조하는 값이라 등록 후 변경 불가
             field: 'grpCd', headerName: '그룹코드', width: 150,
+            headerClass: 'header-required',
             editable: isNew,
             cellClass: 'font-medium text-slate-700',
             valueParser: (p) => String(p.newValue ?? '').trim().toUpperCase(),
             cellRenderer: (p) => p.value || <span className="text-slate-400">(입력)</span>,
         },
-        { field: 'grpNm', headerName: '그룹명', width: 150, editable: notDeleted },
+        { field: 'grpNm', headerName: '그룹명', width: 150, headerClass: 'header-required', editable: notDeleted },
         {
             field: 'dscr', headerName: '설명', flex: 1, minWidth: 200, editable: notDeleted,
             cellRenderer: (p) => p.value || <span className="text-slate-300">-</span>,
@@ -66,14 +67,16 @@ export default function CodeMaster() {
         },
         {
             field: 'codeCd', headerName: '코드', width: 140,
+            headerClass: 'header-required',
             editable: isNew,
             headerTooltip: '등록 후에는 변경할 수 없습니다',
             valueParser: (p) => String(p.newValue ?? '').trim().toUpperCase(), // 코드는 대문자로 통일
             cellRenderer: (p) => p.value || <span className="text-slate-400">(입력)</span>,
         },
-        { field: 'codeNm', headerName: '코드명', flex: 1, minWidth: 160, editable: notDeleted },
+        { field: 'codeNm', headerName: '코드명', flex: 1, minWidth: 160, headerClass: 'header-required', editable: notDeleted },
         {
-            field: 'srtSeq', headerName: '정렬순서', width: 110, editable: notDeleted,
+            field: 'srtSeq', headerName: '정렬순서', width: 110,
+            headerClass: 'header-required', editable: notDeleted,
             type: 'numericColumn',
             cellEditor: 'agNumberCellEditor',
             headerTooltip: '화면 콤보박스에 노출되는 순서입니다',

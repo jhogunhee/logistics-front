@@ -89,6 +89,7 @@ export default function UomMaster() {
     const uomColumnDefs = [
         {
             field: 'uomCd', headerName: '단위', width: 130,
+            headerClass: 'header-required',
             editable: isNew,
             cellEditor: SelectCellEditor,
             // 다른 행이 이미 쓰는 단위는 목록에서 뺀다 (자기 행 값은 남긴다)
@@ -106,7 +107,8 @@ export default function UomMaster() {
         },
         {
             // 재고 저장 단위가 낱개(EA)라 이 값이 곧 환산 배수다
-            field: 'eaQty', headerName: '낱개수량', width: 100, editable: notDeleted,
+            field: 'eaQty', headerName: '낱개수량', width: 100,
+            headerClass: 'header-required', editable: notDeleted,
             type: 'numericColumn',
             cellEditor: 'agNumberCellEditor',
             valueFormatter: (p) => num(p.value),
