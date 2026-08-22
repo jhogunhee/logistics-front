@@ -7,7 +7,9 @@ import toast from 'react-hot-toast';
 import { outbPikngApi } from '@/api/outbPikngApi';
 import { useCodes } from '@/hooks/useCodes';
 import { ETC_RSN_CD } from '@/constants/rsnCodes';
+import { INV_MOV_STATUS_META } from '@/constants/badgeMeta';
 import { fmtDe, fmtDt, num, todayStr } from '@/utils/format';
+import { Badge } from '@/components/common/Badge';
 import SearchBar, { SearchText, SearchDateRange, SearchProd } from '@/components/common/SearchBar';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import PikngAcrstModal from '@/components/outbound/PikngAcrstModal';
@@ -55,6 +57,13 @@ const WAVE_COLUMN_DEFS = [
 const TASK_COLUMN_DEFS = [
     { field: 'srtSeq', headerName: '순번', width: 64, cellClass: 'text-slate-500 tabular-nums' },
     { field: 'locCd', headerName: '로케이션', width: 130, cellClass: 'font-medium text-slate-700' },
+    {
+        field: 'rplnStatus', headerName: '보충', width: 84,
+        headerTooltip: '보관존 할당분의 짝 보충지시 — 「지시」면 실물이 아직 보관존에 있어 집을 수 없다. 수시보충 화면에서 확정하면 풀린다',
+        cellRenderer: (p) => (p.value
+            ? <span title={p.data.rplnNo}><Badge meta={INV_MOV_STATUS_META} value={p.value} show="label" /></span>
+            : <span className="text-slate-300">—</span>),
+    },
     { field: 'prodCd', headerName: '상품코드', width: 110, cellClass: 'text-slate-600' },
     { field: 'prodNm', headerName: '상품명', flex: 1, minWidth: 130 },
     { field: 'lotNo', headerName: 'Lot', width: 150, cellClass: 'text-slate-500' },
@@ -76,7 +85,7 @@ const TASK_COLUMN_DEFS = [
         cellRenderer: (p) => (p.value > 0 ? num(p.value) : <span className="text-slate-300 font-normal">—</span>),
     },
     {
-        field: '_pikngQty', headerName: '피킹수량', width: 96, editable: (p) => p.data.remainQty > 0,
+        field: '_pikngQty', headerName: '피킹수량', width: 96, editable: (p) => p.data.remainQty > 0 && p.data.rplnStatus !== 'DIRECTED',
         cellDataType: 'number',
         cellEditor: 'agNumberCellEditor', cellEditorParams: { min: 1, precision: 0 },
         valueFormatter: (p) => num(p.value),
@@ -306,13 +315,15 @@ export default function Picking() {
                             stopEditingWhenCellsLoseFocus={true}
                             rowSelection={{
                                 mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false,
-                                // 완료 행은 작업 여지가 없다 — 실적 취소가 없으므로 체크 자체를 막는다
-                                isRowSelectable: (node) => node.data.remainQty > 0,
+                                // 완료 행은 작업 여지가 없다 — 실적 취소가 없으므로 체크 자체를 막는다.
+                                // 보충이 안 끝난 행도 막는다 — 실물이 아직 보관존에 있다 (서버 가드 선반영)
+                                isRowSelectable: (node) => node.data.remainQty > 0 && node.data.rplnStatus !== 'DIRECTED',
                             }}
                             onSelectionChanged={(e) => setCheckedCount(e.api.getSelectedRows().length)}
                             onCellClicked={(e) => setFocusedTask(e.data)}
-                            // 완료 행은 흐리게 — 남은 일과 끝난 일이 한눈에 갈리게 한다
-                            getRowClass={(p) => (p.data.remainQty === 0 ? 'opacity-45' : '')}
+                            // 완료 행은 흐리게, 보충 대기 행은 노란 바탕 — 남은 일 · 막힌 일 · 끝난 일이 한눈에 갈리게 한다
+                            getRowClass={(p) => (p.data.remainQty === 0 ? 'opacity-45'
+                                : p.data.rplnStatus === 'DIRECTED' ? 'bg-amber-50/60' : '')}
                         />
                     </div>
                 </Panel>
