@@ -53,8 +53,8 @@ const ROW_COLUMN_DEFS = [
  * 지시는 피킹지시 발행이 만든다 — 보관존 할당마다 피킹지시(도착지에서 집으라는)와 보충지시가 짝으로
  * 나간다. 확정하면 실물과 예약이 함께 피킹존으로 옮겨 가고 할당이 그 행을 가리키게 된다; 그제야 짝
  * 피킹지시를 실행할 수 있다. 전량만 확정한다(할당 행 하나 = 재고 행 하나).
- * 취소는 예약을 건드리지 않는다 — 짝 피킹지시는 보충 없이는 실행되지 않으므로, 다시 내려면 피킹지시를
- * 취소하고 추가 발행한다.
+ * 취소는 예약을 건드리지 않고 짝 피킹지시를 함께 취소한다 — 그 지시의 집품 자리가 이번 발행에서 정한
+ * 도착지로 굳어 있어 따로 살릴 수 없다. 할당은 그대로 남으므로 피킹지시 화면에서 다시 발행하면 된다.
  */
 export default function Replenishment() {
     const [cond, setCond] = useState({ wavNo: '', prodCd: '', expctDeFrom: todayStr(), expctDeTo: todayStr() });
@@ -143,7 +143,7 @@ export default function Replenishment() {
     const doCancel = async (target) => {
         try {
             const res = await rplnApi.cancel(target.map(r => r.rplnTaskId));
-            toast.success(`보충 ${res.count}건을 취소했습니다 — 예약은 그대로입니다. 짝 피킹지시는 지시취소 후 추가 발행으로 다시 내세요.`);
+            toast.success(`보충 ${res.count}건을 취소했습니다 — 짝 피킹지시도 함께 취소됐습니다. 예약은 그대로이니 피킹지시 화면에서 다시 발행하세요.`);
             await fetchWaves();
             await fetchRows(wave?.wavId ?? null);
         } catch (e) {
@@ -203,7 +203,7 @@ export default function Replenishment() {
                             선택 {checkedCount} / {rows.length}건
                         </span>
                         <button onClick={handleCancelClick} className="btn-ghost shrink-0"
-                                title="체크한 보충지시를 취소합니다 — 예약은 그대로이고 짝 피킹지시는 실행되지 않습니다">
+                                title="체크한 보충지시를 취소합니다 — 짝 피킹지시도 함께 취소되고 예약은 그대로입니다">
                             <Undo2 size={13} /> 취소
                         </button>
                         <button onClick={handleConfirmClick} className="btn-primary shrink-0"
@@ -258,7 +258,8 @@ export default function Replenishment() {
                 >
                     <p className="text-sm text-slate-500">보충 <b>{confirmCancel.length}건</b>을 취소합니다. 재고·예약은 변하지 않습니다.</p>
                     <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 leading-relaxed">
-                        짝 피킹지시는 보충 없이는 집품할 수 없습니다 — 다시 내려면 피킹지시 화면에서 그 지시를 취소하고 추가 발행하세요.
+                        짝 피킹지시도 함께 취소됩니다 — 집품 자리가 이번 발행의 도착지로 굳어 있어 따로 살릴 수 없습니다.
+                        할당은 남으니 피킹지시 화면에서 다시 발행하세요.
                     </p>
                 </ConfirmModal>
             )}
