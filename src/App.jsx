@@ -40,6 +40,7 @@ import Allocation from "@/pages/outbound/Allocation.jsx";
 import PickOrder from "@/pages/outbound/PickOrder.jsx";
 import Picking from "@/pages/outbound/Picking.jsx";
 import Shipping from "@/pages/outbound/Shipping.jsx";
+import Replenishment from "@/pages/outbound/Replenishment.jsx";
 
 export default function App() {
     return (
@@ -95,6 +96,7 @@ export default function App() {
                         {/* 피킹지시는 웨이브의 할당을 로케이션 순으로 정렬해 발행 — 지시 행 = 할당과 1:1 */}
                         <Route path="/outbound/pick-order" element={<PickOrder/>}/>
                         {/* 피킹 = 보관 → SHIP-STAGE 실이동 (tx PICK). 재고가 물리적으로 움직이는 첫 지점 */}
+                        <Route path="/outbound/replenishment" element={<Replenishment/>}/>
                         <Route path="/outbound/picking" element={<Picking/>}/>
                         {/* 출고확정 = SHIP-STAGE 반출 (tx SHIP) — 재고가 창고 밖으로 나가는 유일한 지점. 주문이 전부 닫힌 웨이브는 종료 */}
                         <Route path="/outbound/shipping" element={<Shipping/>}/>
