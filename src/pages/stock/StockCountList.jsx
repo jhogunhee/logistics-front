@@ -65,7 +65,7 @@ const COLUMN_DEFS = [
 export default function StockCountList({ onOpen }) {
     const [cond, setCond] = useState({
         stktkNo: '', status: [], zonCd: '', prodCd: '',
-        fromDe: daysAheadStr(-7), toDe: todayStr(),
+        fromDe: daysAheadStr(-6), toDe: todayStr(),
     });
     const [rowData, setRowData] = useState([]);
     const [zonCodes, setZonCodes] = useState([]);

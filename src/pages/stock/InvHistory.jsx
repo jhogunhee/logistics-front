@@ -5,7 +5,7 @@ import { History } from 'lucide-react';
 import { invHistApi } from '@/api/invHistApi';
 import { TEMP_ZONE_META, TX_TYPE_META } from '@/constants/badgeMeta';
 import { TX_TYPE_OPTIONS } from '@/constants/codeOptions';
-import { fmtDt, num } from '@/utils/format';
+import { daysAheadStr, fmtDt, num, todayStr } from '@/utils/format';
 import SearchBar, { SearchText, SearchSelect, SearchDateRange, SearchProd, SearchLoc } from '@/components/common/SearchBar';
 import { Badge } from '@/components/common/Badge';
 
@@ -53,7 +53,7 @@ const COLUMN_DEFS = [
 ];
 
 export default function InvHistory() {
-    const [cond, setCond] = useState({ prodCd: '', locCd: '', txTyp: '', rfnDocNo: '', dateFrom: '', dateTo: '' });
+    const [cond, setCond] = useState({ prodCd: '', locCd: '', lotNo: '', txTyp: '', rfnDocNo: '', dateFrom: daysAheadStr(-6), dateTo: todayStr() });
     const [rowData, setRowData] = useState([]);
 
     const fetchList = async () => {
@@ -62,7 +62,8 @@ export default function InvHistory() {
     };
 
     useEffect(() => {
-        invHistApi.list().then(setRowData);
+        invHistApi.list(cond).then(setRowData);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     return (
@@ -78,6 +79,7 @@ export default function InvHistory() {
             <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
                 <SearchProd name="prodCd" />
                 <SearchLoc name="locCd" placeholder="RCV-STAGE" />
+                <SearchText name="lotNo" label="Lot번호" placeholder="LOT-260722-001" />
                 <SearchSelect name="txTyp" label="유형" options={TX_TYPE_OPTIONS} />
                 <SearchText name="rfnDocNo" label="Ref No." placeholder="IB-20260717-001" />
                 <SearchDateRange from="dateFrom" to="dateTo" label="생성일자" />

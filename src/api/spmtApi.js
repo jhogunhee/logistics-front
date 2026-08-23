@@ -5,7 +5,7 @@ import api from '@/utils/axios';
 export const spmtApi = {
     /**
      * 보충 대상 조회 — 현재고+미완료 유입이 min 미달인 고정로케이션과 FEFO 추천 배정.
-     * cond: { zonCd, prodCd, prodNm, locCd }. 저장하지 않는다 (추천 ≠ 예약 — 발행 시 서버가 재검증).
+     * cond: { zonCd, prodCd, prodNm, locCd, tmpZon }. 저장하지 않는다 (추천 ≠ 예약 — 발행 시 서버가 재검증).
      */
     targets(cond = {}) {
         const params = Object.fromEntries(Object.entries(cond).filter(([, v]) => v));

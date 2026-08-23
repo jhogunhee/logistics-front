@@ -3,6 +3,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { Box, Map, Scale, Table2 } from 'lucide-react';
 
 import { invApi } from '@/api/invApi';
+import { zonApi } from '@/api/zonApi';
 import { LOC_TYPE_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { num } from '@/utils/format';
 import SearchBar, { SearchText, SearchSelect, SearchProd, SearchLoc } from '@/components/common/SearchBar';
@@ -67,7 +68,10 @@ const COLUMN_DEFS = [
 ];
 
 export default function StockStatus() {
-    const [cond, setCond] = useState({ prodCd: '', locCd: '', lotNo: '', tmpZon: '', locTyp: '' });
+    const [cond, setCond] = useState({ prodCd: '', locCd: '', zonCd: '', lotNo: '', tmpZon: '', locTyp: '' });
+    const [zonCodes, setZonCodes] = useState([]);
+
+    const zonOptions = [{ value: '', label: '전체' }, ...zonCodes.map(z => ({ value: z.zonCd, label: z.zonCd }))];
     const [rowData, setRowData] = useState([]);
 
     // 요약 지표는 조회 결과에서 파생 (별도 API 없이 화면에서 집계)
@@ -87,6 +91,7 @@ export default function StockStatus() {
 
     useEffect(() => {
         invApi.list(cond).then(setRowData);
+        zonApi.list().then(setZonCodes);
     }, []);
 
     const [recOpen, setRecOpen] = useState(false);
@@ -138,6 +143,7 @@ export default function StockStatus() {
             <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
                 <SearchProd name="prodCd" />
                 <SearchLoc name="locCd" />
+                <SearchSelect name="zonCd" label="존" options={zonOptions} />
                 <SearchText name="lotNo" label="Lot번호" placeholder="LOT-260722-001" />
                 <SearchSelect name="tmpZon" label="온도대" options={TEMP_ZONE_OPTIONS} />
                 <SearchSelect name="locTyp" label="구분" options={LOC_TYPE_OPTIONS} />

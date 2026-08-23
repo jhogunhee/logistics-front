@@ -24,10 +24,12 @@ const toEditableRow = (r) => ({ ...r, _rlzQty: null, _rlzRsnCd: '', _rlzRsnDscr:
 // 수량이든 사유든 손댄 HELD 행이 해제 대상이다 — 반쪽 입력은 대상에 넣어 검증에서 걸리게 한다
 const isEntered = (r) => r.status === 'HELD' && (r._rlzQty != null || r._rlzRsnCd !== '');
 
+const INIT_COND = { hldNo: '', prodCd: '', locCd: '', lotNo: '', rsnCd: '', status: ['HELD'] };
+
 export default function StockHoldList() {
     const hldRsn = useCodes('HLD_RSN');     // 보류사유 (조회 필터 + 그리드 표시)
     const rlzRsn = useCodes('HLD_RLZ_RSN'); // 해제사유 (그리드 편집)
-    const [cond, setCond] = useState({ hldNo: '', prodCd: '', locCd: '', rsnCd: '', status: [] });
+    const [cond, setCond] = useState(INIT_COND);
     const [rowData, setRowData] = useState([]);
     const [confirmTargets, setConfirmTargets] = useState(null);
     const gridRef = useRef(null);
@@ -118,7 +120,7 @@ export default function StockHoldList() {
     };
 
     useEffect(() => {
-        invHldApi.list().then(d => setRowData(d.map(toEditableRow)));
+        invHldApi.list(INIT_COND).then(d => setRowData(d.map(toEditableRow)));
     }, []);
 
     // 해제사유 셀은 _rlzQty를, 기타 사유 셀은 _rlzRsnCd를 보고 그려진다. 그리드는 제 값이 바뀐
@@ -198,6 +200,7 @@ export default function StockHoldList() {
                 <SearchText name="hldNo" label="보류번호" placeholder="HD-20260803-001" />
                 <SearchProd name="prodCd" />
                 <SearchLoc name="locCd" />
+                <SearchText name="lotNo" label="Lot번호" placeholder="LOT-260722-001" />
                 <SearchSelect name="rsnCd" label="보류사유" options={hldRsn.searchOptions} />
                 <SearchSelect name="status" label="상태" options={STATUS_OPTIONS} multiple />
             </SearchBar>

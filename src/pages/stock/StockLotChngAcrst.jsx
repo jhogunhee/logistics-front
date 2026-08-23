@@ -5,8 +5,8 @@ import { History } from 'lucide-react';
 import { invLotChngApi } from '@/api/invLotChngApi';
 import { useCodes } from '@/hooks/useCodes';
 import { LOT_ATTR_RSN_GRP } from '@/constants/rsnCodes';
-import { fmtDt, num } from '@/utils/format';
-import SearchBar, { SearchText, SearchSelect, SearchProd, SearchLoc } from '@/components/common/SearchBar';
+import { daysAheadStr, fmtDt, num, todayStr } from '@/utils/format';
+import SearchBar, { SearchText, SearchSelect, SearchDateRange, SearchProd, SearchLoc } from '@/components/common/SearchBar';
 
 /** 전 → 후 셀 — 원 Lot과 목적지 Lot의 값을 나란히 (실행 시점 스냅샷이라 이후 정정과 무관하다) */
 const DiffCell = ({ before, after }) => (
@@ -24,7 +24,10 @@ const DiffCell = ({ before, after }) => (
  */
 export default function StockLotChngAcrst() {
     const rsn = useCodes(LOT_ATTR_RSN_GRP);
-    const [cond, setCond] = useState({ lotChngNo: '', prodCd: '', locCd: '', lotNo: '', rsnCd: '' });
+    const [cond, setCond] = useState({
+        lotChngNo: '', prodCd: '', locCd: '', lotNo: '', rsnCd: '',
+        dateFrom: daysAheadStr(-6), dateTo: todayStr(),
+    });
     const [rowData, setRowData] = useState([]);
 
     const columnDefs = useMemo(() => [
@@ -74,7 +77,8 @@ export default function StockLotChngAcrst() {
     const fetchList = async () => setRowData(await invLotChngApi.list(cond));
 
     useEffect(() => {
-        invLotChngApi.list({}).then(setRowData);
+        invLotChngApi.list(cond).then(setRowData);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     return (
@@ -95,6 +99,7 @@ export default function StockLotChngAcrst() {
                 <SearchLoc name="locCd" />
                 <SearchText name="lotNo" label="Lot번호" placeholder="원·새 어느 쪽이든" />
                 <SearchSelect name="rsnCd" label="사유" options={rsn.searchOptions} />
+                <SearchDateRange from="dateFrom" to="dateTo" label="실행일자" />
             </SearchBar>
 
             <div className="flex-1 min-h-0 flex flex-col gap-3">

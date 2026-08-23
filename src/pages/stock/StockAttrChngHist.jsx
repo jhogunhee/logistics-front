@@ -5,7 +5,7 @@ import { History } from 'lucide-react';
 import { lotAttrChngApi } from '@/api/lotAttrChngApi';
 import { useCodes } from '@/hooks/useCodes';
 import { LOT_ATTR_RSN_GRP } from '@/constants/rsnCodes';
-import { fmtDt, num } from '@/utils/format';
+import { daysAheadStr, fmtDt, num, todayStr } from '@/utils/format';
 import SearchBar, { SearchText, SearchSelect, SearchDateRange, SearchProd } from '@/components/common/SearchBar';
 
 /** 전 → 후 셀. 값이 그대로면 흐리게, 바뀌었으면 강조 — 한 행에서 무엇이 움직였는지 바로 보이게 */
@@ -27,7 +27,7 @@ const DiffCell = ({ before, after }) => {
  */
 export default function StockAttrChngHist() {
     const rsn = useCodes(LOT_ATTR_RSN_GRP);
-    const [cond, setCond] = useState({ prodCd: '', lotNo: '', rsnCd: '', chngFrom: '', chngTo: '' });
+    const [cond, setCond] = useState({ prodCd: '', lotNo: '', rsnCd: '', chngFrom: daysAheadStr(-6), chngTo: todayStr() });
     const [rowData, setRowData] = useState([]);
 
     const columnDefs = useMemo(() => [
@@ -59,7 +59,8 @@ export default function StockAttrChngHist() {
     const fetchList = async () => setRowData(await lotAttrChngApi.listChngs(cond));
 
     useEffect(() => {
-        lotAttrChngApi.listChngs({}).then(setRowData);
+        lotAttrChngApi.listChngs(cond).then(setRowData);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     return (
