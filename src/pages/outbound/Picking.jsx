@@ -10,6 +10,8 @@ import { ETC_RSN_CD } from '@/constants/rsnCodes';
 import { INV_MOV_STATUS_META } from '@/constants/badgeMeta';
 import { fmtDe, fmtDt, num, todayStr } from '@/utils/format';
 import { Badge } from '@/components/common/Badge';
+import { ProdThumb } from '@/components/common/ProdThumb';
+import { THUMB_CELL_STYLE } from '@/constants/agGrid';
 import SearchBar, { SearchText, SearchDateRange, SearchProd } from '@/components/common/SearchBar';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import PikngAcrstModal from '@/components/outbound/PikngAcrstModal';
@@ -63,6 +65,12 @@ const TASK_COLUMN_DEFS = [
         cellRenderer: (p) => (p.value
             ? <span title={p.data.rplnNo}><Badge meta={INV_MOV_STATUS_META} value={p.value} show="label" /></span>
             : <span className="text-slate-300">—</span>),
+    },
+    {
+        // 현장 화면이라 라벨 확인용 24px로는 작다 — 행 높이를 42로 올리고 32를 쓴다
+        field: 'prodImgUrl', headerName: '', width: 52, sortable: false, resizable: false,
+        cellStyle: THUMB_CELL_STYLE,
+        cellRenderer: (p) => <ProdThumb src={p.value} alt={p.data.prodNm} size={40} />,
     },
     { field: 'prodCd', headerName: '상품코드', width: 110, cellClass: 'text-slate-600' },
     { field: 'prodNm', headerName: '상품명', flex: 1, minWidth: 130 },
@@ -309,7 +317,7 @@ export default function Picking() {
                             ref={taskGridRef}
                             rowData={rows}
                             columnDefs={TASK_COLUMN_DEFS}
-                            rowHeight={34}
+                            rowHeight={50}
                             headerHeight={38}
                             singleClickEdit={true}
                             stopEditingWhenCellsLoseFocus={true}

@@ -10,6 +10,7 @@ import SearchBar, { SearchText, SearchSelect, SearchProd, SearchLoc } from '@/co
 import { Badge } from '@/components/common/Badge';
 import { StatTile } from '@/components/common/StatTile';
 import { ProdThumb } from '@/components/common/ProdThumb';
+import { THUMB_CELL_STYLE } from '@/constants/agGrid';
 import AlocRecModal from '@/components/stock/AlocRecModal';
 import StockLocMap from '@/components/stock/StockLocMap';
 
@@ -30,9 +31,9 @@ const LOC_TYPE_OPTIONS = [
 const columnDefsOf = (onGoMap) => [
     { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
     {
-        field: 'prodImgUrl', headerName: '', width: 44, sortable: false, resizable: false,
-        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-        cellRenderer: (p) => <ProdThumb src={p.value} alt={p.data.prodNm} size={24} />,
+        field: 'prodImgUrl', headerName: '', width: 50, sortable: false, resizable: false,
+        cellStyle: THUMB_CELL_STYLE,
+        cellRenderer: (p) => <ProdThumb src={p.value} alt={p.data.prodNm} tmpZon={p.data.tmpZon} size={34} />,
     },
     { field: 'prodCd', headerName: '상품 코드', width: 115 },
     { field: 'prodNm', headerName: '상품명', flex: 1, minWidth: 180 },
@@ -205,7 +206,7 @@ export default function StockStatus() {
                     <AgGridReact
                         rowData={rowData}
                         columnDefs={columnDefs}
-                        rowHeight={34}
+                        rowHeight={40}
                         headerHeight={38}
                     />
                 </div>

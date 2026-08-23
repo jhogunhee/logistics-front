@@ -29,7 +29,12 @@ import { ProdThumb } from '@/components/common/ProdThumb';
  */
 
 const pctOf = (r) => (r.maxQty ? Math.round((r.onHandQty / r.maxQty) * 100) : null);
-const isShort = (r) => r.fxngProdCd != null && r.fxngOnHandQty < r.fxngMinQty;
+// 보충 미달은 서버 판정(fxngShort)을 그대로 쓴다 — 정기보충 산정과 같은 식(현재고 + 지정 상품 유입 < min)이라,
+// 여기서 현재고만 보고 다시 계산하면 보충지시가 이미 뜬 자리를 아침마다 미달로 칠해 보충 화면과 어긋난다
+const isShort = (r) => r.fxngShort === true;
+// 「현재고/min」에 오고 있는 지시 잔량을 덧붙인다 — min 아래인데 미달이 아닌 칸의 이유가 읽히게
+const fxngQtyText = (r) => `${num(r.fxngOnHandQty)}/${num(r.fxngMinQty)}`
+    + (r.fxngInflowQty > 0 ? ` (+유입 ${num(r.fxngInflowQty)})` : '');
 
 // 랙 상세 채움 색 — 높이가 점유율을 말하므로 색은 상태만 가른다: 정상 indigo, 초과만 rose
 const fillColor = (pct) => (pct > 100 ? 'bg-rose-500' : pct === 100 ? 'bg-indigo-600' : 'bg-indigo-400');
@@ -528,7 +533,7 @@ const MapCell = ({ r, wide, selected, onClick, onHover }) => {
             {/* 고정 자리는 「이 자리는 이 상품 자리」를 그림으로 — 이미지가 없으면 압정으로 되돌아간다.
                 구조도(PlanCell)에는 넣지 않는다: 거긴 베이 합산이라 레벨마다 다른 고정상품을 하나로 대표할 수 없다 */}
             {r.fxngProdCd && (r.fxngProdImgUrl
-                ? <span className="absolute top-1 right-1"><ProdThumb src={r.fxngProdImgUrl} alt={r.fxngProdNm} size={14} /></span>
+                ? <span className="absolute top-1 right-1"><ProdThumb src={r.fxngProdImgUrl} alt={r.fxngProdNm} size={18} /></span>
                 : <Pin size={11} className={`absolute top-1 right-1 ${pct >= 75 ? 'text-white/85' : 'text-indigo-600'}`} />
             )}
             {short && <TriangleAlert size={11} className="absolute bottom-1 right-1 text-amber-500 fill-amber-100" />}
@@ -563,10 +568,10 @@ const CellTooltip = ({ tip }) => {
             </div>
             {r.fxngProdCd && (
                 <div className={`flex items-center gap-1 pt-1 border-t border-white/15 ${short ? 'text-amber-300' : 'text-indigo-200'}`}>
-                    <ProdThumb src={r.fxngProdImgUrl} alt={r.fxngProdNm} size={16} />
+                    <ProdThumb src={r.fxngProdImgUrl} alt={r.fxngProdNm} size={20} />
                     {short ? <TriangleAlert size={11} /> : <Pin size={11} />}
                     <span className="truncate">
-                        {r.fxngProdCd} {r.fxngProdNm} · {num(r.fxngOnHandQty)}/{num(r.fxngMinQty)}
+                        {r.fxngProdCd} {r.fxngProdNm} · {fxngQtyText(r)}
                         {short && ' — 보충 미달'}
                     </span>
                 </div>
@@ -609,10 +614,10 @@ const BayTooltip = ({ tip }) => {
             </div>
             {b.fxngs.map(c => (
                 <div key={c.locId} className={`flex items-center gap-1 pt-1 mt-1 border-t border-white/15 ${isShort(c) ? 'text-amber-300' : 'text-indigo-200'}`}>
-                    <ProdThumb src={c.fxngProdImgUrl} alt={c.fxngProdNm} size={16} />
+                    <ProdThumb src={c.fxngProdImgUrl} alt={c.fxngProdNm} size={26} />
                     {isShort(c) ? <TriangleAlert size={11} /> : <Pin size={11} />}
                     <span className="truncate">
-                        {Number(c.level)}단 · {c.fxngProdCd} {c.fxngProdNm} · {num(c.fxngOnHandQty)}/{num(c.fxngMinQty)}
+                        {Number(c.level)}단 · {c.fxngProdCd} {c.fxngProdNm} · {fxngQtyText(c)}
                         {isShort(c) && ' — 보충 미달'}
                     </span>
                 </div>
@@ -709,11 +714,11 @@ const DetailPanel = ({ sel, onClose, onGoTable }) => {
                         {sel.fxngs.map(c => (
                             <p key={c.locId} className={`text-[11px] rounded-lg px-2.5 py-1.5 flex items-center gap-1.5 ${isShort(c)
                                 ? 'bg-amber-50 text-amber-700 font-bold' : 'bg-indigo-50 text-indigo-700'}`}>
-                                <ProdThumb src={c.fxngProdImgUrl} alt={c.fxngProdNm} size={20} />
+                                <ProdThumb src={c.fxngProdImgUrl} alt={c.fxngProdNm} size={26} />
                                 {isShort(c) ? <TriangleAlert size={12} className="shrink-0" /> : <Pin size={12} className="shrink-0" />}
                                 <span>
                                     {sel.levels && `${Number(c.level)}단 `}고정 {c.fxngProdCd} {c.fxngProdNm}
-                                    {' — '}{num(c.fxngOnHandQty)}/{num(c.fxngMinQty)}
+                                    {' — '}{fxngQtyText(c)}
                                     {isShort(c) && ' 보충 미달'}
                                 </span>
                             </p>
@@ -737,7 +742,7 @@ const StockList = ({ stocks, showLoc }) => {
             {stocks.map(s => (
                 <div key={s.invId} className="border border-slate-200 rounded-lg px-2.5 py-2 flex flex-col gap-1">
                     <div className="flex items-center gap-1.5">
-                        <ProdThumb src={s.prodImgUrl} alt={s.prodNm} size={28} />
+                        <ProdThumb src={s.prodImgUrl} alt={s.prodNm} tmpZon={s.tmpZon} size={36} />
                         <span className="text-xs font-bold text-slate-700">{s.prodCd}</span>
                         <span className="text-[11px] text-slate-500 truncate">{s.prodNm}</span>
                     </div>

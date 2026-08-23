@@ -5,10 +5,13 @@ import { ClipboardCheck, History, Search, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { ibOrderApi } from '@/api/ibOrderApi';
+import { strategyApi } from '@/api/strategyApi';
 import { ASN_STATUS_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { eaQtyPerInbUomOf, fmtDt, num, todayStr, daysAheadStr } from '@/utils/format';
 import SearchBar, { SearchItem, SearchText, SearchDateRange } from '@/components/common/SearchBar';
 import { Badge } from '@/components/common/Badge';
+import { ProdThumb } from '@/components/common/ProdThumb';
+import { THUMB_CELL_STYLE } from '@/constants/agGrid';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import VendorPickerModal from '@/components/common/VendorPickerModal';
 import DateCellEditor from '@/components/common/DateCellEditor';
@@ -26,6 +29,9 @@ const expiryPreview = (mfgDt, shelfLifeDays) => {
     const p = (n) => String(n).padStart(2, '0');
     return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}`;
 };
+
+// 입력한 제조일자가 검수 제약 하한(_minMfgDt, 서버 힌트)보다 앞서는가 — 'YYYY-MM-DD' 문자열이라 사전순 비교가 날짜순이다
+const belowMin = (r) => !!r._minMfgDt && !!r._mfgDt && r._mfgDt < r._minMfgDt;
 
 // 검수 이력 등 낱개(EA) 저장값 1건 표시: 입고단위로 떨어지면 "2 BOX (48 EA)" 병기, 아니면 낱개 그대로 "N EA".
 // EA를 병기하는 이유 — 취소·재고 대조 시점엔 재고(EA)에서 얼마나 빠지는지가 보여야 한다.
@@ -84,6 +90,12 @@ export default function Receiving() {
     // 라인 그리드: 작업 순서대로 [식별 → 단위·예정·잔량 → 입력 3개(파란색, 연속 배치)]를 앞에 두고,
     // 환산·누계 등 참고용은 뒤로 보낸다 (입력 컬럼이 가로 스크롤 없이 바로 보이게)
     const lineColumnDefs = [
+        {
+            // 실물 대조가 목적인 현장 화면이라 32px — 행 높이도 42로 올린다
+            field: 'prodImgUrl', headerName: '', width: 52, sortable: false, resizable: false,
+            cellStyle: THUMB_CELL_STYLE,
+            cellRenderer: (p) => <ProdThumb src={p.value} alt={p.data.prodNm} tmpZon={p.data.tmpZon} size={40} />,
+        },
         { field: 'prodCd', headerName: '상품 코드', width: 105 },
         { field: 'prodNm', headerName: '상품명', flex: 1, minWidth: 180 },
         {
@@ -143,11 +155,30 @@ export default function Receiving() {
             cellEditor: DateCellEditor,
             // 달력 상한 = 입고일자 (제조일자는 입고보다 미래일 수 없다 — 저장 검증과 같은 규칙)
             cellEditorParams: (p) => ({ max: p.data._receiptDt || todayStr() }),
-            cellClass: 'bg-indigo-50',
+            // 하한(검수 제약)보다 앞선 날을 치면 그 자리에서 붉게 — 저장을 눌러 거부당하기 전에 보이게
+            cellClass: (p) => belowMin(p.data) ? 'bg-indigo-50 text-rose-600 font-bold' : 'bg-indigo-50',
             headerTooltip: '유통기한 = 제조일자 + 유통기한(일). 유통기한 미관리 상품은 입력 없음',
             cellRenderer: (p) => p.data.shelfLifeDays == null
                 ? <span className="text-slate-400">미관리</span>
                 : p.value,
+        },
+        {
+            // 검수 제약(잔여비율·역순)이 허용하는 가장 이른 제조일자 — 입력 전에 "어디까지 되는지"를 보여준다.
+            // 거부당한 뒤에야 기준을 알면 소급 등록·테스트 입력에서 날짜를 고르는 일이 헛걸음이 된다.
+            // 서버 저장본 정책으로 계산한 스냅샷이라 최종 판정은 여전히 저장 시점의 서버다
+            headerName: '제조일자 하한', width: 135,
+            headerTooltip: '검수 제약(잔여비율·역순)이 허용하는 가장 이른 제조일자 — 이 날 이후로 입력해야 저장됩니다. 셀 툴팁에 규칙별 기준',
+            valueGetter: (p) => p.data._minMfgDt,
+            tooltipValueGetter: (p) => (p.data._minRules ?? [])
+                .map(r => `${r.ruleName}: ${r.minMfgDt ? `${r.minMfgDt} 이후` : '제한 없음'}`)
+                .join('\n') || null,
+            cellClass: (p) => belowMin(p.data) ? 'text-rose-600 font-bold' : undefined,
+            cellRenderer: (p) => {
+                if (p.data.shelfLifeDays == null) return <span className="text-slate-400">미관리</span>;
+                if (p.data._minMfgDt === undefined) return <span className="text-slate-300">…</span>;
+                if (p.data._minMfgDt === null) return <span className="text-slate-400">제한 없음</span>;
+                return `${p.data._minMfgDt} 이후`;
+            },
         },
         // 낱개환산 컬럼은 뺐다 — 입력 중에는 입고단위 하나만 보인다. EA가 필요한 순간은
         // 저장 확인 모달(낱개 합계)과 검수 이력의 병기 표기가 맡는다.
@@ -171,6 +202,11 @@ export default function Receiving() {
         {
             field: 'createdAt', headerName: '검수일시', width: 150,
             valueFormatter: (p) => fmtDt(p.value),
+        },
+        {
+            field: 'prodImgUrl', headerName: '', width: 52, sortable: false, resizable: false,
+            cellStyle: THUMB_CELL_STYLE,
+            cellRenderer: (p) => <ProdThumb src={p.value} alt={p.data.prodNm} tmpZon={p.data.tmpZon} size={40} />,
         },
         { field: 'prodCd', headerName: '상품 코드', width: 105 },
         { field: 'prodNm', headerName: '상품명', flex: 1, minWidth: 180 },
@@ -228,12 +264,49 @@ export default function Receiving() {
         if (seq !== detailSeq.current) return;
         // 입고일자는 전 라인, 제조일자는 유통기한 관리 상품만 입력
         // (입고일자만 기본값 오늘 — 제조일자는 거의 항상 과거라 오늘 기본값은 그럴듯한 오답, 직접 입력을 강제한다)
-        setLineRows(lines.map(l => ({
+        const rows = lines.map(l => ({
             ...l,
             _inspectQty: null, // 숫자 에디터라 빈 값은 ''가 아니라 null (''는 텍스트로 추론돼 에디터가 안 붙는다)
             _receiptDt: todayStr(),
             _mfgDt: '',
-        })));
+        }));
+        setLineRows(rows);
+        // 제조일자 하한은 라인을 띄운 뒤 따로 붙인다 — 힌트가 늦어도 입력은 먼저 열려 있어야 한다
+        const mins = await loadMinMfgDts(rows);
+        if (seq !== detailSeq.current) return;
+        setLineRows(prev => prev.map(r => mins.has(r.ibLineId) ? { ...r, ...mins.get(r.ibLineId) } : r));
+    };
+
+    /**
+     * 검수 제약이 허용하는 가장 이른 제조일자(_minMfgDt)와 규칙별 내역(_minRules)을 서버에 묻는다 —
+     * 유통기한 관리 상품만, 라인 전부를 한 번에. 실패하면 힌트만 빠지고 입력·저장은 그대로 간다(서버가 최종 판정).
+     * @return ibLineId → { _minMfgDt, _minRules }
+     */
+    const loadMinMfgDts = async (rows) => {
+        const targets = rows.filter(r => r.shelfLifeDays != null);
+        const result = new Map();
+        if (targets.length === 0) return result;
+        try {
+            const res = await strategyApi.inspectionPolicy.minMfgDts({
+                items: targets.map(r => ({ prodId: r.prodId, receiptDt: r._receiptDt || todayStr() })),
+            });
+            targets.forEach((r, i) => {
+                const item = res.items?.[i];
+                result.set(r.ibLineId, { _minMfgDt: item?.minMfgDt ?? null, _minRules: item?.rules ?? [] });
+            });
+        } catch {
+            // 힌트는 보조 정보 — 조용히 비운다(서버 검증이 최종이라 잘못된 저장으로 이어지지 않는다)
+        }
+        return result;
+    };
+
+    // 입고일자를 고치면 그 라인의 제조일자 하한도 달라진다(잔여비율은 입고일 기준, 역순은 당일 제외 기준)
+    const onLineCellChanged = async (e) => {
+        if (e.colDef.field !== '_receiptDt') return;
+        const mins = await loadMinMfgDts([e.data]);
+        const patch = mins.get(e.data.ibLineId);
+        if (!patch) return;
+        setLineRows(prev => prev.map(r => r.ibLineId === e.data.ibLineId ? { ...r, ...patch } : r));
     };
 
     // 검수 작업 화면이므로 검수/취소가 아직 의미 있는 것만 보여준다 (확정된 입고는 닫힌 문서라 제외)
@@ -316,6 +389,11 @@ export default function Receiving() {
             }
             if (r.shelfLifeDays != null && r._mfgDt > r._receiptDt) {
                 toast.error(`제조일자가 입고일자보다 미래일 수 없습니다: ${r.prodCd}`);
+                return;
+            }
+            // 검수 제약 하한(서버 힌트)보다 앞서면 저장해도 거부된다 — 왕복 전에 거른다 (최종 판정은 서버)
+            if (belowMin(r)) {
+                toast.error(`제조일자가 하한(${r._minMfgDt} 이후)보다 앞섭니다 — 검수 제약에 걸립니다: ${r.prodCd}`);
                 return;
             }
         }
@@ -507,9 +585,10 @@ export default function Receiving() {
                                     ref={lineGridRef}
                                     rowData={pendingLineRows}
                                     columnDefs={lineColumnDefs}
-                                    rowHeight={34}
+                                    rowHeight={50}
                                     getRowId={(p) => String(p.data.ibLineId)}
                                     stopEditingWhenCellsLoseFocus={true}
+                                    onCellValueChanged={onLineCellChanged}
                                     getRowStyle={(p) => p.data._violationMsg ? { background: '#fff1f2' } : undefined}
                                 />
                             )
@@ -517,7 +596,7 @@ export default function Receiving() {
                             <AgGridReact
                                 rowData={receipts}
                                 columnDefs={receiptColumnDefs}
-                                rowHeight={34}
+                                rowHeight={50}
                                 getRowId={(p) => String(p.data.invHistId)}
                                 // 취소된 건은 원장에 그대로 남는다(append-only) — 지우지 않고 뒤로 물린다.
                                 // 취소선과 「취소됨」 뱃지가 구분을 맡으므로 여기서는 살짝만 흐리게 한다

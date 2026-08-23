@@ -56,6 +56,13 @@ export const strategyApi = {
         preview(payload) {
             return api.post('/strategy/inspection-policy/preview', payload);
         },
+        /**
+         * 검수 입력 전 힌트 — 저장본 정책 기준으로 상품·입고일자마다 입고 가능한 가장 이른 제조일자.
+         * payload: { items: [{ prodId, receiptDt }] } → { items: [{ prodId, receiptDt, minMfgDt, rules: [{ ruleCd, ruleName, minMfgDt }] }] }
+         */
+        minMfgDts(payload) {
+            return api.post('/strategy/inspection-policy/min-mfg-dt', payload);
+        },
     },
 
     /** 적치 전략 */

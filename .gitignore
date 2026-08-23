@@ -25,3 +25,9 @@ dist-ssr
 
 # IntelliJ 모듈 파일 (.idea와 함께 IDE 산출물)
 *.iml
+
+# 환경변수 — Supabase anon key 등이 들어간다. .env.local 은 *.local 로도 걸리지만
+# .env / .env.production 까지 확실히 막는다 (키가 커밋되면 되돌릴 수 없다)
+.env
+.env.*
+!.env.example
