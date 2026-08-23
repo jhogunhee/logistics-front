@@ -1,5 +1,7 @@
-import React, { createContext, useContext, useState } from 'react';
-import { Search, X } from "lucide-react";
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { ChevronDown, Search, X } from "lucide-react";
+import { daysAheadStr, todayStr, ymd } from '@/utils/format';
 import DropdownSelect from './DropdownSelect';
 import DatePicker from './DatePicker';
 import ProdPickerModal from './ProdPickerModal';
@@ -249,10 +251,127 @@ export function SearchSelect({ name, label, options, placeholder = '전체', req
     );
 }
 
+const monthRange = (offset) => {
+    const now = new Date();
+    const first = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+    const last = new Date(now.getFullYear(), now.getMonth() + offset + 1, 0);
+    return [ymd(first), ymd(last)];
+};
+
+const DATE_PRESETS = [
+    { key: 'today', label: '오늘', short: '오늘', range: () => [todayStr(), todayStr()] },
+    { key: 'yesterday', label: '어제', short: '어제', range: () => [daysAheadStr(-1), daysAheadStr(-1)] },
+    { key: 'last7', label: '최근 7일', short: '7일', range: () => [daysAheadStr(-6), todayStr()] },
+    { key: 'last30', label: '최근 30일', short: '30일', range: () => [daysAheadStr(-29), todayStr()] },
+    { key: 'thisMonth', label: '이번 달', short: '이달', range: () => monthRange(0) },
+    { key: 'lastMonth', label: '지난달', short: '지난달', range: () => monthRange(-1) },
+    { key: 'next7', label: '향후 7일', short: '+7일', range: () => [todayStr(), daysAheadStr(6)] },
+];
+
+/**
+ * 기간 빠른 선택. SearchDateRange의 `~` 자리에 들어가 폭을 더 쓰지 않는다.
+ * 목록은 DropdownSelect와 같이 포털로 띄우고, 외부 클릭·스크롤·리사이즈에 닫는다.
+ */
+function DateRangePresets({ from, to, onPick }) {
+    const [open, setOpen] = useState(false);
+    const [coords, setCoords] = useState(null);
+    const triggerRef = useRef(null);
+    const listRef = useRef(null);
+
+    const active = DATE_PRESETS.find(p => {
+        const [f, t] = p.range();
+        return f === from && t === to;
+    });
+
+    const LIST_MAX_HEIGHT = 260;
+    const updateCoords = () => {
+        const rect = triggerRef.current?.getBoundingClientRect();
+        if (!rect) return;
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const spaceAbove = rect.top;
+        const openUpward = spaceBelow < LIST_MAX_HEIGHT && spaceAbove > spaceBelow;
+        setCoords(openUpward
+            ? { bottom: window.innerHeight - rect.top + 4, left: rect.left }
+            : { top: rect.bottom + 4, left: rect.left });
+    };
+
+    useEffect(() => {
+        if (!open) return;
+        const onClickOutside = (e) => {
+            if (triggerRef.current?.contains(e.target)) return;
+            if (listRef.current?.contains(e.target)) return;
+            setOpen(false);
+        };
+        const onScroll = (e) => {
+            if (listRef.current?.contains(e.target)) return;
+            setOpen(false);
+        };
+        const onResize = () => setOpen(false);
+        document.addEventListener('mousedown', onClickOutside);
+        window.addEventListener('scroll', onScroll, true);
+        window.addEventListener('resize', onResize);
+        return () => {
+            document.removeEventListener('mousedown', onClickOutside);
+            window.removeEventListener('scroll', onScroll, true);
+            window.removeEventListener('resize', onResize);
+        };
+    }, [open]);
+
+    return (
+        <>
+            <button
+                ref={triggerRef}
+                type="button"
+                title="기간 빠른 선택"
+                onClick={() => {
+                    if (open) { setOpen(false); return; }
+                    updateCoords();
+                    setOpen(true);
+                }}
+                className={`shrink-0 flex items-center gap-0.5 px-1 py-1 rounded text-xs hover:bg-slate-100 ${
+                    active ? 'text-indigo-600 font-bold' : 'text-slate-400'}`}
+            >
+                <span>{active ? active.short : '~'}</span>
+                <ChevronDown size={11} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+            </button>
+
+            {open && coords && createPortal(
+                <div
+                    ref={listRef}
+                    style={{ position: 'fixed', ...coords }}
+                    className="z-50 w-28 bg-white border border-slate-200 rounded-lg shadow-lg py-1"
+                >
+                    {DATE_PRESETS.map(p => (
+                        <button
+                            key={p.key}
+                            type="button"
+                            onClick={() => {
+                                const [f, t] = p.range();
+                                onPick(f, t);
+                                setOpen(false);
+                            }}
+                            className={`w-full px-3 py-1.5 text-sm text-left transition-colors ${
+                                active?.key === p.key
+                                    ? 'text-indigo-600 font-bold'
+                                    : 'text-slate-700 font-medium hover:bg-slate-50'}`}
+                        >
+                            {p.label}
+                        </button>
+                    ))}
+                </div>,
+                document.body
+            )}
+        </>
+    );
+}
+
 /**
  * 검색 조건 날짜 범위 (SearchBar의 cond[from] ~ cond[to]에 바인딩)
+ *
+ * 가운데 `~`는 기간 빠른 선택 버튼이다 (오늘·최근 7일·이번 달 등).
+ * 프리셋이 맞지 않는 기간 조건은 `presets={false}`로 끄면 `~` 텍스트로 돌아간다.
  */
-export function SearchDateRange({ from, to, label, required, wide = true }) {
+export function SearchDateRange({ from, to, label, required, wide = true, presets = true }) {
     const { cond, setCond } = useContext(SearchBarCtx);
     const onChange = (name) => (v) => setCond(prev => ({ ...prev, [name]: v }));
     return (
@@ -265,7 +384,13 @@ export function SearchDateRange({ from, to, label, required, wide = true }) {
                     max={cond[to] || undefined}
                     className="flex-1 min-w-0"
                 />
-                <span className="text-slate-400 shrink-0">~</span>
+                {presets
+                    ? <DateRangePresets
+                        from={cond[from]}
+                        to={cond[to]}
+                        onPick={(f, t) => setCond(prev => ({ ...prev, [from]: f, [to]: t }))}
+                      />
+                    : <span className="text-slate-400 shrink-0">~</span>}
                 <DatePicker
                     value={cond[to]}
                     onChange={onChange(to)}
