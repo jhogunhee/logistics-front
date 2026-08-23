@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { AgGridReact } from 'ag-grid-react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { History, PackageOpen, PackageX, Play } from 'lucide-react';
@@ -54,15 +55,25 @@ const WAVE_COLUMN_DEFS = [
  * 지시 그리드 — srt_seq 순 = 집품 동선. 로케이션을 앞에 둬 「어디로 가서 무엇을 집나」로 읽힌다.
  * 완료 행(잔량 0)은 체크·편집이 잠긴다 — 실적 취소가 없어 작업 여지가 없다.
  */
-const TASK_COLUMN_DEFS = [
+const taskColumnDefs = (wavNo) => [
     { field: 'srtSeq', headerName: '순번', width: 64, cellClass: 'text-slate-500 tabular-nums' },
     { field: 'locCd', headerName: '로케이션', width: 130, cellClass: 'font-medium text-slate-700' },
     {
         field: 'rplnStatus', headerName: '보충', width: 84,
-        headerTooltip: '보관존 할당분의 짝 보충지시 — 「지시」면 실물이 아직 보관존에 있어 집을 수 없다. 수시보충 화면에서 확정하면 풀린다',
-        cellRenderer: (p) => (p.value
-            ? <span title={p.data.rplnNo}><Badge meta={INV_MOV_STATUS_META} value={p.value} show="label" /></span>
-            : <span className="text-slate-300">—</span>),
+        headerTooltip: '보관존 할당분의 짝 보충지시 — 「지시」면 실물이 아직 보관존에 있어 집을 수 없다. '
+            + '뱃지를 누르면 이 웨이브가 열린 수시보충 화면으로 간다',
+        cellRenderer: (p) => {
+            if (!p.value) return <span className="text-slate-300">—</span>;
+            const badge = <Badge meta={INV_MOV_STATUS_META} value={p.value} show="label" />;
+            if (!wavNo) return <span title={p.data.rplnNo}>{badge}</span>;
+            return (
+                <Link to={`/outbound/replenishment?wavNo=${encodeURIComponent(wavNo)}`}
+                      title={`${p.data.rplnNo} — 수시보충 화면에서 확정합니다`}
+                      className="hover:opacity-70 transition-opacity">
+                    {badge}
+                </Link>
+            );
+        },
     },
     { field: 'prodCd', headerName: '상품코드', width: 110, cellClass: 'text-slate-600' },
     { field: 'prodNm', headerName: '상품명', flex: 1, minWidth: 130 },
@@ -124,6 +135,7 @@ export default function Picking() {
     const taskGridRef = useRef(null);
     // 재조회 뒤 보고 있던 웨이브를 다시 열기 위한 wavId (할당 화면과 같은 방식)
     const pendingWaveRef = useRef(null);
+    const taskColumns = useMemo(() => taskColumnDefs(wave?.wavNo ?? null), [wave?.wavNo]);
 
     const fetchWaves = async () => {
         pendingWaveRef.current = wave?.wavId ?? null;
@@ -315,7 +327,7 @@ export default function Picking() {
                         <AgGridReact
                             ref={taskGridRef}
                             rowData={rows}
-                            columnDefs={TASK_COLUMN_DEFS}
+                            columnDefs={taskColumns}
                             rowHeight={34}
                             headerHeight={38}
                             singleClickEdit={true}
