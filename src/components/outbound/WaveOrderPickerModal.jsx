@@ -10,11 +10,6 @@ import SearchBar, { SearchText, SearchSelect, SearchDateRange } from '@/componen
 /**
  * 주문 담기 팝업 — 미편성 주문을 골라 선택한 웨이브에 수동 편성한다.
  *
- * 미편성 후보를 본 화면의 상시 그리드가 아니라 팝업으로 둔 이유: 수동 편입은 전략 조건과
- * 맞지 않는 주문을 예외로 담는 경로라 자주 쓰지 않는데, 상시 그리드로 두면 화면이 세 그리드로
- * 갈라져 정작 매번 보는 웨이브 목록·소속 주문이 좁아진다. 검색 조건도 이 안에만 있어
- * "이 조건은 후보를 거른다"가 위치로 드러난다. (수동할당의 {@link AllocCandidateModal}과 같은 결정)
- *
  * @param wave        담을 웨이브 (편성중). 열려 있는 동안만 마운트한다
  * @param columnDefs  후보 그리드 컬럼 (소속 주문 그리드와 같은 정의를 화면이 넘긴다)
  * @param context     그리드 컨텍스트 (코드 명칭 변환)
@@ -58,7 +53,7 @@ export default function WaveOrderPickerModal({ wave, columnDefs, context, outbTy
         }
         setSaving(true);
         try {
-            await outbWaveApi.addOrders(wave.wavId, picked.map(r => r.outbOrderId));
+            await outbWaveApi.assignOrders(wave.wavId, picked.map(r => r.outbOrderId));
             toast.success(`${wave.wavNo}에 주문 ${picked.length}건을 담았습니다.`);
             onAdded();
             onClose();
