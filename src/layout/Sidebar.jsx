@@ -77,7 +77,8 @@ const MENU = [
     {
         title: "재고",
         items: [
-            { to: "/stock/status", label: "현재고 조회", icon: Box, keywords: "inventory 재고 현황 수량" },
+            { to: "/stock/status", label: "현재고 조회", icon: Box,
+              keywords: "inventory 재고 현황 수량 map 맵 점유 로케이션 평면도 구조도 랙 베이 레벨 빈자리 occupancy" },
             { to: "/stock/history", label: "재고 이력 조회", icon: History, keywords: "inventory history 원장 입출고" },
             { to: "/stock/attribute", label: "재고 속성변경", icon: Tags, keywords: "lot 유통기한 제조일자 정정 변경 전량 라벨 유지" },
             { to: "/stock/lot-change", label: "재고 로트변경", icon: Split, keywords: "lot 로트 분할 병합 부분 수량 정정 split merge" },

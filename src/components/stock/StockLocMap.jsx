@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { PackageSearch, Pin, TriangleAlert, Truck, X } from 'lucide-react';
+import { PackageSearch, Pin, Table2, TriangleAlert, Truck, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { invApi } from '@/api/invApi';
 import { BIZ_DVSN_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { num } from '@/utils/format';
 import { Badge } from '@/components/common/Badge';
+import { StatTile } from '@/components/common/StatTile';
+import { ProdThumb } from '@/components/common/ProdThumb';
 
 /**
  * 로케이션 점유 맵 — 두 모드.
@@ -15,6 +17,15 @@ import { Badge } from '@/components/common/Badge';
  *   합치고, 클릭하면 레벨·상품 상세를 펼친다.
  * · 랙 상세: 존 → 통로 → 베이×레벨 입면. 셀은 점유율만큼 아래에서 차오르는 채움(레벨 1이 맨 아래).
  * 로케이션 코드에서 존 접두를 뗀 뒤 끝 두 토큰이 숫자면 베이·레벨로 읽고, 아니면 존 끝에 단순 나열한다.
+ *
+ * 현재고 조회(`StockStatus`)의 「맵」 탭으로 들어간다. 한때 독립 화면으로 갈랐다가 되돌린 것인데,
+ * 갈랐던 이유(모집단·검색조건·요약지표·API가 표와 다르다)는 **둘을 동시에 띄우는 것**을 막는 근거지
+ * 탭을 막는 근거가 아니었다 — 탭이면 한 번에 하나만 보이므로 각자 자기 조회를 그대로 갖는다.
+ * 갈랐을 때 얻었던 딥링크는 탭 상태를 쿼리스트링(`?view=map&locCd=…`)에 두어 그대로 유지한다.
+ *
+ * 화면 제목·탭 버튼은 부모(`StockStatus`)가 그린다. 여기서는 요약·필터·맵·상세 패널만 그린다.
+ * @param focusLocCd 표에서 건너온 로케이션 — 조건이 아니라 「선택 + 포커스」로 해석한다
+ * @param onGoTable  표 탭으로 건너가기. 인자로 준 locCd가 표의 검색조건이 된다
  */
 
 const pctOf = (r) => (r.maxQty ? Math.round((r.onHandQty / r.maxQty) * 100) : null);
@@ -48,7 +59,7 @@ const parseCell = (locCd, zonCd) => {
     return { aisle: tokens.slice(0, -2).join('-'), bay, level };
 };
 
-export default function StockLocMap() {
+export default function StockLocMap({ focusLocCd, onGoTable }) {
     const [rows, setRows] = useState(null);
     const [stageRows, setStageRows] = useState([]);
     const [mode, setMode] = useState('plan'); // plan(구조도) | rack(랙 상세)
@@ -61,15 +72,31 @@ export default function StockLocMap() {
     const selectLoc = (r) => setSel(selOfLoc(r));
     const selectBay = (b) => setSel(selOfBay(b));
 
+    /*
+     * 표에서 건너온 로케이션 — 맵에는 로케이션 필터가 없으므로(필터는 온도대·존·보충미달)
+     * 조건이 아니라 「선택 + 포커스」로 해석한다. 그 존만 남겨 찾기 쉽게 하고 상세패널을 연다.
+     * 스테이징은 맵에 없는 자리라(STORAGE 전건) 못 찾는 것이 정상 — 그때는 안내만 한다.
+     * 조회 응답 안에서 처리한다 — 별도 effect로 빼면 같은 API를 두 번 부르게 된다.
+     */
     useEffect(() => {
         invApi.locMap()
-            .then(setRows)
+            .then((loaded) => {
+                setRows(loaded);
+                if (!focusLocCd) return;
+                const hit = loaded.find(r => r.locCd === focusLocCd);
+                if (!hit) {
+                    toast(`맵에 없는 로케이션입니다: ${focusLocCd} (보관 로케이션만 표시합니다)`);
+                    return;
+                }
+                setZonCd(hit.zonCd);
+                setSel(selOfLoc(hit));
+            })
             .catch((e) => {
                 toast.error(e.message || '로케이션 맵 조회에 실패했습니다.');
                 setRows([]);
             });
         invApi.list({ locTyp: 'STAGE' }).then(setStageRows).catch(() => setStageRows([]));
-    }, []);
+    }, [focusLocCd]);
 
     const zonOptions = useMemo(
         () => [...new Map((rows ?? []).map(r => [r.zonCd, r.zonNm])).entries()],
@@ -166,7 +193,7 @@ export default function StockLocMap() {
     if (rows == null) return <p className="text-sm text-slate-400 py-8 text-center">조회 중…</p>;
 
     return (
-        <div className="flex-1 min-h-0 flex flex-col gap-3">
+        <div className="flex flex-col gap-4 h-full">
             {/* 요약 지표 */}
             <div className="flex gap-3">
                 <StatTile label="전체 점유율" value={summary.occupancy != null ? `${summary.occupancy}%` : '—'}
@@ -333,7 +360,7 @@ export default function StockLocMap() {
                 </div>
             )}
 
-                <DetailPanel sel={sel} onClose={() => setSel(null)} />
+                <DetailPanel sel={sel} onClose={() => setSel(null)} onGoTable={onGoTable} />
             </div>
 
             {tip && (tip.bay ? <BayTooltip tip={tip} /> : <CellTooltip tip={tip} />)}
@@ -357,16 +384,6 @@ const selOfBay = (b) => ({
     onHand: b.onHand, capacity: b.capacity, aloc: b.aloc, hld: b.hld, pct: b.pct,
     levels: b.cells, fxngs: b.fxngs, showLoc: true,
 });
-
-const StatTile = ({ label, value, sub, accent }) => (
-    <div className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-3 flex flex-col gap-0.5">
-        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{label}</span>
-        <span className={`text-xl font-bold tabular-nums ${accent ?? 'text-slate-800'}`}>
-            {value}
-            {sub && <span className="ml-1.5 text-[11px] font-medium text-slate-300 normal-case tracking-normal">{sub}</span>}
-        </span>
-    </div>
-);
 
 /** 방안지 바닥 — 평면도로 읽히게 하는 배경. 클릭을 가리지 않는다 */
 const FloorGrid = () => (
@@ -508,8 +525,11 @@ const MapCell = ({ r, wide, selected, onClick, onHover }) => {
             <span className={`relative ${pct >= 75 ? 'text-white' : ''}`}>
                 {wide ? r.locCd : `${r.bay}-${r.level}`}
             </span>
-            {r.fxngProdCd && (
-                <Pin size={11} className={`absolute top-1 right-1 ${pct >= 75 ? 'text-white/85' : 'text-indigo-600'}`} />
+            {/* 고정 자리는 「이 자리는 이 상품 자리」를 그림으로 — 이미지가 없으면 압정으로 되돌아간다.
+                구조도(PlanCell)에는 넣지 않는다: 거긴 베이 합산이라 레벨마다 다른 고정상품을 하나로 대표할 수 없다 */}
+            {r.fxngProdCd && (r.fxngProdImgUrl
+                ? <span className="absolute top-1 right-1"><ProdThumb src={r.fxngProdImgUrl} alt={r.fxngProdNm} size={14} /></span>
+                : <Pin size={11} className={`absolute top-1 right-1 ${pct >= 75 ? 'text-white/85' : 'text-indigo-600'}`} />
             )}
             {short && <TriangleAlert size={11} className="absolute bottom-1 right-1 text-amber-500 fill-amber-100" />}
         </button>
@@ -543,6 +563,7 @@ const CellTooltip = ({ tip }) => {
             </div>
             {r.fxngProdCd && (
                 <div className={`flex items-center gap-1 pt-1 border-t border-white/15 ${short ? 'text-amber-300' : 'text-indigo-200'}`}>
+                    <ProdThumb src={r.fxngProdImgUrl} alt={r.fxngProdNm} size={16} />
                     {short ? <TriangleAlert size={11} /> : <Pin size={11} />}
                     <span className="truncate">
                         {r.fxngProdCd} {r.fxngProdNm} · {num(r.fxngOnHandQty)}/{num(r.fxngMinQty)}
@@ -588,6 +609,7 @@ const BayTooltip = ({ tip }) => {
             </div>
             {b.fxngs.map(c => (
                 <div key={c.locId} className={`flex items-center gap-1 pt-1 mt-1 border-t border-white/15 ${isShort(c) ? 'text-amber-300' : 'text-indigo-200'}`}>
+                    <ProdThumb src={c.fxngProdImgUrl} alt={c.fxngProdNm} size={16} />
                     {isShort(c) ? <TriangleAlert size={11} /> : <Pin size={11} />}
                     <span className="truncate">
                         {Number(c.level)}단 · {c.fxngProdCd} {c.fxngProdNm} · {num(c.fxngOnHandQty)}/{num(c.fxngMinQty)}
@@ -604,7 +626,7 @@ const BayTooltip = ({ tip }) => {
  * 선택한 자리의 재고 — 맵 오른쪽에 상시 붙는 패널. 모달과 달리 맵을 가리지 않아
  * 여러 자리를 연달아 눌러 비교할 수 있다. 재고는 기존 현재고 API(locCd 부분일치)로 부른다.
  */
-const DetailPanel = ({ sel, onClose }) => {
+const DetailPanel = ({ sel, onClose, onGoTable }) => {
     const [stocks, setStocks] = useState(null);
     const query = sel?.query;
 
@@ -661,6 +683,14 @@ const DetailPanel = ({ sel, onClose }) => {
                                 </div>
                             ))}
                         </div>
+                        {/* 표로 건너뛰기 — sel.title이 아니라 sel.query를 넘긴다.
+                            베이 선택이면 query가 prefix(DRY-A-01)이고 locCd가 부분일치라 레벨 전부가 걸린다 */}
+                        <button onClick={() => onGoTable(sel.query)}
+                                className="flex items-center justify-center gap-1 w-full py-1.5 rounded-lg border border-slate-200
+                                           text-[11px] font-medium text-slate-500 hover:border-indigo-300 hover:text-indigo-600"
+                                title="이 자리의 재고를 현재고 조회 화면에서 봅니다">
+                            <Table2 size={12} /> 현재고 조회로 보기
+                        </button>
                         {sel.levels && (
                             <div className="flex items-center gap-1 flex-wrap">
                                 {sel.levels.map(c => {
@@ -677,9 +707,10 @@ const DetailPanel = ({ sel, onClose }) => {
 
                     <div className="flex-1 min-h-0 overflow-auto px-4 py-3 flex flex-col gap-2">
                         {sel.fxngs.map(c => (
-                            <p key={c.locId} className={`text-[11px] rounded-lg px-2.5 py-1.5 flex items-start gap-1.5 ${isShort(c)
+                            <p key={c.locId} className={`text-[11px] rounded-lg px-2.5 py-1.5 flex items-center gap-1.5 ${isShort(c)
                                 ? 'bg-amber-50 text-amber-700 font-bold' : 'bg-indigo-50 text-indigo-700'}`}>
-                                {isShort(c) ? <TriangleAlert size={12} className="mt-px shrink-0" /> : <Pin size={12} className="mt-px shrink-0" />}
+                                <ProdThumb src={c.fxngProdImgUrl} alt={c.fxngProdNm} size={20} />
+                                {isShort(c) ? <TriangleAlert size={12} className="shrink-0" /> : <Pin size={12} className="shrink-0" />}
                                 <span>
                                     {sel.levels && `${Number(c.level)}단 `}고정 {c.fxngProdCd} {c.fxngProdNm}
                                     {' — '}{num(c.fxngOnHandQty)}/{num(c.fxngMinQty)}
@@ -705,7 +736,8 @@ const StockList = ({ stocks, showLoc }) => {
             <p className="text-[11px] text-slate-400 font-medium">재고 {num(stocks.length)}건</p>
             {stocks.map(s => (
                 <div key={s.invId} className="border border-slate-200 rounded-lg px-2.5 py-2 flex flex-col gap-1">
-                    <div className="flex items-baseline gap-1.5">
+                    <div className="flex items-center gap-1.5">
+                        <ProdThumb src={s.prodImgUrl} alt={s.prodNm} size={28} />
                         <span className="text-xs font-bold text-slate-700">{s.prodCd}</span>
                         <span className="text-[11px] text-slate-500 truncate">{s.prodNm}</span>
                     </div>

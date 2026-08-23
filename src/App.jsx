@@ -74,7 +74,7 @@ export default function App() {
                         <Route path="/inbound/putaway" element={<Putaway/>}/>
                         <Route path="/inbound/confirm" element={<InboundConfirm/>}/>
 
-                        {/* 재고 */}
+                        {/* 재고 — 로케이션 점유 맵은 이 화면의 「맵」 탭이다(?view=map) */}
                         <Route path="/stock/status" element={<StockStatus/>}/>
                         <Route path="/stock/history" element={<InvHistory/>}/>
                         {/* 재고 속성변경 — Lot 속성(제조일자·유통기한) 정정. 재고는 움직이지 않는다. 탭으로 정정/이력을 오간다 */}
