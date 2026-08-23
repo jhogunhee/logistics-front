@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 import { outbShmtApi } from '@/api/outbShmtApi';
 import { OUTB_STATUS_META } from '@/constants/badgeMeta';
 import { fmtDe, fmtDt, num, todayStr } from '@/utils/format';
-import SearchBar, { SearchText, SearchDateRange } from '@/components/common/SearchBar';
+import SearchBar, { SearchText, SearchDateRange, SearchStore } from '@/components/common/SearchBar';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import { Badge } from '@/components/common/Badge';
 
@@ -83,7 +83,7 @@ const ORDER_COLUMN_DEFS = [
  * 되돌릴 수 없다 — 출고확정 취소는 지원하지 않는다.
  */
 export default function Shipping() {
-    const [cond, setCond] = useState({ wavNo: '', outbNo: '', expctDeFrom: todayStr(), expctDeTo: todayStr() });
+    const [cond, setCond] = useState({ wavNo: '', outbNo: '', storeId: '', storeNm: '', expctDeFrom: todayStr(), expctDeTo: todayStr() });
     const [waves, setWaves] = useState([]);
     const [wave, setWave] = useState(null);          // 선택 웨이브 (단일)
     const [rows, setRows] = useState([]);
@@ -183,6 +183,7 @@ export default function Shipping() {
             <SearchBar cond={cond} setCond={setCond} onSearch={search}>
                 <SearchText name="wavNo" label="웨이브번호" placeholder="WV-20260821-001" />
                 <SearchText name="outbNo" label="출고번호" placeholder="OB-20260821-001" />
+                <SearchStore />
                 <SearchDateRange from="expctDeFrom" to="expctDeTo" label="출고예정일" />
             </SearchBar>
 

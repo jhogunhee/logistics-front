@@ -8,7 +8,8 @@ export const outbAllocApi = {
     /**
      * 할당 대상 웨이브 목록 — 잔량이 남은 편성중(PLANNED) 웨이브.
      *
-     * cond: { wavNo, prodCd, outbNo, storeCd, expctDeFrom, expctDeTo }
+     * cond: { wavNo, prodCd, outbNo, storeId, expctDeFrom, expctDeTo }
+     *       (storeNm은 화면 표시용 — 같이 실려가지만 서버가 무시한다)
      *
      * ⚠ 상품·출고번호·점포 조건은 <b>라인이 아니라 웨이브를 거른다</b>. 조건에 맞는 라인이
      * 하나라도 있으면 그 웨이브가 통째로 걸리므로, 특정 출고번호로 검색해도 결과는 그 웨이브

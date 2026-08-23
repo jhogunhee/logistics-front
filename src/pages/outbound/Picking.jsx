@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { AgGridReact } from 'ag-grid-react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { History, PackageOpen, PackageX, Play } from 'lucide-react';
@@ -12,7 +13,7 @@ import { fmtDe, fmtDt, num, todayStr } from '@/utils/format';
 import { Badge } from '@/components/common/Badge';
 import { ProdThumb } from '@/components/common/ProdThumb';
 import { THUMB_CELL_STYLE } from '@/constants/agGrid';
-import SearchBar, { SearchText, SearchDateRange, SearchProd } from '@/components/common/SearchBar';
+import SearchBar, { SearchText, SearchDateRange, SearchProd, SearchLoc } from '@/components/common/SearchBar';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import PikngAcrstModal from '@/components/outbound/PikngAcrstModal';
 
@@ -56,15 +57,25 @@ const WAVE_COLUMN_DEFS = [
  * 지시 그리드 — srt_seq 순 = 집품 동선. 로케이션을 앞에 둬 「어디로 가서 무엇을 집나」로 읽힌다.
  * 완료 행(잔량 0)은 체크·편집이 잠긴다 — 실적 취소가 없어 작업 여지가 없다.
  */
-const TASK_COLUMN_DEFS = [
+const taskColumnDefs = (wavNo) => [
     { field: 'srtSeq', headerName: '순번', width: 64, cellClass: 'text-slate-500 tabular-nums' },
     { field: 'locCd', headerName: '로케이션', width: 130, cellClass: 'font-medium text-slate-700' },
     {
         field: 'rplnStatus', headerName: '보충', width: 84,
-        headerTooltip: '보관존 할당분의 짝 보충지시 — 「지시」면 실물이 아직 보관존에 있어 집을 수 없다. 수시보충 화면에서 확정하면 풀린다',
-        cellRenderer: (p) => (p.value
-            ? <span title={p.data.rplnNo}><Badge meta={INV_MOV_STATUS_META} value={p.value} show="label" /></span>
-            : <span className="text-slate-300">—</span>),
+        headerTooltip: '보관존 할당분의 짝 보충지시 — 「지시」면 실물이 아직 보관존에 있어 집을 수 없다. '
+            + '뱃지를 누르면 이 웨이브가 열린 수시보충 화면으로 간다',
+        cellRenderer: (p) => {
+            if (!p.value) return <span className="text-slate-300">—</span>;
+            const badge = <Badge meta={INV_MOV_STATUS_META} value={p.value} show="label" />;
+            if (!wavNo) return <span title={p.data.rplnNo}>{badge}</span>;
+            return (
+                <Link to={`/outbound/replenishment?wavNo=${encodeURIComponent(wavNo)}`}
+                      title={`${p.data.rplnNo} — 수시보충 화면에서 확정합니다`}
+                      className="hover:opacity-70 transition-opacity">
+                    {badge}
+                </Link>
+            );
+        },
     },
     {
         // 현장 화면이라 라벨 확인용 24px로는 작다 — 행 높이를 42로 올리고 32를 쓴다
@@ -119,7 +130,7 @@ const TASK_COLUMN_DEFS = [
  */
 export default function Picking() {
     const shotgeRsn = useCodes('SHOTGE_RSN'); // 결품사유
-    const [cond, setCond] = useState({ wavNo: '', prodCd: '', expctDeFrom: todayStr(), expctDeTo: todayStr() });
+    const [cond, setCond] = useState({ wavNo: '', prodCd: '', locCd: '', expctDeFrom: todayStr(), expctDeTo: todayStr() });
     const [waves, setWaves] = useState([]);
     const [wave, setWave] = useState(null);          // 선택 웨이브 (단일)
     const [rows, setRows] = useState([]);
@@ -132,6 +143,7 @@ export default function Picking() {
     const taskGridRef = useRef(null);
     // 재조회 뒤 보고 있던 웨이브를 다시 열기 위한 wavId (할당 화면과 같은 방식)
     const pendingWaveRef = useRef(null);
+    const taskColumns = useMemo(() => taskColumnDefs(wave?.wavNo ?? null), [wave?.wavNo]);
 
     const fetchWaves = async () => {
         pendingWaveRef.current = wave?.wavId ?? null;
@@ -146,8 +158,14 @@ export default function Picking() {
             return;
         }
         const detail = await outbPikngApi.taskDetail(wavId);
+        // 로케이션은 하단 지시 행까지 좁힌다 — 집품 구역을 나눠 붙이면 내 구역 지시만 보여야 한다.
+        // 실행을 하단에서 지시 행 단위로 하는 화면이라 가능하다 — 상단에서 웨이브를 체크해
+        // 통째로 실행하는 할당·피킹지시 화면은 그러지 못한다.
+        // 거르는 의미는 서버 EXISTS와 같게 맞춘다(containsIgnoreCase). 상단 합계는 언제나 웨이브 전체다.
+        const kw = cond.locCd.trim().toLowerCase();
+        const visible = kw ? detail.rows.filter(r => (r.locCd ?? '').toLowerCase().includes(kw)) : detail.rows;
         // 피킹수량 편집 컬럼의 기본값 = 잔량 전량 — 부분 피킹할 때만 고친다 (적치 화면과 같은 방식)
-        setRows(detail.rows.map(r => ({ ...r, _pikngQty: r.remainQty > 0 ? r.remainQty : null })));
+        setRows(visible.map(r => ({ ...r, _pikngQty: r.remainQty > 0 ? r.remainQty : null })));
     };
 
     const search = async () => {
@@ -261,6 +279,7 @@ export default function Picking() {
             <SearchBar cond={cond} setCond={setCond} onSearch={search}>
                 <SearchText name="wavNo" label="웨이브번호" placeholder="WV-20260820-001" />
                 <SearchProd name="prodCd" />
+                <SearchLoc name="locCd" />
                 <SearchDateRange from="expctDeFrom" to="expctDeTo" label="출고예정일" />
             </SearchBar>
 
@@ -316,7 +335,7 @@ export default function Picking() {
                         <AgGridReact
                             ref={taskGridRef}
                             rowData={rows}
-                            columnDefs={TASK_COLUMN_DEFS}
+                            columnDefs={taskColumns}
                             rowHeight={50}
                             headerHeight={38}
                             singleClickEdit={true}

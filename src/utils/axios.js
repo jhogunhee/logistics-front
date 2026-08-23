@@ -6,6 +6,9 @@ const instance = axios.create({
     // DB가 원격(Supabase)이라 검수 저장·지시 발행처럼 쿼리가 많은 트랜잭션은 5초를 넘긴다 —
     // 5000으로 두면 서버는 성공했는데 화면만 실패 토스트를 띄우는 어긋남이 실제로 났다
     timeout: 30000,
+    // 배열 조건(상태 다중선택)을 status=A&status=B로 보낸다. axios 기본은 status[]=A라
+    // Spring이 List<Enum> 파라미터로 바인딩하지 못한다
+    paramsSerializer: { indexes: null },
 });
 
 // [요청 인터셉터] 서버로 보내기 전 공통 작업

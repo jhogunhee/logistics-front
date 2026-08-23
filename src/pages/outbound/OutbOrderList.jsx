@@ -8,7 +8,7 @@ import { useCodes } from '@/hooks/useCodes';
 import { OUTB_STATUS_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { OUTB_STATUS_OPTIONS } from '@/constants/codeOptions';
 import { daysAheadStr, fmtDt, num, todayStr } from '@/utils/format';
-import SearchBar, { SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
+import SearchBar, { SearchText, SearchSelect, SearchDateRange, SearchStore } from '@/components/common/SearchBar';
 import { Badge } from '@/components/common/Badge';
 
 const centered = { display: 'flex', alignItems: 'center', justifyContent: 'center' };
@@ -97,8 +97,8 @@ export default function OutbOrderList() {
     const outbTyps = useCodes('OUTB_TYP');
     const vhclFltnos = useCodes('VHCL_FLTNO');
     const [cond, setCond] = useState({
-        outbNo: '', status: '', outbTyp: '', vhclFltno: '',
-        dateFrom: todayStr(), dateTo: daysAheadStr(7),
+        outbNo: '', status: [], storeId: '', storeNm: '', outbTyp: '', vhclFltno: '',
+        expctDeFrom: todayStr(), expctDeTo: daysAheadStr(7),
     });
     const [rowData, setRowData] = useState([]);
     const [lineRows, setLineRows] = useState([]);
@@ -149,11 +149,12 @@ export default function OutbOrderList() {
             {/* 검색 조건 */}
             <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
                 <SearchText name="outbNo" label="출고번호" placeholder="OB-20260803-001" />
-                <SearchSelect name="status" label="출고진행상태" options={OUTB_STATUS_OPTIONS} />
+                <SearchSelect name="status" label="출고진행상태" options={OUTB_STATUS_OPTIONS} multiple />
+                <SearchStore />
                 <SearchSelect name="outbTyp" label="출고유형" options={outbTyps.searchOptions} />
                 <SearchSelect name="vhclFltno" label="차량편수" options={vhclFltnos.searchOptions} />
                 {/* 기간은 출고예정일이다 — 주문일이 아니다. 웨이브도 같은 기준으로 대상을 좁힌다 */}
-                <SearchDateRange from="dateFrom" to="dateTo" label="출고예정일" />
+                <SearchDateRange from="expctDeFrom" to="expctDeTo" label="출고예정일" />
             </SearchBar>
 
             {/* 상하 분할 + 드래그 스플리터 — 경계를 끌어 비율 조절 (비율은 localStorage에 기억됨) */}

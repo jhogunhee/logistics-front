@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { AgGridReact } from 'ag-grid-react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { AlertTriangle, ClipboardList, Send, Undo2 } from 'lucide-react';
@@ -7,7 +8,7 @@ import toast from 'react-hot-toast';
 import { outbPikngApi } from '@/api/outbPikngApi';
 import { WAVE_STATUS_META, PIKNG_TASK_STATUS_META, INV_MOV_STATUS_META } from '@/constants/badgeMeta';
 import { fmtDe, fmtDt, num, todayStr } from '@/utils/format';
-import SearchBar, { SearchText, SearchDateRange, SearchProd, SearchSelect } from '@/components/common/SearchBar';
+import SearchBar, { SearchText, SearchDateRange, SearchSelect } from '@/components/common/SearchBar';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import { Badge } from '@/components/common/Badge';
 
@@ -72,7 +73,7 @@ const WAVE_COLUMN_DEFS = [
 ];
 
 /** 하단 — 발행 전엔 할당 행(발행 미리보기, 순번 없음) / 발행 후엔 지시 행(스냅샷, srt_seq 순) */
-const ROW_COLUMN_DEFS = [
+const rowColumnDefs = (wavNo) => [
     {
         field: 'srtSeq', headerName: '순번', width: 64,
         headerTooltip: '집품 순서 — 발행 시점에 로케이션 순(pikng_prty → loc_cd)으로 고정된다',
@@ -102,10 +103,20 @@ const ROW_COLUMN_DEFS = [
     },
     {
         field: 'rplnStatus', headerName: '보충', width: 84,
-        headerTooltip: '보관존 할당분의 짝 보충지시 — 「지시」면 보충이 끝나야 집품할 수 있다. 피킹존 할당은 비어 있다',
-        cellRenderer: (p) => (p.value
-            ? <span title={p.data.rplnNo}><Badge meta={INV_MOV_STATUS_META} value={p.value} show="label" /></span>
-            : <span className="text-slate-300">—</span>),
+        headerTooltip: '보관존 할당분의 짝 보충지시 — 「지시」면 보충이 끝나야 집품할 수 있다. 피킹존 할당은 비어 있다. '
+            + '뱃지를 누르면 이 웨이브가 열린 수시보충 화면으로 간다',
+        cellRenderer: (p) => {
+            if (!p.value) return <span className="text-slate-300">—</span>;
+            const badge = <Badge meta={INV_MOV_STATUS_META} value={p.value} show="label" />;
+            if (!wavNo) return <span title={p.data.rplnNo}>{badge}</span>;
+            return (
+                <Link to={`/outbound/replenishment?wavNo=${encodeURIComponent(wavNo)}`}
+                      title={`${p.data.rplnNo} — 수시보충 화면에서 확정합니다`}
+                      className="hover:opacity-70 transition-opacity">
+                    {badge}
+                </Link>
+            );
+        },
     },
 ];
 
@@ -124,7 +135,7 @@ const ROW_COLUMN_DEFS = [
  * 부분할당은 막지 않는다 — 미할당 잔량은 부족 출고로 진행한다(백오더 없음).
  */
 export default function PickOrder() {
-    const [cond, setCond] = useState({ wavNo: '', outbNo: '', prodCd: '', storeCd: '', status: '', expctDeFrom: todayStr(), expctDeTo: todayStr() });
+    const [cond, setCond] = useState({ wavNo: '', status: [], expctDeFrom: todayStr(), expctDeTo: todayStr() });
     const [waves, setWaves] = useState([]);
     const [detail, setDetail] = useState(null);      // { wavId, wavNo, status, rows, noAllocOrders }
     const [confirmIssue, setConfirmIssue] = useState(null);
@@ -138,6 +149,7 @@ export default function PickOrder() {
     const rowGridRef = useRef(null);
     // 재조회 뒤 보고 있던 웨이브를 다시 열기 위한 wavId (할당 화면과 같은 방식)
     const pendingWaveRef = useRef(null);
+    const rowColumns = useMemo(() => rowColumnDefs(detail?.wavNo ?? null), [detail?.wavNo]);
 
     const fetchWaves = async (keepSelection = true) => {
         pendingWaveRef.current = keepSelection ? detail?.wavId ?? null : null;
@@ -297,17 +309,15 @@ export default function PickOrder() {
                 </span>
             </div>
 
-            {/* 검색 — 조건은 웨이브를 거른다 (할당 화면과 같은 규칙) */}
+            {/* 검색 — 어느 웨이브를 발행할지만 정한다. 발행 대상은 선택 웨이브의 미발행 전량이라
+                주문 쪽 축(출고번호·상품·점포)을 두어도 「어느 웨이브냐」만 답한다 — 웨이브번호와 중복이다 */}
             <SearchBar cond={cond} setCond={setCond} onSearch={search}>
                 <SearchText name="wavNo" label="웨이브번호" placeholder="WV-20260820-001" />
-                <SearchSelect name="status" label="상태" options={[
+                <SearchSelect name="status" label="웨이브상태" options={[
                     { value: '', label: '전체' },
                     { value: 'PLANNED', label: '편성중' },
                     { value: 'ISSUED', label: '지시발행' },
-                ]} />
-                <SearchText name="outbNo" label="출고번호" placeholder="OB-20260820-001" />
-                <SearchProd name="prodCd" />
-                <SearchText name="storeCd" label="점포코드" placeholder="ST-0001" />
+                ]} multiple />
                 <SearchDateRange from="expctDeFrom" to="expctDeTo" label="출고예정일" />
             </SearchBar>
 
@@ -406,7 +416,7 @@ export default function PickOrder() {
                         <AgGridReact
                             ref={rowGridRef}
                             rowData={detailRows}
-                            columnDefs={ROW_COLUMN_DEFS}
+                            columnDefs={rowColumns}
                             rowHeight={34}
                             headerHeight={38}
                             rowSelection={detail?.status === 'ISSUED' ? {

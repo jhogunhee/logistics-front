@@ -92,7 +92,7 @@ const loadAll = async (month) => {
     const results = await Promise.allSettled([
         ibOrderApi.list(range),
         putawayApi.lines(),
-        outbOrderApi.list(range),
+        outbOrderApi.list({ expctDeFrom: range.dateFrom, expctDeTo: range.dateTo }),
         outbPikngApi.pickingWaves(),
         invApi.list(),
         invHistApi.list(range),

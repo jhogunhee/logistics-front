@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { AgGridReact } from 'ag-grid-react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { PackagePlus, Undo2 } from 'lucide-react';
@@ -57,7 +58,13 @@ const ROW_COLUMN_DEFS = [
  * 도착지로 굳어 있어 따로 살릴 수 없다. 할당은 그대로 남으므로 피킹지시 화면에서 다시 발행하면 된다.
  */
 export default function Replenishment() {
-    const [cond, setCond] = useState({ wavNo: '', prodCd: '', expctDeFrom: todayStr(), expctDeTo: todayStr() });
+    // 피킹지시·피킹 화면의 「보충」 뱃지가 ?wavNo=로 들어온다 — 그 웨이브를 찾는 것이 목적이라
+    // 출고예정일 기본값(오늘)은 걸지 않는다
+    const [searchParams] = useSearchParams();
+    const linkedWavNo = searchParams.get('wavNo');
+    const [cond, setCond] = useState(linkedWavNo
+        ? { wavNo: linkedWavNo, prodCd: '', expctDeFrom: '', expctDeTo: '' }
+        : { wavNo: '', prodCd: '', expctDeFrom: todayStr(), expctDeTo: todayStr() });
     const [waves, setWaves] = useState([]);
     const [wave, setWave] = useState(null);
     const [rows, setRows] = useState([]);
@@ -91,7 +98,15 @@ export default function Replenishment() {
     };
 
     useEffect(() => {
-        rplnApi.waves(cond).then(setWaves).catch(() => {});
+        rplnApi.waves(cond).then(list => {
+            // 링크로 들어왔으면 그 웨이브를 바로 편다 — 온 이유가 그 웨이브 하나다
+            const linked = linkedWavNo ? list.find(w => w.wavNo === linkedWavNo) : null;
+            if (linked) pendingWaveRef.current = linked.wavId;
+            setWaves(list);
+            if (linkedWavNo && !linked) {
+                toast(`${linkedWavNo} — 확정할 보충지시가 없습니다.`, { id: 'rpln-link-miss' });
+            }
+        }).catch(() => {});
     }, []);
 
     const onWaveModelUpdated = (p) => {

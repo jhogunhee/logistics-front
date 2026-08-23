@@ -64,8 +64,8 @@ const COLUMN_DEFS = [
 
 export default function StockCountList({ onOpen }) {
     const [cond, setCond] = useState({
-        stktkNo: '', status: '', zonCd: '', prodCd: '',
-        fromDe: daysAheadStr(-7), toDe: todayStr(),
+        stktkNo: '', status: [], zonCd: '', prodCd: '',
+        fromDe: daysAheadStr(-6), toDe: todayStr(),
     });
     const [rowData, setRowData] = useState([]);
     const [zonCodes, setZonCodes] = useState([]);
@@ -136,7 +136,7 @@ export default function StockCountList({ onOpen }) {
             {/* 검색 조건 */}
             <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
                 <SearchText name="stktkNo" label="조사번호" placeholder="ST-260803-001" />
-                <SearchSelect name="status" label="상태" options={STATUS_OPTIONS} />
+                <SearchSelect name="status" label="상태" options={STATUS_OPTIONS} multiple />
                 <SearchSelect name="zonCd" label="존" options={zonOptions} />
                 <SearchProd name="prodCd" />
                 <SearchDateRange from="fromDe" to="toDe" label="생성일자" />

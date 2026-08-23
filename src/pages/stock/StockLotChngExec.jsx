@@ -6,10 +6,16 @@ import toast from 'react-hot-toast';
 import { invLotChngApi } from '@/api/invLotChngApi';
 import { useCodes } from '@/hooks/useCodes';
 import { ETC_RSN_CD, LOT_ATTR_RSN_GRP } from '@/constants/rsnCodes';
+import { TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { num } from '@/utils/format';
-import SearchBar, { SearchText, SearchProd, SearchLoc } from '@/components/common/SearchBar';
+import SearchBar, { SearchText, SearchSelect, SearchProd, SearchLoc } from '@/components/common/SearchBar';
 import SelectCellEditor from '@/components/common/SelectCellEditor';
 import DatePicker from '@/components/common/DatePicker';
+
+const TEMP_ZONE_OPTIONS = [
+    { value: '', label: '전체' },
+    ...Object.entries(TEMP_ZONE_META).map(([value, m]) => ({ value, label: m.label })),
+];
 
 /**
  * "YYYY-MM-DD" + n일. toISOString()을 쓰지 않는 이유는 그게 UTC로 변환하기 때문이다
@@ -39,7 +45,7 @@ const isEntered = (r) => r.chngQty != null || r.newMfgDt !== '' || r.rsnCd !== '
  */
 export default function StockLotChngExec() {
     const rsn = useCodes(LOT_ATTR_RSN_GRP); // 사유 성격이 속성 정정과 같아 그룹을 재사용한다
-    const [cond, setCond] = useState({ prodCd: '', locCd: '', lotNo: '' });
+    const [cond, setCond] = useState({ prodCd: '', locCd: '', lotNo: '', tmpZon: '' });
     const [rowData, setRowData] = useState([]);
     const [confirmTargets, setConfirmTargets] = useState(null);
     // 목적지 선택 모달 상태 — dest.row가 있으면 열림
@@ -123,7 +129,8 @@ export default function StockLotChngExec() {
     };
 
     useEffect(() => {
-        invLotChngApi.listTargets({}).then(d => setRowData(d.map(toEditableRow)));
+        invLotChngApi.listTargets(cond).then(d => setRowData(d.map(toEditableRow)));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // 사유 셀은 isEntered를, 기타 사유 셀은 rsnCd를 보고 그려진다 — 제 값이 안 바뀐 셀은 그리드가
@@ -274,6 +281,7 @@ export default function StockLotChngExec() {
                 <SearchProd name="prodCd" />
                 <SearchLoc name="locCd" />
                 <SearchText name="lotNo" label="Lot번호" placeholder="LOT-260722-001" />
+                <SearchSelect name="tmpZon" label="온도대" options={TEMP_ZONE_OPTIONS} />
             </SearchBar>
 
             <div className="flex-1 min-h-0 flex flex-col gap-3">

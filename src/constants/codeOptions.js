@@ -5,6 +5,7 @@
  */
 import {
     ASN_PRGR_META, OMS_IB_STATUS_META, OMS_OUTB_STATUS_META, OUTB_STATUS_META, TX_TYPE_META,
+    WAVE_STATUS_META,
 } from '@/constants/badgeMeta';
 
 /** 공통코드 목록 → 검색 콤보 옵션 ('전체' 포함) */
@@ -35,6 +36,12 @@ export const OMS_OUTB_STATUS_OPTIONS = [
 export const OUTB_STATUS_OPTIONS = [
     { value: '', label: '전체' },
     ...Object.entries(OUTB_STATUS_META).map(([value, m]) => ({ value, label: m.label })),
+];
+
+/** 웨이브 상태 검색 드롭다운 옵션 */
+export const WAVE_STATUS_OPTIONS = [
+    { value: '', label: '전체' },
+    ...Object.entries(WAVE_STATUS_META).map(([value, m]) => ({ value, label: m.label })),
 ];
 
 /** 재고이력 유형 검색 드롭다운 옵션 */

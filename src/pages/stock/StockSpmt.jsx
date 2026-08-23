@@ -1,13 +1,14 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
 import { Plus, Repeat, Send } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { spmtApi } from '@/api/spmtApi';
+import { zonApi } from '@/api/zonApi';
 import { TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { num } from '@/utils/format';
-import SearchBar, { SearchText, SearchProd, SearchLoc } from '@/components/common/SearchBar';
+import SearchBar, { SearchSelect, SearchProd, SearchLoc } from '@/components/common/SearchBar';
 import SelectCellEditor from '@/components/common/SelectCellEditor';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import { Badge } from '@/components/common/Badge';
@@ -16,11 +17,17 @@ import { Badge } from '@/components/common/Badge';
 // 이동지시(SPMT)를 발행한다. 여기는 산정·발행까지고, 실물 이동(확정)은 재고 이동 > 이동지시 관리 몫.
 // 추천은 예약이 아니다 — 발행 시 서버가 부족량·가용을 같은 식으로 재검증한다.
 
+const TEMP_ZONE_OPTIONS = [
+    { value: '', label: '전체' },
+    ...Object.entries(TEMP_ZONE_META).map(([value, m]) => ({ value, label: m.label })),
+];
+
 /** 배정 행의 합계 (수량 미입력 행 제외) */
 const assignedSum = (t) => t._assignments.reduce((s, a) => s + (Number(a.qty) || 0), 0);
 
 export default function StockSpmt() {
-    const [cond, setCond] = useState({ zonCd: '', prodCd: '', locCd: '' });
+    const [cond, setCond] = useState({ zonCd: '', prodCd: '', locCd: '', tmpZon: '' });
+    const [zonCodes, setZonCodes] = useState([]);
     const [targets, setTargets] = useState(null); // null = 아직 조회 전
     const [selectedFxngLocId, setSelectedFxngLocId] = useState(null);
     const [confirmIssue, setConfirmIssue] = useState(null);
@@ -38,6 +45,12 @@ export default function StockSpmt() {
     const selected = targets?.find(t => t.fxngLocId === selectedFxngLocId) ?? null;
     const totalShort = (targets ?? []).reduce((s, t) => s + t.shortQty, 0);
     const totalAssigned = (targets ?? []).reduce((s, t) => s + assignedSum(t), 0);
+
+    const zonOptions = [{ value: '', label: '전체' }, ...zonCodes.map(z => ({ value: z.zonCd, label: z.zonCd }))];
+
+    useEffect(() => {
+        zonApi.list().then(setZonCodes);
+    }, []);
 
     const fetchTargets = async () => {
         try {
@@ -257,9 +270,10 @@ export default function StockSpmt() {
 
             {/* 검색 조건 */}
             <SearchBar cond={cond} setCond={setCond} onSearch={fetchTargets}>
-                <SearchText name="zonCd" label="존" placeholder="PIKNG-A" />
+                <SearchSelect name="zonCd" label="존" options={zonOptions} />
                 <SearchProd name="prodCd" />
                 <SearchLoc name="locCd" />
+                <SearchSelect name="tmpZon" label="온도대" options={TEMP_ZONE_OPTIONS} />
             </SearchBar>
 
             <PanelGroup direction="vertical" autoSaveId="wms-spmt-split-v1" className="flex-1 min-h-0">

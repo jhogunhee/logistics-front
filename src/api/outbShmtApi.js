@@ -14,8 +14,9 @@ export const outbShmtApi = {
      * 출고확정 화면의 웨이브 목록 — 지시발행(ISSUED) 웨이브만. 편성중은 집품 전이고 종료는 끝났다.
      * 주문 상태별 건수(확정대상 · 작업중 · 확정완료)를 함께 내려준다.
      *
-     * cond: { wavNo, outbNo, storeCd, expctDeFrom, expctDeTo }
-     * ⚠ 주문 쪽 조건은 할당·피킹지시 화면과 같은 EXISTS — 어느 웨이브를 보여줄지만 정하고 건수는 웨이브 전체다.
+     * cond: { wavNo, outbNo, storeId, expctDeFrom, expctDeTo }
+     *       (storeNm은 화면 표시용 — 같이 실려가지만 서버가 무시한다)
+     * ⚠ 주문 쪽 조건은 할당 화면과 같은 EXISTS — 어느 웨이브를 보여줄지만 정하고 건수는 웨이브 전체다.
      */
     waves(cond = {}) {
         return api.get('/outbound/shipping/waves', { params: params(cond) });

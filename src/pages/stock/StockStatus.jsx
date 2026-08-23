@@ -4,6 +4,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { Box, Map, Scale, Table2 } from 'lucide-react';
 
 import { invApi } from '@/api/invApi';
+import { zonApi } from '@/api/zonApi';
 import { LOC_TYPE_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { num } from '@/utils/format';
 import SearchBar, { SearchText, SearchSelect, SearchProd, SearchLoc } from '@/components/common/SearchBar';
@@ -86,7 +87,7 @@ const columnDefsOf = (onGoMap) => [
     },
 ];
 
-const EMPTY_COND = { prodCd: '', locCd: '', lotNo: '', tmpZon: '', locTyp: '' };
+const EMPTY_COND = { prodCd: '', locCd: '', zonCd: '', lotNo: '', tmpZon: '', locTyp: '' };
 
 /**
  * 쿼리스트링에서 검색조건만 추린다. 키 이름을 InvSearchCond 필드명과 같게 쓰기로 해서 파싱이 없다.
@@ -107,6 +108,9 @@ export default function StockStatus() {
 
     const view = searchParams.get('view') === 'map' ? 'map' : 'table';
     const [cond, setCond] = useState(() => condFromQuery(query));
+    const [zonCodes, setZonCodes] = useState([]);
+
+    const zonOptions = [{ value: '', label: '전체' }, ...zonCodes.map(z => ({ value: z.zonCd, label: z.zonCd }))];
     const [rowData, setRowData] = useState([]);
 
     /** 표 → 맵. 조건이 아니라 「그 자리를 열어라」라서 검색조건은 건드리지 않는다 */
@@ -142,6 +146,11 @@ export default function StockStatus() {
     useEffect(() => {
         invApi.list(JSON.parse(condKey)).then(setRowData);
     }, [condKey]);
+
+    // 존 콤보 목록은 한 번만 — 검색조건과 무관하다
+    useEffect(() => {
+        zonApi.list().then(setZonCodes);
+    }, []);
 
     const [recOpen, setRecOpen] = useState(false);
 
@@ -195,6 +204,7 @@ export default function StockStatus() {
             <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
                 <SearchProd name="prodCd" />
                 <SearchLoc name="locCd" />
+                <SearchSelect name="zonCd" label="존" options={zonOptions} />
                 <SearchText name="lotNo" label="Lot번호" placeholder="LOT-260722-001" />
                 <SearchSelect name="tmpZon" label="온도대" options={TEMP_ZONE_OPTIONS} />
                 <SearchSelect name="locTyp" label="구분" options={LOC_TYPE_OPTIONS} />

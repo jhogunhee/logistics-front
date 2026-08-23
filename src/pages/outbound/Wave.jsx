@@ -10,7 +10,8 @@ import { strategyApi } from '@/api/strategyApi';
 import { useCodes } from '@/hooks/useCodes';
 import { WAVE_STATUS_META, WAV_REG_TYP_META, OUTB_STATUS_META } from '@/constants/badgeMeta';
 import { fmtDt, num, todayStr } from '@/utils/format';
-import SearchBar, { SearchText, SearchDateRange } from '@/components/common/SearchBar';
+import { WAVE_STATUS_OPTIONS } from '@/constants/codeOptions';
+import SearchBar, { SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import { Badge } from '@/components/common/Badge';
 import ExecutionHistory from '@/components/strategy/ExecutionHistory';
@@ -19,11 +20,6 @@ import WaveStrategyRunner from '@/components/outbound/WaveStrategyRunner';
 
 const centered = { display: 'flex', alignItems: 'center', justifyContent: 'center' };
 
-/**
- * 웨이브 목록. 다른 그리드와 같은 단일 행이고, 컬럼 순서가 곧 폭 우선순위다 —
- * 좌측 컬럼이 좁아 뒤쪽 일자 컬럼은 가로 스크롤로 밀리므로, <b>웨이브를 고를 때 필요한 것</b>
- * (번호 · 상태 · 출고예정일 · 주문 수 · 생성 전략)을 앞에 둬 기본 폭에서 스크롤 없이 보이게 한다.
- */
 const WAVE_COLUMN_DEFS = [
     { field: 'wavNo', headerName: '웨이브번호', width: 168, cellClass: 'font-bold text-slate-700' },
     {
@@ -117,20 +113,14 @@ const WAVE_ORDER_COLUMN_DEFS = [
  * 웨이브 편성 (SC — 출고). 출고주문을 <b>피킹지시 발행 단위</b>인 웨이브로 묶는다.
  *
  * 편성 경로는 셋이다 — 수동(담기, {@link WaveOrderPickerModal}) · 전략 선택실행 · 전략 자동실행
- * ({@link WaveStrategyRunner}). 이 화면은 웨이브 목록 · 소속 주문 두 그리드와 담기/빼기/해체를 맡는다.
- *
- * 전략 실행 진입점이 전략관리 화면이 아니라 여기 있는 이유는, 실행이 전략 정의를 고치는 일이 아니라
- * 실제 편성을 만드는 업무 처리이기 때문이다 (호출 API도 업무 도메인에 있다).
+ * ({@link WaveStrategyRunner}).
  */
 export default function Wave() {
-    // 공통코드 (출고유형 · 차량편수) — 조건 기준값의 주인은 코드관리라 화면에 하드코딩하지 않는다
     const outbTyps = useCodes('OUTB_TYP');
     const vhclFltnos = useCodes('VHCL_FLTNO');
 
-    // ── 검색 조건 — 웨이브 목록에만 걸린다. 주문 조건은 주문 담기 팝업 안에 있다 ──
-    // 출고예정일 기본값은 오늘 — 다른 출고 화면(할당·피킹지시·피킹)과 같다. 조건이 없으면
-    // 목록이 생성 이래 전량으로 자라고 소속 주문까지 함께 읽는다.
-    const [cond, setCond] = useState({ wavNo: '', expctDeFrom: todayStr(), expctDeTo: todayStr() });
+    // ── 검색 조건 — 웨이브 목록에만 걸린다.
+    const [cond, setCond] = useState({ wavNo: '', status: [], expctDeFrom: todayStr(), expctDeTo: todayStr() });
 
     // ── 웨이브 목록 ──────────────────────────────────────────
     const [waves, setWaves] = useState([]);
@@ -138,8 +128,7 @@ export default function Wave() {
     const waveGridRef = useRef(null);
     const pendingWaveRef = useRef(null); // 재조회 후 같은 웨이브를 다시 선택하기 위한 wavId
 
-    // ── 주문 목록 — 선택 웨이브 소속. 미편성은 건수만 보여주고 목록은 담기 팝업에서 본다 ──
-    const [unassigned, setUnassigned] = useState([]);
+    // ── 주문 목록 — 선택 웨이브 소속. 미편성 목록은 담기 팝업에서 본다 ──
     const [waveOrders, setWaveOrders] = useState([]);
     const waveOrderGridRef = useRef(null);
     const [pickerWave, setPickerWave] = useState(null); // 주문 담기 팝업 대상 웨이브 (null이면 닫힘)
@@ -169,10 +158,6 @@ export default function Wave() {
         setWaves(await outbWaveApi.list(cond));
     };
 
-    const fetchUnassigned = async () => {
-        setUnassigned(await outbOrderApi.list({ status: 'CREATED', unassigned: true }));
-    };
-
     const fetchWaveOrders = async (wavId) => {
         setWaveOrders(wavId == null ? [] : await outbOrderApi.list({ wavId }));
     };
@@ -191,7 +176,6 @@ export default function Wave() {
         // 최초 조회도 검색조건(기본 = 출고예정일 오늘)을 쓴다 — 빈 조건으로 읽으면 기본값을
         // 화면에 띄워 놓고 목록만 전량이 되어, 보이는 조건과 목록이 어긋난다
         outbWaveApi.list(cond).then(setWaves).catch(() => {});
-        outbOrderApi.list({ status: 'CREATED', unassigned: true }).then(setUnassigned).catch(() => {});
         strategyApi.waveStrategies.list().then(setStrategies).catch(() => {});
     }, []);
 
@@ -223,9 +207,9 @@ export default function Wave() {
         }
     };
 
-    // 담기 자체는 팝업이 처리하고, 여기선 담긴 뒤 세 목록을 다시 읽는다
+    // 담기 자체는 팝업이 처리하고, 여기선 담긴 뒤 두 목록을 다시 읽는다
     const onOrdersAdded = async () => {
-        await Promise.all([fetchWaves(), fetchUnassigned(), fetchWaveOrders(selectedWave.wavId)]);
+        await Promise.all([fetchWaves(), fetchWaveOrders(selectedWave.wavId)]);
     };
 
     const handleUnassignClick = () => {
@@ -242,16 +226,16 @@ export default function Wave() {
         try {
             await outbWaveApi.unassignOrders(selectedWave.wavId, rows.map(r => r.outbOrderId));
             toast.success(`주문 ${rows.length}건을 편성 해제했습니다.`);
-            await Promise.all([fetchWaves(), fetchUnassigned(), fetchWaveOrders(selectedWave.wavId)]);
+            await Promise.all([fetchWaves(), fetchWaveOrders(selectedWave.wavId)]);
         } catch (e) {
             toast.error(e.message || '편성 해제에 실패했습니다.');
         }
     };
 
-    // 전략 실행 뒤 — 웨이브·미편성이 함께 바뀌고 보고 있던 웨이브의 소속도 달라질 수 있다.
+    // 전략 실행 뒤 — 웨이브 목록이 바뀌고 보고 있던 웨이브의 소속도 달라질 수 있다.
     // 결과는 따로 그리지 않고 실행 이력을 방금 건이 펼쳐진 채로 연다 (로그에 같은 내용이 남는다)
     const onStgyExecuted = async () => {
-        await Promise.all([fetchWaves(), fetchUnassigned()]);
+        await fetchWaves();
         if (selectedWave) fetchWaveOrders(selectedWave.wavId);
         setExecHistory('latest');
     };
@@ -260,7 +244,7 @@ export default function Wave() {
         try {
             await outbWaveApi.disband(wave.wavId);
             toast.success(`${wave.wavNo}를 해체했습니다 — 소속 주문은 미편성으로 돌아갑니다.`);
-            await Promise.all([fetchWaves(false), fetchUnassigned()]);
+            await fetchWaves(false);
         } catch (e) {
             toast.error(e.message || '해체에 실패했습니다.');
         }
@@ -289,6 +273,7 @@ export default function Wave() {
             {/* 검색 조건 — 웨이브 목록에만 걸린다. 주문 조건은 주문 담기 팝업 안에 있다 */}
             <SearchBar cond={cond} setCond={setCond} onSearch={search}>
                 <SearchText name="wavNo" label="웨이브번호" placeholder="WV-20260803-001" />
+                <SearchSelect name="status" label="웨이브상태" options={WAVE_STATUS_OPTIONS} multiple />
                 <SearchDateRange from="expctDeFrom" to="expctDeTo" label="출고예정일" />
             </SearchBar>
 
@@ -298,13 +283,12 @@ export default function Wave() {
               * 좌: 웨이브 목록 / 우: 선택 웨이브 소속 주문.
               * 미편성 후보는 상시 그리드로 두지 않고 「주문 담기」 팝업에서 본다 — 수동 편입은
               * 예외 경로라 자주 쓰지 않는데, 상시로 두면 세 그리드가 화면을 나눠 매번 보는
-              * 웨이브 목록·소속 주문이 좁아진다. 미편성이 얼마나 남았는지는 담기 버튼의 건수로 보인다.
+              * 웨이브 목록·소속 주문이 좁아진다.
               */}
             <PanelGroup direction="horizontal" autoSaveId="outb-wave-split-v2" className="flex-1 min-h-0">
                 <Panel defaultSize={33} minSize={16} className="flex flex-col gap-2 min-h-0">
                     <div className="flex items-center gap-2">
                         <span className="text-sm font-bold text-slate-700">웨이브</span>
-                        <span className="text-xs text-slate-500 font-medium">{waves.length}건</span>
                         <button
                             onClick={() => setConfirmDisband(selectedWave)}
                             disabled={!canEditWave || selectedWave.alocStartedCount > 0}
@@ -345,15 +329,13 @@ export default function Wave() {
                                     : `${selectedWave.wavNo} — 피킹지시가 발행돼 편성을 바꿀 수 없습니다`)
                                 : '왼쪽에서 작업할 웨이브를 선택하세요'}
                         </span>
-                        <span className="text-xs text-slate-500 font-medium ml-auto shrink-0">{waveOrders.length}건</span>
                         <button onClick={() => setPickerWave(selectedWave)}
                                 disabled={!canEditWave || selectedWave.alocStartedCount > 0}
                                 title={selectedWave?.alocStartedCount > 0
                                     ? `할당이 시작된 주문이 ${selectedWave.alocStartedCount}건 있어 주문을 추가할 수 없습니다 — 할당을 먼저 해제하세요`
                                     : '미편성 주문 중에서 골라 이 웨이브에 담습니다 (편입 출처: 수동)'}
-                                className="btn-primary shrink-0 disabled:bg-slate-200 disabled:text-slate-400">
+                                className="btn-primary ml-auto shrink-0 disabled:bg-slate-200 disabled:text-slate-400">
                             <ListPlus size={13} /> 주문 담기
-                            <span className="font-normal opacity-80">(미편성 {num(unassigned.length)})</span>
                         </button>
                         <button onClick={handleUnassignClick} disabled={!canEditWave}
                                 title="체크한 주문을 이 웨이브에서 빼 미편성으로 되돌립니다"

@@ -8,9 +8,14 @@ import { invMovApi } from '@/api/invMovApi';
 import { locApi } from '@/api/locApi';
 import { TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { num } from '@/utils/format';
-import SearchBar, { SearchText, SearchProd, SearchLoc } from '@/components/common/SearchBar';
+import SearchBar, { SearchText, SearchSelect, SearchProd, SearchLoc } from '@/components/common/SearchBar';
 import SelectCellEditor from '@/components/common/SelectCellEditor';
 import { Badge } from '@/components/common/Badge';
+
+const TEMP_ZONE_OPTIONS = [
+    { value: '', label: '전체' },
+    ...Object.entries(TEMP_ZONE_META).map(([value, m]) => ({ value, label: m.label })),
+];
 
 // 조회 결과에 입력 2필드를 붙인다 — 행이 곧 지시 후보라, 별도 담기 목록이 없다
 const toEditableRow = (r) => ({ ...r, qty: null, toLocCd: '' });
@@ -19,7 +24,7 @@ const toEditableRow = (r) => ({ ...r, qty: null, toLocCd: '' });
 const isEntered = (r) => r.qty != null || r.toLocCd !== '';
 
 export default function StockMoveOrder() {
-    const [cond, setCond] = useState({ prodCd: '', locCd: '', lotNo: '' });
+    const [cond, setCond] = useState({ prodCd: '', locCd: '', lotNo: '', tmpZon: '' });
     const [rowData, setRowData] = useState([]);
     const [storageLocs, setStorageLocs] = useState([]); // 보관 로케이션 전체 (TO 후보의 모집단)
     const [confirmTargets, setConfirmTargets] = useState(null);
@@ -193,6 +198,7 @@ export default function StockMoveOrder() {
                 <SearchProd name="prodCd" />
                 <SearchLoc name="locCd" />
                 <SearchText name="lotNo" label="Lot번호" placeholder="LOT-260722-001" />
+                <SearchSelect name="tmpZon" label="온도대" options={TEMP_ZONE_OPTIONS} />
             </SearchBar>
 
             <div className="flex-1 min-h-0 flex flex-col gap-3">

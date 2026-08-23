@@ -4,8 +4,8 @@ import { History } from 'lucide-react';
 
 import { invHldApi } from '@/api/invHldApi';
 import { useCodes } from '@/hooks/useCodes';
-import { fmtDt, num } from '@/utils/format';
-import SearchBar, { SearchText, SearchSelect, SearchProd, SearchLoc } from '@/components/common/SearchBar';
+import { daysAheadStr, fmtDt, num, todayStr } from '@/utils/format';
+import SearchBar, { SearchText, SearchSelect, SearchDateRange, SearchProd, SearchLoc } from '@/components/common/SearchBar';
 
 /** 실적 종류. 보류/해제 실적은 별개 테이블이지만 화면 형태가 같아 토글로 오간다 */
 const KINDS = [
@@ -13,14 +13,17 @@ const KINDS = [
     { key: 'release', label: '해제 실적', qtyHeader: '해제수량', rsnGrp: 'HLD_RLZ_RSN', qtyClass: 'text-emerald-600' },
 ];
 
-const INIT_COND = { hldNo: '', prodCd: '', locCd: '', rsnCd: '' };
+const initCond = () => ({
+    hldNo: '', prodCd: '', locCd: '', lotNo: '', rsnCd: '',
+    dateFrom: daysAheadStr(-6), dateTo: todayStr(),
+});
 
 /**
  * 보류/해제 실적 조회 (append-only 로그). 물리 이동이 아니라 재고 이력 조회(inv_hist)에는
  * 나오지 않는 유일한 처리라, 전용 실적 테이블을 여기서 조회한다. 부분 해제 N번이면 해제 실적 N행.
  */
 export default function StockHoldAcrst() {
-    const [cond, setCond] = useState(INIT_COND);
+    const [cond, setCond] = useState(initCond);
     const [rowData, setRowData] = useState([]);
     const [kind, setKind] = useState('hold');
 
@@ -59,7 +62,7 @@ export default function StockHoldAcrst() {
     // 마운트 조회는 fetchList를 부르지 않고 API를 직접 호출한다 — 이펙트가 컴포넌트 함수를
     // 의존성으로 잡게 되어 react-hooks 규칙에 걸린다 (Lot 속성 정정 화면과 같은 형태)
     useEffect(() => {
-        invHldApi.listAcrst(INIT_COND).then(setRowData);
+        invHldApi.listAcrst(initCond()).then(setRowData);
     }, []);
 
     // 종류 전환은 이펙트가 아니라 여기서 처리한다. kind를 바꾸는 곳이 토글 버튼 하나뿐이라
@@ -68,8 +71,9 @@ export default function StockHoldAcrst() {
     const switchKind = (key) => {
         if (key === kind) return;
         setKind(key);
-        setCond(INIT_COND);
-        fetchList(key, INIT_COND);
+        const next = initCond();
+        setCond(next);
+        fetchList(key, next);
     };
 
     return (
@@ -97,7 +101,9 @@ export default function StockHoldAcrst() {
                 <SearchText name="hldNo" label="보류번호" placeholder="HD-20260803-001" />
                 <SearchProd name="prodCd" />
                 <SearchLoc name="locCd" />
+                <SearchText name="lotNo" label="Lot번호" placeholder="LOT-260722-001" />
                 <SearchSelect name="rsnCd" label="사유" options={rsn.searchOptions} />
+                <SearchDateRange from="dateFrom" to="dateTo" label="실적일자" />
             </SearchBar>
 
             <div className="flex-1 min-h-0 flex flex-col gap-3">

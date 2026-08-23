@@ -5,8 +5,8 @@ import toast from 'react-hot-toast';
 
 import { invMovApi } from '@/api/invMovApi';
 import { INV_MOV_DVSN_META, INV_MOV_STATUS_META } from '@/constants/badgeMeta';
-import { fmtDt, num } from '@/utils/format';
-import SearchBar, { SearchText, SearchSelect, SearchProd, SearchLoc } from '@/components/common/SearchBar';
+import { daysAheadStr, fmtDt, num, todayStr } from '@/utils/format';
+import SearchBar, { SearchText, SearchSelect, SearchDateRange, SearchProd, SearchLoc } from '@/components/common/SearchBar';
 import { Badge } from '@/components/common/Badge';
 import ConfirmModal from '@/components/common/ConfirmModal';
 
@@ -31,7 +31,10 @@ const isActionable = (r) => ['INV_MOV', 'SPMT'].includes(r.movDvsn) && r.status 
 const isEntered = (r) => isActionable(r) && r.cnfmQty != null;
 
 export default function StockMoveTaskList() {
-    const [cond, setCond] = useState({ invMovNo: '', movDvsn: '', prodCd: '', fromLocCd: '', toLocCd: '', status: '' });
+    const [cond, setCond] = useState({
+        invMovNo: '', movDvsn: '', prodCd: '', lotNo: '', fromLocCd: '', toLocCd: '', status: ['DIRECTED'],
+        dateFrom: daysAheadStr(-6), dateTo: todayStr(),
+    });
     const [rowData, setRowData] = useState([]);
     const [confirmTargets, setConfirmTargets] = useState(null); // 확정 확인 모달 대상
     const [cancelTarget, setCancelTarget] = useState(null);     // 취소 확인 모달 대상 (행 단위)
@@ -113,7 +116,8 @@ export default function StockMoveTaskList() {
     };
 
     useEffect(() => {
-        invMovApi.list().then(d => setRowData(d.map(toEditableRow)));
+        invMovApi.list(cond).then(d => setRowData(d.map(toEditableRow)));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const onCellValueChanged = (e) => {
@@ -190,10 +194,12 @@ export default function StockMoveTaskList() {
             <SearchBar cond={cond} setCond={setCond} onSearch={() => fetchList()}>
                 <SearchText name="invMovNo" label="지시번호" placeholder="MV-20260803-001" />
                 <SearchProd name="prodCd" />
+                <SearchText name="lotNo" label="Lot번호" placeholder="LOT-260722-001" />
                 <SearchLoc name="fromLocCd" label="출발지" />
                 <SearchLoc name="toLocCd" label="도착지" placeholder="DRY-B-01-01" />
                 <SearchSelect name="movDvsn" label="이동구분" options={DVSN_OPTIONS} />
-                <SearchSelect name="status" label="상태" options={STATUS_OPTIONS} />
+                <SearchSelect name="status" label="상태" options={STATUS_OPTIONS} multiple />
+                <SearchDateRange from="dateFrom" to="dateTo" label="지시일자" />
             </SearchBar>
 
             <div className="flex-1 min-h-0 flex flex-col gap-3">
