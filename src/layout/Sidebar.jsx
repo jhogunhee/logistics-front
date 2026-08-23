@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import {
     ArrowLeftRight,
     Barcode,
     Box,
     Calculator,
+    ChevronRight,
     ChevronsLeft,
     ChevronsRight,
     CheckCircle2,
@@ -126,19 +127,58 @@ const MENU = [
     },
 ];
 
-// 아이콘 모드에서는 그룹 제목을 쓸 자리가 없어 얇은 구분선으로 대신한다
-const MenuGroup = ({ title, compact, children }) => (
-    <div className={compact ? "mb-3" : "mb-5"}>
-        {compact
-            ? <div className="mx-3 mb-2 border-t border-slate-100" aria-hidden="true" />
-            : (
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em] mb-2 px-4 whitespace-nowrap">
-                    {title}
+/** 경로가 이 메뉴에 속하나 — 그룹 펼침 기본값을 정한다. NavLink의 활성 판정과 같은 규칙(대시보드만 완전일치) */
+const isActivePath = (to, pathname) =>
+    to === "/" ? pathname === "/" : pathname === to || pathname.startsWith(`${to}/`);
+
+/**
+ * 그룹 = 접히는 단위. 메뉴가 33개라 전부 펼치면 스크롤이 길어져, 지금 있는 그룹만 펼친 채로 연다.
+ * 제목은 sticky — 긴 그룹을 스크롤해도 「어디를 보고 있나」가 위에 남는다.
+ * 아이콘 모드에는 제목 자리가 없어 구분선만 두고 접지 않는다(접으면 아무것도 안 보인다).
+ */
+const MenuGroup = ({ title, count, compact, open, onToggle, children }) => {
+    if (compact) {
+        return (
+            <div className="mb-2">
+                <div className="mx-3 mb-2 border-t border-slate-100" aria-hidden="true" />
+                <div className="space-y-0.5">{children}</div>
+            </div>
+        );
+    }
+    const label = (
+        <>
+            <span className={open ? "text-indigo-700" : ""}>{title}</span>
+            <span className="text-xs font-medium text-slate-300 tabular-nums">{count}</span>
+        </>
+    );
+    return (
+        <div className="mb-1">
+            {onToggle ? (
+                <button
+                    type="button"
+                    onClick={onToggle}
+                    aria-expanded={open}
+                    className="sticky top-0 z-10 w-full flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white
+                               text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+                >
+                    {label}
+                    <ChevronRight
+                        size={14}
+                        className={`ml-auto text-slate-300 transition-transform duration-150 ${open ? "rotate-90" : ""}`}
+                    />
+                </button>
+            ) : (
+                // 검색 중에는 모두 펼친 채로 둔다 — 눌러도 접히지 않으니 버튼으로 보이지 않게 한다
+                <div className="sticky top-0 z-10 flex items-center gap-2 px-3 py-2.5 bg-white text-sm font-bold text-slate-600">
+                    {label}
                 </div>
             )}
-        <div className="space-y-0.5">{children}</div>
-    </div>
-);
+            {open && (
+                <div className="ml-3 border-l border-slate-100 py-1 space-y-0.5">{children}</div>
+            )}
+        </div>
+    );
+};
 
 const MenuItem = ({ to, label, icon: Icon, badge, compact }) => (
     <NavLink
@@ -147,18 +187,21 @@ const MenuItem = ({ to, label, icon: Icon, badge, compact }) => (
         title={compact ? label : undefined}
         aria-label={compact ? label : undefined}
         className={({ isActive }) =>
-            `flex items-center rounded-xl text-sm font-medium transition-all duration-200
-            ${compact ? "justify-center w-11 h-11 mx-auto" : "justify-between px-4 py-3"}
-            ${
-                isActive
-                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-200"
-                    : "text-slate-600 hover:bg-indigo-50 hover:text-indigo-600"
-            }`
+            `flex items-center text-sm transition-colors
+            ${compact
+                ? `justify-center w-11 h-11 mx-auto rounded-lg
+                   ${isActive ? "bg-indigo-600 text-white" : "text-slate-500 hover:bg-indigo-50 hover:text-indigo-600"}`
+                // 활성 표시는 왼쪽 세로 막대 — 그룹 안내선 위에 겹쳐 그린다(-ml-px).
+                // 비활성도 같은 두께의 투명 테두리를 둬야 선택이 오갈 때 글자가 흔들리지 않는다
+                : `justify-between gap-2 -ml-px px-3 py-2 rounded-r-lg border-l-2
+                   ${isActive
+                        ? "border-indigo-500 bg-indigo-50 text-indigo-700 font-semibold"
+                        : "border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900"}`}`
         }
     >
         {/* break-keep: 괄호 딸린 긴 라벨이 단어 중간(「지·정」)에서 꺾이지 않게 어절 단위로만 줄바꿈 */}
         <div className="flex items-center gap-3 break-keep">
-            {Icon && <Icon size={20} />}
+            {Icon && <Icon size={compact ? 20 : 18} />}
             {!compact && label}
         </div>
         {badge && !compact && (
@@ -178,8 +221,38 @@ const MenuItem = ({ to, label, icon: Icon, badge, compact }) => (
 export default function Sidebar({ mode = "expanded", onToggle, onClose }) {
     const [q, setQ] = useState("");
     const inputRef = useRef(null);
+    const navRef = useRef(null);
     const compact = mode === "collapsed";
     const wantFocus = useRef(false);
+    const { pathname } = useLocation();
+
+    // 지금 있는 화면이 속한 그룹 — 펼침 기본값이자 스크롤을 맞출 기준
+    const activeTitle = useMemo(
+        () => MENU.find(g => g.items.some(i => isActivePath(i.to, pathname)))?.title ?? null,
+        [pathname],
+    );
+
+    // 펼침은 여럿 허용한다(하나만 여는 아코디언이 아니다) — 다른 그룹을 열어 둔 채 일하는 흐름을 끊지 않는다.
+    // 다만 화면을 옮기면 그 그룹은 항상 펼쳐진다. 안 그러면 지금 보고 있는 메뉴가 접힌 채로 남는다
+    const [openTitles, setOpenTitles] = useState(() => new Set(activeTitle ? [activeTitle] : []));
+    // 화면이 바뀌면 그 그룹을 펼친다. effect가 아니라 렌더 중에 맞춘다 —
+    // 미루면 접힌 목록이 한 번 그려진 뒤 열려서 깜빡인다 (React의 「렌더 중 상태 조정」)
+    const [syncedTitle, setSyncedTitle] = useState(activeTitle);
+    if (syncedTitle !== activeTitle) {
+        setSyncedTitle(activeTitle);
+        if (activeTitle && !openTitles.has(activeTitle)) {
+            setOpenTitles(prev => new Set(prev).add(activeTitle));
+        }
+    }
+    const toggleGroup = (title) => setOpenTitles(prev => {
+        const next = new Set(prev);
+        if (next.has(title)) {
+            next.delete(title);
+        } else {
+            next.add(title);
+        }
+        return next;
+    });
 
     // 아이콘 모드의 검색 버튼 → 펼친 뒤 검색창 포커스. 펼쳐진 다음 렌더에서 input이 생기므로 effect로 잇는다
     useEffect(() => {
@@ -189,6 +262,20 @@ export default function Sidebar({ mode = "expanded", onToggle, onClose }) {
         }
     }, [compact]);
     const openSearch = () => { wantFocus.current = true; onToggle?.(); };
+
+    // 선택된 메뉴가 화면 밖에 있으면 보이는 자리로 끌어온다 — 새로고침·주소로 바로 들어온 경우가 이 자리다.
+    // 이미 보이면 건드리지 않는다(클릭해서 옮겨 다닐 때 목록이 제멋대로 튀지 않게).
+    // NavLink가 활성 항목에 aria-current="page"를 붙여 주므로 그것으로 찾는다
+    useEffect(() => {
+        const nav = navRef.current;
+        const active = nav?.querySelector('[aria-current="page"]');
+        if (!nav || !active) return;
+        const top = active.offsetTop;
+        const bottom = top + active.offsetHeight;
+        if (top < nav.scrollTop || bottom > nav.scrollTop + nav.clientHeight) {
+            nav.scrollTop = Math.max(0, top - (nav.clientHeight - active.offsetHeight) / 2);
+        }
+    }, [pathname, compact, openTitles, q]);
 
     // 검색어는 라벨 · 그룹명 · 보조어 · 경로를 한 문자열로 합쳐 본다.
     // 경로까지 넣은 덕에 'uom', 'master', 'outbound' 같은 영문 URL 조각으로도 찾히고,
@@ -220,7 +307,7 @@ export default function Sidebar({ mode = "expanded", onToggle, onClose }) {
                     onClick={onToggle}
                     title={compact ? "메뉴 펼치기" : "메뉴 접기"}
                     aria-label={compact ? "메뉴 펼치기" : "메뉴 접기"}
-                    className="absolute -right-3 top-7 w-6 h-6 rounded-full bg-white border border-slate-200 shadow-sm
+                    className="absolute -right-3 top-5 w-6 h-6 rounded-full bg-white border border-slate-200 shadow-sm
                                flex items-center justify-center text-slate-400
                                hover:text-indigo-600 hover:border-indigo-300 transition-colors"
                 >
@@ -228,9 +315,9 @@ export default function Sidebar({ mode = "expanded", onToggle, onClose }) {
                 </button>
             )}
             {/* 로고 영역 */}
-            <div className={`flex items-center h-20 ${compact ? "justify-center" : "gap-3 px-6"}`}>
-                <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-inner shrink-0">
-                    <Warehouse size={24} className="text-white" />
+            <div className={`flex items-center h-16 shrink-0 ${compact ? "justify-center" : "gap-3 px-5"}`}>
+                <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center shadow-inner shrink-0">
+                    <Warehouse size={21} className="text-white" />
                 </div>
                 {!compact && (
                     <div className="flex-1 min-w-0 whitespace-nowrap">
@@ -298,10 +385,21 @@ export default function Sidebar({ mode = "expanded", onToggle, onClose }) {
             )}
 
             {/* 메뉴 영역 */}
-            <nav className={`flex-1 overflow-y-auto overflow-x-hidden pb-4 custom-scrollbar ${compact ? "px-2" : "px-4"}`}>
-                {/* 검색 중에는 그룹이 일치한 항목만 남기고 접힌다 */}
+            {/* relative: 아래 스크롤 계산이 항목의 offsetTop을 이 요소 기준으로 읽는다 */}
+            <nav
+                ref={navRef}
+                className={`relative flex-1 overflow-y-auto overflow-x-hidden pb-4 custom-scrollbar ${compact ? "px-2" : "px-3"}`}
+            >
+                {/* 검색 중에는 일치한 항목만 남기고 그룹은 전부 펼친다 — 걸러 놓고 접어 두면 검색이 헛돈다 */}
                 {groups.map(g => (
-                    <MenuGroup key={g.title} title={g.title} compact={compact}>
+                    <MenuGroup
+                        key={g.title}
+                        title={g.title}
+                        count={g.items.length}
+                        compact={compact}
+                        open={compact || Boolean(q.trim()) || openTitles.has(g.title)}
+                        onToggle={q.trim() ? undefined : () => toggleGroup(g.title)}
+                    >
                         {g.items.map(i => (
                             <MenuItem key={i.to} to={i.to} label={i.label} icon={i.icon} badge={i.badge} compact={compact} />
                         ))}
@@ -317,7 +415,7 @@ export default function Sidebar({ mode = "expanded", onToggle, onClose }) {
             </nav>
 
             {/* 하단 사용자 정보 + 로그아웃 (상단바를 없애면서 여기로 옮겼다) */}
-            <div className={`bg-slate-50 border-t border-slate-200 ${compact ? "p-3" : "p-4"}`}>
+            <div className={`bg-slate-50 border-t border-slate-200 shrink-0 ${compact ? "p-3" : "p-3"}`}>
                 <div className={`flex items-center ${compact ? "flex-col gap-1" : "gap-3 px-2 py-2"}`}>
                     <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold shrink-0"
                          title={compact ? "관리자" : undefined}>
