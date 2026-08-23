@@ -15,4 +15,9 @@ export const invApi = {
     alocReconciliation() {
         return api.get('/inventory/stock/aloc-reconciliation');
     },
+
+    /** 로케이션 점유 맵 — STORAGE 전건. 점유율·보충 미달은 화면이 파생한다 */
+    locMap() {
+        return api.get('/inventory/stock/map');
+    },
 };

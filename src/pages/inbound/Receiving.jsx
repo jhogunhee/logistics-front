@@ -52,12 +52,7 @@ const HEADER_COLUMN_DEFS = [
         headerTooltip: '전량 검수된 라인 / 전체 라인 (부분 검수중인 라인은 제외)',
         valueGetter: (p) => `${num(p.data.cmplLineCount)} / ${num(p.data.lineCount)}`,
     },
-    // 예정수량·검수수량 합계 컬럼은 두지 않는다 — 저장 단위가 낱개(EA)로 통일돼 합산 자체는
-    // 성립하지만, 생수 2박스와 김밥 3개가 섞인 낱개 합계는 진행 파악에 도움이 안 된다.
-    // 수량은 단위와 함께 라인(디테일) 그리드가 보여준다 — 이 화면은 한 입고건을 붙잡고
-    // 검수하는 자리라 라인별 잔량이 곧 남은 일이고, 헤더 합계는 볼 일이 없다.
-    // 헤더의 「검수 진행」이 세는 것은 착수한 라인이 아니라 전량 검수를 마친 라인이다
-    // (분할검수 중인 라인은 끝날 때까지 세지 않는다)
+    // 수량 합계 컬럼은 두지 않는다 — 생수 2박스와 김밥 3개가 섞인 낱개 합계는 진행 파악에 도움이 안 된다
     {
         field: 'inspDt', headerName: '최종 검수일시', width: 150,
         headerTooltip: '이 입고건에서 마지막으로 검수한 시각 — 검수중인 건이 여럿일 때 하다 만 건을 찾는다',
@@ -70,7 +65,7 @@ export default function Receiving() {
     const [cond, setCond] = useState({ ibNo: '', vndrNm: '', dateFrom: todayStr(), dateTo: daysAheadStr(7) });
     const [rowData, setRowData] = useState([]);
     const [lineRows, setLineRows] = useState([]);
-    const [selectedAsn, setSelectedAsn] = useState(null);
+    const [inspTarget, setInspTarget] = useState(null);
     const [receipts, setReceipts] = useState([]); // 선택한 입고건의 검수 이력 전부 (최근 순)
     const [violations, setViolations] = useState([]); // 검수 제약 위반 목록 — 저장 거부 응답의 violations
     const [tab, setTab] = useState('input'); // 'input' 검수 입력 / 'history' 검수 이력
@@ -83,8 +78,8 @@ export default function Receiving() {
     // 진행 중 상세 조회 무효화 토큰 — 응답 대기 중에 선택이 바뀌거나 비워지면 낡은 응답을 버린다
     const detailSeq = useRef(0);
 
-    const canReceive = !!selectedAsn && ['SCHEDULED', 'RECEIVING'].includes(selectedAsn.status);
-    const canCancelReceipt = !!selectedAsn && selectedAsn.status === 'RECEIVING';
+    const canReceive = !!inspTarget && ['SCHEDULED', 'RECEIVING'].includes(inspTarget.status);
+    const canCancelReceipt = !!inspTarget && inspTarget.status === 'RECEIVING';
 
     // 라인 그리드: 작업 순서대로 [식별 → 단위·예정·잔량 → 입력 3개(파란색, 연속 배치)]를 앞에 두고,
     // 환산·누계 등 참고용은 뒤로 보낸다 (입력 컬럼이 가로 스크롤 없이 바로 보이게)
@@ -211,7 +206,7 @@ export default function Receiving() {
 
     const clearDetail = () => {
         detailSeq.current++;
-        setSelectedAsn(null);
+        setInspTarget(null);
         setLineRows([]);
         setReceipts([]);
     };
@@ -258,9 +253,9 @@ export default function Receiving() {
         if (!keepSelection) return;
         // 선택한 건의 헤더 값(상태·검수 진행)도 새로 받은 것으로 바꾼다 — 옛 값을 들고 있으면
         // 검수 진행·잔량 표시가 방금 저장한 것과 어긋나 보인다
-        const fresh = rows.find(a => a.ibOrderId === selectedAsn?.ibOrderId) ?? null;
+        const fresh = rows.find(a => a.ibOrderId === inspTarget?.ibOrderId) ?? null;
         if (fresh) {
-            setSelectedAsn(fresh);
+            setInspTarget(fresh);
             await loadDetail(fresh);
         } else {
             clearDetail();
@@ -281,14 +276,14 @@ export default function Receiving() {
             clearDetail();
             return;
         }
-        setSelectedAsn(node.data);
+        setInspTarget(node.data);
         await loadDetail(node.data);
     };
 
     // ── 검수 저장 ────────────────────────────────────────────
     const handleReceiveClick = () => {
         if (!canReceive) {
-            toast.error('검수할 입고예정을 선택하세요.');
+            toast.error('검수할 입고건을 선택하세요.');
             return;
         }
         lineGridRef.current.api.stopEditing();
@@ -331,7 +326,7 @@ export default function Receiving() {
         try {
             setViolations([]);
             setLineRows(prev => prev.map(r => ({ ...r, _violationMsg: null })));
-            await ibOrderApi.receive(selectedAsn.ibOrderId, {
+            await ibOrderApi.receive(inspTarget.ibOrderId, {
                 lines: targets.map(r => ({
                     ibLineId: r.ibLineId,
                     inspectQty: Number(r._inspectQty),
@@ -366,7 +361,7 @@ export default function Receiving() {
     // 확정된 입고는 결품까지 못박힌 닫힌 문서라 취소 불가 (서버도 같은 검증을 한다)
     const doCancelReceipt = async (receipt) => {
         try {
-            await ibOrderApi.cancelReceipt(selectedAsn.ibOrderId, receipt.invHistId);
+            await ibOrderApi.cancelReceipt(inspTarget.ibOrderId, receipt.invHistId);
             toast.success('검수를 취소했습니다.');
             await fetchList(true); // 라인 수량이 줄어드므로 목록·라인·이력을 함께 다시 읽는다
         } catch (e) {
@@ -426,8 +421,8 @@ export default function Receiving() {
                             rowHeight={34}
                             headerHeight={38}
                             // 행 식별자를 주지 않으면 목록이 다시 올 때 ag-grid가 전부 새 행으로 보고 선택을 버린다.
-                            // 그러면 라인을 기다리는 사이(onSelectionChanged의 await) 선택이 풀려 selectedAsn이
-                            // null이 되고, 라인은 떠 있는데 검수 입력 칸이 잠긴다(canReceive가 selectedAsn을 본다).
+                            // 그러면 라인을 기다리는 사이(onSelectionChanged의 await) 선택이 풀려 inspTarget이
+                            // null이 되고, 라인은 떠 있는데 검수 입력 칸이 잠긴다(canReceive가 inspTarget을 본다).
                             // StrictMode가 최초 조회를 두 번 돌리기 때문에 목록이 뜨자마자 클릭하면 바로 걸렸다.
                             getRowId={(p) => p.data.ibNo}
                             rowSelection={{ mode: 'singleRow', checkboxes: false, enableClickSelection: true }}
@@ -470,11 +465,11 @@ export default function Receiving() {
                                 ))}
                             </div>
                             <span className="text-xs text-slate-400 truncate">
-                                {!selectedAsn
-                                    ? '위에서 입고예정을 선택하세요'
+                                {!inspTarget
+                                    ? '위에서 입고건을 선택하세요'
                                     : tab === 'input'
-                                        ? `${selectedAsn.ibNo} · ${selectedAsn.vndrNm} — 파란 컬럼에 이번 검수분 입력 (검수수량은 입고단위 개수)`
-                                        : `${selectedAsn.ibNo} · ${selectedAsn.vndrNm} — 검수한 건을 되돌립니다 (적치된 수량이 있으면 거부)`}
+                                        ? `${inspTarget.ibNo} · ${inspTarget.vndrNm} — 파란 컬럼에 이번 검수분 입력 (검수수량은 입고단위 개수)`
+                                        : `${inspTarget.ibNo} · ${inspTarget.vndrNm} — 검수한 건을 되돌립니다 (적치된 수량이 있으면 거부)`}
                             </span>
                         </div>
                         {tab === 'input' && (
@@ -500,7 +495,7 @@ export default function Receiving() {
                     )}
                     <div className="flex-1 min-h-0">
                         {tab === 'input' ? (
-                            selectedAsn && pendingLineRows.length === 0 ? (
+                            inspTarget && pendingLineRows.length === 0 ? (
                                 // 빈 그리드만 남으면 고장 난 줄 안다 — 어디로 갔는지 말해준다
                                 <div className="h-full flex flex-col items-center justify-center gap-1 text-slate-400">
                                     <ClipboardCheck size={22} />

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
-import { Box, Scale } from 'lucide-react';
+import { Box, Map, Scale, Table2 } from 'lucide-react';
 
 import { invApi } from '@/api/invApi';
 import { LOC_TYPE_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
@@ -8,6 +8,7 @@ import { num } from '@/utils/format';
 import SearchBar, { SearchText, SearchSelect, SearchProd, SearchLoc } from '@/components/common/SearchBar';
 import { Badge } from '@/components/common/Badge';
 import AlocRecModal from '@/components/stock/AlocRecModal';
+import StockLocMap from '@/components/stock/StockLocMap';
 
 const TEMP_ZONE_OPTIONS = [
     { value: '', label: '전체' },
@@ -89,6 +90,7 @@ export default function StockStatus() {
     }, []);
 
     const [recOpen, setRecOpen] = useState(false);
+    const [view, setView] = useState('table');
 
     return (
         <div className="flex flex-col gap-4 h-full">
@@ -97,12 +99,31 @@ export default function StockStatus() {
                 <Box size={18} className="text-indigo-600" />
                 <h2 className="text-lg font-bold text-slate-800">현재고 조회</h2>
                 <span className="text-xs text-slate-400 mt-0.5">상품 + 로케이션 + Lot 단위 실시간 재고 · 가용 = 보유 − 할당 − 보류</span>
-                <button onClick={() => setRecOpen(true)} className="btn-ghost ml-auto shrink-0"
+
+                {/* 표/맵 전환 */}
+                <div className="ml-auto shrink-0 flex rounded-lg border border-slate-200 overflow-hidden text-xs font-medium">
+                    <button onClick={() => setView('table')}
+                            className={`flex items-center gap-1 px-2.5 py-1.5 ${view === 'table'
+                                ? 'bg-indigo-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}>
+                        <Table2 size={13} /> 표
+                    </button>
+                    <button onClick={() => setView('map')}
+                            title="보관 로케이션 점유 맵 — 셀 색은 점유율, 클릭하면 그 자리의 재고 상세"
+                            className={`flex items-center gap-1 px-2.5 py-1.5 border-l border-slate-200 ${view === 'map'
+                                ? 'bg-indigo-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}>
+                        <Map size={13} /> 맵
+                    </button>
+                </div>
+                <button onClick={() => setRecOpen(true)} className="btn-ghost shrink-0"
                         title="장부 예약(aloc)을 원천별 미소진 합(할당 · 이동지시 · 스테이징 피킹분)과 대사합니다 — 예약은 이력에 남지 않아 이 비교가 유일한 검증입니다">
                     <Scale size={13} /> 예약 대사
                 </button>
             </div>
 
+            {view === 'map' ? (
+                <StockLocMap />
+            ) : (
+            <>
             {/* 요약 지표 */}
             <div className="flex gap-3">
                 <StatTile label="재고 건수" value={num(rowData.length)} />
@@ -133,6 +154,8 @@ export default function StockStatus() {
                     />
                 </div>
             </div>
+            </>
+            )}
             {recOpen && <AlocRecModal onClose={() => setRecOpen(false)} />}
         </div>
     );

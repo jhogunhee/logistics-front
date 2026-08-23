@@ -133,12 +133,14 @@ export const INV_MOV_STATUS_META = {
 };
 
 /**
- * 이동구분 표시 메타. 재고이동 화면의 확정·취소는 INV_MOV(재고이동)만 가능하다.
+ * 이동구분 표시 메타. 이동지시 관리의 확정·취소는 INV_MOV(재고이동)·SPMT(보충)가 가능하다 —
+ * 실물을 옮기는 동일 작업이라 경로를 가르지 않는다. 적치는 자기 화면 전용.
  * PIKNG은 피킹지시가 별도 pikng_task로 확정되면서(2026-08-20) 백엔드 enum과 함께 제거했다.
  */
 export const INV_MOV_DVSN_META = {
     INV_MOV: { label: '재고이동', badge: 'bg-sky-100 text-sky-700' },
     PTAWY:   { label: '적치',     badge: 'bg-violet-100 text-violet-700' },
+    SPMT:    { label: '보충',     badge: 'bg-amber-100 text-amber-700' },
 };
 
 /** 피킹지시 상태 표시 메타 — 백엔드 PikngTaskStatus와 1:1. CANCELLED 행은 화면 목록에 오지 않는다 */

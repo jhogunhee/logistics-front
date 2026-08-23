@@ -24,8 +24,9 @@ const DVSN_OPTIONS = [
 // 채우면 손대지도 않은 행이 전부 일괄 확정 대상이 된다
 const toEditableRow = (r) => ({ ...r, cnfmQty: null });
 
-// 이 화면의 확정·취소 대상은 「재고이동 유형 + 지시 상태」뿐 — 적치·피킹 지시는 각자의 화면에서 처리 (서버도 재검증)
-const isActionable = (r) => r.movDvsn === 'INV_MOV' && r.status === 'DIRECTED';
+// 이 화면의 확정·취소 대상은 「재고이동·보충 유형 + 지시 상태」 — 실물을 옮기는 동일 작업이라
+// 보충(SPMT)도 여기서 확정한다. 적치 지시만 자기 화면 전용 (서버도 재검증)
+const isActionable = (r) => ['INV_MOV', 'SPMT'].includes(r.movDvsn) && r.status === 'DIRECTED';
 
 const isEntered = (r) => isActionable(r) && r.cnfmQty != null;
 
@@ -44,7 +45,7 @@ export default function StockMoveTaskList() {
         { field: 'invMovNo', headerName: '이동지시번호', width: 150 },
         {
             field: 'movDvsn', headerName: '이동구분', width: 100,
-            headerTooltip: '이 화면의 확정·취소는 재고이동 유형만 가능 — 적치·피킹은 각자의 화면에서 처리',
+            headerTooltip: '이 화면의 확정·취소는 재고이동·보충 유형 — 적치는 자기 화면에서 처리',
             cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
             cellRenderer: (p) => <Badge meta={INV_MOV_DVSN_META} value={p.value} show="label" />,
         },
@@ -82,7 +83,7 @@ export default function StockMoveTaskList() {
         {
             field: 'cnfmQty', headerName: '확정수량', width: 100,
             editable: (p) => isActionable(p.data),
-            headerTooltip: '이번에 확정할 수량 — 잔여가 상한, 부분확정 가능. 재고이동 유형의 지시 상태 행만 입력할 수 있다',
+            headerTooltip: '이번에 확정할 수량 — 잔여가 상한, 부분확정 가능. 재고이동·보충 유형의 지시 상태 행만 입력할 수 있다',
             cellClass: (p) => `ag-right-aligned-cell font-bold ${isActionable(p.data) ? 'bg-indigo-50' : ''}`,
             cellRenderer: (p) => {
                 if (!isActionable(p.data)) return <span className="text-slate-300 font-normal">—</span>;
