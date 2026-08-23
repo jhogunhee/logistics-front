@@ -33,6 +33,9 @@ export function useMasterGrid() {
     /** AgGridReact에 스프레드로 넘기는 공통 props. 화면 고유 prop은 뒤에 이어 쓰면 덮인다 */
     const gridProps = {
         rowSelection: { mode: 'multiRow' },
+        // 마스터 그리드는 셀을 연달아 채우는 입력 작업이라 더블클릭 대신 한 번 클릭으로 편집을 연다.
+        // 행 선택은 체크박스가 맡으므로(mode: 'multiRow' 기본값) 클릭과 부딪히지 않는다
+        singleClickEdit: true,
         rowClassRules: {
             'line-through': (p) => p.data._status === 'D',
             'opacity-40': (p) => p.data._status === 'D',

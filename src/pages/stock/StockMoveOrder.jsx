@@ -224,6 +224,7 @@ export default function StockMoveOrder() {
                         getRowId={(p) => String(p.data.invId)}
                         rowHeight={34}
                         headerHeight={38}
+                        singleClickEdit={true}
                         stopEditingWhenCellsLoseFocus={true}
                         onCellValueChanged={onCellValueChanged}
                     />

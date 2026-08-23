@@ -399,8 +399,6 @@ export default function Putaway() {
                             getRowId={(p) => String(p.data.putawayTaskId)}
                             rowHeight={34}
                             headerHeight={38}
-                            // 편집 컬럼이 적치수량 하나뿐이라 더블클릭 관례 대신 한 번 클릭으로 연다 —
-                            // 이전 UI(행 클릭 → 패널)에 익숙하면 더블클릭을 몰라 부분 실행이 안 되는 것처럼 보인다
                             singleClickEdit={true}
                             stopEditingWhenCellsLoseFocus={true}
                             onCellValueChanged={onTaskCellValueChanged}

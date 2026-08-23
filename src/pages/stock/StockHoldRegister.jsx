@@ -218,6 +218,7 @@ export default function StockHoldRegister() {
                         getRowId={(p) => String(p.data.invId)}
                         rowHeight={34}
                         headerHeight={38}
+                        singleClickEdit={true}
                         stopEditingWhenCellsLoseFocus={true}
                         onCellValueChanged={onCellValueChanged}
                     />

@@ -14,6 +14,10 @@ import DatePicker from './DatePicker';
  *   - 달력에서 날짜를 고르거나 「지우기」 → onCommit (즉시 종료)
  *   - 손으로 8자리를 치고 Tab/클릭으로 셀을 벗어남 → onBlur (값 확정 후 종료)
  *
+ * 이 편집기를 쓰는 컬럼에는 singleClickEdit을 걸지 않는다 — 다른 편집기는 셀 안에서 열리지만
+ * 달력은 autoOpen이라 클릭 즉시 화면을 덮는다. 옆 칸을 훑어보려는 클릭까지 달력을 띄우게 된다.
+ * (그리드 전체 옵션은 컬럼이 끌 수 없으니, 같은 그리드에 날짜가 있으면 컬럼 단위로 건다)
+ *
  * cellEditorParams: { min?: 'YYYY-MM-DD', max?: 'YYYY-MM-DD' }
  */
 export default function DateCellEditor({

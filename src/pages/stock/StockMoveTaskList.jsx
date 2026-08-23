@@ -225,6 +225,7 @@ export default function StockMoveTaskList() {
                         getRowId={(p) => String(p.data.invMovTaskId)}
                         rowHeight={34}
                         headerHeight={38}
+                        singleClickEdit={true}
                         stopEditingWhenCellsLoseFocus={true}
                         onCellValueChanged={onCellValueChanged}
                     />

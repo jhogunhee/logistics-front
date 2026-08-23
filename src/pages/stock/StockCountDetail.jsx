@@ -322,6 +322,7 @@ export default function StockCountDetail({ stktkId, onBack }) {
                     getRowId={(p) => String(p.data.lnId)}
                     rowHeight={34}
                     headerHeight={38}
+                    singleClickEdit={true}
                     stopEditingWhenCellsLoseFocus={true}
                     rowSelection={{ mode: 'singleRow', checkboxes: false, enableClickSelection: true }}
                     onSelectionChanged={(e) => setSelectedLn(e.api.getSelectedNodes()[0]?.data ?? null)}

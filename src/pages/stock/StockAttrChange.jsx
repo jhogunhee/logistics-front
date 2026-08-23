@@ -95,6 +95,8 @@ export default function StockAttrChange() {
         },
         {
             field: 'rsnCd', headerName: '정정사유', width: 130, editable: true,
+            // 그리드 전체가 아니라 컬럼 단위 — 위 날짜 두 칸은 DateCellEditor(클릭 즉시 달력)라 제외한다
+            singleClickEdit: true,
             headerTooltip: '날짜를 바꾼 행만 필수. 정정 1건마다 사유가 따로 남는다',
             cellEditor: SelectCellEditor,
             cellEditorParams: { values: rsn.values, labelMap: rsn.nmByCd, placeholder: '사유 선택' },
@@ -111,6 +113,7 @@ export default function StockAttrChange() {
         {
             field: 'rsnDscr', headerName: '기타 사유', width: 170,
             editable: (p) => p.data.rsnCd === ETC_RSN_CD,
+            singleClickEdit: true,
             headerTooltip: '사유가 「기타」일 때만 입력한다 (그 외 코드에서는 서버가 무시)',
             cellClass: (p) => (p.data.rsnCd === ETC_RSN_CD ? 'bg-indigo-50' : ''),
             cellRenderer: (p) => p.data.rsnCd === ETC_RSN_CD

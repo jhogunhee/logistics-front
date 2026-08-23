@@ -128,6 +128,9 @@ export default function Receiving() {
         },
         {
             field: '_inspectQty', headerName: '검수수량', width: 95, editable: canReceive,
+            // 한 번 클릭으로 연다. 그리드 전체가 아니라 컬럼 단위인 이유는 같은 그리드의
+            // 날짜 두 칸이 DateCellEditor(클릭 즉시 달력)라서다 — 그쪽은 더블클릭을 유지한다
+            singleClickEdit: true,
             cellDataType: 'number',
             cellEditor: 'agNumberCellEditor', cellEditorParams: { min: 1, precision: 0 },
             valueFormatter: (p) => num(p.value),

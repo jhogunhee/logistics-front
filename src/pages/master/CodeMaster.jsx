@@ -359,6 +359,9 @@ export default function CodeMaster() {
                             headerHeight={38}
                             {...groupGridProps}
                             rowSelection={{ mode: 'singleRow', checkboxes: false, enableClickSelection: true }}
+                            // 이 그리드만 한 번 클릭 편집에서 뺀다 — 클릭이 곧 아래 코드 목록을 바꾸는
+                            // 네비게이션이라, 그룹을 훑어보려는 클릭마다 편집기가 열리면 방해가 된다
+                            singleClickEdit={false}
                             onRowDataUpdated={syncGroupSelection}
                             onSelectionChanged={onGroupSelected}
                         />

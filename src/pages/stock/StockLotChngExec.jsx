@@ -311,6 +311,7 @@ export default function StockLotChngExec() {
                         getRowId={(p) => String(p.data.invId)}
                         rowHeight={34}
                         headerHeight={38}
+                        singleClickEdit={true}
                         stopEditingWhenCellsLoseFocus={true}
                         onCellClicked={onCellClicked}
                         onCellValueChanged={onCellValueChanged}
