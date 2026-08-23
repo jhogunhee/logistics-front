@@ -271,7 +271,8 @@ const TONE = {
     emerald: { icon: 'bg-emerald-50 text-emerald-600', meter: 'bg-emerald-500', spark: '#10b981', ring: 'hover:border-emerald-300' },
 };
 
-const CARD = 'bg-white rounded-2xl border border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.04)]';
+const CARD_BASE = 'rounded-2xl border shadow-[0_1px_2px_rgba(15,23,42,0.04)]';
+const CARD = `bg-white border-slate-200 ${CARD_BASE}`;
 
 const StatCard = ({ to, icon: Icon, tone = 'indigo', title, value, unit, sub, meter, spark, sparkLabel, facts }) => {
     const t = TONE[tone];
@@ -350,7 +351,7 @@ const Sparkline = ({ values, color, label }) => {
 const AttentionCard = ({ total, items }) => {
     const calm = total === 0;
     return (
-        <div className={`${CARD} p-5 h-full relative overflow-hidden ${calm ? '' : 'bg-slate-900 border-slate-900'}`}>
+        <div className={`${CARD_BASE} p-5 h-full relative overflow-hidden ${calm ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-900'}`}>
             {!calm && (
                 <div className="pointer-events-none absolute -right-10 -top-10 w-36 h-36 rounded-full bg-amber-400/15 blur-2xl" />
             )}
