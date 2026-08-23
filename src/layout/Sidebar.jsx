@@ -265,7 +265,10 @@ export default function Sidebar({ mode = "expanded", onToggle, onClose }) {
 
     // 선택된 메뉴가 화면 밖에 있으면 보이는 자리로 끌어온다 — 새로고침·주소로 바로 들어온 경우가 이 자리다.
     // 이미 보이면 건드리지 않는다(클릭해서 옮겨 다닐 때 목록이 제멋대로 튀지 않게).
-    // NavLink가 활성 항목에 aria-current="page"를 붙여 주므로 그것으로 찾는다
+    // NavLink가 활성 항목에 aria-current="page"를 붙여 주므로 그것으로 찾는다.
+    //
+    // 의존은 「화면이 바뀌었나」뿐이다. 그룹을 펼치거나 검색어를 치는 것은 사용자가 지금 보려는 자리가
+    // 따로 있다는 뜻이라, 그때 선택 항목으로 되감으면 방금 편 그룹이 눈앞에서 밀려난다
     useEffect(() => {
         const nav = navRef.current;
         const active = nav?.querySelector('[aria-current="page"]');
@@ -275,7 +278,7 @@ export default function Sidebar({ mode = "expanded", onToggle, onClose }) {
         if (top < nav.scrollTop || bottom > nav.scrollTop + nav.clientHeight) {
             nav.scrollTop = Math.max(0, top - (nav.clientHeight - active.offsetHeight) / 2);
         }
-    }, [pathname, compact, openTitles, q]);
+    }, [pathname, compact]);
 
     // 검색어는 라벨 · 그룹명 · 보조어 · 경로를 한 문자열로 합쳐 본다.
     // 경로까지 넣은 덕에 'uom', 'master', 'outbound' 같은 영문 URL 조각으로도 찾히고,
