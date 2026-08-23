@@ -120,7 +120,7 @@ export default function Wave() {
     const vhclFltnos = useCodes('VHCL_FLTNO');
 
     // ── 검색 조건 — 웨이브 목록에만 걸린다.
-    const [cond, setCond] = useState({ wavNo: '', status: '', expctDeFrom: todayStr(), expctDeTo: todayStr() });
+    const [cond, setCond] = useState({ wavNo: '', status: [], expctDeFrom: todayStr(), expctDeTo: todayStr() });
 
     // ── 웨이브 목록 ──────────────────────────────────────────
     const [waves, setWaves] = useState([]);
@@ -279,7 +279,7 @@ export default function Wave() {
             {/* 검색 조건 — 웨이브 목록에만 걸린다. 주문 조건은 주문 담기 팝업 안에 있다 */}
             <SearchBar cond={cond} setCond={setCond} onSearch={search}>
                 <SearchText name="wavNo" label="웨이브번호" placeholder="WV-20260803-001" />
-                <SearchSelect name="status" label="웨이브상태" options={WAVE_STATUS_OPTIONS} />
+                <SearchSelect name="status" label="웨이브상태" options={WAVE_STATUS_OPTIONS} multiple />
                 <SearchDateRange from="expctDeFrom" to="expctDeTo" label="출고예정일" />
             </SearchBar>
 
