@@ -20,11 +20,6 @@ import WaveStrategyRunner from '@/components/outbound/WaveStrategyRunner';
 
 const centered = { display: 'flex', alignItems: 'center', justifyContent: 'center' };
 
-/**
- * 웨이브 목록. 다른 그리드와 같은 단일 행이고, 컬럼 순서가 곧 폭 우선순위다 —
- * 좌측 컬럼이 좁아 뒤쪽 일자 컬럼은 가로 스크롤로 밀리므로, <b>웨이브를 고를 때 필요한 것</b>
- * (번호 · 상태 · 출고예정일 · 주문 수 · 생성 전략)을 앞에 둬 기본 폭에서 스크롤 없이 보이게 한다.
- */
 const WAVE_COLUMN_DEFS = [
     { field: 'wavNo', headerName: '웨이브번호', width: 168, cellClass: 'font-bold text-slate-700' },
     {
@@ -118,19 +113,13 @@ const WAVE_ORDER_COLUMN_DEFS = [
  * 웨이브 편성 (SC — 출고). 출고주문을 <b>피킹지시 발행 단위</b>인 웨이브로 묶는다.
  *
  * 편성 경로는 셋이다 — 수동(담기, {@link WaveOrderPickerModal}) · 전략 선택실행 · 전략 자동실행
- * ({@link WaveStrategyRunner}). 이 화면은 웨이브 목록 · 소속 주문 두 그리드와 담기/빼기/해체를 맡는다.
- *
- * 전략 실행 진입점이 전략관리 화면이 아니라 여기 있는 이유는, 실행이 전략 정의를 고치는 일이 아니라
- * 실제 편성을 만드는 업무 처리이기 때문이다 (호출 API도 업무 도메인에 있다).
+ * ({@link WaveStrategyRunner}).
  */
 export default function Wave() {
-    // 공통코드 (출고유형 · 차량편수) — 조건 기준값의 주인은 코드관리라 화면에 하드코딩하지 않는다
     const outbTyps = useCodes('OUTB_TYP');
     const vhclFltnos = useCodes('VHCL_FLTNO');
 
-    // ── 검색 조건 — 웨이브 목록에만 걸린다. 주문 조건은 주문 담기 팝업 안에 있다 ──
-    // 출고예정일 기본값은 오늘 — 다른 출고 화면(할당·피킹지시·피킹)과 같다. 조건이 없으면
-    // 목록이 생성 이래 전량으로 자라고 소속 주문까지 함께 읽는다.
+    // ── 검색 조건 — 웨이브 목록에만 걸린다.
     const [cond, setCond] = useState({ wavNo: '', status: '', expctDeFrom: todayStr(), expctDeTo: todayStr() });
 
     // ── 웨이브 목록 ──────────────────────────────────────────

@@ -27,7 +27,7 @@ const isEntered = (r) => r.status === 'HELD' && (r._rlzQty != null || r._rlzRsnC
 export default function StockHoldList() {
     const hldRsn = useCodes('HLD_RSN');     // 보류사유 (조회 필터 + 그리드 표시)
     const rlzRsn = useCodes('HLD_RLZ_RSN'); // 해제사유 (그리드 편집)
-    const [cond, setCond] = useState({ hldNo: '', prodCd: '', locCd: '', rsnCd: '', status: '' });
+    const [cond, setCond] = useState({ hldNo: '', prodCd: '', locCd: '', rsnCd: '', status: [] });
     const [rowData, setRowData] = useState([]);
     const [confirmTargets, setConfirmTargets] = useState(null);
     const gridRef = useRef(null);
@@ -199,7 +199,7 @@ export default function StockHoldList() {
                 <SearchProd name="prodCd" />
                 <SearchLoc name="locCd" />
                 <SearchSelect name="rsnCd" label="보류사유" options={hldRsn.searchOptions} />
-                <SearchSelect name="status" label="상태" options={STATUS_OPTIONS} />
+                <SearchSelect name="status" label="상태" options={STATUS_OPTIONS} multiple />
             </SearchBar>
 
             <div className="flex-1 min-h-0 flex flex-col gap-3">

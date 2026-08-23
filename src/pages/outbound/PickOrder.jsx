@@ -135,7 +135,7 @@ const rowColumnDefs = (wavNo) => [
  * 부분할당은 막지 않는다 — 미할당 잔량은 부족 출고로 진행한다(백오더 없음).
  */
 export default function PickOrder() {
-    const [cond, setCond] = useState({ wavNo: '', status: '', expctDeFrom: todayStr(), expctDeTo: todayStr() });
+    const [cond, setCond] = useState({ wavNo: '', status: [], expctDeFrom: todayStr(), expctDeTo: todayStr() });
     const [waves, setWaves] = useState([]);
     const [detail, setDetail] = useState(null);      // { wavId, wavNo, status, rows, noAllocOrders }
     const [confirmIssue, setConfirmIssue] = useState(null);
@@ -317,7 +317,7 @@ export default function PickOrder() {
                     { value: '', label: '전체' },
                     { value: 'PLANNED', label: '편성중' },
                     { value: 'ISSUED', label: '지시발행' },
-                ]} />
+                ]} multiple />
                 <SearchDateRange from="expctDeFrom" to="expctDeTo" label="출고예정일" />
             </SearchBar>
 

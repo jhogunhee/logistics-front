@@ -118,7 +118,7 @@ export default function OutboundOrderList() {
     const outbTypCodes = useCodes('OUTB_TYP');
     const vhclFltnoCodes = useCodes('VHCL_FLTNO');
     const [cond, setCond] = useState({
-        omsOutbNo: '', storeNm: '', status: '', outbTyp: '', vhclFltno: '',
+        omsOutbNo: '', storeNm: '', status: [], outbTyp: '', vhclFltno: '',
         dateFrom: todayStr(), dateTo: daysAheadStr(7),
     });
     const [rowData, setRowData] = useState([]);
@@ -279,7 +279,7 @@ export default function OutboundOrderList() {
                             : <Search size={13} className="shrink-0 text-slate-400" />}
                     </button>
                 </SearchItem>
-                <SearchSelect name="status" label="주문상태" options={OMS_OUTB_STATUS_OPTIONS} />
+                <SearchSelect name="status" label="주문상태" options={OMS_OUTB_STATUS_OPTIONS} multiple />
                 <SearchSelect name="outbTyp" label="출고유형" options={outbTypCodes.searchOptions} />
                 <SearchSelect name="vhclFltno" label="편수" options={vhclFltnoCodes.searchOptions} />
             </SearchBar>

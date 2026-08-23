@@ -97,7 +97,7 @@ export default function OutbOrderList() {
     const outbTyps = useCodes('OUTB_TYP');
     const vhclFltnos = useCodes('VHCL_FLTNO');
     const [cond, setCond] = useState({
-        outbNo: '', status: '', storeId: '', storeNm: '', outbTyp: '', vhclFltno: '',
+        outbNo: '', status: [], storeId: '', storeNm: '', outbTyp: '', vhclFltno: '',
         expctDeFrom: todayStr(), expctDeTo: daysAheadStr(7),
     });
     const [rowData, setRowData] = useState([]);
@@ -149,7 +149,7 @@ export default function OutbOrderList() {
             {/* 검색 조건 */}
             <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
                 <SearchText name="outbNo" label="출고번호" placeholder="OB-20260803-001" />
-                <SearchSelect name="status" label="출고진행상태" options={OUTB_STATUS_OPTIONS} />
+                <SearchSelect name="status" label="출고진행상태" options={OUTB_STATUS_OPTIONS} multiple />
                 <SearchStore />
                 <SearchSelect name="outbTyp" label="출고유형" options={outbTyps.searchOptions} />
                 <SearchSelect name="vhclFltno" label="차량편수" options={vhclFltnos.searchOptions} />

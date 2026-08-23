@@ -97,7 +97,7 @@ export default function InboundConfirm() {
     // 기본 진행단계 = 적치완료 — 이 화면의 유일한 동작(확정)이 가능한 단계다 (적치지시 관리의 기본 상태=지시와 같은 패턴).
     // 기본 기간 = ±7일 — 대상은 이미 도착한 건이라 과거가 주력이지만, 예정일보다 일찍 와서 적치까지
     // 끝난 건(예정일이 미래)도 확정 대상이다. 진행단계가 적치완료로 좁혀져 있어 미래를 포함해도 노이즈가 없다
-    const [cond, setCond] = useState({ ibNo: '', vndrNm: '', prgr: 'PTAWY_CMPL', dateFrom: daysAheadStr(-7), dateTo: daysAheadStr(7) });
+    const [cond, setCond] = useState({ ibNo: '', vndrNm: '', prgr: ['PTAWY_CMPL'], dateFrom: daysAheadStr(-7), dateTo: daysAheadStr(7) });
     const [rowData, setRowData] = useState([]);
     const [lineRows, setLineRows] = useState([]);
     const [selectedAsns, setSelectedAsns] = useState([]); // 체크된 입고건들 (일괄 확정 대상)
@@ -191,7 +191,7 @@ export default function InboundConfirm() {
                             : <Search size={13} className="shrink-0 text-slate-400" />}
                     </button>
                 </SearchItem>
-                <SearchSelect name="prgr" label="진행단계" options={ASN_PRGR_OPTIONS} />
+                <SearchSelect name="prgr" label="진행단계" options={ASN_PRGR_OPTIONS} multiple />
                 <SearchDateRange from="dateFrom" to="dateTo" label="입고예정일" />
             </SearchBar>
 

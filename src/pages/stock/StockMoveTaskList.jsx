@@ -31,7 +31,7 @@ const isActionable = (r) => ['INV_MOV', 'SPMT'].includes(r.movDvsn) && r.status 
 const isEntered = (r) => isActionable(r) && r.cnfmQty != null;
 
 export default function StockMoveTaskList() {
-    const [cond, setCond] = useState({ invMovNo: '', movDvsn: '', prodCd: '', fromLocCd: '', toLocCd: '', status: '' });
+    const [cond, setCond] = useState({ invMovNo: '', movDvsn: '', prodCd: '', fromLocCd: '', toLocCd: '', status: [] });
     const [rowData, setRowData] = useState([]);
     const [confirmTargets, setConfirmTargets] = useState(null); // 확정 확인 모달 대상
     const [cancelTarget, setCancelTarget] = useState(null);     // 취소 확인 모달 대상 (행 단위)
@@ -193,7 +193,7 @@ export default function StockMoveTaskList() {
                 <SearchLoc name="fromLocCd" label="출발지" />
                 <SearchLoc name="toLocCd" label="도착지" placeholder="DRY-B-01-01" />
                 <SearchSelect name="movDvsn" label="이동구분" options={DVSN_OPTIONS} />
-                <SearchSelect name="status" label="상태" options={STATUS_OPTIONS} />
+                <SearchSelect name="status" label="상태" options={STATUS_OPTIONS} multiple />
             </SearchBar>
 
             <div className="flex-1 min-h-0 flex flex-col gap-3">

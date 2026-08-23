@@ -14,6 +14,9 @@ import { Check, ChevronDown } from 'lucide-react';
  *       placeholder="선택"
  *       variant="bare"      // 'bare' | 'bordered' (기본 bordered)
  *   />
+ *
+ * `multiple`을 주면 value·onChange가 배열이 되고 항목을 골라도 목록이 닫히지 않는다.
+ * 이때 「전체」 옵션(value: '')은 목록에서 뺀다 — 아무것도 안 고른 상태가 곧 전체다.
  */
 export default function DropdownSelect({
     value,
@@ -21,6 +24,7 @@ export default function DropdownSelect({
     options,
     placeholder = '선택',
     variant = 'bordered',
+    multiple = false,
     disabled = false,
     className = '',
 }) {
@@ -31,8 +35,30 @@ export default function DropdownSelect({
     const triggerRef = useRef(null);
     const listRef = useRef(null);
 
-    const selected = options.find(o => o.value === value);
-    const displayLabel = selected ? selected.label : placeholder;
+    const items = multiple ? options.filter(o => o.value !== '') : options;
+    const picked = multiple ? (value ?? []) : [];
+
+    const isPicked = (opt) => (multiple ? picked.includes(opt.value) : opt.value === value);
+
+    const pick = (opt) => {
+        if (!multiple) {
+            onChange(opt.value);
+            setOpen(false);
+            return;
+        }
+        onChange(picked.includes(opt.value)
+            ? picked.filter(v => v !== opt.value)
+            : [...picked, opt.value]);
+    };
+
+    const pickedItems = multiple ? items.filter(o => picked.includes(o.value)) : [];
+    const selected = multiple ? pickedItems.length > 0 : options.find(o => o.value === value);
+
+    const displayLabel = multiple
+        ? (pickedItems.length === 0 ? placeholder
+            : pickedItems.length === 1 ? pickedItems[0].label
+                : `${pickedItems[0].label} 외 ${pickedItems.length - 1}`)
+        : (selected ? selected.label : placeholder);
 
     // 옵션 목록은 document.body에 포털로 띄운다 (fixed 좌표).
     // 페이지 카드가 overflow-auto라, 그 안에 absolute로 띄우면 목록 높이만큼 카드 스크롤이 늘어나 버림 — 포털로 그 문제를 완전히 피한다.
@@ -79,7 +105,7 @@ export default function DropdownSelect({
 
     // 열 때 현재 선택 항목으로 highlight + 좌표 계산
     const openList = () => {
-        const idx = options.findIndex(o => o.value === value);
+        const idx = items.findIndex(o => isPicked(o));
         setHighlightIdx(idx >= 0 ? idx : 0);
         updateCoords();
         setOpen(true);
@@ -90,7 +116,7 @@ export default function DropdownSelect({
         if (e.key === 'ArrowDown') {
             e.preventDefault();
             if (!open) { openList(); return; }
-            setHighlightIdx(i => Math.min(i + 1, options.length - 1));
+            setHighlightIdx(i => Math.min(i + 1, items.length - 1));
         } else if (e.key === 'ArrowUp') {
             e.preventDefault();
             if (!open) { openList(); return; }
@@ -98,8 +124,8 @@ export default function DropdownSelect({
         } else if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             if (open) {
-                const opt = options[highlightIdx];
-                if (opt) { onChange(opt.value); setOpen(false); }
+                const opt = items[highlightIdx];
+                if (opt) { pick(opt); }
             } else {
                 openList();
             }
@@ -135,17 +161,17 @@ export default function DropdownSelect({
                     className="z-50 min-w-[160px] bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-y-auto py-1"
                     role="listbox"
                 >
-                    {options.length === 0 && (
+                    {items.length === 0 && (
                         <div className="px-3 py-2 text-xs text-slate-400 text-center">옵션 없음</div>
                     )}
-                    {options.map((opt, i) => {
-                        const isSelected = opt.value === value;
+                    {items.map((opt, i) => {
+                        const isSelected = isPicked(opt);
                         const isHighlighted = highlightIdx === i;
                         return (
                             <button
                                 key={opt.value === '' ? `_empty_${i}` : opt.value}
                                 type="button"
-                                onClick={() => { onChange(opt.value); setOpen(false); }}
+                                onClick={() => pick(opt)}
                                 onMouseEnter={() => setHighlightIdx(i)}
                                 role="option"
                                 aria-selected={isSelected}

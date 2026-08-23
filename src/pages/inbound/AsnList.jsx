@@ -69,7 +69,7 @@ const LINE_COLUMN_DEFS = [
 ];
 
 export default function AsnList() {
-    const [cond, setCond] = useState({ ibNo: '', vndrNm: '', prgr: '', dateFrom: todayStr(), dateTo: daysAheadStr(7) });
+    const [cond, setCond] = useState({ ibNo: '', vndrNm: '', prgr: [], dateFrom: todayStr(), dateTo: daysAheadStr(7) });
     const [rowData, setRowData] = useState([]);
     const [lineRows, setLineRows] = useState([]);
     const [selectedAsn, setSelectedAsn] = useState(null);
@@ -118,7 +118,7 @@ export default function AsnList() {
             <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
                 <SearchText name="ibNo" label="입고번호" placeholder="IB-20260717-001" />
                 {/* 필터는 저장 상태(3값)가 아니라 그리드 뱃지와 같은 진행단계(5단계 파생)다 — 서버가 파생 후 거른다 */}
-                <SearchSelect name="prgr" label="진행단계" options={ASN_PRGR_OPTIONS} />
+                <SearchSelect name="prgr" label="진행단계" options={ASN_PRGR_OPTIONS} multiple />
                 <SearchItem label="벤더">
                     <button
                         type="button"

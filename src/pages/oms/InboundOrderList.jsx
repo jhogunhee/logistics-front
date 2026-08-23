@@ -120,7 +120,7 @@ const LINE_COLUMN_DEFS = [
 export default function InboundOrderList() {
     const navigate = useNavigate();
     const odrDvsnCodes = useCodes('ODR_DVSN');
-    const [cond, setCond] = useState({ omsIbNo: '', vndrNm: '', status: '', dateFrom: todayStr(), dateTo: daysAheadStr(7) });
+    const [cond, setCond] = useState({ omsIbNo: '', vndrNm: '', status: [], dateFrom: todayStr(), dateTo: daysAheadStr(7) });
     const [rowData, setRowData] = useState([]);
     const [lineRows, setLineRows] = useState([]);
     const [selected, setSelected] = useState(null);
@@ -285,7 +285,7 @@ export default function InboundOrderList() {
                             : <Search size={13} className="shrink-0 text-slate-400" />}
                     </button>
                 </SearchItem>
-                <SearchSelect name="status" label="주문상태" options={OMS_IB_STATUS_OPTIONS} />
+                <SearchSelect name="status" label="주문상태" options={OMS_IB_STATUS_OPTIONS} multiple />
             </SearchBar>
 
             {/* 상하 분할 + 드래그 스플리터 (비율은 localStorage에 기억됨) */}

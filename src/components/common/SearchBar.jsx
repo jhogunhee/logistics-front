@@ -236,8 +236,11 @@ export function SearchStore({ name = 'storeId', nmName = 'storeNm', label = '점
 
 /**
  * 검색 조건 선택 (SearchBar의 cond[name]에 바인딩)
+ *
+ * `multiple`을 주면 여러 값을 함께 고를 수 있고 cond[name]이 배열이 된다 —
+ * 상태처럼 「지시 + 진행중」을 같이 보는 조건에 쓴다. 빈 배열이 전체다.
  */
-export function SearchSelect({ name, label, options, placeholder = '전체', required, wide }) {
+export function SearchSelect({ name, label, options, placeholder = '전체', multiple, required, wide }) {
     const { cond, setCond } = useContext(SearchBarCtx);
     return (
         <SearchItem label={label} required={required} wide={wide}>
@@ -246,6 +249,7 @@ export function SearchSelect({ name, label, options, placeholder = '전체', req
                 onChange={(v) => setCond(prev => ({ ...prev, [name]: v }))}
                 options={options}
                 placeholder={placeholder}
+                multiple={multiple}
             />
         </SearchItem>
     );
