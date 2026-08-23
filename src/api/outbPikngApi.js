@@ -16,8 +16,8 @@ export const outbPikngApi = {
      * 확인·취소·추가발행 대상). 발행된 웨이브도 피킹 전이면 실적 0 조건으로 취소할 수 있어 목록에 남고,
      * 발행 뒤에 붙은 할당이 있으면 추가 발행 대상이 된다.
      *
-     * cond: { wavNo, prodCd, outbNo, storeCd, status, expctDeFrom, expctDeTo }
-     * ⚠ 주문 쪽 조건은 할당 화면과 같은 EXISTS — 라인이 아니라 웨이브를 거른다.
+     * cond: { wavNo, status, expctDeFrom, expctDeTo }
+     * ⚠ 조건은 어느 웨이브를 발행할지만 정한다 — 발행 단위가 웨이브라 주문 쪽 축은 두지 않는다.
      */
     taskWaves(cond = {}) {
         return api.get('/outbound/picking-tasks/waves', { params: params(cond) });
@@ -77,7 +77,11 @@ export const outbPikngApi = {
         return api.get(`/outbound/picking-tasks/${taskId}/acrsts`);
     },
 
-    /** 피킹 화면의 웨이브 목록 — ISSUED 웨이브의 지시/피킹/잔량 집계. cond: { wavNo, prodCd, expctDeFrom, expctDeTo } */
+    /**
+     * 피킹 화면의 웨이브 목록 — ISSUED 웨이브의 지시/피킹/잔량 집계.
+     * cond: { wavNo, prodCd, locCd, expctDeFrom, expctDeTo }
+     * ⚠ locCd는 일감 없는 웨이브를 목록에서 밀어낼 뿐이다. 하단 지시 행을 좁히는 건 화면이 따로 한다.
+     */
     pickingWaves(cond = {}) {
         return api.get('/outbound/picking/waves', { params: params(cond) });
     },

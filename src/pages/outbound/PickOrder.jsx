@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 import { outbPikngApi } from '@/api/outbPikngApi';
 import { WAVE_STATUS_META, PIKNG_TASK_STATUS_META, INV_MOV_STATUS_META } from '@/constants/badgeMeta';
 import { fmtDe, fmtDt, num, todayStr } from '@/utils/format';
-import SearchBar, { SearchText, SearchDateRange, SearchProd, SearchSelect } from '@/components/common/SearchBar';
+import SearchBar, { SearchText, SearchDateRange, SearchSelect } from '@/components/common/SearchBar';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import { Badge } from '@/components/common/Badge';
 
@@ -124,7 +124,7 @@ const ROW_COLUMN_DEFS = [
  * 부분할당은 막지 않는다 — 미할당 잔량은 부족 출고로 진행한다(백오더 없음).
  */
 export default function PickOrder() {
-    const [cond, setCond] = useState({ wavNo: '', outbNo: '', prodCd: '', storeCd: '', status: '', expctDeFrom: todayStr(), expctDeTo: todayStr() });
+    const [cond, setCond] = useState({ wavNo: '', status: '', expctDeFrom: todayStr(), expctDeTo: todayStr() });
     const [waves, setWaves] = useState([]);
     const [detail, setDetail] = useState(null);      // { wavId, wavNo, status, rows, noAllocOrders }
     const [confirmIssue, setConfirmIssue] = useState(null);
@@ -297,17 +297,15 @@ export default function PickOrder() {
                 </span>
             </div>
 
-            {/* 검색 — 조건은 웨이브를 거른다 (할당 화면과 같은 규칙) */}
+            {/* 검색 — 어느 웨이브를 발행할지만 정한다. 발행 대상은 선택 웨이브의 미발행 전량이라
+                주문 쪽 축(출고번호·상품·점포)을 두어도 「어느 웨이브냐」만 답한다 — 웨이브번호와 중복이다 */}
             <SearchBar cond={cond} setCond={setCond} onSearch={search}>
                 <SearchText name="wavNo" label="웨이브번호" placeholder="WV-20260820-001" />
-                <SearchSelect name="status" label="상태" options={[
+                <SearchSelect name="status" label="웨이브상태" options={[
                     { value: '', label: '전체' },
                     { value: 'PLANNED', label: '편성중' },
                     { value: 'ISSUED', label: '지시발행' },
                 ]} />
-                <SearchText name="outbNo" label="출고번호" placeholder="OB-20260820-001" />
-                <SearchProd name="prodCd" />
-                <SearchText name="storeCd" label="점포코드" placeholder="ST-0001" />
                 <SearchDateRange from="expctDeFrom" to="expctDeTo" label="출고예정일" />
             </SearchBar>
 

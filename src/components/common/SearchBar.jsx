@@ -4,6 +4,7 @@ import DropdownSelect from './DropdownSelect';
 import DatePicker from './DatePicker';
 import ProdPickerModal from './ProdPickerModal';
 import LocPickerModal from './LocPickerModal';
+import StorePickerModal from './StorePickerModal';
 
 const SearchBarCtx = createContext(null);
 
@@ -185,6 +186,47 @@ export function SearchLoc({ name = 'locCd', label = '로케이션', placeholder 
                 open={pickerOpen}
                 onClose={() => setPickerOpen(false)}
                 onSelect={(l) => setValue(l.locCd)}
+            />
+        </SearchItem>
+    );
+}
+
+/**
+ * 검색 조건 점포 (SearchBar의 cond[name]에 바인딩).
+ *
+ * <b>자유 입력이 없는 팝업 전용이다</b> — 조건이 storeId 정확일치라 코드를 치게 하면
+ * 오타가 그대로 「결과 없음」이 된다. 코드·점포명 검색은 팝업 안에서 한다
+ * (입고예정의 벤더 선택과 같은 방식).
+ *
+ * cond에 두 키를 쓴다 — <code>name</code>은 서버로 가는 storeId,
+ * <code>nmName</code>은 버튼에 보일 점포명이다(표시 전용).
+ */
+export function SearchStore({ name = 'storeId', nmName = 'storeNm', label = '점포', required, wide }) {
+    const { cond, setCond } = useContext(SearchBarCtx);
+    const [pickerOpen, setPickerOpen] = useState(false);
+    const picked = cond[nmName];
+    return (
+        <SearchItem label={label} required={required} wide={wide}>
+            <button
+                type="button"
+                onClick={() => setPickerOpen(true)}
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-left flex items-center justify-between gap-2 hover:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400">
+                <span className={`truncate ${picked ? 'text-slate-700' : 'text-slate-400'}`}>
+                    {picked || '전체'}
+                </span>
+                {picked
+                    ? <X
+                        size={13}
+                        title="점포 조건 지우기"
+                        className="shrink-0 text-slate-400 hover:text-slate-600"
+                        onClick={(e) => { e.stopPropagation(); setCond(prev => ({ ...prev, [name]: '', [nmName]: '' })); }}
+                      />
+                    : <Search size={13} className="shrink-0 text-slate-400" />}
+            </button>
+            <StorePickerModal
+                open={pickerOpen}
+                onClose={() => setPickerOpen(false)}
+                onSelect={(st) => setCond(prev => ({ ...prev, [name]: st.storeId, [nmName]: st.storeNm }))}
             />
         </SearchItem>
     );

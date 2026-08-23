@@ -10,7 +10,8 @@ import { strategyApi } from '@/api/strategyApi';
 import { useCodes } from '@/hooks/useCodes';
 import { WAVE_STATUS_META, WAV_REG_TYP_META, OUTB_STATUS_META } from '@/constants/badgeMeta';
 import { fmtDt, num, todayStr } from '@/utils/format';
-import SearchBar, { SearchText, SearchDateRange } from '@/components/common/SearchBar';
+import { WAVE_STATUS_OPTIONS } from '@/constants/codeOptions';
+import SearchBar, { SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import { Badge } from '@/components/common/Badge';
 import ExecutionHistory from '@/components/strategy/ExecutionHistory';
@@ -130,7 +131,7 @@ export default function Wave() {
     // ── 검색 조건 — 웨이브 목록에만 걸린다. 주문 조건은 주문 담기 팝업 안에 있다 ──
     // 출고예정일 기본값은 오늘 — 다른 출고 화면(할당·피킹지시·피킹)과 같다. 조건이 없으면
     // 목록이 생성 이래 전량으로 자라고 소속 주문까지 함께 읽는다.
-    const [cond, setCond] = useState({ wavNo: '', expctDeFrom: todayStr(), expctDeTo: todayStr() });
+    const [cond, setCond] = useState({ wavNo: '', status: '', expctDeFrom: todayStr(), expctDeTo: todayStr() });
 
     // ── 웨이브 목록 ──────────────────────────────────────────
     const [waves, setWaves] = useState([]);
@@ -289,6 +290,7 @@ export default function Wave() {
             {/* 검색 조건 — 웨이브 목록에만 걸린다. 주문 조건은 주문 담기 팝업 안에 있다 */}
             <SearchBar cond={cond} setCond={setCond} onSearch={search}>
                 <SearchText name="wavNo" label="웨이브번호" placeholder="WV-20260803-001" />
+                <SearchSelect name="status" label="웨이브상태" options={WAVE_STATUS_OPTIONS} />
                 <SearchDateRange from="expctDeFrom" to="expctDeTo" label="출고예정일" />
             </SearchBar>
 

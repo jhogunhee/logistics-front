@@ -8,7 +8,7 @@ import { outbAllocApi } from '@/api/outbAllocApi';
 import { WAVE_STATUS_META } from '@/constants/badgeMeta';
 import { Badge } from '@/components/common/Badge';
 import { fmtDe, fmtDt, num, todayStr } from '@/utils/format';
-import SearchBar, { SearchText, SearchDateRange, SearchProd } from '@/components/common/SearchBar';
+import SearchBar, { SearchText, SearchDateRange, SearchProd, SearchStore } from '@/components/common/SearchBar';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import AllocCandidateModal from '@/components/outbound/AllocCandidateModal';
 import AllocRecordsModal from '@/components/outbound/AllocRecordsModal';
@@ -85,7 +85,7 @@ const LINE_COLUMN_DEFS = [
  * 재고가 들어오면 같은 웨이브를 다시 할당하면 된다.
  */
 export default function Allocation() {
-    const [cond, setCond] = useState({ wavNo: '', outbNo: '', prodCd: '', storeCd: '', expctDeFrom: todayStr(), expctDeTo: todayStr() });
+    const [cond, setCond] = useState({ wavNo: '', outbNo: '', prodCd: '', storeId: '', storeNm: '', expctDeFrom: todayStr(), expctDeTo: todayStr() });
     const [waves, setWaves] = useState([]);
     const [detail, setDetail] = useState(null);      // { wavId, wavNo, lines, allocs }
     const [selectedLine, setSelectedLine] = useState(null);
@@ -100,8 +100,10 @@ export default function Allocation() {
     // 검색 조건이 웨이브를 거르므로, 조건에 맞는 라인이 어느 것인지 우측에서 짚어준다
     const matchesCond = (line) => {
         const hit = (v, kw) => !kw || String(v ?? '').toLowerCase().includes(kw.toLowerCase());
-        if (!cond.outbNo && !cond.prodCd && !cond.storeCd) return false;
-        return hit(line.outbNo, cond.outbNo) && hit(line.prodCd, cond.prodCd) && hit(line.storeCd, cond.storeCd);
+        if (!cond.outbNo && !cond.prodCd && !cond.storeId) return false;
+        // 점포만 정확일치다 — 팝업에서 고른 storeId라 부분일치를 따질 여지가 없다 (서버 EXISTS와 같은 의미)
+        const storeHit = !cond.storeId || line.storeId === cond.storeId;
+        return hit(line.outbNo, cond.outbNo) && hit(line.prodCd, cond.prodCd) && storeHit;
     };
 
     const shortLines = execResult?.lines.filter(l => l.shortQty > 0) ?? [];
@@ -220,7 +222,7 @@ export default function Allocation() {
                 <SearchText name="wavNo" label="웨이브번호" placeholder="WV-20260803-001" />
                 <SearchText name="outbNo" label="출고번호" placeholder="OB-20260803-001" />
                 <SearchProd name="prodCd" />
-                <SearchText name="storeCd" label="점포코드" placeholder="ST-0001" />
+                <SearchStore />
                 <SearchDateRange from="expctDeFrom" to="expctDeTo" label="출고예정일" />
             </SearchBar>
 
