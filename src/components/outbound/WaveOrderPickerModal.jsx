@@ -24,7 +24,7 @@ import SearchBar, { SearchText, SearchSelect, SearchDateRange } from '@/componen
  * @param onAdded     담기 성공 후 (목록 재조회)
  */
 export default function WaveOrderPickerModal({ wave, columnDefs, context, outbTyps, vhclFltnos, onClose, onAdded }) {
-    const [cond, setCond] = useState({ outbNo: '', outbTyp: '', vhclFltno: '', dateFrom: '', dateTo: '' });
+    const [cond, setCond] = useState({ outbNo: '', outbTyp: '', vhclFltno: '', expctDeFrom: '', expctDeTo: '' });
     const [rows, setRows] = useState([]);
     const [checkedCount, setCheckedCount] = useState(0);
     const [saving, setSaving] = useState(false);
@@ -36,7 +36,7 @@ export default function WaveOrderPickerModal({ wave, columnDefs, context, outbTy
 
     const fetchRows = (c) => outbOrderApi.list({
         ...c,
-        ...(lockedDe ? { dateFrom: lockedDe, dateTo: lockedDe } : {}),
+        ...(lockedDe ? { expctDeFrom: lockedDe, expctDeTo: lockedDe } : {}),
         status: 'CREATED', unassigned: true,
     }).then(setRows);
 
@@ -92,7 +92,7 @@ export default function WaveOrderPickerModal({ wave, columnDefs, context, outbTy
                 <div className="px-6 py-3 flex flex-col gap-3 flex-1 min-h-0">
                     <SearchBar cond={cond} setCond={setCond} onSearch={search}>
                         <SearchText name="outbNo" label="출고번호" placeholder="OB-20260803-001" />
-                        {!lockedDe && <SearchDateRange from="dateFrom" to="dateTo" label="출고예정일" />}
+                        {!lockedDe && <SearchDateRange from="expctDeFrom" to="expctDeTo" label="출고예정일" />}
                         <SearchSelect name="outbTyp" label="출고유형" options={outbTyps.searchOptions} />
                         <SearchSelect name="vhclFltno" label="차량편수" options={vhclFltnos.searchOptions} />
                     </SearchBar>
