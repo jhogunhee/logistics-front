@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, Search, X } from "lucide-react";
+import { ChevronDown, Loader2, Search, X } from "lucide-react";
 import { daysAheadStr, todayStr, ymd } from '@/utils/format';
 import DropdownSelect from './DropdownSelect';
 import DatePicker from './DatePicker';
@@ -10,9 +10,37 @@ import StorePickerModal from './StorePickerModal';
 
 const SearchBarCtx = createContext(null);
 
-export default function SearchBar({ onSearch, cond, setCond, label = '검색', children }) {
+// 응답이 빨라도 버튼 변화가 보이게 스피너를 이만큼은 유지한다
+const MIN_BUSY_MS = 350;
+
+const nowHms = () => new Date().toTimeString().slice(0, 8);
+
+export default function SearchBar({ onSearch, cond, setCond, label = '검색', autoLoaded = true, children }) {
+    const [busy, setBusy] = useState(false);
+    // 진입 시 자동 조회하는 화면은 그 호출이 SearchBar를 거치지 않아 끝난 때를 알 수 없다 —
+    // 마운트 시각을 초기값으로 둔다. 자동 조회가 없는 화면은 autoLoaded={false}로 끈다
+    const [searchedAt, setSearchedAt] = useState(() => (autoLoaded ? nowHms() : ''));
+
+    // 결과가 이전과 같으면 화면이 그대로라 조회가 됐는지 알 수 없다 —
+    // 조회 중 스피너와 조회 시각으로 「방금 다녀왔다」를 남긴다
+    const runSearch = async () => {
+        if (busy) return;
+        setBusy(true);
+        const startedAt = Date.now();
+        try {
+            await Promise.resolve(onSearch?.());
+            setSearchedAt(nowHms());
+        } catch {
+            // 조회 실패 토스트는 axios 응답 인터셉터가 띄운다
+        } finally {
+            const rest = MIN_BUSY_MS - (Date.now() - startedAt);
+            if (rest > 0) await new Promise(r => setTimeout(r, rest));
+            setBusy(false);
+        }
+    };
+
     return (
-        <SearchBarCtx.Provider value={{ onSearch, cond, setCond }}>
+        <SearchBarCtx.Provider value={{ onSearch: runSearch, cond, setCond }}>
             <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4 shrink-0">
                 <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-0.5">
                     {label}
@@ -27,11 +55,16 @@ export default function SearchBar({ onSearch, cond, setCond, label = '검색', c
                 <div className="h-8 w-px bg-slate-100 mx-2"></div>
 
                 {/* 3. 조회 버튼 영역 — 입력 요소와 같은 높이(py-2)로 맞춘다 */}
+                {/* 시각 자리는 처음부터 잡아둔다 — 첫 조회 때 버튼이 밀리지 않게 */}
+                <span className="min-w-[80px] text-right text-[11px] text-slate-400 tabular-nums whitespace-nowrap shrink-0">
+                    {searchedAt && `${searchedAt} 조회`}
+                </span>
                 <button
-                    onClick={onSearch}
-                    className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 transition-all shadow-md active:scale-95 shrink-0"
+                    onClick={runSearch}
+                    disabled={busy}
+                    className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 transition-all shadow-md active:scale-95 shrink-0 disabled:bg-indigo-400 disabled:cursor-wait disabled:active:scale-100"
                 >
-                    <Search size={15} />
+                    {busy ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
                     <span>조회</span>
                 </button>
             </div>

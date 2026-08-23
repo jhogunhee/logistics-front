@@ -50,6 +50,8 @@ export default function StockSpmt() {
 
     useEffect(() => {
         zonApi.list().then(setZonCodes);
+        fetchTargets();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const fetchTargets = async () => {
