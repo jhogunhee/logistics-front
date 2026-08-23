@@ -163,18 +163,13 @@ export default function Wave() {
     };
 
     /**
-     * 조회 버튼 — 웨이브 목록을 다시 읽는다 (선택은 유지).
-     * 소속 주문은 여기서 직접 읽지 않는다 — 목록이 갱신되면 onWaveModelUpdated가 같은 웨이브를
-     * 다시 선택하고 그 선택 이벤트가 읽는다. 여기서도 읽으면 검색 조건 때문에 선택이 풀리는 경우와
-     * 경쟁해서, 선택되지 않은 웨이브의 주문이 우측에 남을 수 있다.
+     * 조회 버튼 — 웨이브 목록을 다시 읽는다 (선택은 유지)
      */
     const search = async () => {
         await fetchWaves();
     };
 
     useEffect(() => {
-        // 최초 조회도 검색조건(기본 = 출고예정일 오늘)을 쓴다 — 빈 조건으로 읽으면 기본값을
-        // 화면에 띄워 놓고 목록만 전량이 되어, 보이는 조건과 목록이 어긋난다
         outbWaveApi.list(cond).then(setWaves).catch(() => {});
         strategyApi.waveStrategies.list().then(setStrategies).catch(() => {});
     }, []);
