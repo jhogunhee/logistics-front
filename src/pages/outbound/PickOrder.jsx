@@ -5,7 +5,7 @@ import { AlertTriangle, ClipboardList, Send, Undo2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { outbPikngApi } from '@/api/outbPikngApi';
-import { WAVE_STATUS_META, PIKNG_TASK_STATUS_META } from '@/constants/badgeMeta';
+import { WAVE_STATUS_META, PIKNG_TASK_STATUS_META, INV_MOV_STATUS_META } from '@/constants/badgeMeta';
 import { fmtDe, fmtDt, num, todayStr } from '@/utils/format';
 import SearchBar, { SearchText, SearchDateRange, SearchProd, SearchSelect } from '@/components/common/SearchBar';
 import ConfirmModal from '@/components/common/ConfirmModal';
@@ -100,6 +100,13 @@ const ROW_COLUMN_DEFS = [
         field: 'status', headerName: '상태', width: 84,
         cellRenderer: (p) => <Badge meta={PIKNG_TASK_STATUS_META} value={p.value} show="label" />,
     },
+    {
+        field: 'rplnStatus', headerName: '보충', width: 84,
+        headerTooltip: '보관존 할당분의 짝 보충지시 — 「지시」면 보충이 끝나야 집품할 수 있다. 피킹존 할당은 비어 있다',
+        cellRenderer: (p) => (p.value
+            ? <span title={p.data.rplnNo}><Badge meta={INV_MOV_STATUS_META} value={p.value} show="label" /></span>
+            : <span className="text-slate-300">—</span>),
+    },
 ];
 
 /**
@@ -125,6 +132,8 @@ export default function PickOrder() {
     const [confirmTaskCancel, setConfirmTaskCancel] = useState(null);
     const [confirmAddIssue, setConfirmAddIssue] = useState(null);
     const [checkedTaskCount, setCheckedTaskCount] = useState(0);
+    // 발행 결과 — 피킹 로케이션이 없어 빠진 할당은 토스트로 흘리지 않고 모달로 짚는다 (웨이브가 아니라 할당 단위로 빠졌다)
+    const [issueResult, setIssueResult] = useState(null);
     const waveGridRef = useRef(null);
     const rowGridRef = useRef(null);
     // 재조회 뒤 보고 있던 웨이브를 다시 열기 위한 wavId (할당 화면과 같은 방식)
@@ -162,7 +171,7 @@ export default function PickOrder() {
         p.api.forEachNode(n => { if (n.data.wavId === wavId) n.setSelected(true); });
     };
 
-    /** 체크가 곧 발행·취소 대상이다. 마지막으로 체크한 웨이브의 상세를 우측에 편다 */
+    /** 체크가 곧 발행·취소 대상이다. 마지막으로 체크한 웨이브의 상세를 아래에 편다 */
     const onWaveSelectionChanged = (e) => {
         const rows = e.api.getSelectedRows();
         const target = rows[rows.length - 1] ?? null;
@@ -170,6 +179,12 @@ export default function PickOrder() {
     };
 
     const checkedWaves = () => waveGridRef.current?.api.getSelectedRows() ?? [];
+
+    // 피킹 로케이션이 없어 이번 발행에서 빠진 할당 — 고정 로케이션을 등록하거나 피킹존 자리를 비운 뒤 추가 발행한다
+    const showNoDestination = (res) => {
+        const skipped = res.waves.flatMap(w => w.noDestination.map(a => `${w.wavNo} · ${a}`));
+        if (skipped.length > 0) setIssueResult(skipped);
+    };
 
     // ── 발행 ─────────────────────────────────────────────────
     const handleIssueClick = () => {
@@ -184,7 +199,9 @@ export default function PickOrder() {
     const doIssue = async (rows) => {
         try {
             const res = await outbPikngApi.issue(rows.map(r => r.wavId));
-            toast.success(`웨이브 ${res.waveCount}건에 피킹지시 ${num(res.taskCount)}건을 발행했습니다.`);
+            toast.success(`웨이브 ${res.waveCount}건에 피킹지시 ${num(res.taskCount)}건을 발행했습니다.`
+                + (res.rplnCount > 0 ? ` 보충지시 ${num(res.rplnCount)}건이 함께 나갔습니다.` : ''));
+            showNoDestination(res);
             await search();
         } catch (e) {
             toast.error(e.message || '피킹지시 발행에 실패했습니다.');
@@ -202,7 +219,7 @@ export default function PickOrder() {
         const picked = rows.find(w => w.pikngQty > 0);
         if (picked) {
             toast.error(`피킹이 시작된 웨이브는 발행을 통째로 취소할 수 없습니다: ${picked.wavNo}`
-                + ' — 오른쪽 지시 목록에서 아직 한 개도 집지 않은 지시만 골라 「지시취소」하세요.');
+                + ' — 아래 지시 목록에서 아직 한 개도 집지 않은 지시만 골라 「지시취소」하세요.');
             return;
         }
         setConfirmCancel(rows);
@@ -238,7 +255,9 @@ export default function PickOrder() {
     const doAddIssue = async (wave) => {
         try {
             const res = await outbPikngApi.issueAdditional([wave.wavId]);
-            toast.success(`지시 ${num(res.taskCount)}건을 추가 발행했습니다 — 집품 순번은 기존 뒤에 이어집니다.`);
+            toast.success(`지시 ${num(res.taskCount)}건을 추가 발행했습니다 — 집품 순번은 기존 뒤에 이어집니다.`
+                + (res.rplnCount > 0 ? ` 보충지시 ${num(res.rplnCount)}건이 함께 나갔습니다.` : ''));
+            showNoDestination(res);
             pendingWaveRef.current = wave.wavId;
             await search();
         } catch (e) {
@@ -296,8 +315,8 @@ export default function PickOrder() {
               * 좌: 웨이브(체크 = 발행/취소 대상) / 우: 선택 웨이브의 지시 대상·지시 행.
               * 발행 전 목록이 발행될 순서 그대로 정렬돼 있어 그 자체가 발행 미리보기다.
               */}
-            <PanelGroup direction="horizontal" autoSaveId="outb-pick-order-split" className="flex-1 min-h-0">
-                <Panel defaultSize={38} minSize={16} className="flex flex-col gap-2 min-h-0">
+            <PanelGroup direction="vertical" autoSaveId="outb-pick-order-split-v1" className="flex-1 min-h-0">
+                <Panel defaultSize={40} minSize={20} className="flex flex-col gap-2 min-h-0">
                     <div className="flex items-center gap-2">
                         <span className="text-sm font-bold text-slate-700 shrink-0">웨이브</span>
                         <span className="text-xs text-slate-400 truncate">
@@ -327,17 +346,17 @@ export default function PickOrder() {
                     </div>
                 </Panel>
 
-                <PanelResizeHandle className="w-2.5 flex items-center justify-center group cursor-col-resize">
-                    <div className="w-1 h-16 rounded-full bg-slate-200 group-hover:bg-indigo-400 group-data-[resize-handle-active]:bg-indigo-500 transition-colors" />
+                <PanelResizeHandle className="h-2.5 flex items-center justify-center group cursor-row-resize">
+                    <div className="h-1 w-16 rounded-full bg-slate-200 group-hover:bg-indigo-400 group-data-[resize-handle-active]:bg-indigo-500 transition-colors" />
                 </PanelResizeHandle>
 
-                <Panel defaultSize={62} minSize={40} className="flex flex-col gap-2 min-h-0">
+                <Panel defaultSize={60} minSize={25} className="flex flex-col gap-2 min-h-0">
                     <div className="flex items-center gap-2">
                         <span className="text-sm font-bold text-slate-700 shrink-0">
                             {detail?.status === 'ISSUED' ? '지시 내역' : '지시 대상'}
                         </span>
                         <span className="text-xs text-slate-400 truncate">
-                            {detail ? `${detail.wavNo} · 집품 순서(로케이션 순)대로 표시` : '왼쪽에서 웨이브를 선택하세요'}
+                            {detail ? `${detail.wavNo} · 집품 순서(로케이션 순)대로 표시` : '위에서 웨이브를 선택하세요'}
                         </span>
                         <span className="text-xs text-slate-500 font-medium ml-auto shrink-0">
                             {detail?.status === 'ISSUED'
@@ -406,6 +425,26 @@ export default function PickOrder() {
             </PanelGroup>
 
             {/* 발행 확인 — 미할당 잔량이 있으면 「알고 발행」하게 한다 */}
+            {issueResult && (
+                <ConfirmModal
+                    title="피킹 로케이션이 없어 빠진 할당이 있습니다"
+                    confirmText="확인"
+                    onCancel={() => setIssueResult(null)}
+                    onConfirm={() => setIssueResult(null)}
+                >
+                    <p className="text-sm text-slate-500">
+                        아래 <b>{issueResult.length}건</b>은 보관존에 잡힌 할당인데 옮겨 둘 피킹존 자리가 없어 이번 발행에서 빠졌습니다.
+                        웨이브의 나머지는 발행됐습니다.
+                    </p>
+                    <ul className="text-xs text-slate-700 bg-slate-50 rounded-lg px-3 py-2 leading-relaxed max-h-40 overflow-auto">
+                        {issueResult.map(s => <li key={s}>{s}</li>)}
+                    </ul>
+                    <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 leading-relaxed">
+                        상품의 고정 로케이션을 등록하거나 피킹존 자리를 비운 뒤 <b>추가 발행</b>하면 나갑니다. 그때까지 「미발행」으로 남습니다.
+                    </p>
+                </ConfirmModal>
+            )}
+
             {confirmIssue && (
                 <ConfirmModal
                     title="피킹지시를 발행할까요?"

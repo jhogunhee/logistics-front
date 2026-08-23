@@ -26,7 +26,7 @@ const SECTIONS = [
         dflt: '보관 재고 전체가 한 덩어리 (계층 없음)',
         hint: '위에서부터 계층입니다 — 앞 계층을 다 쓰고 모자라면 다음으로 내려갑니다.',
         multi: true, hasCmpnt: false, slotLabel: '후보 계층', condDomain: 'allocation-invn',
-        condHint: '조건 없는 계층은 후보 전체를 가져가므로 마지막에만 둘 수 있습니다.',
+        condHint: '계층은 조건 없는 계층으로 끝나야 합니다 — 어느 계층에도 맞지 않는 재고는 자동할당이 쓰지 않아 그만큼 결품이 됩니다. 조건 없는 계층은 마지막에만 둘 수 있습니다.',
     },
     {
         typ: 'RSTRCT', no: '②', label: '출고제약', orderLabel: null,
@@ -475,7 +475,7 @@ export default function AllocationStrategy() {
                                     />
                                 )}
 
-                                {section.condHint && slots.length > 1 && (
+                                {section.condHint && slots.length > 0 && (
                                     <span className="text-[11px] text-amber-600">{section.condHint}</span>
                                 )}
                             </div>
