@@ -171,7 +171,7 @@ export default function PickOrder() {
         p.api.forEachNode(n => { if (n.data.wavId === wavId) n.setSelected(true); });
     };
 
-    /** 체크가 곧 발행·취소 대상이다. 마지막으로 체크한 웨이브의 상세를 우측에 편다 */
+    /** 체크가 곧 발행·취소 대상이다. 마지막으로 체크한 웨이브의 상세를 아래에 편다 */
     const onWaveSelectionChanged = (e) => {
         const rows = e.api.getSelectedRows();
         const target = rows[rows.length - 1] ?? null;
@@ -219,7 +219,7 @@ export default function PickOrder() {
         const picked = rows.find(w => w.pikngQty > 0);
         if (picked) {
             toast.error(`피킹이 시작된 웨이브는 발행을 통째로 취소할 수 없습니다: ${picked.wavNo}`
-                + ' — 오른쪽 지시 목록에서 아직 한 개도 집지 않은 지시만 골라 「지시취소」하세요.');
+                + ' — 아래 지시 목록에서 아직 한 개도 집지 않은 지시만 골라 「지시취소」하세요.');
             return;
         }
         setConfirmCancel(rows);
@@ -315,8 +315,8 @@ export default function PickOrder() {
               * 좌: 웨이브(체크 = 발행/취소 대상) / 우: 선택 웨이브의 지시 대상·지시 행.
               * 발행 전 목록이 발행될 순서 그대로 정렬돼 있어 그 자체가 발행 미리보기다.
               */}
-            <PanelGroup direction="horizontal" autoSaveId="outb-pick-order-split" className="flex-1 min-h-0">
-                <Panel defaultSize={38} minSize={16} className="flex flex-col gap-2 min-h-0">
+            <PanelGroup direction="vertical" autoSaveId="outb-pick-order-split-v1" className="flex-1 min-h-0">
+                <Panel defaultSize={40} minSize={20} className="flex flex-col gap-2 min-h-0">
                     <div className="flex items-center gap-2">
                         <span className="text-sm font-bold text-slate-700 shrink-0">웨이브</span>
                         <span className="text-xs text-slate-400 truncate">
@@ -346,17 +346,17 @@ export default function PickOrder() {
                     </div>
                 </Panel>
 
-                <PanelResizeHandle className="w-2.5 flex items-center justify-center group cursor-col-resize">
-                    <div className="w-1 h-16 rounded-full bg-slate-200 group-hover:bg-indigo-400 group-data-[resize-handle-active]:bg-indigo-500 transition-colors" />
+                <PanelResizeHandle className="h-2.5 flex items-center justify-center group cursor-row-resize">
+                    <div className="h-1 w-16 rounded-full bg-slate-200 group-hover:bg-indigo-400 group-data-[resize-handle-active]:bg-indigo-500 transition-colors" />
                 </PanelResizeHandle>
 
-                <Panel defaultSize={62} minSize={40} className="flex flex-col gap-2 min-h-0">
+                <Panel defaultSize={60} minSize={25} className="flex flex-col gap-2 min-h-0">
                     <div className="flex items-center gap-2">
                         <span className="text-sm font-bold text-slate-700 shrink-0">
                             {detail?.status === 'ISSUED' ? '지시 내역' : '지시 대상'}
                         </span>
                         <span className="text-xs text-slate-400 truncate">
-                            {detail ? `${detail.wavNo} · 집품 순서(로케이션 순)대로 표시` : '왼쪽에서 웨이브를 선택하세요'}
+                            {detail ? `${detail.wavNo} · 집품 순서(로케이션 순)대로 표시` : '위에서 웨이브를 선택하세요'}
                         </span>
                         <span className="text-xs text-slate-500 font-medium ml-auto shrink-0">
                             {detail?.status === 'ISSUED'

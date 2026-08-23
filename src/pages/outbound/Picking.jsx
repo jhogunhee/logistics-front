@@ -256,9 +256,9 @@ export default function Picking() {
                 <SearchDateRange from="expctDeFrom" to="expctDeTo" label="출고예정일" />
             </SearchBar>
 
-            {/* 좌: 발행된 웨이브(단일 선택) / 우: 지시 그리드(체크 + 수량 편집 = 실행 대상) */}
-            <PanelGroup direction="horizontal" autoSaveId="outb-picking-split" className="flex-1 min-h-0">
-                <Panel defaultSize={33} minSize={16} className="flex flex-col gap-2 min-h-0">
+            {/* 상: 발행된 웨이브(단일 선택) / 하: 지시 그리드(체크 + 수량 편집 = 실행 대상) */}
+            <PanelGroup direction="vertical" autoSaveId="outb-picking-split-v1" className="flex-1 min-h-0">
+                <Panel defaultSize={40} minSize={20} className="flex flex-col gap-2 min-h-0">
                     <div className="flex items-center gap-2">
                         <span className="text-sm font-bold text-slate-700 shrink-0">발행된 웨이브</span>
                         <span className="text-xs text-slate-400 truncate">피킹지시 발행분</span>
@@ -277,15 +277,15 @@ export default function Picking() {
                     </div>
                 </Panel>
 
-                <PanelResizeHandle className="w-2.5 flex items-center justify-center group cursor-col-resize">
-                    <div className="w-1 h-16 rounded-full bg-slate-200 group-hover:bg-indigo-400 group-data-[resize-handle-active]:bg-indigo-500 transition-colors" />
+                <PanelResizeHandle className="h-2.5 flex items-center justify-center group cursor-row-resize">
+                    <div className="h-1 w-16 rounded-full bg-slate-200 group-hover:bg-indigo-400 group-data-[resize-handle-active]:bg-indigo-500 transition-colors" />
                 </PanelResizeHandle>
 
-                <Panel defaultSize={67} minSize={40} className="flex flex-col gap-2 min-h-0">
+                <Panel defaultSize={60} minSize={25} className="flex flex-col gap-2 min-h-0">
                     <div className="flex items-center gap-2">
                         <span className="text-sm font-bold text-slate-700 shrink-0">피킹 지시</span>
                         <span className="text-xs text-slate-400 truncate">
-                            {wave ? `${wave.wavNo} · 순번 = 집품 동선` : '왼쪽에서 웨이브를 선택하세요'}
+                            {wave ? `${wave.wavNo} · 순번 = 집품 동선` : '위에서 웨이브를 선택하세요'}
                         </span>
                         <span className="text-xs text-slate-500 font-medium ml-auto shrink-0">
                             선택 {checkedCount} / {rows.length}건
