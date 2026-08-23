@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
-import { Barcode, Download, Plus, Save, Trash2, Upload } from 'lucide-react';
+import { Barcode, Download, Plus, Save, Shapes, Trash2, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 
@@ -12,6 +12,9 @@ import { fmtDe, num } from '@/utils/format';
 import SearchBar, { SearchText, SearchSelect } from '@/components/common/SearchBar';
 import SelectCellEditor from '@/components/common/SelectCellEditor';
 import { Badge, RowStatusCell } from '@/components/common/Badge';
+import { ProdThumb } from '@/components/common/ProdThumb';
+import ProdIconPickerModal from '@/components/master/ProdIconPickerModal';
+import { THUMB_CELL_STYLE } from '@/constants/agGrid';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import SaveCountSummary from '@/components/common/SaveCountSummary';
 
@@ -37,6 +40,14 @@ export default function ProdMaster() {
             headerName: 'No.', width: 60, editable: false,
             valueGetter: (p) => p.node.rowIndex + 1,
             cellClass: 'text-slate-400',
+        },
+        {
+            // 헤더 이름을 비운다 — 썸네일은 그 자체로 무엇인지 말한다. 다른 화면의 이미지 컬럼도 같다
+            field: 'imgUrl', headerName: '', width: 50,
+            headerTooltip: '상품 이미지. 위의 「아이콘 선택」 버튼으로 지정합니다',
+            sortable: false, editable: false,
+            cellStyle: THUMB_CELL_STYLE,
+            cellRenderer: (p) => <ProdThumb src={p.value} alt={p.data.prodNm} tmpZon={p.data.tmpZon} size={34} />,
         },
         {
             // 서버 채번이라 입력은 안 받지만 반드시 값이 생기는 컬럼 — 필수 표시를 유지한다
@@ -112,9 +123,53 @@ export default function ProdMaster() {
     // ── 행 추가 ──────────────────────────────────────────────
     // 단위 기본값은 EA — 낱개로 받아 낱개로 내보내는 상품이 대부분이다.
     const handleAddRow = () => addRow(
-        { prodCd: '', prodNm: '', tmpZon: 'DRY', inbUomCd: 'EA', outbUomCd: 'EA', shelfLifeDays: null },
+        // imgUrl은 비워둔다 — 파일명이 상품코드인데 신규 행은 저장 전까지 코드가 없다(서버 채번).
+        // 저장 뒤 코드를 보고 넣는 순서가 된다
+        { prodCd: '', prodNm: '', tmpZon: 'DRY', inbUomCd: 'EA', outbUomCd: 'EA', shelfLifeDays: null, imgUrl: null },
         'prodNm'
     );
+
+    // ── 상품 이미지 ─────────────────────────────────────────
+    // 화면에서 하는 조작은 아이콘을 고르는 것 하나뿐이다. 버튼 둘을 뺐고 이유가 서로 다르다 —
+    //
+    // 「이미지 연결」(상품별 그림 파일): 할 수 없는 일이라서. 파일을 미리 소스 폴더에 넣어 둔
+    //   상품에만 통해서, 방금 만든 상품에서 누르면 「파일이 없습니다」로 끝났다. 화면이 할 수
+    //   없는 일을 버튼으로 세워 두면 그 자체가 미완성으로 읽힌다. 그림 파일도 함께 지웠다.
+    // 「이미지 제거」: 할 이유가 없어서. 잘못 골랐으면 다른 아이콘을 고르면 되고, 마땅한 게
+    //   없으면 목록의 📦 기타를 고른다. 「이미지 없음」은 사람이 일부러 만들 상태가 아니다.
+    //
+    // NULL(이미지 없음)은 그대로 유효하다 — 신규 상품이 아이콘을 고르기 전까지의 상태이고
+    // 그때 ProdThumb이 폴백을 그린다. 사람이 그 상태를 만들 수 없어졌을 뿐이다.
+    // 시더 상품에 붙어 있던 그림 주소도 DB에 남아 있으면 계속 보인다(세 형태를 다 그린다).
+    //
+    // setDataValue가 useMasterGrid의 onCellValueChanged를 태워 행을 U로 표시하므로
+    // 「저장」을 눌러야 DB에 반영된다.
+
+    /** 선택된 행 하나를 돌려준다. 없거나 여럿이면 안내하고 null */
+    const selectedRowNode = () => {
+        const nodes = gridRef.current?.api.getSelectedNodes() ?? [];
+        if (nodes.length !== 1) {
+            toast('상품을 하나만 선택하세요.');
+            return null;
+        }
+        if (nodes[0].data._status === 'D') {
+            toast('삭제 표시된 행은 편집할 수 없습니다.');
+            return null;
+        }
+        return nodes[0];
+    };
+
+    /*
+     * 아이콘 선택 — 그림 파일과 달리 상품코드가 필요 없어(파일명이 아니라 이름을 저장한다)
+     * 저장 전 신규 행에서도 고를 수 있다. 모달이 고른 값을 셀에 넣고 닫는다(반영은 「저장」 몫).
+     */
+    const [iconTarget, setIconTarget] = useState(null); // 아이콘을 고르는 중인 행 노드
+
+    const handleIconPick = (value) => {
+        iconTarget?.setDataValue('imgUrl', value);
+        setIconTarget(null);
+        toast.success('아이콘을 골랐습니다. 저장 버튼을 눌러야 반영됩니다.');
+    };
 
     // ── 엑셀 양식 다운로드 ───────────────────────────────────
     // 업로드가 읽는 헤더 그대로 예시 행을 담아 내려준다 (예시 행은 업로드 후 그리드에서 지우면 됨).
@@ -307,6 +362,12 @@ export default function ProdMaster() {
                         <Upload size={13} /> 엑셀 업로드
                     </button>
                     <button
+                        onClick={() => setIconTarget(selectedRowNode())}
+                        className="btn-ghost"
+                        title="선택한 상품에 아이콘을 지정합니다. 저장 전 신규 행에서도 고를 수 있습니다">
+                        <Shapes size={13} /> 아이콘 선택
+                    </button>
+                    <button
                         onClick={deleteSelectedRows}
                         className="btn-danger">
                         <Trash2 size={13} /> 삭제
@@ -336,12 +397,26 @@ export default function ProdMaster() {
                 </ConfirmModal>
             )}
 
+            {/* 아이콘 선택 모달 — 선택된 행이 없으면 selectedRowNode가 안내하고 null을 준다 */}
+            {iconTarget && (
+                <ProdIconPickerModal
+                    value={iconTarget.data.imgUrl}
+                    prodNm={iconTarget.data.prodNm}
+                    onPick={handleIconPick}
+                    onClose={() => setIconTarget(null)}
+                />
+            )}
+
             {/* 그리드 — 고정 높이 대신 남은 화면 공간을 채운다 */}
             <div className="w-full flex-1 min-h-0">
                 <AgGridReact
                     ref={gridRef}
                     rowData={rowData}
                     columnDefs={columnDefs}
+                    // 이 화면만 행 높이를 지정하지 않아 ag-grid 기본값(≈42)을 쓰고 있었다.
+                    // 썸네일이 같은 크기여도 행이 높으면 작아 보인다 — 현재고 조회와 같은 값으로 맞춘다
+                    rowHeight={40}
+                    headerHeight={38}
                     {...gridProps}
                 />
             </div>
