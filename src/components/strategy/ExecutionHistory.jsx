@@ -7,7 +7,7 @@ import AllocPlanTrace from './AllocPlanTrace';
 import PutawayStageTrace from './PutawayStageTrace';
 import WaveOrderTrace from './WaveOrderTrace';
 
-const TRGR_LABELS = { MANUAL: '화면 조작', AUTO: '자동', PREVIEW: '미리보기' };
+const TRGR_LABELS = { MANUAL: '화면 조작', AUTO: '스케줄 실행', PREVIEW: '미리보기' };
 
 
 /**
