@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CheckCircle2, ChevronLeft, Keyboard, Layers, MapPin, Minus, Plus, RefreshCw, ScanBarcode, SkipForward } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, Layers, MapPin, RefreshCw, SkipForward } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { putawayApi } from '@/api/putawayApi';
@@ -8,6 +8,10 @@ import { TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { fmtDe, num } from '@/utils/format';
 import { failFeedback, okFeedback } from '@/utils/scanFeedback';
 import { Badge } from '@/components/common/Badge';
+import { QtyStepper } from '@/components/mobile/QtyStepper';
+import { ScanRow } from '@/components/mobile/ScanRow';
+import { StatBox } from '@/components/mobile/StatBox';
+import { StepChips } from '@/components/mobile/StepChips';
 
 /**
  * 적치 단계 — 피킹과 순서가 반대다. 스테이지에서 <b>맞는 물건을 집는 확인(상품·Lot)이 먼저</b>이고,
@@ -22,16 +26,6 @@ const STEPS = [
 
 const LOC_KEY = 'mputaway.locKw';
 
-/** 수량 3칸 (지시/완료/잔여) */
-const StatBox = ({ label, value, tone = '', big = false }) => (
-    <div className="rounded-lg bg-slate-50 py-1.5">
-        <p className="text-[11px] text-slate-400">{label}</p>
-        <p className={`font-bold tabular-nums ${big ? 'text-xl' : 'text-base'} ${tone || 'text-slate-700'}`}>
-            {value || '0'}
-        </p>
-    </div>
-);
-
 /**
  * 적치 실행 (PDA — /m). 웹 적치 화면과 같은 API를 쓰되, RF 표준대로 <b>한 번에 한 지시</b>를
  * 서버 순서(유통기한 임박순 = FEFO) 그대로 소진한다. 지시 발행·로케이션 변경·취소는 웹 화면의
@@ -44,7 +38,6 @@ export default function MobilePutaway() {
     const [step, setStep] = useState('PROD');
     const [scanVal, setScanVal] = useState('');
     const [qty, setQty] = useState('');
-    const [manualInput, setManualInput] = useState(false);
     const [busy, setBusy] = useState(false);
     const scanRef = useRef(null);
     const qtyRef = useRef(null);
@@ -110,19 +103,6 @@ export default function MobilePutaway() {
         }
     };
 
-    // 스캐너 종결자가 Enter가 아니라 Tab인 기종이 있다 — 둘 다 확인으로 받고 포커스 이동은 막는다
-    const onScanKeyDown = (e) => {
-        if (e.key === 'Enter' || e.key === 'Tab') {
-            e.preventDefault();
-            handleScan();
-        }
-    };
-
-    const toggleManualInput = () => {
-        setManualInput(m => !m);
-        scanRef.current?.focus();
-    };
-
     const skipTask = () => {
         if (queue.length < 2) {
             toast('건너뛸 다음 지시가 없습니다.');
@@ -150,8 +130,6 @@ export default function MobilePutaway() {
     };
 
     // ── 적치 실행 ─────────────────────────────────────────────
-    const bumpQty = (d) => setQty(q => String(Math.min(task.remainingQty, Math.max(1, (Number(q) || 0) + d))));
-
     const handleExecClick = () => {
         const n = Number(qty);
         if (!(n >= 1) || n > task.remainingQty) {
@@ -223,7 +201,6 @@ export default function MobilePutaway() {
     }
 
     // ── 적치 화면 ─────────────────────────────────────────────
-    const stepIdx = STEPS.findIndex(s => s.key === step);
     return (
         <div className="flex flex-col gap-3 h-full">
             {topBar}
@@ -239,19 +216,7 @@ export default function MobilePutaway() {
                 />
             </div>
 
-            {/* 단계 표시 */}
-            <div className="flex gap-1 shrink-0">
-                {STEPS.map((s, i) => (
-                    <span key={s.key}
-                          className={`flex-1 flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-bold
-                              ${i === stepIdx ? 'bg-indigo-600 text-white'
-                                  : i < stepIdx ? 'bg-indigo-50 text-indigo-600'
-                                      : 'bg-white text-slate-400 border border-slate-200'}`}>
-                        {i < stepIdx && <CheckCircle2 size={13} />}
-                        {s.label}
-                    </span>
-                ))}
-            </div>
+            <StepChips steps={STEPS} current={step} />
 
             {/* 지시 카드 — 집는 것(상품·Lot)이 위, 가는 곳(로케이션)이 아래. 단계 순서와 같다 */}
             <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col gap-3 shrink-0">
@@ -301,44 +266,14 @@ export default function MobilePutaway() {
 
             {/* 단계별 입력 — PROD·LOT·LOC은 스캔, QTY는 수량 확정 */}
             {step !== 'QTY' ? (
-                <div className="flex items-center gap-2 shrink-0">
-                    <div className="relative flex-1">
-                        <ScanBarcode size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                        <input
-                            ref={scanRef} value={scanVal} autoFocus
-                            inputMode={manualInput ? 'text' : 'none'}
-                            autoComplete="off" enterKeyHint="go"
-                            onChange={(e) => setScanVal(e.target.value)}
-                            onKeyDown={onScanKeyDown}
-                            placeholder={step === 'PROD' ? '상품 바코드 스캔'
-                                : step === 'LOT' ? 'Lot 바코드 스캔' : '대상 로케이션 스캔'}
-                            className="input-base w-full pl-10 py-3 text-base"
-                        />
-                    </div>
-                    <button onClick={toggleManualInput} title="소프트 키보드로 직접 입력"
-                            className={`btn-ghost py-3 shrink-0 ${manualInput ? 'border-indigo-300 text-indigo-600' : ''}`}>
-                        <Keyboard size={15} />
-                    </button>
-                    <button onClick={passStep} className="btn-ghost py-3 shrink-0">스캔 생략</button>
-                </div>
+                <ScanRow
+                    ref={scanRef} value={scanVal} onChange={setScanVal} onCommit={handleScan} onSkip={passStep}
+                    placeholder={step === 'PROD' ? '상품 바코드 스캔'
+                        : step === 'LOT' ? 'Lot 바코드 스캔' : '대상 로케이션 스캔'}
+                />
             ) : (
                 <div className="flex flex-col gap-2 shrink-0">
-                    <div className="flex items-center gap-2">
-                        <button onClick={() => bumpQty(-1)} aria-label="수량 빼기"
-                                className="p-3 rounded-xl bg-white border border-slate-200 text-slate-600 active:bg-slate-100">
-                            <Minus size={18} />
-                        </button>
-                        <input
-                            ref={qtyRef} value={qty} inputMode="numeric"
-                            onChange={(e) => setQty(e.target.value.replace(/\D/g, ''))}
-                            onKeyDown={(e) => { if (e.key === 'Enter') handleExecClick(); }}
-                            className="input-num flex-1 min-w-0 text-2xl font-bold py-2"
-                        />
-                        <button onClick={() => bumpQty(1)} aria-label="수량 더하기"
-                                className="p-3 rounded-xl bg-white border border-slate-200 text-slate-600 active:bg-slate-100">
-                            <Plus size={18} />
-                        </button>
-                    </div>
+                    <QtyStepper ref={qtyRef} qty={qty} onChange={setQty} onSubmit={handleExecClick} max={task.remainingQty} />
                     <button onClick={handleExecClick} disabled={busy}
                             className="btn-primary justify-center py-3.5 text-base rounded-xl">
                         <Layers size={18} /> 적치 확인

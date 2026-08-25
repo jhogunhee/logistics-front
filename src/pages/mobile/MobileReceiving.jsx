@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle2, ChevronLeft, ClipboardCheck, Keyboard, Minus, Plus, RefreshCw, ScanBarcode } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, ClipboardCheck, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { ibOrderApi } from '@/api/ibOrderApi';
@@ -8,6 +8,8 @@ import { eaQtyPerInbUomOf, fmtDe, fmtInbQty, num, todayStr, ymd } from '@/utils/
 import { failFeedback, okFeedback } from '@/utils/scanFeedback';
 import { Badge } from '@/components/common/Badge';
 import { ProdThumb } from '@/components/common/ProdThumb';
+import { QtyStepper } from '@/components/mobile/QtyStepper';
+import { ScanRow } from '@/components/mobile/ScanRow';
 
 /** 진행 위치 복원용 sessionStorage 키 — 새로고침해도 검수하던 입고건으로 돌아온다 */
 const ASN_KEY = 'mrecv.ibOrderId';
@@ -35,7 +37,6 @@ export default function MobileReceiving() {
     const [asn, setAsn] = useState(null);            // 선택 입고건 (없으면 목록 화면)
     const [lines, setLines] = useState([]);
     const [scanVal, setScanVal] = useState('');
-    const [manualInput, setManualInput] = useState(false);
     // 검수 시트 — { line, qty(입고단위), mfgDt }를 한 상태로 들고 있다가 저장 시점에 검증한다
     const [sheet, setSheet] = useState(null);
     const [busy, setBusy] = useState(false);
@@ -111,19 +112,6 @@ export default function MobileReceiving() {
         }
         okFeedback();
         openSheet(hit);
-    };
-
-    // 스캐너 종결자가 Enter가 아니라 Tab인 기종이 있다 — 둘 다 확인으로 받고 포커스 이동은 막는다
-    const onScanKeyDown = (e) => {
-        if (e.key === 'Enter' || e.key === 'Tab') {
-            e.preventDefault();
-            handleScan();
-        }
-    };
-
-    const toggleManualInput = () => {
-        setManualInput(m => !m);
-        scanRef.current?.focus();
     };
 
     // ── 검수 저장 ─────────────────────────────────────────────
@@ -213,24 +201,8 @@ export default function MobileReceiving() {
             </div>
 
             {/* 스캔 입력 — 하차한 실물의 상품 바코드를 찍는다 */}
-            <div className="flex items-center gap-2 shrink-0">
-                <div className="relative flex-1">
-                    <ScanBarcode size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                        ref={scanRef} value={scanVal} autoFocus
-                        inputMode={manualInput ? 'text' : 'none'}
-                        autoComplete="off" enterKeyHint="go"
-                        onChange={(e) => setScanVal(e.target.value)}
-                        onKeyDown={onScanKeyDown}
-                        placeholder="상품 바코드 스캔"
-                        className="input-base w-full pl-10 py-3 text-base"
-                    />
-                </div>
-                <button onClick={toggleManualInput} title="소프트 키보드로 직접 입력"
-                        className={`btn-ghost py-3 shrink-0 ${manualInput ? 'border-indigo-300 text-indigo-600' : ''}`}>
-                    <Keyboard size={15} />
-                </button>
-            </div>
+            <ScanRow ref={scanRef} value={scanVal} onChange={setScanVal} onCommit={handleScan}
+                     placeholder="상품 바코드 스캔" />
 
             {/* 미검수 라인 — 스캐너 없이도 카드를 눌러 검수할 수 있다 */}
             <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-2">
@@ -308,7 +280,6 @@ function ReceiveSheet({ sheet, setSheet, busy, onCancel, onConfirm }) {
     const { line, qty, mfgDt } = sheet;
     const ea = eaQtyPerInbUomOf(line);
     const maxUnits = Math.max(1, Math.floor(remainEaOf(line) / ea));
-    const bump = (d) => setSheet(s => ({ ...s, qty: String(Math.min(maxUnits, Math.max(1, (Number(s.qty) || 0) + d))) }));
     const expiry = expiryPreview(mfgDt, line.shelfLifeDays);
     return (
         <div className="fixed inset-0 z-50 bg-black/30 flex items-end" onMouseDown={onCancel}>
@@ -328,26 +299,10 @@ function ReceiveSheet({ sheet, setSheet, busy, onCancel, onConfirm }) {
                     예정 {fmtInbQty(line.expctQty, ea, line.inbUomCd)} · 기검수 {fmtInbQty(line.rcvdQty, ea, line.inbUomCd) || '0'} ·{' '}
                     잔량 <b className="text-amber-600">{fmtInbQty(remainEaOf(line), ea, line.inbUomCd)}</b>
                 </p>
-                <div className="flex items-center gap-2">
-                    <button onClick={() => bump(-1)} aria-label="수량 빼기"
-                            className="p-3 rounded-xl bg-white border border-slate-200 text-slate-600 active:bg-slate-100">
-                        <Minus size={18} />
-                    </button>
-                    <div className="relative flex-1 min-w-0">
-                        <input
-                            value={qty} inputMode="numeric" autoFocus
-                            onChange={(e) => setSheet(s => ({ ...s, qty: e.target.value.replace(/\D/g, '') }))}
-                            className="input-num w-full text-2xl font-bold py-2 pr-14"
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">
-                            {line.inbUomCd}
-                        </span>
-                    </div>
-                    <button onClick={() => bump(1)} aria-label="수량 더하기"
-                            className="p-3 rounded-xl bg-white border border-slate-200 text-slate-600 active:bg-slate-100">
-                        <Plus size={18} />
-                    </button>
-                </div>
+                <QtyStepper
+                    qty={qty} onChange={(v) => setSheet(s => ({ ...s, qty: v }))} onSubmit={onConfirm}
+                    max={maxUnits} suffix={line.inbUomCd} autoFocus
+                />
                 {ea > 1 && Number(qty) > 0 && (
                     <p className="text-xs text-slate-500 text-right">= 낱개 {num(Number(qty) * ea)}개</p>
                 )}

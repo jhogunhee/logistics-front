@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle2, ChevronLeft, Keyboard, RefreshCw, ScanBarcode, Send } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, RefreshCw, Send } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { outbShmtApi } from '@/api/outbShmtApi';
@@ -7,17 +7,11 @@ import { OUTB_STATUS_META } from '@/constants/badgeMeta';
 import { fmtDe, num } from '@/utils/format';
 import { failFeedback, okFeedback } from '@/utils/scanFeedback';
 import { Badge } from '@/components/common/Badge';
+import { ScanRow } from '@/components/mobile/ScanRow';
+import { StatBox } from '@/components/mobile/StatBox';
 
 /** 진행 위치 복원용 sessionStorage 키 — 새로고침해도 보던 웨이브로 돌아온다 */
 const WAV_KEY = 'mship.wavId';
-
-/** 확정 요약 4칸 (주문/할당/피킹/결품) */
-const StatBox = ({ label, value, tone = '' }) => (
-    <div className="rounded-lg bg-slate-50 py-1.5 text-center">
-        <p className="text-[11px] text-slate-400">{label}</p>
-        <p className={`font-bold tabular-nums text-base ${tone || 'text-slate-700'}`}>{value || '0'}</p>
-    </div>
-);
 
 /**
  * 출고확정 (PDA — /m). 다른 실행 화면과 달리 동선 큐가 아니라 <b>스캔 주도</b>다 — 상차하는
@@ -32,7 +26,6 @@ export default function MobileShipping() {
     const [wave, setWave] = useState(null);          // 선택 웨이브 (없으면 웨이브 목록 화면)
     const [orders, setOrders] = useState([]);
     const [scanVal, setScanVal] = useState('');
-    const [manualInput, setManualInput] = useState(false);
     const [target, setTarget] = useState(null);      // 확정 시트 대상 주문
     const [busy, setBusy] = useState(false);
     const scanRef = useRef(null);
@@ -103,19 +96,6 @@ export default function MobileShipping() {
         setTarget(hit);
     };
 
-    // 스캐너 종결자가 Enter가 아니라 Tab인 기종이 있다 — 둘 다 확인으로 받고 포커스 이동은 막는다
-    const onScanKeyDown = (e) => {
-        if (e.key === 'Enter' || e.key === 'Tab') {
-            e.preventDefault();
-            handleScan();
-        }
-    };
-
-    const toggleManualInput = () => {
-        setManualInput(m => !m);
-        scanRef.current?.focus();
-    };
-
     // ── 출고확정 ──────────────────────────────────────────────
     const doConfirm = async (order) => {
         if (busy) return; // 연타로 같은 확정이 두 번 나가는 것을 막는다 — 되돌릴 수 없는 동작이다
@@ -172,24 +152,8 @@ export default function MobileShipping() {
             </div>
 
             {/* 스캔 입력 — 상차하는 실물의 주문 라벨을 찍는다 */}
-            <div className="flex items-center gap-2 shrink-0">
-                <div className="relative flex-1">
-                    <ScanBarcode size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                        ref={scanRef} value={scanVal} autoFocus
-                        inputMode={manualInput ? 'text' : 'none'}
-                        autoComplete="off" enterKeyHint="go"
-                        onChange={(e) => setScanVal(e.target.value)}
-                        onKeyDown={onScanKeyDown}
-                        placeholder="출고번호(주문 라벨) 스캔"
-                        className="input-base w-full pl-10 py-3 text-base"
-                    />
-                </div>
-                <button onClick={toggleManualInput} title="소프트 키보드로 직접 입력"
-                        className={`btn-ghost py-3 shrink-0 ${manualInput ? 'border-indigo-300 text-indigo-600' : ''}`}>
-                    <Keyboard size={15} />
-                </button>
-            </div>
+            <ScanRow ref={scanRef} value={scanVal} onChange={setScanVal} onCommit={handleScan}
+                     placeholder="출고번호(주문 라벨) 스캔" />
 
             {workingCount > 0 && (
                 <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 shrink-0">

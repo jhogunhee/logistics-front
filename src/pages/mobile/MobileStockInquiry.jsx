@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronLeft, Keyboard, MapPin, ScanBarcode, Search } from 'lucide-react';
+import { ChevronLeft, MapPin, ScanBarcode, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { invApi } from '@/api/invApi';
 import { fmtDe, num } from '@/utils/format';
 import { failFeedback, okFeedback } from '@/utils/scanFeedback';
 import { ProdThumb } from '@/components/common/ProdThumb';
+import { ScanRow } from '@/components/mobile/ScanRow';
 
 /** 수량 4칸 (보유/예약/보류/가용) */
 const QtyBox = ({ label, value, tone = '' }) => (
@@ -23,7 +24,6 @@ const QtyBox = ({ label, value, tone = '' }) => (
  */
 export default function MobileStockInquiry() {
     const [scanVal, setScanVal] = useState('');
-    const [manualInput, setManualInput] = useState(false);
     // 마지막 조회 결과 — { kind: 'LOC'|'PROD', key, rows }. null이면 아직 스캔 전
     const [result, setResult] = useState(null);
     const [busy, setBusy] = useState(false);
@@ -61,19 +61,6 @@ export default function MobileStockInquiry() {
         }
     };
 
-    // 스캐너 종결자가 Enter가 아니라 Tab인 기종이 있다 — 둘 다 확인으로 받고 포커스 이동은 막는다
-    const onScanKeyDown = (e) => {
-        if (e.key === 'Enter' || e.key === 'Tab') {
-            e.preventDefault();
-            handleScan();
-        }
-    };
-
-    const toggleManualInput = () => {
-        setManualInput(m => !m);
-        scanRef.current?.focus();
-    };
-
     const totalOnHand = result?.rows.reduce((s, r) => s + r.onHandQty, 0) ?? 0;
 
     return (
@@ -93,24 +80,8 @@ export default function MobileStockInquiry() {
             </div>
 
             {/* 스캔 입력 — 로케이션이든 상품이든 찍으면 알아서 갈린다 */}
-            <div className="flex items-center gap-2 shrink-0">
-                <div className="relative flex-1">
-                    <ScanBarcode size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                        ref={scanRef} value={scanVal} autoFocus
-                        inputMode={manualInput ? 'text' : 'none'}
-                        autoComplete="off" enterKeyHint="go"
-                        onChange={(e) => setScanVal(e.target.value)}
-                        onKeyDown={onScanKeyDown}
-                        placeholder="로케이션 또는 상품 바코드 스캔"
-                        className="input-base w-full pl-10 py-3 text-base"
-                    />
-                </div>
-                <button onClick={toggleManualInput} title="소프트 키보드로 직접 입력"
-                        className={`btn-ghost py-3 shrink-0 ${manualInput ? 'border-indigo-300 text-indigo-600' : ''}`}>
-                    <Keyboard size={15} />
-                </button>
-            </div>
+            <ScanRow ref={scanRef} value={scanVal} onChange={setScanVal} onCommit={handleScan}
+                     placeholder="로케이션 또는 상품 바코드 스캔" />
 
             {/* 결과 */}
             <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-2">
