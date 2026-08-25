@@ -29,6 +29,7 @@ import {
     PackagePlus,
     PauseCircle,
     Pin,
+    Printer,
     Repeat,
     Ruler,
     ScrollText,
@@ -118,6 +119,7 @@ const MENU = [
             { to: "/master/store", label: "점포 관리", icon: Store, keywords: "store 점포 매장" },
             { to: "/master/nbr-rules", label: "채번규칙 관리", icon: Hash, keywords: "nbr 채번 번호 규칙 패턴 시퀀스 採番" },
             { to: "/master/codes", label: "공통코드 관리", icon: ListTree, keywords: "code 공통코드 그룹 코드값 온도대 보관유형 업무구분 발주구분 계량단위" },
+            { to: "/master/labels", label: "라벨 인쇄", icon: Printer, keywords: "label 라벨 barcode 바코드 code128 인쇄 print 출력 로케이션 상품 lot pda 스캔" },
         ],
     },
     {
