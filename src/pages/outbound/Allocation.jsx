@@ -18,26 +18,21 @@ const remainCell = (p) => (p.value > 0
     ? <span className="font-bold text-amber-600 tabular-nums">{num(p.value)}</span>
     : <span className="text-slate-300 tabular-nums">0</span>);
 
-/**
- * 웨이브 목록. 좌측 패널이 좁아 뒤쪽 컬럼은 가로 스크롤로 밀리므로, <b>실행 대상을 고를 때
- * 필요한 것</b>(번호 · 출고예정일 · 잔량)을 앞에 둬 기본 폭에서 스크롤 없이 보이게 한다 (편성 화면과 같은 원칙).
- * 체크박스 컬럼을 따로 두지 않는다 — rowSelection.checkboxes가 이미 앞에 하나를 그린다.
- */
 const WAVE_COLUMN_DEFS = [
     { field: 'wavNo', headerName: '웨이브번호', width: 168, cellClass: 'font-bold text-slate-700' },
     {
         field: 'status', headerName: '상태', width: 92,
-        headerTooltip: '지시발행된 웨이브도 잔량이 남으면 대상이다 — 결품 종결이 잔량을 사후에 키우거나, 지시취소 후 해제로 할당이 0건이 된 주문이 있을 때다. 추가 할당분은 피킹지시 화면에서 「추가 발행」해야 현장에 나간다',
+        headerTooltip: '지시발행된 웨이브도 잔량이 남으면 대상이다',
         cellRenderer: (p) => <Badge meta={WAVE_STATUS_META} value={p.value} show="label" />,
     },
     {
         field: 'expctDe', headerName: '출고예정일', width: 105,
-        headerTooltip: '이 웨이브가 나가는 날 — 웨이브는 같은 출고예정일 주문만 묶는다. 기간으로 조회했을 때 어느 날 출고분인지 여기서 본다',
+        headerTooltip: '이 웨이브가 나가는 날',
         valueFormatter: (p) => fmtDe(p.value),
     },
     {
         field: 'remainQty', headerName: '잔량', width: 90, cellClass: 'ag-right-aligned-cell',
-        headerTooltip: '주문수량 − 할당수량. 별도 결품 테이블을 두지 않고 이 파생값으로 부족분을 본다',
+        headerTooltip: '주문수량 − 할당수량',
         cellRenderer: remainCell,
     },
     {
@@ -76,13 +71,11 @@ const LINE_COLUMN_DEFS = [
 /**
  * 재고 할당 (SC — 출고). <b>웨이브를 대상으로 실행해서 그 안의 출고주문 라인을 채운다.</b>
  *
- * 실행 단위가 웨이브인 것은 피킹지시가 웨이브 단위이기 때문이다 — 할당만 주문 단위로 하면
- * 편성(웨이브) → 할당(주문) → 피킹지시(웨이브)로 흐름 중간에서 단위가 한 번 어긋난다.
+ * <p><b>기본 동작</b> — 점포별 잔여수명으로 Lot을 거르고, 출고예정일순 라인에 FEFO로 채운다.
+ * 모자라면 <b>앞 순번이 다 가져간다</b>(순차 소진) — 나눠주면 모든 주문이 부분출고가 되기 때문이고,
+ * 못 채운 만큼은 잔량으로 남는다.
  *
- * 자동할당은 FEFO(유통기한 임박순)로 채우고, 점포마다 다른 잔여수명 기준으로 Lot을 먼저 거른다.
- * 재고가 모자라면 <b>앞 순번 주문이 채울 수 있는 만큼 다 가져간다</b>(순차 소진) — 나눠주면 모든
- * 주문이 부분출고가 되어 어느 점포도 만족하지 못하기 때문이다. 못 채운 만큼은 잔량으로 남고,
- * 재고가 들어오면 같은 웨이브를 다시 할당하면 된다.
+ * <p><b>전략 설정</b> — 재고 계층 · 출고제약 · 재고 정렬 · 주문 순서 · 분배가 위 기본값을 덮어쓴다.
  */
 export default function Allocation() {
     const [cond, setCond] = useState({ wavNo: '', outbNo: '', prodCd: '', storeId: '', storeNm: '', expctDeFrom: todayStr(), expctDeTo: todayStr() });
@@ -108,13 +101,11 @@ export default function Allocation() {
 
     const shortLines = execResult?.lines.filter(l => l.shortQty > 0) ?? [];
 
-    const fetchWaves = async (keepSelection = true) => {
-        pendingWaveRef.current = keepSelection ? detail?.wavId ?? null : null;
-        if (!keepSelection) {
-            setDetail(null);
-            setSelectedLine(null);
-        }
-        setWaves(await outbAllocApi.targetWaves(cond));
+    const fetchWaves = async () => {
+        pendingWaveRef.current = detail?.wavId ?? null;
+        const list = await outbAllocApi.targetWaves(cond);
+        setWaves(list);
+        return list;
     };
 
     const fetchDetail = async (wavId) => {
@@ -122,12 +113,17 @@ export default function Allocation() {
         setDetail(wavId == null ? null : await outbAllocApi.detail(wavId));
     };
 
+    // 목록과 열려 있던 상세를 함께 다시 읽는다. 전량 할당돼도 해제 가능한 동안은 웨이브가
+    // 목록에 남으므로, 새 목록에 없다는 건 조건 밖이거나 지시가 다 나갔다는 뜻이다 — 상세도 닫는다
+    const refetch = async () => {
+        const list = await fetchWaves();
+        if (!detail) return;
+        await fetchDetail(list.some(w => w.wavId === detail.wavId) ? detail.wavId : null);
+    };
+
     const search = async () => {
         try {
-            await fetchWaves();
-            // 열려 있던 웨이브가 전량 할당돼 목록에서 빠져도 상세는 남긴다 —
-            // 방금 한 작업의 결과를 확인하고 해제할 수 있어야 한다
-            if (detail) await fetchDetail(detail.wavId);
+            await refetch();
         } catch (e) {
             toast.error(e.message || '조회에 실패했습니다.');
         }
@@ -161,7 +157,13 @@ export default function Allocation() {
             toast('할당할 웨이브를 체크하세요.');
             return;
         }
-        setConfirmExec(rows);
+        // 전량 할당된 웨이브도 해제를 위해 목록에 남으므로, 실행은 잔량 있는 것만 추린다
+        const targets = rows.filter(r => r.remainQty > 0);
+        if (targets.length === 0) {
+            toast('체크한 웨이브는 모두 전량 할당돼 있습니다.');
+            return;
+        }
+        setConfirmExec(targets);
     };
 
     const doExec = async (rows) => {
@@ -179,8 +181,7 @@ export default function Allocation() {
             } else {
                 toast.success(`요청 ${num(res.reqQty)}개를 전량 할당했습니다.${issuedTail}`);
             }
-            await fetchWaves();
-            if (detail) await fetchDetail(detail.wavId);
+            await refetch();
         } catch (e) {
             toast.error(e.message || '할당에 실패했습니다.');
         }
@@ -201,8 +202,7 @@ export default function Allocation() {
     // 해제 자체는 팝업이 처리하고, 여기선 해제된 뒤 목록을 다시 읽는다 (팝업 목록도 따라 갱신된다)
     const onReleased = async () => {
         setExecResult(null);
-        await fetchWaves();
-        if (detail) await fetchDetail(detail.wavId);
+        await refetch();
     };
 
     return (
@@ -278,7 +278,7 @@ export default function Allocation() {
                     <div className="flex items-center gap-2">
                         <span className="text-sm font-bold text-slate-700 shrink-0">할당 대상 웨이브</span>
                         <span className="text-xs text-slate-400 truncate">
-                            잔량이 남은 웨이브만 (지시발행 포함)
+                            잔량이 남았거나 해제할 할당이 있는 웨이브
                         </span>
                         <span className="text-xs text-slate-500 font-medium ml-auto shrink-0">{waves.length}건</span>
                         <button onClick={handleExecClick} className="btn-primary shrink-0"
@@ -357,8 +357,7 @@ export default function Allocation() {
                 onClose={() => setManualLine(null)}
                 onSaved={async () => {
                     setExecResult(null);
-                    await fetchWaves();
-                    if (detail) await fetchDetail(detail.wavId);
+                    await refetch();
                 }}
             />
 

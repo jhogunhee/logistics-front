@@ -26,6 +26,13 @@ const COLUMN_DEFS = [
             : <span className="text-slate-300 tabular-nums">0</span>),
     },
     {
+        field: 'hasLiveTask', headerName: '지시', width: 80,
+        headerTooltip: '피킹지시가 발행된 할당은 해제할 수 없다 — 그 지시의 취소가 먼저다',
+        cellRenderer: (p) => (p.value
+            ? <span className="font-bold text-sky-600">발행됨</span>
+            : <span className="text-slate-300">—</span>),
+    },
+    {
         field: 'alocStgyId', headerName: '출처', width: 90,
         headerTooltip: '전략 = 할당 전략이 만든 행 / 기본·수동 = 전략 없이 만들어진 행 '
             + '(수동할당이거나, 매칭되는 전략이 없어 기본 동작으로 할당된 행)',
@@ -113,8 +120,9 @@ export default function AllocRecordsModal({ detail, onClose, onReleased }) {
                             headerHeight={38}
                             rowSelection={{
                                 mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false,
-                                // 피킹이 시작된 할당은 서버가 해제를 거부한다 — 체크 단계에서 막아 눌러보고 아는 일을 없앤다
-                                isRowSelectable: (node) => node.data.pikngQty === 0,
+                                // 피킹이 시작됐거나 지시가 살아 있는 할당은 서버가 해제를 거부한다 —
+                                // 체크 단계에서 막아 눌러보고 아는 일을 없앤다 (해제 가드 둘의 거울)
+                                isRowSelectable: (node) => node.data.pikngQty === 0 && !node.data.hasLiveTask,
                             }}
                             onSelectionChanged={(e) => setCheckedCount(e.api.getSelectedRows().length)}
                         />
@@ -125,7 +133,7 @@ export default function AllocRecordsModal({ detail, onClose, onReleased }) {
                     <span className="text-xs text-slate-500">
                         할당 {rows.length}건 · 선택 <b className="text-slate-700">{checkedCount}</b>건
                     </span>
-                    <span className="text-[11px] text-slate-400">피킹이 시작된 할당은 체크할 수 없습니다</span>
+                    <span className="text-[11px] text-slate-400">피킹이 시작됐거나 지시가 발행된 할당은 체크할 수 없습니다</span>
                     <div className="ml-auto flex items-center gap-2 shrink-0">
                         <button onClick={onClose} className="btn-ghost">닫기</button>
                         <button onClick={handleReleaseClick} disabled={saving || checkedCount === 0}
