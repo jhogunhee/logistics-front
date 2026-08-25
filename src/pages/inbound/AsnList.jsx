@@ -4,6 +4,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Search, Truck, X } from 'lucide-react';
 
 import { ibOrderApi } from '@/api/ibOrderApi';
+import { useCodes } from '@/hooks/useCodes';
 import { ASN_PRGR_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { ASN_PRGR_OPTIONS } from '@/constants/codeOptions';
 import { daysAheadStr, eaQtyPerInbUomOf, fmtDt, fmtInbQty, num, todayStr } from '@/utils/format';
@@ -81,6 +82,7 @@ const LINE_COLUMN_DEFS = [
 ];
 
 export default function AsnList() {
+    const odrDvsnCodes = useCodes('ODR_DVSN');
     const [cond, setCond] = useState({ ibNo: '', vndrNm: '', prgr: [], odrDvsn: '', dateFrom: todayStr(), dateTo: daysAheadStr(7) });
     const [rowData, setRowData] = useState([]);
     const [lineRows, setLineRows] = useState([]);
@@ -122,7 +124,7 @@ export default function AsnList() {
                 <Truck size={18} className="text-indigo-600" />
                 <h2 className="text-lg font-bold text-slate-800">입고예정(ASN)</h2>
                 <span className="text-xs text-slate-400 mt-0.5">
-                    조회 전용 — 등록·취소는 입고주문 확정에서, 검수는 입고검수 화면에서
+                    조회 전용 — 등록·취소는 입고주문 확정에서, 검수는 입고검수 화면에서 · 반품입고는 구분 열과 필터로 구분
                 </span>
             </div>
 
@@ -133,9 +135,9 @@ export default function AsnList() {
                 <SearchSelect name="prgr" label="진행단계" options={ASN_PRGR_OPTIONS} multiple />
                 <SearchSelect
                     name="odrDvsn" label="구분"
-                    options={[{ value: '', label: '전체' }, { value: 'NRML', label: '정상' }, { value: 'URGT', label: '긴급' }, { value: 'RTNGS', label: '반품입고' }]}
+                    options={odrDvsnCodes.searchOptions}
                 />
-                <SearchItem label="상대처">
+                <SearchItem label="벤더">
                     <button
                         type="button"
                         onClick={() => setVendorPickerOpen(true)}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { FileInput, Package, Plus, RotateCcw, Save, Search, Trash2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -41,7 +41,6 @@ export default function InboundOrder() {
     const [vendorPickerOpen, setVendorPickerOpen] = useState(false);
     const [storePickerOpen, setStorePickerOpen] = useState(false);
     const [outbPickerOpen, setOutbPickerOpen] = useState(false);
-    const [prodById, setProdById] = useState({});
 
     // 확정된 주문은 고칠 수 없다 (서버도 거부한다). 화면에서 미리 잠가 헛수고를 막는다.
     const readOnly = isEdit && form.status && form.status !== 'CREATED';
@@ -56,11 +55,12 @@ export default function InboundOrder() {
     // 단위가 갈리지 않는 낱개 기준으로 통일해 보여준다.
     const convertedQty = (line) => (Number(line.odrQty) || 0) * eaPerUom(line);
 
-    // prodMetaOf가 상품 마스터(단위·유통기한·outbUomCd·outbEaQty)를 알아야 하므로 화면 진입 시 한 번 받아 맵으로 둔다
-    useEffect(() => {
-        prodApi.list().then(data => setProdById(Object.fromEntries(data.map(p => [p.prodId, p]))));
-    }, []);
-    const prodMetaOf = (prodId) => {
+    // prodMetaOf가 상품 마스터(단위·유통기한·outbUomCd·outbEaQty)를 알아야 하는 곳은 원 출고에서 라인을
+    // 끌어올 때뿐이다(pickOutbOrder) — 대부분의 주문은 이 정보가 필요 없어, 화면 진입마다 상품 전체를
+    // 받는 대신 처음 쓰일 때 한 번만 받아 재사용한다(ref에 담긴 Promise가 캐시 겸 중복요청 방지다).
+    const prodsRef = useRef(null);
+    const loadProds = () => (prodsRef.current ??= prodApi.list().then(d => Object.fromEntries(d.map(p => [p.prodId, p]))));
+    const prodMetaOf = (prodById, prodId) => {
         const p = prodById[prodId] ?? {};
         return { shelfLifeDays: p.shelfLifeDays, inbUomCd: p.inbUomCd, inbEaQty: p.inbEaQty, outbUomCd: p.outbUomCd, outbEaQty: p.outbEaQty };
     };
@@ -121,13 +121,19 @@ export default function InboundOrder() {
         vndrNm: v.vndrNm,
     }));
 
-    // 구분을 바꾸면 상대처·원 출고·사유를 비운다 — 벤더 발주에 점포가 남거나 반품에 벤더가 남으면 서버가 거부한다
-    const changeDvsn = (odrDvsn) => setForm(prev => ({
-        ...prev, odrDvsn,
-        vendorId: '', vndrCd: '', vndrNm: '',
-        storeId: '', storeCd: '', storeNm: '', refOutbNo: '',
-        lines: prev.lines.map(l => ({ ...l, rsnCd: '', rsnDscr: '' })),
-    }));
+    // 구분을 바꾸면 바뀐 쪽의 상대처만 비운다 — 벤더 발주에 점포가 남거나 반품에 벤더가 남으면 서버가 거부한다.
+    // 정상 ↔ 긴급처럼 반품 여부가 그대로면 벤더는 건드리지 않는다.
+    const changeDvsn = (odrDvsn) => {
+        const nowRtngs = odrDvsn === 'RTNGS';
+        setForm(prev => ({
+            ...prev, odrDvsn,
+            ...(nowRtngs ? { vendorId: '', vndrCd: '', vndrNm: '' } : {}),
+            ...(!nowRtngs ? {
+                storeId: '', storeCd: '', storeNm: '', refOutbNo: '',
+                lines: prev.lines.map(l => ({ ...l, rsnCd: '', rsnDscr: '' })),
+            } : {}),
+        }));
+    };
 
     const pickStore = (s) => setForm(prev => ({
         ...prev, storeId: s.storeId, storeCd: s.storeCd, storeNm: s.storeNm, refOutbNo: '',
@@ -135,14 +141,14 @@ export default function InboundOrder() {
 
     // 원 출고를 고르면 그 문서의 라인이 들어온다. 출고 라인 수량은 낱개(EA)라 출고단위로 되돌려 채운다
     const pickOutbOrder = async (o) => {
-        const lines = await outbOrderApi.lines(o.outbOrderId);
+        const [lines, prodById] = await Promise.all([outbOrderApi.lines(o.outbOrderId), loadProds()]);
         setForm(prev => ({
             ...prev,
             refOutbNo: o.outbNo,
             lines: lines.map(l => ({
                 prodId: l.prodId, prodCd: l.prodCd, prodNm: l.prodNm, tmpZon: l.tmpZon,
-                ...prodMetaOf(l.prodId),
-                odrQty: Math.max(1, Math.floor(l.odrQty / (prodMetaOf(l.prodId).outbEaQty ?? 1))),
+                ...prodMetaOf(prodById, l.prodId),
+                odrQty: Math.max(1, Math.floor(l.odrQty / (prodMetaOf(prodById, l.prodId).outbEaQty ?? 1))),
                 rsnCd: '', rsnDscr: '',
             })),
         }));
@@ -159,7 +165,7 @@ export default function InboundOrder() {
     const replaceLineProd = (idx, prod) => {
         setForm(prev => ({
             ...prev,
-            lines: prev.lines.map((l, i) => (i === idx ? { ...prod, odrQty: l.odrQty } : l)),
+            lines: prev.lines.map((l, i) => (i === idx ? { ...prod, odrQty: l.odrQty, rsnCd: l.rsnCd, rsnDscr: l.rsnDscr } : l)),
         }));
     };
 
@@ -379,10 +385,10 @@ export default function InboundOrder() {
                         <span className="w-20 shrink-0 text-right">유통기한</span>
                         {isRtngs && <span className="w-36 shrink-0">반품사유</span>}
                         <span className="w-32 shrink-0 text-right">{isRtngs ? '반품 수량' : '발주 수량'}</span>
-                        <span className="w-20 shrink-0 text-right" title="발주단위 1개당 입수량(낱개 기준) — 단위 관리의 낱개수량과 같은 값">
+                        <span className="w-20 shrink-0 text-right" title={isRtngs ? '반품 수량(출고단위) 1개당 낱개수량' : '발주단위 1개당 입수량(낱개 기준) — 단위 관리의 낱개수량과 같은 값'}>
                             입수량
                         </span>
-                        <span className="w-32 shrink-0 text-right" title="발주 수량을 낱개(EA)로 환산한 수량입니다">
+                        <span className="w-32 shrink-0 text-right" title={isRtngs ? '반품 수량을 낱개(EA)로 환산한 수량입니다' : '발주 수량을 낱개(EA)로 환산한 수량입니다'}>
                             환산 수량 (낱개)
                         </span>
                         <span className="w-12 shrink-0" />

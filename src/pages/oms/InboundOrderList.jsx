@@ -272,7 +272,7 @@ export default function InboundOrderList() {
                 <ClipboardList size={18} className="text-indigo-600" />
                 <h2 className="text-lg font-bold text-slate-800">입고주문 관리</h2>
                 <span className="text-xs text-slate-400 mt-0.5">
-                    조회 · 확정 · 삭제 — 확정하면 입고예정(ASN)이 생성되고 이후는 입고 메뉴에서 진행합니다
+                    조회 · 확정 · 삭제 — 확정하면 입고예정(ASN)이 생성되고 이후는 입고 메뉴에서 진행합니다 · 반품입고 주문도 여기서 확정합니다
                 </span>
             </div>
 
@@ -280,7 +280,7 @@ export default function InboundOrderList() {
             <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
                 <SearchText name="omsIbNo" label="주문번호" placeholder="PO-20260723-001" />
                 <SearchDateRange from="dateFrom" to="dateTo" label="입고예정일" />
-                <SearchItem label="상대처">
+                <SearchItem label="벤더">
                     <button
                         type="button"
                         onClick={() => setVendorPickerOpen(true)}

@@ -10,19 +10,28 @@ import { num } from '@/utils/format';
  * @param onSelect 선택 확정 콜백. 출고 헤더 객체 하나를 넘긴다 (라인은 호출자가 outbOrderApi.lines로 받는다)
  */
 export default function OutbOrderPickerModal({ open, storeId, onClose, onSelect }) {
-    const [orders, setOrders] = useState([]);
+    // null=조회 중 / []=조회했지만 없음 — 초기값을 []로 두면 로딩과 진짜 빈 목록을 구분할 수 없다
+    const [orders, setOrders] = useState(null);
     const [keyword, setKeyword] = useState('');
 
     useEffect(() => {
         if (!open || !storeId) return;
         let ignore = false;
-        outbOrderApi.list({ storeId, status: 'SHIPPED' }).then(data => { if (!ignore) setOrders(data); });
+        (async () => {
+            setOrders(null);
+            try {
+                const data = await outbOrderApi.list({ storeId, status: 'SHIPPED' });
+                if (!ignore) setOrders(data);
+            } catch {
+                if (!ignore) setOrders([]); // 실패 토스트는 axios 인터셉터가 띄운다
+            }
+        })();
         return () => { ignore = true; };
     }, [open, storeId]);
 
     if (!open) return null;
     const kw = keyword.trim().toLowerCase();
-    const filtered = kw ? orders.filter(o => o.outbNo.toLowerCase().includes(kw)) : orders;
+    const filtered = orders === null ? null : (kw ? orders.filter(o => o.outbNo.toLowerCase().includes(kw)) : orders);
 
     return (
         <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 bg-black/20" onClick={onClose}>
@@ -39,10 +48,13 @@ export default function OutbOrderPickerModal({ open, storeId, onClose, onSelect 
                            placeholder="출고번호" className="flex-1 text-sm outline-none" />
                 </div>
                 <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
-                    {filtered.length === 0 && (
+                    {filtered === null && (
+                        <div className="py-10 text-center text-sm text-slate-400">불러오는 중…</div>
+                    )}
+                    {filtered !== null && filtered.length === 0 && (
                         <div className="py-10 text-center text-sm text-slate-400">출고확정된 문서가 없습니다</div>
                     )}
-                    {filtered.map(o => (
+                    {filtered?.map(o => (
                         <button key={o.outbOrderId} onClick={() => { onSelect(o); onClose(); }}
                                 className="w-full px-5 py-2.5 flex items-center gap-4 text-left hover:bg-indigo-50/60">
                             <span className="w-40 font-medium text-slate-700">{o.outbNo}</span>
