@@ -34,7 +34,7 @@ const WAVE_COLUMN_DEFS = [
     },
     {
         field: 'orderCount', headerName: '주문', width: 96, cellClass: 'ag-right-aligned-cell',
-        headerTooltip: '편성된 주문 수. 「할당 N」은 할당이 시작된 주문 수 — 그 주문은 뺄 수 없고 웨이브도 해체할 수 없다',
+        headerTooltip: '편성된 주문 수. 「할당 N」은 할당이 시작된 주문 수 — 그 주문은 뺄 수 없고 웨이브도 삭제할 수 없다',
         // 웨이브 상태는 할당을 기록하지 않으므로(편성중/지시발행 둘뿐) 편성 변경 가능 여부는 이 파생값으로 보여준다
         cellRenderer: (p) => (
             <>
@@ -138,7 +138,7 @@ export default function Wave() {
     const [execHistory, setExecHistory] = useState(null); // null=닫힘 · 'browse'=이력 열람 · 'latest'=방금 실행 결과
 
     // ── 확인 모달 ────────────────────────────────────────────
-    const [confirmDisband, setConfirmDisband] = useState(null);
+    const [confirmRemove, setConfirmRemove] = useState(null);
     const [confirmUnassign, setConfirmUnassign] = useState(null);
 
     const gridContext = useMemo(() => ({
@@ -163,18 +163,13 @@ export default function Wave() {
     };
 
     /**
-     * 조회 버튼 — 웨이브 목록을 다시 읽는다 (선택은 유지).
-     * 소속 주문은 여기서 직접 읽지 않는다 — 목록이 갱신되면 onWaveModelUpdated가 같은 웨이브를
-     * 다시 선택하고 그 선택 이벤트가 읽는다. 여기서도 읽으면 검색 조건 때문에 선택이 풀리는 경우와
-     * 경쟁해서, 선택되지 않은 웨이브의 주문이 우측에 남을 수 있다.
+     * 조회 버튼 — 웨이브 목록을 다시 읽는다 (선택은 유지)
      */
     const search = async () => {
         await fetchWaves();
     };
 
     useEffect(() => {
-        // 최초 조회도 검색조건(기본 = 출고예정일 오늘)을 쓴다 — 빈 조건으로 읽으면 기본값을
-        // 화면에 띄워 놓고 목록만 전량이 되어, 보이는 조건과 목록이 어긋난다
         outbWaveApi.list(cond).then(setWaves).catch(() => {});
         strategyApi.waveStrategies.list().then(setStrategies).catch(() => {});
     }, []);
@@ -240,13 +235,13 @@ export default function Wave() {
         setExecHistory('latest');
     };
 
-    const doDisband = async (wave) => {
+    const doRemoveWave = async (wave) => {
         try {
-            await outbWaveApi.disband(wave.wavId);
-            toast.success(`${wave.wavNo}를 해체했습니다 — 소속 주문은 미편성으로 돌아갑니다.`);
+            await outbWaveApi.remove(wave.wavId);
+            toast.success(`${wave.wavNo}를 삭제했습니다 — 소속 주문은 미편성으로 돌아갑니다.`);
             await fetchWaves(false);
         } catch (e) {
-            toast.error(e.message || '해체에 실패했습니다.');
+            toast.error(e.message || '삭제에 실패했습니다.');
         }
     };
 
@@ -279,24 +274,18 @@ export default function Wave() {
 
             <WaveStrategyRunner strategies={strategies} onExecuted={onStgyExecuted} />
 
-            {/*
-              * 좌: 웨이브 목록 / 우: 선택 웨이브 소속 주문.
-              * 미편성 후보는 상시 그리드로 두지 않고 「주문 담기」 팝업에서 본다 — 수동 편입은
-              * 예외 경로라 자주 쓰지 않는데, 상시로 두면 세 그리드가 화면을 나눠 매번 보는
-              * 웨이브 목록·소속 주문이 좁아진다.
-              */}
             <PanelGroup direction="horizontal" autoSaveId="outb-wave-split-v2" className="flex-1 min-h-0">
                 <Panel defaultSize={33} minSize={16} className="flex flex-col gap-2 min-h-0">
                     <div className="flex items-center gap-2">
                         <span className="text-sm font-bold text-slate-700">웨이브</span>
                         <button
-                            onClick={() => setConfirmDisband(selectedWave)}
+                            onClick={() => setConfirmRemove(selectedWave)}
                             disabled={!canEditWave || selectedWave.alocStartedCount > 0}
                             title={selectedWave?.alocStartedCount > 0
-                                ? `할당이 시작된 주문이 ${selectedWave.alocStartedCount}건 있어 해체할 수 없습니다 — 할당을 먼저 해제하세요`
+                                ? `할당이 시작된 주문이 ${selectedWave.alocStartedCount}건 있어 삭제할 수 없습니다 — 할당을 먼저 해제하세요`
                                 : '선택한 웨이브를 지우고 소속 주문을 전부 미편성으로 되돌립니다'}
                             className="ml-auto btn-danger disabled:text-slate-300 disabled:border-slate-200 disabled:hover:bg-white">
-                            <Trash2 size={13} /> 해체
+                            <Trash2 size={13} /> 삭제
                         </button>
                     </div>
                     <div className="flex-1 min-h-0">
@@ -321,7 +310,6 @@ export default function Wave() {
                 <Panel defaultSize={67} minSize={40} className="flex flex-col gap-2 min-h-0">
                     <div className="flex items-center gap-2">
                         <span className="text-sm font-bold text-slate-700 shrink-0">웨이브 소속 주문</span>
-                        {/* 어느 웨이브를 편집 중인지만 짚는다 — 전략·생성일시는 왼쪽 목록이 이미 보여준다 */}
                         <span className="text-xs text-slate-400 truncate">
                             {selectedWave
                                 ? (canEditWave
@@ -353,7 +341,7 @@ export default function Wave() {
                             headerHeight={38}
                             rowSelection={{
                                 mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false,
-                                // 할당이 시작된 주문은 서버가 빼기를 거부한다 — 체크 단계에서 막아 눌러보고 아는 일을 없앤다
+                                // 할당이 시작된 주문은 체크를 못하게 막는다
                                 isRowSelectable: (node) => node.data.status === 'CREATED',
                             }}
                         />
@@ -390,17 +378,17 @@ export default function Wave() {
                 </ConfirmModal>
             )}
 
-            {/* 웨이브 해체 확인 */}
-            {confirmDisband && (
+            {/* 웨이브 삭제 확인 */}
+            {confirmRemove && (
                 <ConfirmModal
-                    title="웨이브를 해체할까요?"
-                    confirmText="해체"
+                    title="웨이브를 삭제할까요?"
+                    confirmText="삭제"
                     danger
-                    onCancel={() => setConfirmDisband(null)}
-                    onConfirm={() => { doDisband(confirmDisband); setConfirmDisband(null); }}
+                    onCancel={() => setConfirmRemove(null)}
+                    onConfirm={() => { doRemoveWave(confirmRemove); setConfirmRemove(null); }}
                 >
                     <p className="text-sm text-slate-500">
-                        <b>{confirmDisband.wavNo}</b> · 소속 주문 {num(confirmDisband.orderCount)}건
+                        <b>{confirmRemove.wavNo}</b> · 소속 주문 {num(confirmRemove.orderCount)}건
                     </p>
                     <p className="text-xs text-slate-400">
                         웨이브 행이 삭제되고 소속 주문은 전부 미편성으로 돌아갑니다. 주문 자체는 지워지지 않습니다.

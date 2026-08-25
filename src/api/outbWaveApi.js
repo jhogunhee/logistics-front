@@ -16,8 +16,8 @@ export const outbWaveApi = {
     },
 
     /** 주문 담기 (수동 편성). 편입 출처는 서버가 MANUAL로 남긴다 */
-    addOrders(wavId, orderIds) {
-        return api.post(`/outbound/waves/${wavId}/orders`, { orderIds });
+    assignOrders(wavId, orderIds) {
+        return api.post(`/outbound/waves/${wavId}/orders/assign`, { orderIds });
     },
 
     /**
@@ -28,8 +28,8 @@ export const outbWaveApi = {
         return api.post(`/outbound/waves/${wavId}/orders/unassign`, { orderIds });
     },
 
-    /** 웨이브 해체 — 소속 주문을 전부 미편성으로 되돌리고 웨이브 행을 지운다 (PLANNED만) */
-    disband(wavId) {
+    /** 웨이브 삭제 — 소속 주문을 전부 미편성으로 되돌리고 웨이브 행을 지운다 (PLANNED만) */
+    remove(wavId) {
         return api.delete(`/outbound/waves/${wavId}`);
     },
 

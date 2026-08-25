@@ -14,7 +14,7 @@ import WaveOrderTrace from '@/components/strategy/WaveOrderTrace';
  * 전략 편성 카드 — 조건에 맞는 미편성 주문을 전략별 웨이브로 자동 편성한다 (미리보기 · 실행).
  *
  * 전략은 조건(출고유형·차량편수)에 맞는 미편성 주문을 걸러 전략마다 웨이브를 하나 만들고,
- * 우선순위가 낮은(=먼저 실행되는) 전략이 주문을 선점한다. 편입 0건인 전략은 웨이브를 만들지
+ * 우선순위가 높은(=먼저 실행되는) 전략이 주문을 선점한다. 편입 0건인 전략은 웨이브를 만들지
  * 않으므로 재실행해도 빈 웨이브가 쌓이지 않는다.
  *
  * 실행 결과는 따로 그리지 않는다 — 전략별 생성/미생성과 주문별 판정 근거가 실행 로그에 그대로
@@ -94,8 +94,8 @@ export default function WaveStrategyRunner({ strategies, onExecuted }) {
                             placeholder="전략 선택"
                         />
                     </div>
-                    {/* 출고예정일은 편성 조건이 아니라 판정할 대상 주문의 범위다 — 하루 단위 (웨이브 = 같은 날 주문 묶음) */}
-                    <label className="text-xs font-bold text-slate-500" title="편성 조건이 아니라 대상 주문을 좁히는 실행 범위입니다. 웨이브는 같은 출고예정일 주문만 묶으므로 하루 단위로 실행합니다">대상 출고예정일</label>
+                    {/* 하루 단위 (웨이브 = 같은 날 주문 묶음) */}
+                    <label className="text-xs font-bold text-slate-500" title="웨이브는 같은 출고예정일 주문만 묶으므로 하루 단위로 실행합니다">대상 출고예정일</label>
                     <DatePicker value={execDe}
                                 onChange={setExecDe}
                                 className="w-36" />

@@ -31,6 +31,26 @@ const openCell = (p) => (p.value > 0
     ? <span className="font-bold text-indigo-600 tabular-nums">{num(p.value)}</span>
     : <span className="text-slate-300 tabular-nums">0</span>);
 
+/** 점포 식별 색 — 동선 순으로 처음 나온 순서대로 배정해 앞뒤 행의 색이 갈리게 한다 */
+const STORE_DOTS = ['bg-indigo-500', 'bg-emerald-500', 'bg-amber-500', 'bg-rose-500',
+    'bg-sky-500', 'bg-violet-500', 'bg-teal-500', 'bg-fuchsia-500'];
+
+/** 지시 행을 점포로 묶는다 — 그리드 점포 컬럼과 상단 점포 칩이 같은 결과를 쓴다 */
+const buildStoreGroups = (rows) => {
+    const groups = new Map();
+    for (const r of rows) {
+        const nm = r.storeNm ?? '—';
+        let g = groups.get(nm);
+        if (!g) {
+            g = { storeNm: nm, color: STORE_DOTS[groups.size % STORE_DOTS.length], total: 0, open: 0 };
+            groups.set(nm, g);
+        }
+        g.total += 1;
+        if (r.remainQty > 0) g.open += 1;
+    }
+    return [...groups.values()];
+};
+
 /** 웨이브 목록 — 지시발행(ISSUED)된 웨이브의 진행 집계. 잔량 0도 당일 확인용으로 남는다 */
 const WAVE_COLUMN_DEFS = [
     { field: 'wavNo', headerName: '웨이브번호', width: 168, cellClass: 'font-bold text-slate-700' },
@@ -54,12 +74,24 @@ const WAVE_COLUMN_DEFS = [
 ];
 
 /**
- * 지시 그리드 — srt_seq 순 = 집품 동선. 로케이션을 앞에 둬 「어디로 가서 무엇을 집나」로 읽힌다.
- * 완료 행(잔량 0)은 체크·편집이 잠긴다 — 실적 취소가 없어 작업 여지가 없다.
+ * 지시 그리드 — srt_seq 순 = 집품 동선. 로케이션·점포를 앞에 둬 「어디로 가서 어느 통에 담을
+ * 무엇을 집나」로 읽힌다. 완료 행(잔량 0)은 체크·편집이 잠긴다 — 실적 취소가 없어 작업 여지가 없다.
  */
 const taskColumnDefs = (wavNo) => [
     { field: 'srtSeq', headerName: '순번', width: 64, cellClass: 'text-slate-500 tabular-nums' },
     { field: 'locCd', headerName: '로케이션', width: 130, cellClass: 'font-medium text-slate-700' },
+    {
+        field: 'storeNm', headerName: '점포', width: 180,
+        headerTooltip: '집품한 물건을 담을 곳 — 한 웨이브에 여러 납품처가 섞이므로 행마다 다르다. 색은 상단 점포 칩과 같다',
+        cellRenderer: (p) => (p.value
+            ? (
+                <span className="flex items-center gap-1.5">
+                    <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${p.data._storeColor ?? 'bg-slate-300'}`} />
+                    <span className="truncate">{p.value}</span>
+                </span>
+            )
+            : <span className="text-slate-300">—</span>),
+    },
     {
         field: 'rplnStatus', headerName: '보충', width: 84,
         headerTooltip: '보관존 할당분의 짝 보충지시 — 「지시」면 실물이 아직 보관존에 있어 집을 수 없다. '
@@ -115,7 +147,6 @@ const taskColumnDefs = (wavNo) => [
         headerTooltip: '이번에 집품한 수량 — 기본값은 잔량 전량, 일부만 집었으면 고쳐서 부분 피킹',
     },
     { field: 'outbNo', headerName: '출고번호', width: 150, cellClass: 'font-bold text-slate-700' },
-    { field: 'storeNm', headerName: '점포', flex: 1, minWidth: 110 },
 ];
 
 /**
@@ -143,6 +174,7 @@ export default function Picking() {
     const taskGridRef = useRef(null);
     // 재조회 뒤 보고 있던 웨이브를 다시 열기 위한 wavId (할당 화면과 같은 방식)
     const pendingWaveRef = useRef(null);
+    const storeGroups = useMemo(() => buildStoreGroups(rows), [rows]);
     const taskColumns = useMemo(() => taskColumnDefs(wave?.wavNo ?? null), [wave?.wavNo]);
 
     const fetchWaves = async () => {
@@ -164,8 +196,14 @@ export default function Picking() {
         // 거르는 의미는 서버 EXISTS와 같게 맞춘다(containsIgnoreCase). 상단 합계는 언제나 웨이브 전체다.
         const kw = cond.locCd.trim().toLowerCase();
         const visible = kw ? detail.rows.filter(r => (r.locCd ?? '').toLowerCase().includes(kw)) : detail.rows;
+        // 점포 색은 행에 실어 보낸다 — columnDefs가 rows에 묶이면 컬럼이 새로 만들어져 편집·체크가 풀린다
+        const colorOf = new Map(buildStoreGroups(visible).map(g => [g.storeNm, g.color]));
         // 피킹수량 편집 컬럼의 기본값 = 잔량 전량 — 부분 피킹할 때만 고친다 (적치 화면과 같은 방식)
-        setRows(visible.map(r => ({ ...r, _pikngQty: r.remainQty > 0 ? r.remainQty : null })));
+        setRows(visible.map(r => ({
+            ...r,
+            _storeColor: colorOf.get(r.storeNm ?? '—'),
+            _pikngQty: r.remainQty > 0 ? r.remainQty : null,
+        })));
     };
 
     const search = async () => {
@@ -331,6 +369,20 @@ export default function Picking() {
                             <Play size={13} /> 피킹
                         </button>
                     </div>
+                    {storeGroups.length > 0 && (
+                        <div className="flex items-center gap-1.5 overflow-x-auto shrink-0">
+                            <span className="text-xs font-bold text-slate-500 shrink-0">담을 곳 {storeGroups.length}</span>
+                            {storeGroups.map(g => (
+                                <span key={g.storeNm} title={`${g.storeNm} — 지시 ${g.total}건 중 ${g.open}건 남음`}
+                                      className={`flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs shrink-0 ${
+                                          g.open > 0 ? 'border-slate-200 bg-white' : 'border-slate-100 bg-slate-50 opacity-50'}`}>
+                                    <span className={`h-2 w-2 rounded-full ${g.color}`} />
+                                    <span className="font-medium text-slate-700">{g.storeNm}</span>
+                                    <span className="text-slate-400 tabular-nums">{g.open}</span>
+                                </span>
+                            ))}
+                        </div>
+                    )}
                     <div className="flex-1 min-h-0">
                         <AgGridReact
                             ref={taskGridRef}
