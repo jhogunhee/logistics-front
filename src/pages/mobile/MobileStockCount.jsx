@@ -110,8 +110,8 @@ export default function MobileStockCount() {
         }
     };
 
-    const handleScan = () => {
-        const v = scanVal.trim().toUpperCase();
+    const handleScan = (raw) => {
+        const v = String(raw ?? '').trim().toUpperCase();
         if (!v || !line) return;
         if (step === 'LOC') {
             if (v === String(line.locCd).toUpperCase()) passStep();

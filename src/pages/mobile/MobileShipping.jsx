@@ -72,8 +72,8 @@ export default function MobileShipping() {
     }, [wave, target]);
 
     // ── 스캔 → 주문 선택 ──────────────────────────────────────
-    const handleScan = () => {
-        const v = scanVal.trim().toUpperCase();
+    const handleScan = (raw) => {
+        const v = String(raw ?? '').trim().toUpperCase();
         if (!v) return;
         const hit = orders.find(o => String(o.outbNo).toUpperCase() === v);
         setScanVal('');

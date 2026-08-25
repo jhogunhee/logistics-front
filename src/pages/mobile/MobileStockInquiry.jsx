@@ -35,8 +35,8 @@ export default function MobileStockInquiry() {
 
     // ── 스캔 → 조회 ───────────────────────────────────────────
     // 스캔값이 로케이션인지 상품인지 미리 알 수 없다 — 로케이션으로 먼저 찾고, 없으면 상품으로 찾는다
-    const handleScan = async () => {
-        const v = scanVal.trim().toUpperCase();
+    const handleScan = async (raw) => {
+        const v = String(raw ?? '').trim().toUpperCase();
         if (!v || busy) return;
         setScanVal('');
         setBusy(true);

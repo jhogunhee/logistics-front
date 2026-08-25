@@ -88,8 +88,8 @@ export default function MobilePutaway() {
         }
     };
 
-    const handleScan = () => {
-        const v = scanVal.trim().toUpperCase();
+    const handleScan = (raw) => {
+        const v = String(raw ?? '').trim().toUpperCase();
         if (!v || !task) return;
         if (step === 'PROD') {
             if (v === String(task.prodCd).toUpperCase()) passStep();

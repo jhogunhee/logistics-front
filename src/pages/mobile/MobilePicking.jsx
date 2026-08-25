@@ -49,6 +49,8 @@ export default function MobilePicking() {
     const [qty, setQty] = useState('');
     const [busy, setBusy] = useState(false);
     const [closeShort, setCloseShort] = useState(null); // { rsnCd, rsnDscr }
+    // 부분 피킹 직후 잔량 처리 문답 — 실행이 끝난 뒤에 묻는다 (수량을 줄였다고 잔량을 멋대로 결품 내지 않는다)
+    const [askShort, setAskShort] = useState(null);     // 잔량이 남은 지시 (재조회 후 값)
     const scanRef = useRef(null);
     const qtyRef = useRef(null);
 
@@ -135,8 +137,8 @@ export default function MobilePicking() {
         }
     };
 
-    const handleScan = () => {
-        const v = scanVal.trim().toUpperCase();
+    const handleScan = (raw) => {
+        const v = String(raw ?? '').trim().toUpperCase();
         if (!v || !task) return;
         if (step === 'LOC') {
             if (v === String(task.locCd).toUpperCase()) passStep();
@@ -161,7 +163,10 @@ export default function MobilePicking() {
         setScanVal('');
     };
 
-    /** 실행·종결 뒤 재조회 — 같은 지시에 잔량이 남으면 그 자리에 머물고, 닫혔으면 동선상 다음 지시로 간다 */
+    /**
+     * 실행·종결 뒤 재조회 — 같은 지시에 잔량이 남으면 그 자리에 머물고(그 지시를 돌려준다),
+     * 닫혔으면 동선상 다음 지시로 간다.
+     */
     const afterAction = async (prev) => {
         const fresh = (await outbPikngApi.taskDetail(wave.wavId)).rows;
         setRows(fresh);
@@ -169,7 +174,7 @@ export default function MobilePicking() {
         if (cur && isWorkable(cur)) {
             setQty(String(cur.remainQty));
             setStep('QTY');
-            return;
+            return cur;
         }
         const kw = locKw.trim().toLowerCase();
         const opens = fresh.filter(isWorkable)
@@ -178,6 +183,7 @@ export default function MobilePicking() {
         setCurTaskId(next?.taskId ?? null);
         setStep('LOC');
         setScanVal('');
+        return null;
     };
 
     // ── 피킹 실행 ─────────────────────────────────────────────
@@ -200,7 +206,9 @@ export default function MobilePicking() {
             toast.success(`${num(n)}개를 피킹했습니다`
                 + (done.length > 0 ? ` — 피킹완료 주문 ${done.map(c => c.outbNo).join(', ')}` : ''));
             // 재조회 실패는 인터셉터가 알린다 — 여기서 삼키지 않으면 성공한 피킹이 실패 토스트로 둔갑한다
-            await afterAction(task).catch(() => {});
+            const stayed = await afterAction(task).catch(() => null);
+            // 잔량이 남았으면 그 자리에서 처리 방법을 묻는다 — 결품이 잦은 현장에서 확정 왕복을 줄인다
+            if (stayed) setAskShort(stayed);
         } catch (e) {
             toast.error(e.message || '피킹에 실패했습니다.');
         } finally {
@@ -395,6 +403,30 @@ export default function MobilePicking() {
                     <PackageX size={14} /> 결품 종결
                 </button>
             </div>
+
+            {/* 부분 피킹 직후 잔량 문답 — 더 집을지, 결품으로 닫을지 그 자리에서 고른다 */}
+            {askShort && (
+                <div className="fixed inset-0 z-50 bg-black/30 flex items-end" onMouseDown={() => setAskShort(null)}>
+                    <div className="w-full bg-white rounded-t-2xl p-4 pb-6 flex flex-col gap-3"
+                         onMouseDown={(e) => e.stopPropagation()}>
+                        <h3 className="text-base font-bold text-slate-800">
+                            잔량 {num(askShort.remainQty)}개가 남았습니다
+                        </h3>
+                        <p className="text-sm text-slate-500">
+                            실물이 더 있으면 나중에 다시 집으세요. 시킨 만큼 실물이 없으면 결품으로 닫습니다 — 사유는 다음 화면에서 받습니다.
+                        </p>
+                        <div className="flex gap-2">
+                            <button onClick={() => setAskShort(null)} className="btn-modal-cancel flex-1">
+                                나중에 다시 집기
+                            </button>
+                            <button onClick={() => { setAskShort(null); setCloseShort({ rsnCd: '', rsnDscr: '' }); }}
+                                    className="flex-1 px-4 py-2 text-sm font-bold rounded-lg bg-rose-600 text-white active:bg-rose-700">
+                                결품 종결
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {closeShort && (
                 <ShortCloseSheet

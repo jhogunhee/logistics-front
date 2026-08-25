@@ -95,8 +95,8 @@ export default function MobileReceiving() {
         });
     };
 
-    const handleScan = () => {
-        const v = scanVal.trim().toUpperCase();
+    const handleScan = (raw) => {
+        const v = String(raw ?? '').trim().toUpperCase();
         if (!v) return;
         const hit = lines.find(l => String(l.prodCd).toUpperCase() === v);
         setScanVal('');

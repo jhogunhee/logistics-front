@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ArrowLeftRight, Calculator, ChevronRight, ClipboardCheck, Layers, PackageOpen, Search, Send } from 'lucide-react';
+import { ArrowLeftRight, Calculator, ChevronRight, ClipboardCheck, Layers, PackageOpen, PackagePlus, Search, Send } from 'lucide-react';
 
 /**
  * PDA에 열린 작업 화면들 — 실행(실적을 쌓는 행위)만 올린다. 지시 발행·관리는 데스크톱 몫.
@@ -25,6 +25,7 @@ const GROUPS = [
     {
         title: '출고',
         items: [
+            { to: '/m/replenishment', label: '보충', desc: '수시보충 확정 — 보관존에서 피킹존으로, 짝 피킹지시가 열림', icon: PackagePlus },
             { to: '/m/picking', label: '피킹', desc: '집품 — 보관 로케이션에서 집어 SHIP-STAGE로', icon: PackageOpen },
             { to: '/m/shipping', label: '출고확정', desc: '상차 — 주문 라벨을 스캔해 SHIP-STAGE 반출 확정', icon: Send },
         ],
