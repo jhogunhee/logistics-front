@@ -135,7 +135,7 @@ const MENU = [
         // 현장 단말(PDA) 실행 화면 진입점 — 별도 레이아웃(/m)이라 여기로 나가면 사이드바가 없다
         title: "PDA",
         items: [
-            { to: "/m", label: "PDA 화면 (현장 실행)", icon: Smartphone, keywords: "pda 모바일 mobile 스캐너 barcode rf 현장 피킹 적치" },
+            { to: "/m", label: "현장 작업", icon: Smartphone, keywords: "pda 모바일 mobile 스캐너 barcode rf 현장 실행 피킹 적치 재고이동 재고조사" },
         ],
     },
 ];
