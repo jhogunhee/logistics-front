@@ -43,7 +43,8 @@ export const ibOrderApi = {
     // 창고가 예정을 스스로 만들거나 없애면 주문 상태와 어긋나기 때문이고,
     // 서버도 같은 이유로 두 엔드포인트를 제거했다.
 
-    /** 검수 저장 (증분). payload: { receiptDt(입고일자), lines: [{ ibLineId, inspectQty, mfgDt(제조일자, 관리 상품만) }] }
+    /** 검수 저장 (증분). payload: { receiptDt(입고일자), lines: [{ ibLineId, inspectQty, mfgDt(제조일자, 관리 상품만),
+     *  rjctQty · rjctRsnCd(HLD_RSN) · rjctRsnDscr — 반품입고만. 불량은 반품존에 RECEIVE 후 즉시 보류 }] }
      *  Lot 채번(입고일 기반)과 유통기한 계산(제조일+shelfLifeDays)은 서버 담당. 검수수량은 RCV-STAGE 재고로 즉시 반영. */
     receive(ibOrderId, payload) {
         return api.post(`/inbound/asns/${ibOrderId}/receive`, payload);

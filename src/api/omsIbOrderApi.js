@@ -23,8 +23,10 @@ export const omsIbOrderApi = {
         return api.get(`/oms/inbound-orders/${omsIbOrderId}/lines`);
     },
 
-    /** 등록. payload: { vendorId, expctDe, lines: [{ prodId, odrQty }] }. 주문번호는 서버 채번(PO-).
-     *  벤더는 이름이 아니라 마스터 ID로 보낸다 — 응답에는 vndrCd/vndrNm이 조인돼 내려온다. */
+    /** 등록. payload: { vendorId|null, storeId|null, refOutbNo|null, odrDvsn, expctDe, picNm, rmk,
+     *  lines: [{ prodId, odrQty, rsnCd|null, rsnDscr|null }] } — 반품입고(RTNGS)는 storeId·라인 rsnCd 필수,
+     *  수량은 출고단위. 주문번호는 서버 채번(PO-).
+     *  벤더/점포는 이름이 아니라 마스터 ID로 보낸다 — 응답에는 vndrCd/vndrNm, storeCd/storeNm이 조인돼 내려온다. */
     create(payload) {
         return api.post('/oms/inbound-orders', payload);
     },

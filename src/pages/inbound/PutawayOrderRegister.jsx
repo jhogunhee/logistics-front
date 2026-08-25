@@ -19,7 +19,7 @@ const groupByOrder = (batches) => {
     const byOrder = new Map();
     for (const b of batches) {
         const group = byOrder.get(b.ibNo) ?? {
-            ibNo: b.ibNo, ibOrderId: b.ibOrderId, vndrNm: b.vndrNm,
+            ibNo: b.ibNo, ibOrderId: b.ibOrderId, vndrNm: b.vndrNm, storeNm: b.storeNm,
             prodCds: new Set(), pendingQty: 0, drctRemainQty: 0, unDrctQty: 0,
             nearestExpiryDt: null, batches: [],
         };
@@ -38,7 +38,11 @@ const groupByOrder = (batches) => {
 // 상단: 입고건 — 물건이 트럭 단위로 들어와 한 자리에 내려지므로 지시도 이 단위로 건다
 const ORDER_COLUMN_DEFS = [
     { field: 'ibNo', headerName: '입고번호', width: 170 },
-    { field: 'vndrNm', headerName: '벤더', flex: 1, minWidth: 140 },
+    {
+        headerName: '상대처', flex: 1, minWidth: 140,
+        headerTooltip: '정상 발주는 벤더, 반품입고는 점포',
+        valueGetter: (p) => p.data.vndrNm ?? p.data.storeNm,
+    },
     {
         // Lot 수가 아니라 상품수 — 입고건을 고르는 단계에선 「몇 종류가 왔나」가 읽히는 정보다.
         // 검수가 나뉘면 한 상품도 여러 Lot이 되므로 아래 Lot 그리드 행 수와는 다를 수 있다
@@ -372,7 +376,7 @@ export default function PutawayOrderRegister() {
                         </span>
                         <span className="text-xs text-slate-400 truncate">
                             {selectedOrder
-                                ? `${selectedOrder.ibNo} · ${selectedOrder.vndrNm} — 미지시 ${num(selectedOrder.unDrctQty)}개 · 행을 클릭하면 수동 지시`
+                                ? `${selectedOrder.ibNo} · ${selectedOrder.vndrNm ?? selectedOrder.storeNm} — 미지시 ${num(selectedOrder.unDrctQty)}개 · 행을 클릭하면 수동 지시`
                                 : '위에서 입고건을 선택하세요'}
                         </span>
                     </div>

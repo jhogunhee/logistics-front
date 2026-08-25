@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 
 import { ibOrderApi } from '@/api/ibOrderApi';
 import { strategyApi } from '@/api/strategyApi';
+import { useCodes } from '@/hooks/useCodes';
 import { ASN_STATUS_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { eaQtyPerInbUomOf, fmtDt, num, todayStr, daysAheadStr } from '@/utils/format';
 import SearchBar, { SearchItem, SearchText, SearchDateRange } from '@/components/common/SearchBar';
@@ -15,6 +16,7 @@ import { THUMB_CELL_STYLE } from '@/constants/agGrid';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import VendorPickerModal from '@/components/common/VendorPickerModal';
 import DateCellEditor from '@/components/common/DateCellEditor';
+import SelectCellEditor from '@/components/common/SelectCellEditor';
 
 // 낱개(EA) 저장값(예정/누계/잔량)을 검수 입력 단위인 입고단위로 환산해 표시.
 // 입고단위로 딱 안 떨어지는 값(단위 변경 전 데이터)은 소수로 그대로 보여준다 — 반올림해서 감추면 잔량이 왜곡된다
@@ -32,6 +34,9 @@ const expiryPreview = (mfgDt, shelfLifeDays) => {
 
 // 입력한 제조일자가 검수 제약 하한(_minMfgDt, 서버 힌트)보다 앞서는가 — 'YYYY-MM-DD' 문자열이라 사전순 비교가 날짜순이다
 const belowMin = (r) => !!r._minMfgDt && !!r._mfgDt && r._mfgDt < r._minMfgDt;
+
+// 반품입고 문서인가 — 검수 제약 하한 힌트를 부르지 않고, 불량수량 입력 컬럼을 켠다
+const isRtngsOf = (a) => a?.odrDvsn === 'RTNGS';
 
 // 검수 이력 등 낱개(EA) 저장값 1건 표시: 입고단위로 떨어지면 "2 BOX (48 EA)" 병기, 아니면 낱개 그대로 "N EA".
 // EA를 병기하는 이유 — 취소·재고 대조 시점엔 재고(EA)에서 얼마나 빠지는지가 보여야 한다.
@@ -51,7 +56,18 @@ const HEADER_COLUMN_DEFS = [
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
         cellRenderer: (p) => <Badge meta={ASN_STATUS_META} value={p.value} show="label" />,
     },
-    { field: 'vndrNm', headerName: '벤더', flex: 1, minWidth: 110 },
+    {
+        field: 'odrDvsn', headerName: '구분', width: 90,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+        cellRenderer: (p) => p.value === 'RTNGS'
+            ? <span className="text-[11px] px-2 py-0.5 rounded-full font-bold bg-rose-100 text-rose-700">반품</span>
+            : null,
+    },
+    {
+        headerName: '상대처', flex: 1, minWidth: 110,
+        headerTooltip: '정상 발주는 벤더, 반품입고는 점포',
+        valueGetter: (p) => p.data.vndrNm ?? p.data.storeNm,
+    },
     { field: 'expctDe', headerName: '입고 예정일', width: 120 },
     {
         headerName: '검수 진행', width: 100, cellClass: 'ag-right-aligned-cell',
@@ -86,6 +102,8 @@ export default function Receiving() {
 
     const canReceive = !!inspTarget && ['SCHEDULED', 'RECEIVING'].includes(inspTarget.status);
     const canCancelReceipt = !!inspTarget && inspTarget.status === 'RECEIVING';
+    const hldRsnCodes = useCodes('HLD_RSN');
+    const isRtngs = inspTarget?.odrDvsn === 'RTNGS';
 
     // 라인 그리드: 작업 순서대로 [식별 → 단위·예정·잔량 → 입력 3개(파란색, 연속 배치)]를 앞에 두고,
     // 환산·누계 등 참고용은 뒤로 보낸다 (입력 컬럼이 가로 스크롤 없이 바로 보이게)
@@ -115,28 +133,49 @@ export default function Receiving() {
         },
         {
             headerName: '예정', width: 70, cellClass: 'ag-right-aligned-cell',
-            headerTooltip: '입고 예정 수량 (입고단위)',
+            headerTooltip: `입고 예정 수량 (${isRtngs ? '출고단위' : '입고단위'})`,
             valueGetter: (p) => inInbUom(p.data.expctQty, p.data),
             valueFormatter: (p) => num(p.value),
         },
         {
             headerName: '잔량', width: 70,
-            headerTooltip: '예정 - 검수누계 (입고단위). 아직 도착하지 않았거나 검수 전인 수량',
-            valueGetter: (p) => inInbUom(p.data.expctQty - p.data.rcvdQty, p.data),
+            headerTooltip: `예정 − 양품 − 불량 (${isRtngs ? '출고단위' : '입고단위'})`,
+            valueGetter: (p) => inInbUom(p.data.expctQty - p.data.rcvdQty - (p.data.rjctQty ?? 0), p.data),
             valueFormatter: (p) => num(p.value),
             cellClass: (p) => p.value < 0 ? 'ag-right-aligned-cell text-red-500 font-bold' : 'ag-right-aligned-cell',
         },
         {
-            field: '_inspectQty', headerName: '검수수량', width: 95, editable: canReceive,
+            field: '_inspectQty', headerName: isRtngs ? '양품수량' : '검수수량', width: 95, editable: canReceive,
             // 한 번 클릭으로 연다. 그리드 전체가 아니라 컬럼 단위인 이유는 같은 그리드의
             // 날짜 두 칸이 DateCellEditor(클릭 즉시 달력)라서다 — 그쪽은 더블클릭을 유지한다
             singleClickEdit: true,
             cellDataType: 'number',
-            cellEditor: 'agNumberCellEditor', cellEditorParams: { min: 1, precision: 0 },
+            cellEditor: 'agNumberCellEditor', cellEditorParams: { min: 0, precision: 0 },
             valueFormatter: (p) => num(p.value),
             cellClass: 'ag-right-aligned-cell bg-indigo-50',
-            headerTooltip: '이번에 개수 확인한 입고단위 개수 — 잔량 이내 정수만 (전량 재고로 입고)',
+            headerTooltip: `이번에 개수 확인한 ${isRtngs ? '출고단위' : '입고단위'} 개수 — 잔량 이내 정수만 (전량 재고로 입고)`,
         },
+        ...(isRtngs ? [
+            {
+                field: '_rjctQty', headerName: '불량수량', width: 95, editable: canReceive, singleClickEdit: true,
+                cellDataType: 'number', cellEditor: 'agNumberCellEditor', cellEditorParams: { min: 0, precision: 0 },
+                valueFormatter: (p) => num(p.value), cellClass: 'ag-right-aligned-cell bg-rose-50',
+                headerTooltip: '반품존에 받아 즉시 보류되는 수량 (출고단위 개수). 양품+불량이 잔량 이내',
+            },
+            {
+                field: '_rjctRsnCd', headerName: '불량사유', width: 110, editable: canReceive, singleClickEdit: true,
+                cellEditor: SelectCellEditor,
+                cellEditorParams: { values: hldRsnCodes.values, labelMap: hldRsnCodes.nmByCd, placeholder: '사유' },
+                cellClass: 'bg-rose-50',
+                valueFormatter: (p) => hldRsnCodes.nm(p.value),
+                cellRenderer: (p) => p.value ? hldRsnCodes.nm(p.value) : <span className="text-slate-300">-</span>,
+            },
+            {
+                field: '_rjctRsnDscr', headerName: '사유 내용', width: 140, editable: (p) => canReceive && p.data._rjctRsnCd === 'ETC',
+                singleClickEdit: true, cellClass: 'bg-rose-50',
+                headerTooltip: '불량사유가 기타일 때만',
+            },
+        ] : []),
         {
             // 입고일자를 제조일자보다 앞에 둔다 — 제조일자 달력의 상한이 입고일자라 먼저 정해지는 게 맞고
             // (소급 등록 때 특히), 제조일자가 뒤로 가면서 만료일 미리보기(유통기한)와 바로 붙는다
@@ -170,7 +209,9 @@ export default function Receiving() {
             // 거부당한 뒤에야 기준을 알면 소급 등록·테스트 입력에서 날짜를 고르는 일이 헛걸음이 된다.
             // 서버 저장본 정책으로 계산한 스냅샷이라 최종 판정은 여전히 저장 시점의 서버다
             headerName: '제조일자 하한', width: 135,
-            headerTooltip: '검수 제약(잔여비율·역순)이 허용하는 가장 이른 제조일자 — 이 날 이후로 입력해야 저장됩니다. 셀 툴팁에 규칙별 기준',
+            headerTooltip: isRtngs
+                ? '검수 제약(잔여비율)이 허용하는 가장 이른 제조일자 — 역순 규칙은 반품에는 적용되지 않습니다. 셀 툴팁에 규칙별 기준'
+                : '검수 제약(잔여비율·역순)이 허용하는 가장 이른 제조일자 — 이 날 이후로 입력해야 저장됩니다. 셀 툴팁에 규칙별 기준',
             valueGetter: (p) => p.data._minMfgDt,
             tooltipValueGetter: (p) => (p.data._minRules ?? [])
                 .map(r => `${r.ruleName}: ${r.minMfgDt ? `${r.minMfgDt} 이후` : '제한 없음'}`)
@@ -213,6 +254,14 @@ export default function Receiving() {
         },
         { field: 'prodCd', headerName: '상품 코드', width: 105 },
         { field: 'prodNm', headerName: '상품명', flex: 1, minWidth: 180 },
+        // 판정(양품/불량)은 반품만 갈린다 — 정상 입고는 검수=합격뿐이라 컬럼 자체가 군더더기다
+        ...(isRtngs ? [{
+            field: 'dcsn', headerName: '판정', width: 80,
+            cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+            cellRenderer: (p) => p.value === 'RJCT'
+                ? <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">불량</span>
+                : <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">양품</span>,
+        }] : []),
         {
             headerName: '검수수량', width: 150,
             headerTooltip: '이 건에서 검수한 수량 — 입고단위, 괄호는 재고에서 빠질 낱개(EA) 환산. 취소된 건은 취소선으로 표시된다',
@@ -272,10 +321,14 @@ export default function Receiving() {
             _inspectQty: null, // 숫자 에디터라 빈 값은 ''가 아니라 null (''는 텍스트로 추론돼 에디터가 안 붙는다)
             _receiptDt: todayStr(),
             _mfgDt: '',
+            _rjctQty: null,
+            _rjctRsnCd: '',
+            _rjctRsnDscr: '',
+            _minMfgDt: undefined,
         }));
         setLineRows(rows);
         // 제조일자 하한은 라인을 띄운 뒤 따로 붙인다 — 힌트가 늦어도 입력은 먼저 열려 있어야 한다
-        const mins = await loadMinMfgDts(rows);
+        const mins = await loadMinMfgDts(rows, isRtngsOf(asn));
         if (seq !== detailSeq.current) return;
         setLineRows(prev => prev.map(r => mins.has(r.ibLineId) ? { ...r, ...mins.get(r.ibLineId) } : r));
     };
@@ -283,15 +336,17 @@ export default function Receiving() {
     /**
      * 검수 제약이 허용하는 가장 이른 제조일자(_minMfgDt)와 규칙별 내역(_minRules)을 서버에 묻는다 —
      * 유통기한 관리 상품만, 라인 전부를 한 번에. 실패하면 힌트만 빠지고 입력·저장은 그대로 간다(서버가 최종 판정).
+     * rtngs가 true면 서버가 역순 규칙의 하한을 빼고 잔여비율 하한만 돌려준다.
      * @return ibLineId → { _minMfgDt, _minRules }
      */
-    const loadMinMfgDts = async (rows) => {
+    const loadMinMfgDts = async (rows, rtngs) => {
         const targets = rows.filter(r => r.shelfLifeDays != null);
         const result = new Map();
         if (targets.length === 0) return result;
         try {
             const res = await strategyApi.inspectionPolicy.minMfgDts({
                 items: targets.map(r => ({ prodId: r.prodId, receiptDt: r._receiptDt || todayStr() })),
+                rtngs,
             });
             targets.forEach((r, i) => {
                 const item = res.items?.[i];
@@ -303,10 +358,10 @@ export default function Receiving() {
         return result;
     };
 
-    // 입고일자를 고치면 그 라인의 제조일자 하한도 달라진다(잔여비율은 입고일 기준, 역순은 당일 제외 기준)
+    // 입고일자를 고치면 그 라인의 제조일자 하한도 달라진다(잔여비율은 입고일 기준, 역순은 당일 제외 기준 — 반품은 역순 자체가 빠진다)
     const onLineCellChanged = async (e) => {
         if (e.colDef.field !== '_receiptDt') return;
-        const mins = await loadMinMfgDts([e.data]);
+        const mins = await loadMinMfgDts([e.data], isRtngs);
         const patch = mins.get(e.data.ibLineId);
         if (!patch) return;
         setLineRows(prev => prev.map(r => r.ibLineId === e.data.ibLineId ? { ...r, ...patch } : r));
@@ -365,21 +420,39 @@ export default function Receiving() {
         lineGridRef.current.api.stopEditing();
         const rows = [];
         lineGridRef.current.api.forEachNode(n => rows.push(n.data));
-        const targets = rows.filter(r => String(r._inspectQty ?? '').trim() !== '');
+        const has = (v) => String(v ?? '').trim() !== '';
+        const targets = rows.filter(r => has(r._inspectQty) || has(r._rjctQty));
         if (targets.length === 0) {
             toast('검수수량을 입력한 라인이 없습니다.');
             return;
         }
         for (const r of targets) {
-            const inspect = Number(r._inspectQty);
-            if (!(inspect > 0) || !Number.isInteger(inspect)) {
-                toast.error(`검수수량은 입고단위(${r.inbUomCd}) 1 이상 정수여야 합니다: ${r.prodCd}`);
+            const inspect = Number(r._inspectQty || 0);
+            const rjct = Number(r._rjctQty || 0);
+            if (inspect < 0 || rjct < 0 || !Number.isInteger(inspect) || !Number.isInteger(rjct)) {
+                toast.error(`수량은 ${r.inbUomCd} 단위 0 이상 정수여야 합니다: ${r.prodCd}`);
+                return;
+            }
+            if (inspect + rjct < 1) {
+                toast.error(isRtngs ? `양품 또는 불량 수량을 입력하세요: ${r.prodCd}` : `검수수량은 1 이상이어야 합니다: ${r.prodCd}`);
+                return;
+            }
+            if (rjct > 0 && !isRtngs) {
+                toast.error(`정상 입고에는 불량수량을 입력할 수 없습니다: ${r.prodCd}`);
+                return;
+            }
+            if (rjct > 0 && !r._rjctRsnCd) {
+                toast.error(`불량사유를 선택하세요: ${r.prodCd}`);
+                return;
+            }
+            if (rjct > 0 && r._rjctRsnCd === 'ETC' && !String(r._rjctRsnDscr || '').trim()) {
+                toast.error(`불량사유 내용을 입력하세요: ${r.prodCd}`);
                 return;
             }
             // 과입고 차단 — 잔량 비교는 낱개(저장 단위 EA)로 한다 (서버도 같은 검증을 하지만 저장 전에 거른다)
-            const remaining = r.expctQty - r.rcvdQty;
-            if (inspect * eaQtyPerInbUomOf(r) > remaining) {
-                toast.error(`검수수량이 잔량(${fmtStoredQty(remaining, r)})을 초과합니다: ${r.prodCd}`);
+            const remaining = r.expctQty - r.rcvdQty - (r.rjctQty ?? 0);
+            if ((inspect + rjct) * eaQtyPerInbUomOf(r) > remaining) {
+                toast.error(`양품+불량이 잔량(${fmtStoredQty(remaining, r)})을 초과합니다: ${r.prodCd}`);
                 return;
             }
             if (!String(r._receiptDt || '').trim()) {
@@ -394,7 +467,8 @@ export default function Receiving() {
                 toast.error(`제조일자가 입고일자보다 미래일 수 없습니다: ${r.prodCd}`);
                 return;
             }
-            // 검수 제약 하한(서버 힌트)보다 앞서면 저장해도 거부된다 — 왕복 전에 거른다 (최종 판정은 서버)
+            // 검수 제약 하한(서버 힌트)보다 앞서면 저장해도 거부된다 — 왕복 전에 거른다 (최종 판정은 서버).
+            // 반품도 잔여비율 하한은 그대로 적용된다 — 서버가 역순 규칙의 하한만 뺀 값을 돌려준다
             if (belowMin(r)) {
                 toast.error(`제조일자가 하한(${r._minMfgDt} 이후)보다 앞섭니다 — 검수 제약에 걸립니다: ${r.prodCd}`);
                 return;
@@ -410,9 +484,12 @@ export default function Receiving() {
             await ibOrderApi.receive(inspTarget.ibOrderId, {
                 lines: targets.map(r => ({
                     ibLineId: r.ibLineId,
-                    inspectQty: Number(r._inspectQty),
+                    inspectQty: Number(r._inspectQty || 0),
                     receiptDt: r._receiptDt,
                     mfgDt: r.shelfLifeDays != null ? r._mfgDt : null,
+                    rjctQty: isRtngs ? Number(r._rjctQty || 0) : null,
+                    rjctRsnCd: isRtngs && Number(r._rjctQty || 0) > 0 ? r._rjctRsnCd : null,
+                    rjctRsnDscr: isRtngs && r._rjctRsnCd === 'ETC' ? String(r._rjctRsnDscr || '').trim() : null,
                 })),
             });
             toast.success(`${targets.length}개 라인 검수를 저장했습니다.`);
@@ -435,7 +512,7 @@ export default function Receiving() {
 
     // 확인 모달 합계 — 라인마다 입력 단위(BOX/PLT)가 달라 낱개(EA)로 통일해 합산한다 (입고주문 화면과 같은 기준)
     const receiveSummary = (targets) =>
-        targets.reduce((s, r) => s + Number(r._inspectQty) * eaQtyPerInbUomOf(r), 0);
+        targets.reduce((s, r) => s + (Number(r._inspectQty || 0) + Number(r._rjctQty || 0)) * eaQtyPerInbUomOf(r), 0);
 
     // ── 검수 이력 / 취소 ─────────────────────────────────────
     // 이력은 입고건 단위로 한 번에 받는다. 취소하면 라인 수량이 바뀌므로 목록·라인도 함께 다시 읽는다.
@@ -452,7 +529,7 @@ export default function Receiving() {
 
     // 검수 입력 탭에는 아직 할 일이 남은 라인만 둔다 — 전량 검수된 라인은 입력할 것이 없고,
     // 예전에 그 라인들을 남겨둔 이유(이력을 열어 취소해야 해서)는 이력 탭이 생기며 사라졌다
-    const pendingLineRows = lineRows.filter(r => r.expctQty - r.rcvdQty > 0);
+    const pendingLineRows = lineRows.filter(r => r.expctQty - r.rcvdQty - (r.rjctQty ?? 0) > 0);
 
     return (
         // min-h — 노트북처럼 낮은 화면에선 그리드를 짜부라뜨리는 대신 카드 스크롤(Layout의 overflow-auto)이 생긴다
@@ -549,8 +626,11 @@ export default function Receiving() {
                                 {!inspTarget
                                     ? '위에서 입고건을 선택하세요'
                                     : tab === 'input'
-                                        ? `${inspTarget.ibNo} · ${inspTarget.vndrNm} — 파란 컬럼에 이번 검수분 입력 (검수수량은 입고단위 개수)`
-                                        : `${inspTarget.ibNo} · ${inspTarget.vndrNm} — 검수한 건을 되돌립니다 (적치된 수량이 있으면 거부)`}
+                                        ? `${inspTarget.ibNo} · ${inspTarget.vndrNm ?? inspTarget.storeNm} — `
+                                            + (isRtngs
+                                                ? '파란 컬럼에 양품, 붉은 컬럼에 불량 입력 (수량은 출고단위 개수) · 양품은 RCV-STAGE, 불량은 반품존(보류)'
+                                                : '파란 컬럼에 이번 검수분 입력 (검수수량은 입고단위 개수)')
+                                        : `${inspTarget.ibNo} · ${inspTarget.vndrNm ?? inspTarget.storeNm} — 검수한 건을 되돌립니다 (적치된 수량이 있으면 거부)`}
                             </span>
                         </div>
                         {tab === 'input' && (
@@ -627,9 +707,19 @@ export default function Receiving() {
                     onConfirm={() => { doReceive(receiveConfirm); setReceiveConfirm(null); }}
                 >
                     <p className="text-sm text-slate-500">
-                        {receiveConfirm.length}개 라인 · 총 검수수량 <b className="text-emerald-600">{num(receiveSummary(receiveConfirm))}</b> 낱개
+                        {receiveConfirm.length}개 라인 ·{' '}
+                        {isRtngs ? (
+                            <>
+                                양품 <b className="text-emerald-600">{num(receiveConfirm.reduce((s, r) => s + Number(r._inspectQty || 0) * eaQtyPerInbUomOf(r), 0))}</b> 낱개 ·{' '}
+                                불량 <b className="text-rose-600">{num(receiveConfirm.reduce((s, r) => s + Number(r._rjctQty || 0) * eaQtyPerInbUomOf(r), 0))}</b> 낱개
+                            </>
+                        ) : (
+                            <>총 검수수량 <b className="text-emerald-600">{num(receiveSummary(receiveConfirm))}</b> 낱개</>
+                        )}
                     </p>
-                    <p className="text-xs text-slate-400">검수수량은 RCV-STAGE 재고로 즉시 반영됩니다.</p>
+                    <p className="text-xs text-slate-400">
+                        {isRtngs ? '양품은 RCV-STAGE, 불량은 반품존 재고로 즉시 반영됩니다.' : '검수수량은 RCV-STAGE 재고로 즉시 반영됩니다.'}
+                    </p>
                 </ConfirmModal>
             )}
 
@@ -642,7 +732,9 @@ export default function Receiving() {
                             {cancelReceiptTarget.prodCd} {cancelReceiptTarget.prodNm} ·{' '}
                             <b>{fmtStoredQty(cancelReceiptTarget.qty, cancelReceiptTarget)}</b> · {cancelReceiptTarget.lotNo}
                         </p>
-                        <p className="text-xs text-slate-400">이미 적치된 수량이 있으면 취소할 수 없습니다.</p>
+                        <p className="text-xs text-slate-400">
+                            {cancelReceiptTarget.dcsn === 'RJCT' ? '보류를 해제한 뒤에 취소할 수 있습니다.' : '이미 적치된 수량이 있으면 취소할 수 없습니다.'}
+                        </p>
                         <div className="flex gap-2 justify-end">
                             <button
                                 onClick={() => setCancelReceiptTarget(null)}
