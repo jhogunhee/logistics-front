@@ -4,16 +4,21 @@ import { FileInput, Package, Plus, RotateCcw, Save, Search, Trash2, X } from 'lu
 import toast from 'react-hot-toast';
 
 import { omsIbOrderApi } from '@/api/omsIbOrderApi';
+import { outbOrderApi } from '@/api/outbOrderApi';
+import { prodApi } from '@/api/prodApi';
 import { useCodes } from '@/hooks/useCodes';
 import { TEMP_ZONE_META } from '@/constants/badgeMeta';
-import { eaQtyPerInbUomOf, num, todayStr } from '@/utils/format';
+import { eaQtyPerInbUomOf, eaQtyPerOutbUomOf, num, todayStr } from '@/utils/format';
 import ProdPickerModal from '@/components/common/ProdPickerModal';
 import VendorPickerModal from '@/components/common/VendorPickerModal';
+import StorePickerModal from '@/components/common/StorePickerModal';
+import OutbOrderPickerModal from '@/components/common/OutbOrderPickerModal';
 import DatePicker from '@/components/common/DatePicker';
 import FormField from '@/components/common/FormField';
 
 const EMPTY_FORM = () => ({
-    vendorId: '', expctDe: todayStr(),
+    vendorId: '', storeId: '', storeCd: '', storeNm: '', refOutbNo: '',
+    expctDe: todayStr(),
     odrDvsn: 'NRML',   // 컬럼 DEFAULT와 같은 값 — 대부분의 발주가 정상 건이다
     picNm: '', rmk: '',
     lines: [],
@@ -27,20 +32,38 @@ export default function InboundOrder() {
     const isEdit = Boolean(omsIbOrderId);
     const navigate = useNavigate();
     const odrDvsnCodes = useCodes('ODR_DVSN');
+    const rtngsRsnCodes = useCodes('RTNGS_RSN');
     const [form, setForm] = useState(EMPTY_FORM);
     const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(isEdit);
     // null이면 닫힘 / 'add'면 다중 추가 / 숫자면 그 인덱스 라인의 상품 교체
     const [pickerFor, setPickerFor] = useState(null);
     const [vendorPickerOpen, setVendorPickerOpen] = useState(false);
+    const [storePickerOpen, setStorePickerOpen] = useState(false);
+    const [outbPickerOpen, setOutbPickerOpen] = useState(false);
+    const [prodById, setProdById] = useState({});
 
     // 확정된 주문은 고칠 수 없다 (서버도 거부한다). 화면에서 미리 잠가 헛수고를 막는다.
     const readOnly = isEdit && form.status && form.status !== 'CREATED';
 
-    // 발주 수량(입고단위) → 낱개(EA) 수. 저장하는 값이 아니라 표시용 미리보기다 —
+    // 반품이면 상대가 점포이고 수량 단위가 출고단위다 — 화면의 갈림은 이 값 하나에서 나온다
+    const isRtngs = form.odrDvsn === 'RTNGS';
+    const uomCdOf = (line) => (isRtngs ? line.outbUomCd : line.inbUomCd);
+    const eaPerUom = (line) => (isRtngs ? eaQtyPerOutbUomOf(line) : eaQtyPerInbUomOf(line));
+
+    // 발주 수량(입고단위, 반품이면 출고단위) → 낱개(EA) 수. 저장하는 값이 아니라 표시용 미리보기다 —
     // ASN에 넘어가는 예정수량은 별도의 출고단위 환산(Prod.toOutbQty)이고, 화면은 상품마다
     // 단위가 갈리지 않는 낱개 기준으로 통일해 보여준다.
-    const convertedQty = (line) => (Number(line.odrQty) || 0) * eaQtyPerInbUomOf(line);
+    const convertedQty = (line) => (Number(line.odrQty) || 0) * eaPerUom(line);
+
+    // prodMetaOf가 상품 마스터(단위·유통기한·outbUomCd·outbEaQty)를 알아야 하므로 화면 진입 시 한 번 받아 맵으로 둔다
+    useEffect(() => {
+        prodApi.list().then(data => setProdById(Object.fromEntries(data.map(p => [p.prodId, p]))));
+    }, []);
+    const prodMetaOf = (prodId) => {
+        const p = prodById[prodId] ?? {};
+        return { shelfLifeDays: p.shelfLifeDays, inbUomCd: p.inbUomCd, inbEaQty: p.inbEaQty, outbUomCd: p.outbUomCd, outbEaQty: p.outbEaQty };
+    };
 
     // 합계는 낱개(EA) 환산 쪽만 낸다 (발주 수량은 라인마다 입고단위가 달라 합이 어색하다).
     // 낱개 기준이라 어떤 상품 조합이든 합이 깨끗하다.
@@ -69,11 +92,15 @@ export default function InboundOrder() {
                     vendorId: order.vendorId,
                     vndrCd: order.vndrCd,
                     vndrNm: order.vndrNm,
+                    storeId: order.storeId ?? '',
+                    storeCd: order.storeCd ?? '',
+                    storeNm: order.storeNm ?? '',
+                    refOutbNo: order.refOutbNo ?? '',
                     expctDe: order.expctDe,
                     odrDvsn: order.odrDvsn ?? 'NRML',
                     picNm: order.picNm ?? '',
                     rmk: order.rmk ?? '',
-                    lines: lines.map(l => ({ ...l, odrQty: l.odrQty })),
+                    lines: lines.map(l => ({ ...l, odrQty: l.odrQty, rsnCd: l.rsnCd ?? '', rsnDscr: l.rsnDscr ?? '' })),
                 });
             } catch (e) {
                 if (ignore) return;
@@ -94,11 +121,38 @@ export default function InboundOrder() {
         vndrNm: v.vndrNm,
     }));
 
+    // 구분을 바꾸면 상대처·원 출고·사유를 비운다 — 벤더 발주에 점포가 남거나 반품에 벤더가 남으면 서버가 거부한다
+    const changeDvsn = (odrDvsn) => setForm(prev => ({
+        ...prev, odrDvsn,
+        vendorId: '', vndrCd: '', vndrNm: '',
+        storeId: '', storeCd: '', storeNm: '', refOutbNo: '',
+        lines: prev.lines.map(l => ({ ...l, rsnCd: '', rsnDscr: '' })),
+    }));
+
+    const pickStore = (s) => setForm(prev => ({
+        ...prev, storeId: s.storeId, storeCd: s.storeCd, storeNm: s.storeNm, refOutbNo: '',
+    }));
+
+    // 원 출고를 고르면 그 문서의 라인이 들어온다. 출고 라인 수량은 낱개(EA)라 출고단위로 되돌려 채운다
+    const pickOutbOrder = async (o) => {
+        const lines = await outbOrderApi.lines(o.outbOrderId);
+        setForm(prev => ({
+            ...prev,
+            refOutbNo: o.outbNo,
+            lines: lines.map(l => ({
+                prodId: l.prodId, prodCd: l.prodCd, prodNm: l.prodNm, tmpZon: l.tmpZon,
+                ...prodMetaOf(l.prodId),
+                odrQty: Math.max(1, Math.floor(l.odrQty / (prodMetaOf(l.prodId).outbEaQty ?? 1))),
+                rsnCd: '', rsnDscr: '',
+            })),
+        }));
+    };
+
     // 라인은 선택 시점의 상품 마스터 정보를 그대로 담는다 (표시용). 저장 시엔 prodId/수량만 보낸다.
     const addLines = (prods) => {
         setForm(prev => ({
             ...prev,
-            lines: [...prev.lines, ...prods.map(s => ({ ...s, odrQty: '' }))],
+            lines: [...prev.lines, ...prods.map(s => ({ ...s, odrQty: '', rsnCd: '', rsnDscr: '' }))],
         }));
     };
 
@@ -121,26 +175,37 @@ export default function InboundOrder() {
         lines: prev.lines.filter((_, i) => i !== idx),
     }));
 
+    const setLineField = (idx, patch) => setForm(prev => ({
+        ...prev, lines: prev.lines.map((l, i) => (i === idx ? { ...l, ...patch } : l)),
+    }));
+
     const handleSave = async () => {
         if (readOnly) { toast.error('작성 상태의 주문만 수정할 수 있습니다.'); return; }
-        if (!form.vendorId) { toast.error('벤더는 필수입니다.'); return; }
+        if (isRtngs ? !form.storeId : !form.vendorId) {
+            toast.error(isRtngs ? '반품 점포는 필수입니다.' : '벤더는 필수입니다.'); return;
+        }
         if (!form.expctDe) { toast.error('입고 예정일은 필수입니다.'); return; }
         if (form.lines.length === 0) { toast.error('발주 상품을 1건 이상 담아주세요.'); return; }
         for (const l of form.lines) {
-            if (!(Number(l.odrQty) > 0)) {
-                toast.error(`${l.prodNm} 의 발주 수량을 입력하세요.`);
-                return;
-            }
+            if (!(Number(l.odrQty) > 0)) { toast.error(`${l.prodNm} 의 수량을 입력하세요.`); return; }
+            if (isRtngs && !l.rsnCd) { toast.error(`${l.prodNm} 의 반품사유를 선택하세요.`); return; }
+            if (isRtngs && l.rsnCd === 'ETC' && !l.rsnDscr?.trim()) { toast.error(`${l.prodNm} 의 사유 내용을 입력하세요.`); return; }
         }
 
         setSaving(true);
         const payload = {
-            vendorId: Number(form.vendorId),
+            vendorId: isRtngs ? null : Number(form.vendorId),
+            storeId: isRtngs ? Number(form.storeId) : null,
+            refOutbNo: isRtngs ? (form.refOutbNo || null) : null,
             expctDe: form.expctDe,
             odrDvsn: form.odrDvsn,
             picNm: form.picNm?.trim() || null,
             rmk: form.rmk?.trim() || null,
-            lines: form.lines.map(l => ({ prodId: l.prodId, odrQty: Number(l.odrQty) })),
+            lines: form.lines.map(l => ({
+                prodId: l.prodId, odrQty: Number(l.odrQty),
+                rsnCd: isRtngs ? l.rsnCd : null,
+                rsnDscr: isRtngs && l.rsnCd === 'ETC' ? l.rsnDscr.trim() : null,
+            })),
         };
         try {
             if (isEdit) {
@@ -173,7 +238,7 @@ export default function InboundOrder() {
                 <span className="text-xs text-slate-400 mt-0.5">
                     {readOnly
                         ? '확정된 주문은 수정할 수 없습니다 — 고치려면 관리 화면에서 확정취소를 먼저 하세요'
-                        : '벤더 발주 등록 — 확정하면 입고예정(ASN)이 자동 생성됩니다'}
+                        : (isRtngs ? '점포 반품 등록 — 확정하면 입고예정(ASN)이 자동 생성됩니다' : '벤더 발주 등록 — 확정하면 입고예정(ASN)이 자동 생성됩니다')}
                 </span>
             </div>
 
@@ -194,11 +259,12 @@ export default function InboundOrder() {
                                 form.omsIbNo ? 'text-slate-600 font-medium' : 'text-slate-400'}`}
                         />
                     </FormField>
-                    {/* 발주구분은 지금 표시·분류용이다 — 긴급이라고 적치·피킹 순서가 바뀌지는 않는다 */}
-                    <FormField label="발주구분" hint="분류용입니다 — 창고 작업 순서를 바꾸지는 않습니다">
+                    {/* 발주구분은 지금 표시·분류용이다 — 긴급이라고 적치·피킹 순서가 바뀌지는 않는다.
+                        단, 반품입고는 상대·수량 단위 자체가 갈린다 (changeDvsn이 상대처를 비운다) */}
+                    <FormField label="발주구분" hint="반품입고를 고르면 상대가 점포로 바뀌고 수량은 출고단위가 됩니다">
                         <select
                             value={form.odrDvsn}
-                            onChange={(e) => setForm(prev => ({ ...prev, odrDvsn: e.target.value }))}
+                            onChange={(e) => changeDvsn(e.target.value)}
                             disabled={readOnly}
                             className={inputCls + ' disabled:bg-slate-50 disabled:cursor-not-allowed'}>
                             {odrDvsnCodes.selectOptions.map(o => (
@@ -207,20 +273,30 @@ export default function InboundOrder() {
                         </select>
                     </FormField>
                     {/* 상품과 같은 팝업 방식으로 통일 — 한 폼 안에서 선택 UI가 갈리지 않게 한다 */}
-                    <FormField
-                        label="벤더"
-                        required
-                        hint={form.vndrCd ? `벤더 코드 ${form.vndrCd}` : '거래중인 벤더만 선택할 수 있습니다'}>
-                        <button
-                            onClick={() => setVendorPickerOpen(true)}
-                            disabled={readOnly}
-                            className={inputCls + ' flex items-center justify-between gap-2 text-left hover:border-indigo-300 disabled:bg-slate-50 disabled:cursor-not-allowed'}>
-                            <span className={`truncate ${form.vndrNm ? 'text-slate-700' : 'text-slate-400'}`}>
-                                {form.vndrNm || '벤더 선택'}
-                            </span>
-                            <Search size={13} className="shrink-0 text-slate-400" />
-                        </button>
-                    </FormField>
+                    {isRtngs ? (
+                        <FormField label="반품 점포" required hint={form.storeCd ? `점포 코드 ${form.storeCd}` : '물건을 돌려보내는 점포'}>
+                            <button onClick={() => setStorePickerOpen(true)} disabled={readOnly}
+                                    className={inputCls + ' flex items-center justify-between gap-2 text-left hover:border-indigo-300 disabled:bg-slate-50 disabled:cursor-not-allowed'}>
+                                <span className={`truncate ${form.storeNm ? 'text-slate-700' : 'text-slate-400'}`}>{form.storeNm || '점포 선택'}</span>
+                                <Search size={13} className="shrink-0 text-slate-400" />
+                            </button>
+                        </FormField>
+                    ) : (
+                        <FormField
+                            label="벤더"
+                            required
+                            hint={form.vndrCd ? `벤더 코드 ${form.vndrCd}` : '거래중인 벤더만 선택할 수 있습니다'}>
+                            <button
+                                onClick={() => setVendorPickerOpen(true)}
+                                disabled={readOnly}
+                                className={inputCls + ' flex items-center justify-between gap-2 text-left hover:border-indigo-300 disabled:bg-slate-50 disabled:cursor-not-allowed'}>
+                                <span className={`truncate ${form.vndrNm ? 'text-slate-700' : 'text-slate-400'}`}>
+                                    {form.vndrNm || '벤더 선택'}
+                                </span>
+                                <Search size={13} className="shrink-0 text-slate-400" />
+                            </button>
+                        </FormField>
+                    )}
                     <FormField label="입고 예정일" required hint="확정 시 생성될 입고번호(IB-)의 채번 기준일">
                         <DatePicker
                             value={form.expctDe}
@@ -228,6 +304,21 @@ export default function InboundOrder() {
                             disabled={readOnly}
                         />
                     </FormField>
+                    {isRtngs && (
+                        <FormField label="원 출고" hint="선택 — 고르면 그 출고의 라인이 들어옵니다 (점포 먼저)">
+                            <div className="flex gap-1">
+                                <button onClick={() => setOutbPickerOpen(true)} disabled={readOnly || !form.storeId}
+                                        className={inputCls + ' flex items-center justify-between gap-2 text-left hover:border-indigo-300 disabled:bg-slate-50 disabled:cursor-not-allowed'}>
+                                    <span className={`truncate ${form.refOutbNo ? 'text-slate-700' : 'text-slate-400'}`}>{form.refOutbNo || '출고 선택'}</span>
+                                    <Search size={13} className="shrink-0 text-slate-400" />
+                                </button>
+                                {form.refOutbNo && !readOnly && (
+                                    <button onClick={() => setForm(prev => ({ ...prev, refOutbNo: '' }))} title="참조 지우기"
+                                            className="px-2 text-slate-400 hover:text-slate-600"><X size={14} /></button>
+                                )}
+                            </div>
+                        </FormField>
+                    )}
                     <FormField label="담당자" hint="발주를 낸 사람. 등록자 계정과는 별개입니다">
                         <input
                             type="text"
@@ -263,7 +354,7 @@ export default function InboundOrder() {
                         <span className="text-[11px] text-slate-400">
                             {form.lines.length}건
                             {form.lines.length > 0 && ` · 환산 ${num(totalConvQty)}`}
-                            {' · 수량은 발주단위 기준입니다'}
+                            {isRtngs ? ' · 수량은 출고단위 기준입니다' : ' · 수량은 발주단위 기준입니다'}
                         </span>
                     </div>
                     <button
@@ -286,7 +377,8 @@ export default function InboundOrder() {
                         <span className="flex-1 min-w-0 max-w-[360px]">상품명</span>
                         <span className="w-20 shrink-0 text-center ml-auto">온도대</span>
                         <span className="w-20 shrink-0 text-right">유통기한</span>
-                        <span className="w-32 shrink-0 text-right">발주 수량</span>
+                        {isRtngs && <span className="w-36 shrink-0">반품사유</span>}
+                        <span className="w-32 shrink-0 text-right">{isRtngs ? '반품 수량' : '발주 수량'}</span>
                         <span className="w-20 shrink-0 text-right" title="발주단위 1개당 입수량(낱개 기준) — 단위 관리의 낱개수량과 같은 값">
                             입수량
                         </span>
@@ -327,6 +419,21 @@ export default function InboundOrder() {
                                         ? <span className="text-slate-400">미관리</span>
                                         : `${line.shelfLifeDays}일`}
                                 </span>
+                                {isRtngs && (
+                                    <span className="w-36 shrink-0 flex flex-col gap-0.5">
+                                        <select value={line.rsnCd ?? ''} disabled={readOnly}
+                                                onChange={(e) => setLineField(idx, { rsnCd: e.target.value, rsnDscr: '' })}
+                                                className="px-2 py-1 bg-white border border-slate-200 rounded-md text-sm">
+                                            <option value="">사유 선택</option>
+                                            {rtngsRsnCodes.selectOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                        </select>
+                                        {line.rsnCd === 'ETC' && (
+                                            <input value={line.rsnDscr ?? ''} disabled={readOnly} maxLength={200} placeholder="사유 내용"
+                                                   onChange={(e) => setLineField(idx, { rsnDscr: e.target.value })}
+                                                   className="px-2 py-1 bg-white border border-slate-200 rounded-md text-xs" />
+                                        )}
+                                    </span>
+                                )}
                                 {/* 발주 수량 — 단위는 상품이 정하므로 라벨로만 붙는다 (담당자가 고를 수 없다) */}
                                 <span className="w-32 shrink-0 flex items-center gap-1.5">
                                     <input
@@ -339,19 +446,19 @@ export default function InboundOrder() {
                                         className="flex-1 min-w-0 px-2.5 py-1 bg-white border border-slate-200 rounded-md text-sm text-right focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
                                     />
                                     <span className="w-9 shrink-0 text-[11px] font-bold text-slate-500">
-                                        {line.inbUomCd}
+                                        {uomCdOf(line)}
                                     </span>
                                 </span>
                                 {/* 입수량 — 발주단위 1개 = 낱개 몇 개인지 (환산의 배수, 값의 근거는 단위 관리 화면의 낱개수량과 같다) */}
                                 <span className="w-20 shrink-0 text-right text-sm text-slate-500">
-                                    {num(eaQtyPerInbUomOf(line))}
+                                    {num(eaPerUom(line))}
                                 </span>
                                 {/* 환산 수량(낱개) — 읽기 전용. 환산이 없는 상품(×1)은 회색으로 눌러 둔다 */}
                                 <span className="w-32 shrink-0 flex items-center justify-end gap-1.5">
                                     {Number(line.odrQty) > 0 ? (
                                         <>
                                             <span className={`text-sm font-bold tabular-nums ${
-                                                eaQtyPerInbUomOf(line) > 1 ? 'text-indigo-600' : 'text-slate-500'
+                                                eaPerUom(line) > 1 ? 'text-indigo-600' : 'text-slate-500'
                                             }`}>
                                                 {num(convertedQty(line))}
                                             </span>
@@ -387,6 +494,7 @@ export default function InboundOrder() {
                     {/* 합계 */}
                     <div className="shrink-0 sticky bottom-0 z-10 flex items-center gap-3 px-4 py-2 bg-slate-50 border-t border-slate-200 text-xs font-bold text-slate-600">
                         <span className="flex-1 text-right">합계</span>
+                        {isRtngs && <span className="w-36 shrink-0" />}
                         {/* 발주 수량 칸은 비운다 — 라인마다 발주단위가 달라 더한 값에 의미가 없다 */}
                         <span className="w-32 shrink-0" />
                         <span className="w-20 shrink-0" />
@@ -420,12 +528,15 @@ export default function InboundOrder() {
                 onClose={() => setVendorPickerOpen(false)}
                 onSelect={pickVendor}
             />
+            <StorePickerModal open={storePickerOpen} onClose={() => setStorePickerOpen(false)} onSelect={pickStore} />
+            <OutbOrderPickerModal open={outbPickerOpen} storeId={form.storeId} onClose={() => setOutbPickerOpen(false)} onSelect={pickOutbOrder} />
 
             {/* 상품 선택 팝업 — 추가는 다중, 라인 교체는 단일 */}
             <ProdPickerModal
                 open={pickerFor !== null}
                 multiple={pickerFor === 'add'}
                 excludeIds={excludeIds}
+                uomRole={isRtngs ? 'outb' : 'inb'}
                 onClose={() => setPickerFor(null)}
                 onSelect={(picked) => {
                     if (pickerFor === 'add') addLines(picked);
