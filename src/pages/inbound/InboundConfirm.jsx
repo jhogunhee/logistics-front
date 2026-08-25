@@ -37,13 +37,23 @@ const HEADER_COLUMN_DEFS = [
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
         cellRenderer: (p) => <Badge meta={ASN_PRGR_META} value={p.value} show="label" />,
     },
-    { field: 'vndrNm', headerName: '벤더', flex: 1, minWidth: 110 },
+    {
+        headerName: '상대처', flex: 1, minWidth: 110,
+        headerTooltip: '정상 발주는 벤더, 반품입고는 점포',
+        valueGetter: (p) => p.data.vndrNm ?? p.data.storeNm,
+    },
     { field: 'expctDe', headerName: '입고 예정일', width: 120 },
     {
         headerName: '결품(EA)', width: 100,
-        headerTooltip: '예정 − 검수 합계. 확정하는 순간 이 수량이 결품으로 못박힌다',
-        valueGetter: (p) => p.data.totalExpctQty - p.data.totalRcvdQty,
+        headerTooltip: '예정 − 양품 − 불량 합계. 확정하는 순간 이 수량이 결품으로 못박힌다',
+        valueGetter: (p) => p.data.totalExpctQty - p.data.totalRcvdQty - p.data.totalRjctQty,
         cellClass: (p) => p.value > 0 ? 'ag-right-aligned-cell text-rose-600 font-bold' : 'ag-right-aligned-cell text-slate-400',
+        valueFormatter: (p) => num(p.value),
+    },
+    {
+        field: 'totalRjctQty', headerName: '불량(EA)', width: 90,
+        headerTooltip: '반품존에 받아 보류된 수량 — 적치 대상이 아니다',
+        cellClass: (p) => p.value > 0 ? 'ag-right-aligned-cell text-rose-600' : 'ag-right-aligned-cell text-slate-400',
         valueFormatter: (p) => num(p.value),
     },
     {
@@ -75,12 +85,13 @@ const LINE_COLUMN_DEFS = [
         cellRenderer: (p) => <Badge meta={ASN_PRGR_META} value={p.value} show="label" />,
     },
     { field: 'expctQty', headerName: '예정수량', width: 130, cellClass: 'ag-right-aligned-cell', valueFormatter: inbQtyFmt },
-    { field: 'rcvdQty', headerName: '검수수량', width: 130, cellClass: 'ag-right-aligned-cell', valueFormatter: inbQtyFmt },
+    { field: 'rcvdQty', headerName: '양품', width: 130, cellClass: 'ag-right-aligned-cell', valueFormatter: inbQtyFmt },
+    { field: 'rjctQty', headerName: '불량', width: 120, cellClass: 'ag-right-aligned-cell', valueFormatter: inbQtyFmt },
     { field: 'ptawyQty', headerName: '적치완료', width: 130, cellClass: 'ag-right-aligned-cell', valueFormatter: inbQtyFmt },
     {
         headerName: '결품', width: 130,
-        headerTooltip: '예정 − 검수. 확정하면 이 수량은 더 안 오는 것으로 못박힌다',
-        valueGetter: (p) => p.data.expctQty - p.data.rcvdQty,
+        headerTooltip: '예정 − 양품 − 불량. 확정하면 이 수량은 더 안 오는 것으로 못박힌다',
+        valueGetter: (p) => p.data.expctQty - p.data.rcvdQty - p.data.rjctQty,
         valueFormatter: inbQtyFmt,
         cellClass: (p) => p.value > 0 ? 'ag-right-aligned-cell text-rose-600 font-bold' : 'ag-right-aligned-cell text-slate-400',
     },
@@ -114,7 +125,7 @@ export default function InboundConfirm() {
         : confirmables.length === 0 ? '체크한 건 중 확정 가능한 건이 없습니다 — 진행단계가 「적치완료」여야 합니다'
         : null;
 
-    const shortageOf = (a) => a.totalExpctQty - a.totalRcvdQty;
+    const shortageOf = (a) => a.totalExpctQty - a.totalRcvdQty - a.totalRjctQty;
 
     const fetchList = async () => {
         const data = await ibOrderApi.listForCfm(cond);
@@ -233,7 +244,7 @@ export default function InboundConfirm() {
                             <span className="text-sm font-bold text-slate-700">라인 검토</span>
                             <span className="text-xs text-slate-400 truncate">
                                 {previewAsn
-                                    ? `${previewAsn.ibNo} · ${previewAsn.vndrNm} — 마지막으로 체크한 건의 라인입니다`
+                                    ? `${previewAsn.ibNo} · ${previewAsn.vndrNm ?? previewAsn.storeNm} — 마지막으로 체크한 건의 라인입니다`
                                     : '입고건을 체크하면 라인이 표시됩니다'}
                             </span>
                         </div>
@@ -269,7 +280,7 @@ export default function InboundConfirm() {
                     <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
                         {confirmTargets.map(a => (
                             <div key={a.ibOrderId} className="flex items-center justify-between gap-3 text-sm">
-                                <span className="truncate">{a.ibNo} · {a.vndrNm}</span>
+                                <span className="truncate">{a.ibNo} · {a.vndrNm ?? a.storeNm}</span>
                                 {shortageOf(a) > 0
                                     ? <b className="text-rose-600 shrink-0">결품 {num(shortageOf(a))} EA</b>
                                     : <span className="text-emerald-600 shrink-0">전량 입고</span>}
