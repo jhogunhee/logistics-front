@@ -16,6 +16,7 @@ import VendorMaster from "@/pages/master/VendorMaster.jsx";
 import StoreMaster from "@/pages/master/StoreMaster.jsx";
 import NbrRuleMaster from "@/pages/master/NbrRuleMaster.jsx";
 import CodeMaster from "@/pages/master/CodeMaster.jsx";
+import LabelPrint from "@/pages/master/LabelPrint.jsx";
 import InspectionPolicy from "@/pages/strategy/InspectionPolicy.jsx";
 import PutawayStrategy from "@/pages/strategy/PutawayStrategy.jsx";
 import WaveStrategy from "@/pages/strategy/WaveStrategy.jsx";
@@ -133,6 +134,8 @@ export default function App() {
                         <Route path="/master/store" element={<StoreMaster/>}/>
                         <Route path="/master/nbr-rules" element={<NbrRuleMaster/>}/>
                         <Route path="/master/codes" element={<CodeMaster/>}/>
+                        {/* 라벨 인쇄 — PDA가 찍을 바코드를 발행한다. 현장 화면(/m)의 스캔과 짝이다 */}
+                        <Route path="/master/labels" element={<LabelPrint/>}/>
 
                         {/* 전략: 관리자가 정의하는 실행 정책 (기준정보와 달리 "어떻게 판단할지"를 담는다).
                             백엔드 API 접두(/strategy)와 경로를 맞춘다 */}

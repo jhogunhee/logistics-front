@@ -13,23 +13,17 @@ const SearchBarCtx = createContext(null);
 // 응답이 빨라도 버튼 변화가 보이게 스피너를 이만큼은 유지한다
 const MIN_BUSY_MS = 350;
 
-const nowHms = () => new Date().toTimeString().slice(0, 8);
-
-export default function SearchBar({ onSearch, cond, setCond, label = '검색', autoLoaded = true, children }) {
+export default function SearchBar({ onSearch, cond, setCond, label = '검색', children }) {
     const [busy, setBusy] = useState(false);
-    // 진입 시 자동 조회하는 화면은 그 호출이 SearchBar를 거치지 않아 끝난 때를 알 수 없다 —
-    // 마운트 시각을 초기값으로 둔다. 자동 조회가 없는 화면은 autoLoaded={false}로 끈다
-    const [searchedAt, setSearchedAt] = useState(() => (autoLoaded ? nowHms() : ''));
 
     // 결과가 이전과 같으면 화면이 그대로라 조회가 됐는지 알 수 없다 —
-    // 조회 중 스피너와 조회 시각으로 「방금 다녀왔다」를 남긴다
+    // 조회 중 스피너가 「방금 다녀왔다」를 남긴다
     const runSearch = async () => {
         if (busy) return;
         setBusy(true);
         const startedAt = Date.now();
         try {
             await Promise.resolve(onSearch?.());
-            setSearchedAt(nowHms());
         } catch {
             // 조회 실패 토스트는 axios 응답 인터셉터가 띄운다
         } finally {
@@ -55,10 +49,6 @@ export default function SearchBar({ onSearch, cond, setCond, label = '검색', a
                 <div className="h-8 w-px bg-slate-100 mx-2"></div>
 
                 {/* 3. 조회 버튼 영역 — 입력 요소와 같은 높이(py-2)로 맞춘다 */}
-                {/* 시각 자리는 처음부터 잡아둔다 — 첫 조회 때 버튼이 밀리지 않게 */}
-                <span className="min-w-[80px] text-right text-[11px] text-slate-400 tabular-nums whitespace-nowrap shrink-0">
-                    {searchedAt && `${searchedAt} 조회`}
-                </span>
                 <button
                     onClick={runSearch}
                     disabled={busy}
