@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, ChevronLeft, MapPin, PackagePlus, RefreshCw, SkipForward } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { rplnApi } from '@/api/rplnApi';
+import { useScanFlow } from '@/hooks/useScanFlow';
 import { fmtDe, num } from '@/utils/format';
-import { failFeedback, okFeedback } from '@/utils/scanFeedback';
+import { okFeedback } from '@/utils/scanFeedback';
 import { ScanRow } from '@/components/mobile/ScanRow';
 import { StepChips } from '@/components/mobile/StepChips';
 
@@ -20,6 +21,14 @@ const STEPS = [
     { key: 'CNFM', label: '확정' },
 ];
 
+/** 단계별 대조 대상 — 무엇과 맞춰 보고 틀리면 뭐라고 알릴지. 단계 진행 자체는 useScanFlow가 한다 */
+const MATCHERS = {
+    FROM: { of: t => t.fromLocCd, fail: t => `보관존 로케이션이 다릅니다 — ${t.fromLocCd} 위치로 가세요` },
+    PROD: { of: t => t.prodCd, fail: t => `상품이 다릅니다 — ${t.prodCd} ${t.prodNm}` },
+    LOT: { of: t => t.lotNo, fail: t => `Lot이 다릅니다 — ${t.lotNo} (유통기한 ${fmtDe(t.expiryDt) || '미관리'})` },
+    TO: { of: t => t.toLocCd, fail: t => `피킹존 로케이션이 다릅니다 — ${t.toLocCd} 위치로 가세요` },
+};
+
 /** 진행 위치 복원용 sessionStorage 키 — 새로고침해도 보던 웨이브로 돌아온다 */
 const WAV_KEY = 'mrpln.wavId';
 
@@ -32,15 +41,18 @@ export default function MobileReplenishment() {
     const [waves, setWaves] = useState([]);
     const [wave, setWave] = useState(null);          // 선택 웨이브 (없으면 웨이브 목록 화면)
     const [rows, setRows] = useState([]);
-    const [curTaskId, setCurTaskId] = useState(null);
-    const [step, setStep] = useState('FROM');
-    const [scanVal, setScanVal] = useState('');
     const [busy, setBusy] = useState(false);
-    const scanRef = useRef(null);
 
-    const queue = useMemo(() => rows.filter(r => r.status === 'DIRECTED'), [rows]);
+    const directed = useMemo(() => rows.filter(r => r.status === 'DIRECTED'), [rows]);
+
+    const { task, queue, step, scanVal, setScanVal, scanRef, handleScan, pass, skip, goTo, clear } = useScanFlow({
+        steps: STEPS,
+        queue: directed,
+        idOf: t => t.rplnTaskId,
+        matchers: MATCHERS,
+    });
+
     const doneCount = rows.length - queue.length;
-    const task = queue.find(t => t.rplnTaskId === curTaskId) ?? queue[0] ?? null;
 
     const fetchWaves = () => rplnApi.waves().then(setWaves);
 
@@ -50,16 +62,14 @@ export default function MobileReplenishment() {
         sessionStorage.setItem(WAV_KEY, String(w.wavId));
         setWave(w);
         setRows(list);
-        setCurTaskId(null);
-        setStep('FROM');
-        setScanVal('');
+        clear();
     };
 
     const backToWaves = () => {
         sessionStorage.removeItem(WAV_KEY);
         setWave(null);
         setRows([]);
-        setCurTaskId(null);
+        clear();
         fetchWaves().catch(() => {});
     };
 
@@ -73,64 +83,9 @@ export default function MobileReplenishment() {
             const w = list.find(x => x.wavId === saved);
             if (w) await openWave(w);
         })();
+        // 마운트 1회 — openWave는 의존성으로 넣지 않는다 (매 렌더 새 함수라 넣으면 조회가 반복된다)
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-
-    // 단계·지시가 바뀔 때마다 스캔 입력에 포커스 (확정 단계는 스캔이 없다)
-    useEffect(() => {
-        if (!task || step === 'CNFM') return;
-        scanRef.current?.focus();
-    }, [step, task?.rplnTaskId]);
-
-    // ── 스캔 확인 ─────────────────────────────────────────────
-    const scanFail = (msg) => {
-        failFeedback();
-        toast.error(msg);
-        setScanVal('');
-        scanRef.current?.focus();
-    };
-
-    const passStep = () => {
-        okFeedback();
-        setScanVal('');
-        if (step === 'FROM') {
-            setStep('PROD');
-        } else if (step === 'PROD') {
-            setStep('LOT');
-        } else if (step === 'LOT') {
-            setStep('TO');
-        } else if (step === 'TO') {
-            setStep('CNFM');
-        }
-    };
-
-    const handleScan = (raw) => {
-        const v = String(raw ?? '').trim().toUpperCase();
-        if (!v || !task) return;
-        if (step === 'FROM') {
-            if (v === String(task.fromLocCd).toUpperCase()) passStep();
-            else scanFail(`보관존 로케이션이 다릅니다 — ${task.fromLocCd} 위치로 가세요`);
-        } else if (step === 'PROD') {
-            if (v === String(task.prodCd).toUpperCase()) passStep();
-            else scanFail(`상품이 다릅니다 — ${task.prodCd} ${task.prodNm}`);
-        } else if (step === 'LOT') {
-            if (v === String(task.lotNo).toUpperCase()) passStep();
-            else scanFail(`Lot이 다릅니다 — ${task.lotNo} (유통기한 ${fmtDe(task.expiryDt) || '미관리'})`);
-        } else if (step === 'TO') {
-            if (v === String(task.toLocCd).toUpperCase()) passStep();
-            else scanFail(`피킹존 로케이션이 다릅니다 — ${task.toLocCd} 위치로 가세요`);
-        }
-    };
-
-    const skipTask = () => {
-        if (queue.length < 2) {
-            toast('건너뛸 다음 지시가 없습니다.');
-            return;
-        }
-        const i = queue.findIndex(t => t.rplnTaskId === task.rplnTaskId);
-        setCurTaskId(queue[(i + 1) % queue.length].rplnTaskId);
-        setStep('FROM');
-        setScanVal('');
-    };
 
     // ── 보충 확정 (전량) ──────────────────────────────────────
     const doConfirm = async () => {
@@ -144,11 +99,9 @@ export default function MobileReplenishment() {
             const prev = task;
             await rplnApi.rows(wave.wavId).then(fresh => {
                 setRows(fresh);
+                // 짝 피킹 순번 순으로 이어간다 — 다음이 없으면 큐 맨 앞(건너뛴 지시는 뒤로 밀려 있다)
                 const opens = fresh.filter(r => r.status === 'DIRECTED');
-                const next = opens.find(t => t.srtSeq > prev.srtSeq) ?? opens[0] ?? null;
-                setCurTaskId(next?.rplnTaskId ?? null);
-                setStep('FROM');
-                setScanVal('');
+                goTo(opens.find(t => t.srtSeq > prev.srtSeq)?.rplnTaskId ?? null);
             }).catch(() => {});
         } catch (e) {
             toast.error(e.message || '보충 확정에 실패했습니다.');
@@ -280,7 +233,7 @@ export default function MobileReplenishment() {
             {/* 단계별 입력 — 확정 단계만 스캔이 없다 */}
             {step !== 'CNFM' ? (
                 <ScanRow
-                    ref={scanRef} value={scanVal} onChange={setScanVal} onCommit={handleScan} onSkip={passStep}
+                    ref={scanRef} value={scanVal} onChange={setScanVal} onCommit={handleScan} onSkip={pass}
                     placeholder={step === 'FROM' ? '보관존 로케이션 스캔'
                         : step === 'PROD' ? '상품 바코드 스캔'
                             : step === 'LOT' ? 'Lot 바코드 스캔' : '피킹존 로케이션 스캔'}
@@ -294,7 +247,7 @@ export default function MobileReplenishment() {
 
             {/* 하단 보조 동작 — 취소는 웹 몫이다 */}
             <div className="mt-auto flex flex-col gap-1.5 shrink-0">
-                <button onClick={skipTask} className="btn-ghost justify-center py-3">
+                <button onClick={skip} className="btn-ghost justify-center py-3">
                     <SkipForward size={14} /> 건너뛰기
                 </button>
                 <p className="text-[11px] text-slate-400 text-center">

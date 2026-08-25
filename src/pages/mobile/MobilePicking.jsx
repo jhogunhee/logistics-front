@@ -4,9 +4,10 @@ import toast from 'react-hot-toast';
 
 import { outbPikngApi } from '@/api/outbPikngApi';
 import { useCodes } from '@/hooks/useCodes';
+import { useScanFlow } from '@/hooks/useScanFlow';
 import { ETC_RSN_CD } from '@/constants/rsnCodes';
 import { fmtDe, num } from '@/utils/format';
-import { failFeedback, okFeedback } from '@/utils/scanFeedback';
+import { okFeedback } from '@/utils/scanFeedback';
 import { ProdThumb } from '@/components/common/ProdThumb';
 import { QtyStepper } from '@/components/mobile/QtyStepper';
 import { ScanRow } from '@/components/mobile/ScanRow';
@@ -20,6 +21,13 @@ const STEPS = [
     { key: 'LOT', label: 'Lot' },
     { key: 'QTY', label: '수량' },
 ];
+
+/** 단계별 대조 대상 — 무엇과 맞춰 보고 틀리면 뭐라고 알릴지. 단계 진행 자체는 useScanFlow가 한다 */
+const MATCHERS = {
+    LOC: { of: t => t.locCd, fail: t => `로케이션이 다릅니다 — ${t.locCd} 위치로 가세요` },
+    PROD: { of: t => t.prodCd, fail: t => `상품이 다릅니다 — ${t.prodCd} ${t.prodNm}` },
+    LOT: { of: t => t.lotNo, fail: t => `Lot이 다릅니다 — ${t.lotNo} (유통기한 ${fmtDe(t.expiryDt) || '—'})` },
+};
 
 /** 지금 집을 수 있는 지시 — 잔량이 있고 보충 대기(실물이 아직 보관존)가 아닌 것 */
 const isWorkable = (r) => r.remainQty > 0 && r.rplnStatus !== 'DIRECTED';
@@ -42,23 +50,30 @@ export default function MobilePicking() {
     const [waves, setWaves] = useState([]);
     const [rows, setRows] = useState([]);
     const [wave, setWave] = useState(null);          // 선택 웨이브 (없으면 웨이브 목록 화면)
-    const [curTaskId, setCurTaskId] = useState(null);
     const [locKw, setLocKw] = useState(() => sessionStorage.getItem(LOC_KEY) ?? '');
-    const [step, setStep] = useState('LOC');
-    const [scanVal, setScanVal] = useState('');
     const [qty, setQty] = useState('');
     const [busy, setBusy] = useState(false);
     const [closeShort, setCloseShort] = useState(null); // { rsnCd, rsnDscr }
     // 부분 피킹 직후 잔량 처리 문답 — 실행이 끝난 뒤에 묻는다 (수량을 줄였다고 잔량을 멋대로 결품 내지 않는다)
     const [askShort, setAskShort] = useState(null);     // 잔량이 남은 지시 (재조회 후 값)
-    const scanRef = useRef(null);
     const qtyRef = useRef(null);
 
     const workableAll = useMemo(() => rows.filter(isWorkable), [rows]);
-    const openTasks = useMemo(() => {
+    const filtered = useMemo(() => {
         const kw = locKw.trim().toLowerCase();
         return kw ? workableAll.filter(r => (r.locCd ?? '').toLowerCase().includes(kw)) : workableAll;
     }, [workableAll, locKw]);
+
+    const {
+        task, queue: openTasks, step, scanVal, setScanVal, scanRef, handleScan, pass, skip, goTo, stay, clear,
+    } = useScanFlow({
+        steps: STEPS,
+        queue: filtered,
+        idOf: t => t.taskId,
+        matchers: MATCHERS,
+        onReachTerminal: (t) => setQty(String(t.remainQty)),
+        terminalRef: qtyRef,
+    });
     const blockedCount = useMemo(() => rows.filter(r => r.remainQty > 0 && r.rplnStatus === 'DIRECTED').length, [rows]);
     const doneCount = useMemo(() => rows.filter(r => r.remainQty === 0).length, [rows]);
     // 점포 색은 웨이브 전체 행 기준으로 배정한다 — 구역 필터로 좁혀도 같은 점포는 같은 색이다
@@ -70,7 +85,6 @@ export default function MobilePicking() {
         }
         return map;
     }, [rows]);
-    const task = openTasks.find(t => t.taskId === curTaskId) ?? openTasks[0] ?? null;
 
     const fetchWaves = () => outbPikngApi.pickingWaves().then(setWaves);
 
@@ -80,16 +94,14 @@ export default function MobilePicking() {
         sessionStorage.setItem(WAV_KEY, String(w.wavId));
         setWave(w);
         setRows(detail.rows);
-        setCurTaskId(detail.rows.filter(isWorkable)[0]?.taskId ?? null);
-        setStep('LOC');
-        setScanVal('');
+        clear();
     };
 
     const backToWaves = () => {
         sessionStorage.removeItem(WAV_KEY);
         setWave(null);
         setRows([]);
-        setCurTaskId(null);
+        clear();
         fetchWaves().catch(() => {});
     };
 
@@ -108,60 +120,9 @@ export default function MobilePicking() {
             const w = list.find(x => x.wavId === saved);
             if (w) await openWave(w);
         })();
+        // 마운트 1회 — openWave는 의존성으로 넣지 않는다 (매 렌더 새 함수라 넣으면 조회가 반복된다)
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-
-    // 단계·지시가 바뀔 때마다 입력에 포커스 — 스캐너(키보드 웨지) 입력이 바로 실리게 한다
-    useEffect(() => {
-        if (!task) return;
-        (step === 'QTY' ? qtyRef : scanRef).current?.focus();
-    }, [step, task?.taskId]);
-
-    // ── 스캔 확인 ─────────────────────────────────────────────
-    const scanFail = (msg) => {
-        failFeedback();
-        toast.error(msg);
-        setScanVal('');
-        scanRef.current?.focus();
-    };
-
-    const passStep = () => {
-        okFeedback();
-        setScanVal('');
-        if (step === 'LOC') {
-            setStep('PROD');
-        } else if (step === 'PROD') {
-            setStep('LOT');
-        } else if (step === 'LOT') {
-            setQty(String(task.remainQty));
-            setStep('QTY');
-        }
-    };
-
-    const handleScan = (raw) => {
-        const v = String(raw ?? '').trim().toUpperCase();
-        if (!v || !task) return;
-        if (step === 'LOC') {
-            if (v === String(task.locCd).toUpperCase()) passStep();
-            else scanFail(`로케이션이 다릅니다 — ${task.locCd} 위치로 가세요`);
-        } else if (step === 'PROD') {
-            if (v === String(task.prodCd).toUpperCase()) passStep();
-            else scanFail(`상품이 다릅니다 — ${task.prodCd} ${task.prodNm}`);
-        } else if (step === 'LOT') {
-            if (v === String(task.lotNo).toUpperCase()) passStep();
-            else scanFail(`Lot이 다릅니다 — ${task.lotNo} (유통기한 ${fmtDe(task.expiryDt) || '—'})`);
-        }
-    };
-
-    const skipTask = () => {
-        if (openTasks.length < 2) {
-            toast('건너뛸 다음 지시가 없습니다.');
-            return;
-        }
-        const i = openTasks.findIndex(t => t.taskId === task.taskId);
-        setCurTaskId(openTasks[(i + 1) % openTasks.length].taskId);
-        setStep('LOC');
-        setScanVal('');
-    };
 
     /**
      * 실행·종결 뒤 재조회 — 같은 지시에 잔량이 남으면 그 자리에 머물고(그 지시를 돌려준다),
@@ -172,17 +133,14 @@ export default function MobilePicking() {
         setRows(fresh);
         const cur = fresh.find(r => r.taskId === prev.taskId);
         if (cur && isWorkable(cur)) {
-            setQty(String(cur.remainQty));
-            setStep('QTY');
+            stay(cur);
             return cur;
         }
+        // 동선상 다음 지시 — 없으면 큐 맨 앞(건너뛴 지시는 뒤로 밀려 있다)
         const kw = locKw.trim().toLowerCase();
         const opens = fresh.filter(isWorkable)
             .filter(r => !kw || (r.locCd ?? '').toLowerCase().includes(kw));
-        const next = opens.find(t => t.srtSeq > prev.srtSeq) ?? opens[0] ?? null;
-        setCurTaskId(next?.taskId ?? null);
-        setStep('LOC');
-        setScanVal('');
+        goTo(opens.find(t => t.srtSeq > prev.srtSeq)?.taskId ?? null);
         return null;
     };
 
@@ -379,7 +337,7 @@ export default function MobilePicking() {
             {/* 단계별 입력 — LOC·PROD·LOT은 스캔, QTY는 수량 확정 */}
             {step !== 'QTY' ? (
                 <ScanRow
-                    ref={scanRef} value={scanVal} onChange={setScanVal} onCommit={handleScan} onSkip={passStep}
+                    ref={scanRef} value={scanVal} onChange={setScanVal} onCommit={handleScan} onSkip={pass}
                     placeholder={step === 'LOC' ? '로케이션 스캔'
                         : step === 'PROD' ? '상품 바코드 스캔' : 'Lot 바코드 스캔'}
                 />
@@ -395,7 +353,7 @@ export default function MobilePicking() {
 
             {/* 하단 보조 동작 */}
             <div className="mt-auto flex gap-2 shrink-0">
-                <button onClick={skipTask} className="btn-ghost flex-1 justify-center py-3">
+                <button onClick={skip} className="btn-ghost flex-1 justify-center py-3">
                     <SkipForward size={14} /> 건너뛰기
                 </button>
                 <button onClick={handleCloseShortClick} disabled={busy}

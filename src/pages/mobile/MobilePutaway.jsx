@@ -4,9 +4,10 @@ import { CheckCircle2, ChevronLeft, Layers, MapPin, RefreshCw, SkipForward } fro
 import toast from 'react-hot-toast';
 
 import { putawayApi } from '@/api/putawayApi';
+import { useScanFlow } from '@/hooks/useScanFlow';
 import { TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { fmtDe, num } from '@/utils/format';
-import { failFeedback, okFeedback } from '@/utils/scanFeedback';
+import { okFeedback } from '@/utils/scanFeedback';
 import { Badge } from '@/components/common/Badge';
 import { QtyStepper } from '@/components/mobile/QtyStepper';
 import { ScanRow } from '@/components/mobile/ScanRow';
@@ -24,6 +25,13 @@ const STEPS = [
     { key: 'QTY', label: '수량' },
 ];
 
+/** 단계별 대조 대상 — 무엇과 맞춰 보고 틀리면 뭐라고 알릴지. 단계 진행 자체는 useScanFlow가 한다 */
+const MATCHERS = {
+    PROD: { of: t => t.prodCd, fail: t => `상품이 다릅니다 — ${t.prodCd} ${t.prodNm}` },
+    LOT: { of: t => t.lotNo, fail: t => `Lot이 다릅니다 — ${t.lotNo} (유통기한 ${fmtDe(t.expiryDt) || '미관리'})` },
+    LOC: { of: t => t.toLocCd, fail: t => `로케이션이 다릅니다 — ${t.toLocCd} 위치로 가세요` },
+};
+
 const LOC_KEY = 'mputaway.locKw';
 
 /**
@@ -33,22 +41,27 @@ const LOC_KEY = 'mputaway.locKw';
  */
 export default function MobilePutaway() {
     const [tasks, setTasks] = useState([]);
-    const [curTaskId, setCurTaskId] = useState(null);
     const [locKw, setLocKw] = useState(() => sessionStorage.getItem(LOC_KEY) ?? '');
-    const [step, setStep] = useState('PROD');
-    const [scanVal, setScanVal] = useState('');
     const [qty, setQty] = useState('');
     const [busy, setBusy] = useState(false);
-    const scanRef = useRef(null);
     const qtyRef = useRef(null);
 
     // 서버가 DIRECTED만, 유통기한 임박순으로 준다 — 이 순서가 곧 작업 순서(FEFO)다
-    const queue = useMemo(() => {
+    const filtered = useMemo(() => {
         const kw = locKw.trim().toLowerCase();
         return kw ? tasks.filter(t => (t.toLocCd ?? '').toLowerCase().includes(kw)) : tasks;
     }, [tasks, locKw]);
+
+    const { task, queue, step, scanVal, setScanVal, scanRef, handleScan, pass, skip, goTo, stay } = useScanFlow({
+        steps: STEPS,
+        queue: filtered,
+        idOf: t => t.putawayTaskId,
+        matchers: MATCHERS,
+        onReachTerminal: (t) => setQty(String(t.remainingQty)),
+        terminalRef: qtyRef,
+    });
+
     const remainTotal = useMemo(() => queue.reduce((s, t) => s + t.remainingQty, 0), [queue]);
-    const task = queue.find(t => t.putawayTaskId === curTaskId) ?? queue[0] ?? null;
 
     const fetchTasks = () => putawayApi.tasks({ status: 'DIRECTED' }).then(setTasks);
 
@@ -61,72 +74,16 @@ export default function MobilePutaway() {
         fetchTasks().catch(() => {});
     }, []);
 
-    // 단계·지시가 바뀔 때마다 입력에 포커스 — 스캐너(키보드 웨지) 입력이 바로 실리게 한다
-    useEffect(() => {
-        if (!task) return;
-        (step === 'QTY' ? qtyRef : scanRef).current?.focus();
-    }, [step, task?.putawayTaskId]);
-
-    // ── 스캔 확인 ─────────────────────────────────────────────
-    const scanFail = (msg) => {
-        failFeedback();
-        toast.error(msg);
-        setScanVal('');
-        scanRef.current?.focus();
-    };
-
-    const passStep = () => {
-        okFeedback();
-        setScanVal('');
-        if (step === 'PROD') {
-            setStep('LOT');
-        } else if (step === 'LOT') {
-            setStep('LOC');
-        } else if (step === 'LOC') {
-            setQty(String(task.remainingQty));
-            setStep('QTY');
-        }
-    };
-
-    const handleScan = (raw) => {
-        const v = String(raw ?? '').trim().toUpperCase();
-        if (!v || !task) return;
-        if (step === 'PROD') {
-            if (v === String(task.prodCd).toUpperCase()) passStep();
-            else scanFail(`상품이 다릅니다 — ${task.prodCd} ${task.prodNm}`);
-        } else if (step === 'LOT') {
-            if (v === String(task.lotNo).toUpperCase()) passStep();
-            else scanFail(`Lot이 다릅니다 — ${task.lotNo} (유통기한 ${fmtDe(task.expiryDt) || '미관리'})`);
-        } else if (step === 'LOC') {
-            if (v === String(task.toLocCd).toUpperCase()) passStep();
-            else scanFail(`로케이션이 다릅니다 — ${task.toLocCd} 위치로 가세요`);
-        }
-    };
-
-    const skipTask = () => {
-        if (queue.length < 2) {
-            toast('건너뛸 다음 지시가 없습니다.');
-            return;
-        }
-        const i = queue.findIndex(t => t.putawayTaskId === task.putawayTaskId);
-        setCurTaskId(queue[(i + 1) % queue.length].putawayTaskId);
-        setStep('PROD');
-        setScanVal('');
-    };
-
     /** 실행 뒤 재조회 — 같은 지시에 잔여가 남으면 그 자리에 머물고, 닫혔으면 맨 위(FEFO)로 돌아간다 */
     const afterAction = async (prev) => {
         const fresh = await putawayApi.tasks({ status: 'DIRECTED' });
         setTasks(fresh);
         const cur = fresh.find(t => t.putawayTaskId === prev.putawayTaskId);
         if (cur && cur.remainingQty > 0) {
-            setQty(String(cur.remainingQty));
-            setStep('QTY');
+            stay(cur);
             return;
         }
-        setCurTaskId(null); // 파생값이 목록 맨 위 지시로 떨어진다 — 위에서부터가 FEFO다
-        setStep('PROD');
-        setScanVal('');
+        goTo(null); // 큐 맨 앞 — 건너뛴 지시는 뒤로 밀려 있어 다시 걸리지 않는다
     };
 
     // ── 적치 실행 ─────────────────────────────────────────────
@@ -267,7 +224,7 @@ export default function MobilePutaway() {
             {/* 단계별 입력 — PROD·LOT·LOC은 스캔, QTY는 수량 확정 */}
             {step !== 'QTY' ? (
                 <ScanRow
-                    ref={scanRef} value={scanVal} onChange={setScanVal} onCommit={handleScan} onSkip={passStep}
+                    ref={scanRef} value={scanVal} onChange={setScanVal} onCommit={handleScan} onSkip={pass}
                     placeholder={step === 'PROD' ? '상품 바코드 스캔'
                         : step === 'LOT' ? 'Lot 바코드 스캔' : '대상 로케이션 스캔'}
                 />
@@ -283,7 +240,7 @@ export default function MobilePutaway() {
 
             {/* 하단 보조 동작 — 결품 종결 같은 예외 출구가 없다. 자리 문제는 웹에서 지시를 고친다 */}
             <div className="mt-auto flex flex-col gap-1.5 shrink-0">
-                <button onClick={skipTask} className="btn-ghost justify-center py-3">
+                <button onClick={skip} className="btn-ghost justify-center py-3">
                     <SkipForward size={14} /> 건너뛰기
                 </button>
                 <p className="text-[11px] text-slate-400 text-center">

@@ -3,9 +3,10 @@ import { CheckCircle2, ChevronLeft, Calculator, MapPin, RefreshCw, SkipForward }
 import toast from 'react-hot-toast';
 
 import { invStktkApi } from '@/api/invStktkApi';
+import { useScanFlow } from '@/hooks/useScanFlow';
 import { TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { fmtDe, fmtDt, num } from '@/utils/format';
-import { failFeedback, okFeedback } from '@/utils/scanFeedback';
+import { okFeedback } from '@/utils/scanFeedback';
 import { Badge } from '@/components/common/Badge';
 import { QtyStepper } from '@/components/mobile/QtyStepper';
 import { ScanRow } from '@/components/mobile/ScanRow';
@@ -18,6 +19,13 @@ const STEPS = [
     { key: 'LOT', label: 'Lot' },
     { key: 'QTY', label: '수량' },
 ];
+
+/** 단계별 대조 대상 — 무엇과 맞춰 보고 틀리면 뭐라고 알릴지. 단계 진행 자체는 useScanFlow가 한다 */
+const MATCHERS = {
+    LOC: { of: l => l.locCd, fail: l => `로케이션이 다릅니다 — ${l.locCd} 위치로 가세요` },
+    PROD: { of: l => l.prodCd, fail: l => `상품이 다릅니다 — ${l.prodCd} ${l.prodNm}` },
+    LOT: { of: l => l.lotNo, fail: l => `Lot이 다릅니다 — ${l.lotNo} (유통기한 ${fmtDe(l.expiryDt) || '미관리'})` },
+};
 
 /** 진행 위치 복원용 sessionStorage 키 — 새로고침해도 세던 조사로 돌아온다 */
 const STKTK_KEY = 'mstktk.id';
@@ -34,21 +42,29 @@ export default function MobileStockCount() {
     const [stktks, setStktks] = useState([]);
     const [stktk, setStktk] = useState(null);        // 선택 조사 헤더 (없으면 조사 목록 화면)
     const [lines, setLines] = useState([]);
-    const [curLnId, setCurLnId] = useState(null);
-    const [step, setStep] = useState('LOC');
-    const [scanVal, setScanVal] = useState('');
     const [qty, setQty] = useState('');
     const [busy, setBusy] = useState(false);
-    const scanRef = useRef(null);
     const qtyRef = useRef(null);
 
     // 미조사 라인만, 로케이션 순 = 동선 순 (같은 로케이션 안에서는 상품 순)
-    const queue = useMemo(() => lines
+    const uncounted = useMemo(() => lines
         .filter(l => l.stktkQty == null)
         .sort((a, b) => (a.locCd ?? '').localeCompare(b.locCd ?? '') || (a.prodCd ?? '').localeCompare(b.prodCd ?? '')),
     [lines]);
+
+    const {
+        task: line, queue, step, scanVal, setScanVal, scanRef, handleScan, pass, skip, goTo, clear,
+    } = useScanFlow({
+        steps: STEPS,
+        queue: uncounted,
+        idOf: l => l.lnId,
+        matchers: MATCHERS,
+        onReachTerminal: () => setQty(''), // 블라인드 — 전산수량은 물론 기본값도 채우지 않는다
+        terminalRef: qtyRef,
+        skipEmptyMsg: '건너뛸 다음 라인이 없습니다.',
+    });
+
     const countedCnt = lines.length - queue.length;
-    const line = queue.find(l => l.lnId === curLnId) ?? queue[0] ?? null;
 
     const fetchStktks = () => invStktkApi.list({ status: 'CREATED' }).then(setStktks);
 
@@ -58,16 +74,14 @@ export default function MobileStockCount() {
         sessionStorage.setItem(STKTK_KEY, String(head.invStktkId));
         setStktk(head);
         setLines(detail.lines);
-        setCurLnId(null);
-        setStep('LOC');
-        setScanVal('');
+        clear();
     };
 
     const backToList = () => {
         sessionStorage.removeItem(STKTK_KEY);
         setStktk(null);
         setLines([]);
-        setCurLnId(null);
+        clear();
         fetchStktks().catch(() => {});
     };
 
@@ -81,60 +95,9 @@ export default function MobileStockCount() {
             const head = list.find(x => x.invStktkId === saved);
             if (head) await openStktk(head);
         })();
+        // 마운트 1회 — openStktk는 의존성으로 넣지 않는다 (매 렌더 새 함수라 넣으면 조회가 반복된다)
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-
-    // 단계·라인이 바뀔 때마다 입력에 포커스 — 스캐너(키보드 웨지) 입력이 바로 실리게 한다
-    useEffect(() => {
-        if (!line) return;
-        (step === 'QTY' ? qtyRef : scanRef).current?.focus();
-    }, [step, line?.lnId]);
-
-    // ── 스캔 확인 ─────────────────────────────────────────────
-    const scanFail = (msg) => {
-        failFeedback();
-        toast.error(msg);
-        setScanVal('');
-        scanRef.current?.focus();
-    };
-
-    const passStep = () => {
-        okFeedback();
-        setScanVal('');
-        if (step === 'LOC') {
-            setStep('PROD');
-        } else if (step === 'PROD') {
-            setStep('LOT');
-        } else if (step === 'LOT') {
-            setQty(''); // 블라인드 — 기본값을 채우지 않는다
-            setStep('QTY');
-        }
-    };
-
-    const handleScan = (raw) => {
-        const v = String(raw ?? '').trim().toUpperCase();
-        if (!v || !line) return;
-        if (step === 'LOC') {
-            if (v === String(line.locCd).toUpperCase()) passStep();
-            else scanFail(`로케이션이 다릅니다 — ${line.locCd} 위치로 가세요`);
-        } else if (step === 'PROD') {
-            if (v === String(line.prodCd).toUpperCase()) passStep();
-            else scanFail(`상품이 다릅니다 — ${line.prodCd} ${line.prodNm}`);
-        } else if (step === 'LOT') {
-            if (v === String(line.lotNo).toUpperCase()) passStep();
-            else scanFail(`Lot이 다릅니다 — ${line.lotNo} (유통기한 ${fmtDe(line.expiryDt) || '미관리'})`);
-        }
-    };
-
-    const skipLine = () => {
-        if (queue.length < 2) {
-            toast('건너뛸 다음 라인이 없습니다.');
-            return;
-        }
-        const i = queue.findIndex(l => l.lnId === line.lnId);
-        setCurLnId(queue[(i + 1) % queue.length].lnId);
-        setStep('LOC');
-        setScanVal('');
-    };
 
     // ── 카운트 저장 ───────────────────────────────────────────
     const handleSaveClick = () => {
@@ -157,9 +120,7 @@ export default function MobileStockCount() {
             toast.success(`${line.locCd} · ${line.prodNm} — ${num(n)}개 기록`);
             const detail = await invStktkApi.detail(stktk.invStktkId);
             setLines(detail.lines);
-            setCurLnId(null); // 파생값이 다음 미조사 라인(로케이션 순)으로 떨어진다
-            setStep('LOC');
-            setScanVal('');
+            goTo(null); // 다음 미조사 라인(로케이션 순) — 건너뛴 라인은 뒤로 밀려 있다
         } catch (e) {
             toast.error(e.message || '카운트 저장에 실패했습니다.');
         } finally {
@@ -258,7 +219,7 @@ export default function MobileStockCount() {
             {/* 단계별 입력 — LOC·PROD·LOT은 스캔, QTY는 실물 수량 입력 */}
             {step !== 'QTY' ? (
                 <ScanRow
-                    ref={scanRef} value={scanVal} onChange={setScanVal} onCommit={handleScan} onSkip={passStep}
+                    ref={scanRef} value={scanVal} onChange={setScanVal} onCommit={handleScan} onSkip={pass}
                     placeholder={step === 'LOC' ? '로케이션 스캔'
                         : step === 'PROD' ? '상품 바코드 스캔' : 'Lot 바코드 스캔'}
                 />
@@ -276,7 +237,7 @@ export default function MobileStockCount() {
 
             {/* 하단 보조 동작 — 장부에 없는 실물 발견·잘못 센 라인 되돌리기는 웹 몫이다 */}
             <div className="mt-auto flex flex-col gap-1.5 shrink-0">
-                <button onClick={skipLine} className="btn-ghost justify-center py-3">
+                <button onClick={skip} className="btn-ghost justify-center py-3">
                     <SkipForward size={14} /> 건너뛰기
                 </button>
                 <p className="text-[11px] text-slate-400 text-center">

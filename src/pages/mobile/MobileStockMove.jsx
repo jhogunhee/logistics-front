@@ -4,9 +4,10 @@ import { ArrowLeftRight, ArrowRight, CheckCircle2, ChevronLeft, MapPin, RefreshC
 import toast from 'react-hot-toast';
 
 import { invMovApi } from '@/api/invMovApi';
+import { useScanFlow } from '@/hooks/useScanFlow';
 import { INV_MOV_DVSN_META } from '@/constants/badgeMeta';
 import { fmtDe, num } from '@/utils/format';
-import { failFeedback, okFeedback } from '@/utils/scanFeedback';
+import { okFeedback } from '@/utils/scanFeedback';
 import { Badge } from '@/components/common/Badge';
 import { QtyStepper } from '@/components/mobile/QtyStepper';
 import { ScanRow } from '@/components/mobile/ScanRow';
@@ -25,6 +26,14 @@ const STEPS = [
     { key: 'QTY', label: '수량' },
 ];
 
+/** 단계별 대조 대상 — 무엇과 맞춰 보고 틀리면 뭐라고 알릴지. 단계 진행 자체는 useScanFlow가 한다 */
+const MATCHERS = {
+    FROM: { of: t => t.fromLocCd, fail: t => `출발 로케이션이 다릅니다 — ${t.fromLocCd} 위치로 가세요` },
+    PROD: { of: t => t.prodCd, fail: t => `상품이 다릅니다 — ${t.prodCd} ${t.prodNm}` },
+    LOT: { of: t => t.lotNo, fail: t => `Lot이 다릅니다 — ${t.lotNo} (유통기한 ${fmtDe(t.expiryDt) || '미관리'})` },
+    TO: { of: t => t.toLocCd, fail: t => `도착 로케이션이 다릅니다 — ${t.toLocCd} 위치로 가세요` },
+};
+
 const LOC_KEY = 'mmove.locKw';
 
 /**
@@ -40,23 +49,27 @@ const isWorkable = (r) => ['INV_MOV', 'SPMT'].includes(r.movDvsn) && r.status ==
  */
 export default function MobileStockMove() {
     const [tasks, setTasks] = useState([]);
-    const [curTaskId, setCurTaskId] = useState(null);
     const [locKw, setLocKw] = useState(() => sessionStorage.getItem(LOC_KEY) ?? '');
-    const [step, setStep] = useState('FROM');
-    const [scanVal, setScanVal] = useState('');
     const [qty, setQty] = useState('');
     const [busy, setBusy] = useState(false);
-    const scanRef = useRef(null);
     const qtyRef = useRef(null);
 
     const workableAll = useMemo(() => tasks.filter(isWorkable), [tasks]);
     // 구역 필터는 출발 로케이션 기준 — 작업이 시작되는 곳이 작업자의 구역이다
-    const queue = useMemo(() => {
+    const filtered = useMemo(() => {
         const kw = locKw.trim().toLowerCase();
         return kw ? workableAll.filter(t => (t.fromLocCd ?? '').toLowerCase().includes(kw)) : workableAll;
     }, [workableAll, locKw]);
+
+    const { task, queue, step, scanVal, setScanVal, scanRef, handleScan, pass, skip, goTo, stay } = useScanFlow({
+        steps: STEPS,
+        queue: filtered,
+        idOf: t => t.invMovTaskId,
+        matchers: MATCHERS,
+        onReachTerminal: (t) => setQty(String(t.remainingQty)),
+        terminalRef: qtyRef,
+    });
     const remainTotal = useMemo(() => queue.reduce((s, t) => s + t.remainingQty, 0), [queue]);
-    const task = queue.find(t => t.invMovTaskId === curTaskId) ?? queue[0] ?? null;
 
     const fetchTasks = () => invMovApi.list({ status: 'DIRECTED' }).then(setTasks);
 
@@ -69,77 +82,16 @@ export default function MobileStockMove() {
         fetchTasks().catch(() => {});
     }, []);
 
-    // 단계·지시가 바뀔 때마다 입력에 포커스 — 스캐너(키보드 웨지) 입력이 바로 실리게 한다
-    useEffect(() => {
-        if (!task) return;
-        (step === 'QTY' ? qtyRef : scanRef).current?.focus();
-    }, [step, task?.invMovTaskId]);
-
-    // ── 스캔 확인 ─────────────────────────────────────────────
-    const scanFail = (msg) => {
-        failFeedback();
-        toast.error(msg);
-        setScanVal('');
-        scanRef.current?.focus();
-    };
-
-    const passStep = () => {
-        okFeedback();
-        setScanVal('');
-        if (step === 'FROM') {
-            setStep('PROD');
-        } else if (step === 'PROD') {
-            setStep('LOT');
-        } else if (step === 'LOT') {
-            setStep('TO');
-        } else if (step === 'TO') {
-            setQty(String(task.remainingQty));
-            setStep('QTY');
-        }
-    };
-
-    const handleScan = (raw) => {
-        const v = String(raw ?? '').trim().toUpperCase();
-        if (!v || !task) return;
-        if (step === 'FROM') {
-            if (v === String(task.fromLocCd).toUpperCase()) passStep();
-            else scanFail(`출발 로케이션이 다릅니다 — ${task.fromLocCd} 위치로 가세요`);
-        } else if (step === 'PROD') {
-            if (v === String(task.prodCd).toUpperCase()) passStep();
-            else scanFail(`상품이 다릅니다 — ${task.prodCd} ${task.prodNm}`);
-        } else if (step === 'LOT') {
-            if (v === String(task.lotNo).toUpperCase()) passStep();
-            else scanFail(`Lot이 다릅니다 — ${task.lotNo} (유통기한 ${fmtDe(task.expiryDt) || '미관리'})`);
-        } else if (step === 'TO') {
-            if (v === String(task.toLocCd).toUpperCase()) passStep();
-            else scanFail(`도착 로케이션이 다릅니다 — ${task.toLocCd} 위치로 가세요`);
-        }
-    };
-
-    const skipTask = () => {
-        if (queue.length < 2) {
-            toast('건너뛸 다음 지시가 없습니다.');
-            return;
-        }
-        const i = queue.findIndex(t => t.invMovTaskId === task.invMovTaskId);
-        setCurTaskId(queue[(i + 1) % queue.length].invMovTaskId);
-        setStep('FROM');
-        setScanVal('');
-    };
-
     /** 확정 뒤 재조회 — 같은 지시에 잔여가 남으면 그 자리에 머물고, 닫혔으면 목록 맨 위로 돌아간다 */
     const afterAction = async (prev) => {
         const fresh = await invMovApi.list({ status: 'DIRECTED' });
         setTasks(fresh);
         const cur = fresh.find(t => t.invMovTaskId === prev.invMovTaskId);
         if (cur && isWorkable(cur)) {
-            setQty(String(cur.remainingQty));
-            setStep('QTY');
+            stay(cur);
             return;
         }
-        setCurTaskId(null); // 파생값이 목록 맨 위 지시로 떨어진다
-        setStep('FROM');
-        setScanVal('');
+        goTo(null); // 큐 맨 앞 — 건너뛴 지시는 뒤로 밀려 있어 다시 걸리지 않는다
     };
 
     // ── 이동확정 ──────────────────────────────────────────────
@@ -287,7 +239,7 @@ export default function MobileStockMove() {
             {/* 단계별 입력 — FROM·PROD·LOT·TO는 스캔, QTY는 수량 확정 */}
             {step !== 'QTY' ? (
                 <ScanRow
-                    ref={scanRef} value={scanVal} onChange={setScanVal} onCommit={handleScan} onSkip={passStep}
+                    ref={scanRef} value={scanVal} onChange={setScanVal} onCommit={handleScan} onSkip={pass}
                     placeholder={step === 'FROM' ? '출발 로케이션 스캔'
                         : step === 'PROD' ? '상품 바코드 스캔'
                             : step === 'LOT' ? 'Lot 바코드 스캔' : '도착 로케이션 스캔'}
@@ -304,7 +256,7 @@ export default function MobileStockMove() {
 
             {/* 하단 보조 동작 — 잔량 취소는 예약을 푸는 관리 동작이라 웹 몫이다 */}
             <div className="mt-auto flex flex-col gap-1.5 shrink-0">
-                <button onClick={skipTask} className="btn-ghost justify-center py-3">
+                <button onClick={skip} className="btn-ghost justify-center py-3">
                     <SkipForward size={14} /> 건너뛰기
                 </button>
                 <p className="text-[11px] text-slate-400 text-center">
