@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
 import { Send, Sparkles } from 'lucide-react';
@@ -8,6 +8,14 @@ import { atoOdrApi } from '@/api/atoOdrApi';
 import { num } from '@/utils/format';
 import SearchBar, { SearchText, SearchProd } from '@/components/common/SearchBar';
 import ConfirmModal from '@/components/common/ConfirmModal';
+
+/** 수량 컬럼 한 벌 — 오른쪽 정렬 + 천단위 콤마. 컬럼 정의가 useMemo 안이라 모듈 스코프에 둔다 */
+const qtyCol = (field, headerName, width, tooltip) => ({
+    field, headerName, width,
+    headerTooltip: tooltip,
+    cellClass: 'ag-right-aligned-cell',
+    valueFormatter: (p) => (p.value == null ? '' : num(p.value)),
+});
 
 // 자동발주 — 순재고(가용 + 미입고 예정 + 미확정 발주)가 발주점 아래인 상품을 거래처별로 묶어
 // 입고주문(작성)으로 낸다. 확정(→ 입고예정)은 「입고주문 관리」에서 사람이 누른다.
@@ -42,7 +50,9 @@ export default function AtoOdrPlan() {
     };
 
     // ── 상단: 거래처별 제안 ──
-    const vendorColumnDefs = [
+    // useMemo로 감싼다 — 매 렌더마다 새 배열을 주면 ag-grid가 그때마다 컬럼을 다시 적용한다.
+    // 정기 보충 화면(StockSpmt)과 같은 형태
+    const vendorColumnDefs = useMemo(() => [
         { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
         { field: 'vndrCd', headerName: '거래처', width: 120 },
         { field: 'vndrNm', headerName: '거래처명', width: 180, flex: 1 },
@@ -61,7 +71,7 @@ export default function AtoOdrPlan() {
             field: 'expctDe', headerName: '입고 예정일', width: 130,
             headerTooltip: '오늘 + 이 거래처 라인 중 가장 긴 리드타임',
         },
-    ];
+    ], []);
 
     const onVendorSelectionChanged = () => {
         const row = vendorGridRef.current?.api.getSelectedNodes()?.[0];
@@ -69,17 +79,12 @@ export default function AtoOdrPlan() {
     };
 
     // ── 하단: 선택 거래처의 상품 라인 ──
-    const qtyCol = (field, headerName, width, tooltip) => ({
-        field, headerName, width,
-        headerTooltip: tooltip,
-        cellClass: 'ag-right-aligned-cell',
-        valueFormatter: (p) => (p.value == null ? '' : num(p.value)),
-    });
-
-    const lineColumnDefs = [
+    const lineColumnDefs = useMemo(() => [
         { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
         { field: 'prodCd', headerName: '상품', width: 130 },
-        { field: 'prodNm', headerName: '상품명', width: 180, flex: 1 },
+        // flex를 주지 않는다 — 컬럼이 많아 총 폭이 화면을 넘으면 flex 컬럼만 최소폭까지 수축해
+        // 상품명이 「왕..」으로 뭉개진다. 넘치는 폭은 가로 스크롤이 받는다
+        { field: 'prodNm', headerName: '상품명', width: 180 },
         qtyCol('avalQty', '가용', 90, '창고의 가용 재고 (보유 − 예약 − 보류). 반품존은 뺀다'),
         qtyCol('openAsnQty', '입고예정', 100, '아직 입고확정되지 않은 입고예정의 잔량 (예정 − 검수 − 불량)'),
         qtyCol('openOdrEaQty', '미확정 발주', 110, '작성 상태로 남아 있는 발주의 낱개 환산 — 이걸 세야 어제 낸 발주를 또 내지 않는다'),
@@ -99,7 +104,7 @@ export default function AtoOdrPlan() {
             headerTooltip: '부족분을 발주단위로 올림한 뒤 최소주문수량을 적용한 값 — 고칠 수 있다 (0이면 제외)',
             valueFormatter: (p) => (p.value == null || p.value === '' ? '' : num(p.value)),
         },
-    ];
+    ], []);
 
     // ── 발행 ──
     const handleIssueClick = () => {
