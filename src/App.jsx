@@ -11,6 +11,7 @@ import UomMaster from "@/pages/master/UomMaster.jsx";
 import ZonMaster from "@/pages/master/ZonMaster.jsx";
 import LocMaster from "@/pages/master/LocMaster.jsx";
 import FxngLocMaster from "@/pages/master/FxngLocMaster.jsx";
+import ProdVndrMaster from "@/pages/master/ProdVndrMaster.jsx";
 import VendorMaster from "@/pages/master/VendorMaster.jsx";
 import StoreMaster from "@/pages/master/StoreMaster.jsx";
 import NbrRuleMaster from "@/pages/master/NbrRuleMaster.jsx";
@@ -21,6 +22,7 @@ import WaveStrategy from "@/pages/strategy/WaveStrategy.jsx";
 import AllocationStrategy from "@/pages/strategy/AllocationStrategy.jsx";
 import InboundOrder from "@/pages/oms/InboundOrder.jsx";
 import InboundOrderList from "@/pages/oms/InboundOrderList.jsx";
+import AtoOdrPlan from "@/pages/oms/AtoOdrPlan.jsx";
 import OutboundOrder from "@/pages/oms/OutboundOrder.jsx";
 import OutboundOrderList from "@/pages/oms/OutboundOrderList.jsx";
 import AsnList from "@/pages/inbound/AsnList.jsx";
@@ -69,6 +71,7 @@ export default function App() {
                         {/* 관리 화면에서 주문번호를 눌러 들어오는 수정 경로. 같은 컴포넌트가 id 유무로 갈린다 */}
                         <Route path="/oms/inbound-order/:omsIbOrderId" element={<InboundOrder/>}/>
                         <Route path="/oms/inbound-orders" element={<InboundOrderList/>}/>
+                        <Route path="/oms/ato-odr" element={<AtoOdrPlan/>}/>
                         <Route path="/oms/outbound-order" element={<OutboundOrder/>}/>
                         {/* 입고주문과 같은 규칙 — 관리 화면에서 주문번호를 눌러 들어오는 수정 경로 */}
                         <Route path="/oms/outbound-order/:omsOutbOrderId" element={<OutboundOrder/>}/>
@@ -117,6 +120,7 @@ export default function App() {
                         <Route path="/master/zone" element={<ZonMaster/>}/>
                         <Route path="/master/location" element={<LocMaster/>}/>
                         <Route path="/master/fxng-loc" element={<FxngLocMaster/>}/>
+                        <Route path="/master/prod-vndr" element={<ProdVndrMaster/>}/>
                         <Route path="/master/vendor" element={<VendorMaster/>}/>
                         <Route path="/master/store" element={<StoreMaster/>}/>
                         <Route path="/master/nbr-rules" element={<NbrRuleMaster/>}/>
