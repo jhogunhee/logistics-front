@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from "react-hot-toast";
+import { Warehouse } from "lucide-react";
 
 function Login() {
     const navigate = useNavigate();
@@ -38,8 +39,8 @@ function Login() {
                 {/* 로고 / 타이틀 */}
                 <div className="mb-8 text-center">
                     <div className="flex justify-center mb-4">
-                        <div className="w-12 h-12 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-xl font-bold">
-                            W
+                        <div className="w-12 h-12 rounded-xl bg-indigo-600 flex items-center justify-center shadow-inner">
+                            <Warehouse size={28} className="text-white" />
                         </div>
                     </div>
                     <h1 className="text-2xl font-bold text-gray-900">

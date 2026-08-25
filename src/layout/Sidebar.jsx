@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import {
     ArrowLeftRight,
     Barcode,
@@ -334,18 +334,29 @@ export default function Sidebar({ mode = "expanded", onToggle, onClose }) {
                 </button>
             )}
             {/* 로고 영역 */}
-            <div className={`flex items-center h-16 shrink-0 ${compact ? "justify-center" : "gap-3 px-5"}`}>
-                <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center shadow-inner shrink-0">
-                    <Warehouse size={21} className="text-white" />
-                </div>
-                {!compact && (
-                    <div className="flex-1 min-w-0 whitespace-nowrap">
-                        <h3 className="font-bold text-slate-800 leading-none">WareFlow</h3>
-                        <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
-                            <span className="w-2 h-2 bg-green-500 rounded-full"></span> 운영 중
-                        </p>
+            <div className={`flex items-center h-16 shrink-0 ${compact ? "justify-center" : "gap-1 px-3"}`}>
+                {/* 로고 = 대시보드로 가는 길. 드로어는 화면을 덮고 있으니 이동과 함께 닫는다.
+                    NavLink가 아니라 Link인 이유는 여기에 활성 표시가 필요 없어서다 */}
+                <Link
+                    to="/"
+                    onClick={mode === "drawer" ? onClose : undefined}
+                    title="대시보드로 이동"
+                    aria-label="대시보드로 이동"
+                    className={`flex items-center rounded-xl hover:bg-slate-50 transition-colors
+                                ${compact ? "p-1" : "flex-1 min-w-0 gap-3 px-2 py-2"}`}
+                >
+                    <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center shadow-inner shrink-0">
+                        <Warehouse size={21} className="text-white" />
                     </div>
-                )}
+                    {!compact && (
+                        <div className="flex-1 min-w-0 whitespace-nowrap">
+                            <h3 className="font-bold text-slate-800 leading-none">WareFlow</h3>
+                            <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
+                                <span className="w-2 h-2 bg-green-500 rounded-full"></span> 운영 중
+                            </p>
+                        </div>
+                    )}
+                </Link>
                 {mode === "drawer" && (
                     <button
                         type="button"
