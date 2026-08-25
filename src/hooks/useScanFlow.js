@@ -13,7 +13,7 @@
  * @param onReachTerminal 확정 단계 진입 시 호출 (task를 받는다)
  * @param terminalRef    확정 단계에서 포커스할 입력 (없으면 포커스하지 않는다)
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 
 import { failFeedback, okFeedback } from '@/utils/scanFeedback';
@@ -26,9 +26,21 @@ export function useScanFlow({ steps, queue, idOf, matchers, onReachTerminal, ter
     const [step, setStep] = useState(firstStep);
     const [scanVal, setScanVal] = useState('');
     const [curId, setCurId] = useState(null);
+    // 건너뛴 지시 — 이 화면을 보는 동안만 기억한다. 못 하는 지시(자리가 막혔다·실물이 없다)를
+    // 뒤로 미루는 것이 목적이라 서버에 남길 상태가 아니고, 화면을 나갔다 오면 다시 만나는 게 맞다
+    const [skipped, setSkipped] = useState(() => new Set());
     const scanRef = useRef(null);
 
-    const ordered = queue;
+    // 건너뛴 것을 뒤로 보낸 순서 — 실행 후 큐 맨 앞으로 돌아가도 방금 건너뛴 지시를 다시 만나지 않는다.
+    // 목록에서 빼지는 않는다. 사정이 바뀌면(보충이 왔다, 물건을 찾았다) 그 자리에서 다시 잡아야 한다
+    const ordered = useMemo(() => {
+        if (skipped.size === 0) return queue;
+        const front = [], back = [];
+        for (const t of queue) (skipped.has(idOf(t)) ? back : front).push(t);
+        return [...front, ...back];
+        // idOf는 화면이 인라인으로 넘기는 함수라 매 렌더 새 참조다 — 의존성에 넣으면 memo가 무의미해진다
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [queue, skipped]);
 
     const task = ordered.find(t => idOf(t) === curId) ?? ordered[0] ?? null;
     const taskId = task ? idOf(task) : null;
@@ -84,15 +96,17 @@ export function useScanFlow({ steps, queue, idOf, matchers, onReachTerminal, ter
             toast(skipEmptyMsg);
             return;
         }
+        setSkipped(prev => new Set(prev).add(taskId));
         const i = ordered.findIndex(t => idOf(t) === taskId);
         goTo(idOf(ordered[(i + 1) % ordered.length]));
     };
 
-    /** 화면이 목록으로 나갔다 들어올 때 — 커서·단계를 비운다 */
+    /** 화면이 목록으로 나갔다 들어올 때 — 커서·단계·건너뛴 기억을 모두 비운다 */
     const clear = () => {
         setCurId(null);
         setStep(firstStep);
         setScanVal('');
+        setSkipped(new Set());
     };
 
     return { task, queue: ordered, step, scanVal, setScanVal, scanRef, handleScan, pass, skip, goTo, stay, clear };
