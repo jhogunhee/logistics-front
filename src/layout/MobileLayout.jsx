@@ -7,8 +7,9 @@ import ServerWakeGate from "@/components/common/ServerWakeGate.jsx";
  * 현장 단말은 화면이 좁고 한 번에 한 작업만 하므로 데스크톱 Layout을 쓰지 않는다.
  */
 export default function MobileLayout() {
+    // h-dvh — 100vh는 주소창이 숨겨진 최대 높이라, 주소창이 보이면 하단 실행 버튼이 그만큼 화면 밖으로 밀린다
     return (
-        <div className="flex flex-col h-screen bg-slate-100">
+        <div className="flex flex-col h-dvh bg-slate-100">
             <header className="flex items-center gap-2 h-12 px-3 bg-white border-b border-slate-200 shrink-0">
                 {/* 로고 = 작업 선택(홈)으로 — 어느 화면에서든 한 번에 돌아온다 */}
                 <Link to="/m" className="flex items-center gap-2">
