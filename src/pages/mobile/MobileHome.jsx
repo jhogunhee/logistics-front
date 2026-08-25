@@ -1,10 +1,11 @@
 import { Link } from 'react-router-dom';
-import { ChevronRight, Layers, PackageOpen } from 'lucide-react';
+import { ArrowLeftRight, ChevronRight, Layers, PackageOpen } from 'lucide-react';
 
 /** PDA에 열린 작업 화면들 — 실행(실적을 쌓는 행위)만 올린다. 지시 발행·관리는 데스크톱 몫 */
 const TASKS = [
     { to: '/m/picking', label: '피킹', desc: '출고 집품 — 보관 로케이션에서 집어 SHIP-STAGE로', icon: PackageOpen },
     { to: '/m/putaway', label: '적치', desc: '입고 적치 — RCV-STAGE에서 지시된 보관 로케이션으로', icon: Layers },
+    { to: '/m/stock-move', label: '재고이동', desc: '이동지시 확정 — 출발 로케이션에서 도착 로케이션으로', icon: ArrowLeftRight },
 ];
 
 /** PDA 홈 — 작업 종류를 고른다. 현장 화면이라 큰 터치 카드뿐이다 */

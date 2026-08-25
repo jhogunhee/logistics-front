@@ -48,6 +48,7 @@ import Replenishment from "@/pages/outbound/Replenishment.jsx";
 import MobileHome from "@/pages/mobile/MobileHome.jsx";
 import MobilePicking from "@/pages/mobile/MobilePicking.jsx";
 import MobilePutaway from "@/pages/mobile/MobilePutaway.jsx";
+import MobileStockMove from "@/pages/mobile/MobileStockMove.jsx";
 
 /** 토스트 위치 — PDA(/m)는 좁은 화면 중앙 상단이 눈에 걸린다. 데스크톱은 기존 우상단 그대로 */
 function AppToaster() {
@@ -141,6 +142,7 @@ export default function App() {
                         <Route index element={<MobileHome/>}/>
                         <Route path="picking" element={<MobilePicking/>}/>
                         <Route path="putaway" element={<MobilePutaway/>}/>
+                        <Route path="stock-move" element={<MobileStockMove/>}/>
                     </Route>
                 </Routes>
             </BrowserRouter>
