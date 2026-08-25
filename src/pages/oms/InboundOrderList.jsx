@@ -42,15 +42,16 @@ const HEADER_COLUMN_DEFS = [
     },
     {
         // 표시명은 공통코드에서 받아 context로 넘긴다 (코드값만으론 화면에서 못 읽는다).
-        // 긴급만 색으로 띄운다 — 정상이 대부분이라 전부 뱃지를 달면 오히려 안 보인다.
+        // 정상은 뱃지 없이 — 대부분이라 전부 달면 오히려 안 보인다. 자동발주는 사람이 낸 것과
+        // 성격이 달라(밤에 저절로 생긴다) 긴급·반품의 앰버와 다른 색을 준다.
         field: 'odrDvsn', headerName: '발주구분', width: 100,
         cellStyle: centered,
         cellRenderer: (p) => {
             const nm = p.context.odrDvsnNm(p.value);
             if (!nm) return null;
-            return p.value === 'NRML'
-                ? <span className="text-[11px] text-slate-500">{nm}</span>
-                : <span className="text-[11px] px-2 py-0.5 rounded-full font-bold bg-amber-100 text-amber-700">{nm}</span>;
+            if (p.value === 'NRML') return <span className="text-[11px] text-slate-500">{nm}</span>;
+            const tone = p.value === 'ATO' ? 'bg-sky-100 text-sky-700' : 'bg-amber-100 text-amber-700';
+            return <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${tone}`}>{nm}</span>;
         },
     },
     {
