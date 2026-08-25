@@ -2,7 +2,7 @@
     "name": "WMS PDA",
     "short_name": "WMS PDA",
     "description": "창고 현장 실행 화면 (피킹)",
-    "start_url": "/m/picking",
+    "start_url": "/m",
     "display": "standalone",
     "orientation": "portrait",
     "background_color": "#f1f5f9",

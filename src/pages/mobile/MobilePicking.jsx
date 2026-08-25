@@ -1,12 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle2, ChevronLeft, Keyboard, MapPin, Minus, PackageOpen, PackageX, Plus, RefreshCw, ScanBarcode, SkipForward } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, MapPin, PackageOpen, PackageX, RefreshCw, SkipForward } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { outbPikngApi } from '@/api/outbPikngApi';
 import { useCodes } from '@/hooks/useCodes';
 import { ETC_RSN_CD } from '@/constants/rsnCodes';
 import { fmtDe, num } from '@/utils/format';
+import { failFeedback, okFeedback } from '@/utils/scanFeedback';
 import { ProdThumb } from '@/components/common/ProdThumb';
+import { QtyStepper } from '@/components/mobile/QtyStepper';
+import { ScanRow } from '@/components/mobile/ScanRow';
+import { StatBox } from '@/components/mobile/StatBox';
+import { StepChips } from '@/components/mobile/StepChips';
 
 /** 집품 단계 — 로케이션·상품·Lot을 차례로 스캔해 맞는 곳·맞는 물건·맞는 Lot임을 확인한 뒤 수량을 넣는다 */
 const STEPS = [
@@ -27,37 +32,6 @@ const STORE_DOTS = ['bg-indigo-500', 'bg-emerald-500', 'bg-amber-500', 'bg-rose-
 const WAV_KEY = 'mpicking.wavId';
 const LOC_KEY = 'mpicking.locKw';
 
-// 확인음 — 소음 많은 현장에서 토스트만으로는 부족하다. 소리를 못 내는 환경이면 조용히 넘어간다
-let audioCtx = null;
-const beep = (freq, ms) => {
-    try {
-        audioCtx ??= new (window.AudioContext || window.webkitAudioContext)();
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.frequency.value = freq;
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + ms / 1000);
-        osc.start();
-        osc.stop(audioCtx.currentTime + ms / 1000);
-    } catch { /* empty */ }
-};
-const okFeedback = () => {
-    navigator.vibrate?.(80);
-    beep(1200, 120);
-};
-
-/** 수량 3칸 (지시/기피킹/잔량) */
-const StatBox = ({ label, value, tone = '', big = false }) => (
-    <div className="rounded-lg bg-slate-50 py-1.5">
-        <p className="text-[11px] text-slate-400">{label}</p>
-        <p className={`font-bold tabular-nums ${big ? 'text-xl' : 'text-base'} ${tone || 'text-slate-700'}`}>
-            {value || '0'}
-        </p>
-    </div>
-);
-
 /**
  * 피킹 실행 (PDA — /m). 웹 피킹 화면과 같은 API를 쓰되, RF 표준대로 <b>한 번에 한 지시</b>를
  * 동선(srt_seq) 순으로 로케이션 → 상품 → Lot 확인을 거쳐 소진한다. 지시 발행·취소·실적 조회는
@@ -73,10 +47,10 @@ export default function MobilePicking() {
     const [step, setStep] = useState('LOC');
     const [scanVal, setScanVal] = useState('');
     const [qty, setQty] = useState('');
-    // 스캐너(키보드 웨지)가 기본이라 소프트 키보드를 띄우지 않는다 — 수동 입력은 토글로 연다
-    const [manualInput, setManualInput] = useState(false);
     const [busy, setBusy] = useState(false);
     const [closeShort, setCloseShort] = useState(null); // { rsnCd, rsnDscr }
+    // 부분 피킹 직후 잔량 처리 문답 — 실행이 끝난 뒤에 묻는다 (수량을 줄였다고 잔량을 멋대로 결품 내지 않는다)
+    const [askShort, setAskShort] = useState(null);     // 잔량이 남은 지시 (재조회 후 값)
     const scanRef = useRef(null);
     const qtyRef = useRef(null);
 
@@ -144,8 +118,7 @@ export default function MobilePicking() {
 
     // ── 스캔 확인 ─────────────────────────────────────────────
     const scanFail = (msg) => {
-        navigator.vibrate?.(200);
-        beep(250, 300);
+        failFeedback();
         toast.error(msg);
         setScanVal('');
         scanRef.current?.focus();
@@ -164,8 +137,8 @@ export default function MobilePicking() {
         }
     };
 
-    const handleScan = () => {
-        const v = scanVal.trim().toUpperCase();
+    const handleScan = (raw) => {
+        const v = String(raw ?? '').trim().toUpperCase();
         if (!v || !task) return;
         if (step === 'LOC') {
             if (v === String(task.locCd).toUpperCase()) passStep();
@@ -179,19 +152,6 @@ export default function MobilePicking() {
         }
     };
 
-    // 스캐너 종결자가 Enter가 아니라 Tab인 기종이 있다 — 둘 다 확인으로 받고 포커스 이동은 막는다
-    const onScanKeyDown = (e) => {
-        if (e.key === 'Enter' || e.key === 'Tab') {
-            e.preventDefault();
-            handleScan();
-        }
-    };
-
-    const toggleManualInput = () => {
-        setManualInput(m => !m);
-        scanRef.current?.focus();
-    };
-
     const skipTask = () => {
         if (openTasks.length < 2) {
             toast('건너뛸 다음 지시가 없습니다.');
@@ -203,7 +163,10 @@ export default function MobilePicking() {
         setScanVal('');
     };
 
-    /** 실행·종결 뒤 재조회 — 같은 지시에 잔량이 남으면 그 자리에 머물고, 닫혔으면 동선상 다음 지시로 간다 */
+    /**
+     * 실행·종결 뒤 재조회 — 같은 지시에 잔량이 남으면 그 자리에 머물고(그 지시를 돌려준다),
+     * 닫혔으면 동선상 다음 지시로 간다.
+     */
     const afterAction = async (prev) => {
         const fresh = (await outbPikngApi.taskDetail(wave.wavId)).rows;
         setRows(fresh);
@@ -211,7 +174,7 @@ export default function MobilePicking() {
         if (cur && isWorkable(cur)) {
             setQty(String(cur.remainQty));
             setStep('QTY');
-            return;
+            return cur;
         }
         const kw = locKw.trim().toLowerCase();
         const opens = fresh.filter(isWorkable)
@@ -220,11 +183,10 @@ export default function MobilePicking() {
         setCurTaskId(next?.taskId ?? null);
         setStep('LOC');
         setScanVal('');
+        return null;
     };
 
     // ── 피킹 실행 ─────────────────────────────────────────────
-    const bumpQty = (d) => setQty(q => String(Math.min(task.remainQty, Math.max(1, (Number(q) || 0) + d))));
-
     const handleExecClick = () => {
         const n = Number(qty);
         if (!(n >= 1) || n > task.remainQty) {
@@ -235,6 +197,7 @@ export default function MobilePicking() {
     };
 
     const doExec = async (n) => {
+        if (busy) return; // Enter 연타로 같은 실행이 두 번 나가는 것을 막는다 — 실적 취소가 없다
         setBusy(true);
         try {
             const res = await outbPikngApi.execute([{ pikngTaskId: task.taskId, qty: n }]);
@@ -243,7 +206,9 @@ export default function MobilePicking() {
             toast.success(`${num(n)}개를 피킹했습니다`
                 + (done.length > 0 ? ` — 피킹완료 주문 ${done.map(c => c.outbNo).join(', ')}` : ''));
             // 재조회 실패는 인터셉터가 알린다 — 여기서 삼키지 않으면 성공한 피킹이 실패 토스트로 둔갑한다
-            await afterAction(task).catch(() => {});
+            const stayed = await afterAction(task).catch(() => null);
+            // 잔량이 남았으면 그 자리에서 처리 방법을 묻는다 — 결품이 잦은 현장에서 확정 왕복을 줄인다
+            if (stayed) setAskShort(stayed);
         } catch (e) {
             toast.error(e.message || '피킹에 실패했습니다.');
         } finally {
@@ -262,6 +227,7 @@ export default function MobilePicking() {
     };
 
     const doCloseShort = async ({ rsnCd, rsnDscr }) => {
+        if (busy) return;
         setBusy(true);
         try {
             const res = await outbPikngApi.closeShort([{
@@ -345,7 +311,6 @@ export default function MobilePicking() {
     }
 
     // ── 집품 화면 ─────────────────────────────────────────────
-    const stepIdx = STEPS.findIndex(s => s.key === step);
     const storeColor = storeColorOf.get(task.storeNm ?? '—') ?? 'bg-slate-300';
     return (
         <div className="flex flex-col gap-3 h-full">
@@ -362,19 +327,7 @@ export default function MobilePicking() {
                 </p>
             )}
 
-            {/* 단계 표시 */}
-            <div className="flex gap-1 shrink-0">
-                {STEPS.map((s, i) => (
-                    <span key={s.key}
-                          className={`flex-1 flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-bold
-                              ${i === stepIdx ? 'bg-indigo-600 text-white'
-                                  : i < stepIdx ? 'bg-indigo-50 text-indigo-600'
-                                      : 'bg-white text-slate-400 border border-slate-200'}`}>
-                        {i < stepIdx && <CheckCircle2 size={13} />}
-                        {s.label}
-                    </span>
-                ))}
-            </div>
+            <StepChips steps={STEPS} current={step} />
 
             {/* 지시 카드 */}
             <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col gap-3 shrink-0">
@@ -404,9 +357,9 @@ export default function MobilePicking() {
                     ${step === 'LOT' ? 'bg-indigo-50 ring-2 ring-indigo-300' : 'bg-slate-50'}`}>
                     <span className="text-xs font-bold text-slate-400 shrink-0">Lot</span>
                     <span className="font-bold text-slate-700 truncate">{task.lotNo}</span>
-                    {task.expiryDt && (
-                        <span className="ml-auto text-xs text-slate-500 shrink-0">유통기한 {fmtDe(task.expiryDt)}</span>
-                    )}
+                    <span className="ml-auto text-xs text-slate-500 shrink-0">
+                        {task.expiryDt ? `유통기한 ${fmtDe(task.expiryDt)}` : '유통기한 미관리'}
+                    </span>
                 </div>
 
                 {/* 담을 곳 — 한 웨이브에 여러 납품처가 섞이므로 지시마다 다르다. 색은 점포 식별용 */}
@@ -425,44 +378,14 @@ export default function MobilePicking() {
 
             {/* 단계별 입력 — LOC·PROD·LOT은 스캔, QTY는 수량 확정 */}
             {step !== 'QTY' ? (
-                <div className="flex items-center gap-2 shrink-0">
-                    <div className="relative flex-1">
-                        <ScanBarcode size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                        <input
-                            ref={scanRef} value={scanVal} autoFocus
-                            inputMode={manualInput ? 'text' : 'none'}
-                            autoComplete="off" enterKeyHint="go"
-                            onChange={(e) => setScanVal(e.target.value)}
-                            onKeyDown={onScanKeyDown}
-                            placeholder={step === 'LOC' ? '로케이션 스캔'
-                                : step === 'PROD' ? '상품 바코드 스캔' : 'Lot 바코드 스캔'}
-                            className="input-base w-full pl-10 py-3 text-base"
-                        />
-                    </div>
-                    <button onClick={toggleManualInput} title="소프트 키보드로 직접 입력"
-                            className={`btn-ghost py-3 shrink-0 ${manualInput ? 'border-indigo-300 text-indigo-600' : ''}`}>
-                        <Keyboard size={15} />
-                    </button>
-                    <button onClick={passStep} className="btn-ghost py-3 shrink-0">스캔 생략</button>
-                </div>
+                <ScanRow
+                    ref={scanRef} value={scanVal} onChange={setScanVal} onCommit={handleScan} onSkip={passStep}
+                    placeholder={step === 'LOC' ? '로케이션 스캔'
+                        : step === 'PROD' ? '상품 바코드 스캔' : 'Lot 바코드 스캔'}
+                />
             ) : (
                 <div className="flex flex-col gap-2 shrink-0">
-                    <div className="flex items-center gap-2">
-                        <button onClick={() => bumpQty(-1)} aria-label="수량 빼기"
-                                className="p-3 rounded-xl bg-white border border-slate-200 text-slate-600 active:bg-slate-100">
-                            <Minus size={18} />
-                        </button>
-                        <input
-                            ref={qtyRef} value={qty} inputMode="numeric"
-                            onChange={(e) => setQty(e.target.value.replace(/\D/g, ''))}
-                            onKeyDown={(e) => { if (e.key === 'Enter') handleExecClick(); }}
-                            className="input-num flex-1 min-w-0 text-2xl font-bold py-2"
-                        />
-                        <button onClick={() => bumpQty(1)} aria-label="수량 더하기"
-                                className="p-3 rounded-xl bg-white border border-slate-200 text-slate-600 active:bg-slate-100">
-                            <Plus size={18} />
-                        </button>
-                    </div>
+                    <QtyStepper ref={qtyRef} qty={qty} onChange={setQty} onSubmit={handleExecClick} max={task.remainQty} />
                     <button onClick={handleExecClick} disabled={busy}
                             className="btn-primary justify-center py-3.5 text-base rounded-xl">
                         <PackageOpen size={18} /> 피킹 확인
@@ -480,6 +403,30 @@ export default function MobilePicking() {
                     <PackageX size={14} /> 결품 종결
                 </button>
             </div>
+
+            {/* 부분 피킹 직후 잔량 문답 — 더 집을지, 결품으로 닫을지 그 자리에서 고른다 */}
+            {askShort && (
+                <div className="fixed inset-0 z-50 bg-black/30 flex items-end" onMouseDown={() => setAskShort(null)}>
+                    <div className="w-full bg-white rounded-t-2xl p-4 pb-6 flex flex-col gap-3"
+                         onMouseDown={(e) => e.stopPropagation()}>
+                        <h3 className="text-base font-bold text-slate-800">
+                            잔량 {num(askShort.remainQty)}개가 남았습니다
+                        </h3>
+                        <p className="text-sm text-slate-500">
+                            실물이 더 있으면 나중에 다시 집으세요. 시킨 만큼 실물이 없으면 결품으로 닫습니다 — 사유는 다음 화면에서 받습니다.
+                        </p>
+                        <div className="flex gap-2">
+                            <button onClick={() => setAskShort(null)} className="btn-modal-cancel flex-1">
+                                나중에 다시 집기
+                            </button>
+                            <button onClick={() => { setAskShort(null); setCloseShort({ rsnCd: '', rsnDscr: '' }); }}
+                                    className="flex-1 px-4 py-2 text-sm font-bold rounded-lg bg-rose-600 text-white active:bg-rose-700">
+                                결품 종결
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {closeShort && (
                 <ShortCloseSheet

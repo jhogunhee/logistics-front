@@ -1,4 +1,4 @@
-import {BrowserRouter, Routes, Route, Navigate, useLocation} from "react-router-dom";
+import {BrowserRouter, Routes, Route, useLocation} from "react-router-dom";
 import {Toaster} from "react-hot-toast";
 
 import Layout from "./layout/Layout";
@@ -45,7 +45,15 @@ import PickOrder from "@/pages/outbound/PickOrder.jsx";
 import Picking from "@/pages/outbound/Picking.jsx";
 import Shipping from "@/pages/outbound/Shipping.jsx";
 import Replenishment from "@/pages/outbound/Replenishment.jsx";
+import MobileHome from "@/pages/mobile/MobileHome.jsx";
 import MobilePicking from "@/pages/mobile/MobilePicking.jsx";
+import MobilePutaway from "@/pages/mobile/MobilePutaway.jsx";
+import MobileStockMove from "@/pages/mobile/MobileStockMove.jsx";
+import MobileStockCount from "@/pages/mobile/MobileStockCount.jsx";
+import MobileShipping from "@/pages/mobile/MobileShipping.jsx";
+import MobileReceiving from "@/pages/mobile/MobileReceiving.jsx";
+import MobileStockInquiry from "@/pages/mobile/MobileStockInquiry.jsx";
+import MobileReplenishment from "@/pages/mobile/MobileReplenishment.jsx";
 
 /** 토스트 위치 — PDA(/m)는 좁은 화면 중앙 상단이 눈에 걸린다. 데스크톱은 기존 우상단 그대로 */
 function AppToaster() {
@@ -136,8 +144,15 @@ export default function App() {
 
                     {/* PDA (모바일, /m) — 현장 실행 화면. 지시 생성·관리는 위 데스크톱 화면, 실행은 여기다 */}
                     <Route path="/m" element={<MobileLayout/>}>
-                        <Route index element={<Navigate to="/m/picking" replace/>}/>
+                        <Route index element={<MobileHome/>}/>
                         <Route path="picking" element={<MobilePicking/>}/>
+                        <Route path="putaway" element={<MobilePutaway/>}/>
+                        <Route path="stock-move" element={<MobileStockMove/>}/>
+                        <Route path="stock-count" element={<MobileStockCount/>}/>
+                        <Route path="shipping" element={<MobileShipping/>}/>
+                        <Route path="receiving" element={<MobileReceiving/>}/>
+                        <Route path="stock-inquiry" element={<MobileStockInquiry/>}/>
+                        <Route path="replenishment" element={<MobileReplenishment/>}/>
                     </Route>
                 </Routes>
             </BrowserRouter>
