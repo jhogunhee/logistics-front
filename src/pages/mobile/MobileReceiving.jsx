@@ -21,8 +21,8 @@ const expiryPreview = (mfgDt, shelfLifeDays) => {
     return ymd(new Date(y, m - 1, d + shelfLifeDays));
 };
 
-/** 라인의 검수 잔량 (EA) */
-const remainEaOf = (l) => l.expctQty - l.rcvdQty;
+/** 라인의 검수 잔량 (EA) — 예정에서 양품·불량 누계를 모두 뺀다 */
+const remainEaOf = (l) => l.expctQty - l.rcvdQty - (l.rjctQty ?? 0);
 
 /**
  * 입고검수 (PDA — /m). 출고확정처럼 <b>스캔 주도</b>다 — 하차한 실물의 상품 바코드를 스캔하면
