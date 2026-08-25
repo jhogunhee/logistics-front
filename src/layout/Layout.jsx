@@ -81,7 +81,7 @@ export default function Layout() {
                 {!isDesktop && !pdaBannerHidden && (
                     <div className="flex items-center gap-2 px-3 py-2 bg-indigo-50 border-b border-indigo-100 text-xs text-indigo-700 shrink-0">
                         <Smartphone size={14} className="shrink-0" />
-                        <span className="flex-1 min-w-0">현장 작업(피킹·적치)은 전용 PDA 화면이 편합니다</span>
+                        <span className="flex-1 min-w-0">현장작업은 전용 PDA 화면이 편합니다</span>
                         <Link to="/m" className="font-bold underline shrink-0">PDA 화면으로</Link>
                         <button onClick={hidePdaBanner} aria-label="안내 닫기"
                                 className="p-1 -mr-1 text-indigo-400 hover:text-indigo-600">
