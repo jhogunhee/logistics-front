@@ -82,19 +82,19 @@ export default function Allocation() {
     const [waves, setWaves] = useState([]);
     const [detail, setDetail] = useState(null);      // { wavId, wavNo, lines, allocs }
     const [selectedLine, setSelectedLine] = useState(null);
+    const [manualLine, setManualLine] = useState(null); // 수동할당 대상 행
     const [execResult, setExecResult] = useState(null);
     const [recordsOpen, setRecordsOpen] = useState(false); // 할당 내역 팝업
-    const [manualLine, setManualLine] = useState(null);
     const [confirmExec, setConfirmExec] = useState(null);
     const waveGridRef = useRef(null);
     // 재조회 뒤 보고 있던 웨이브를 다시 열기 위한 wavId (편성 화면과 같은 방식)
     const pendingWaveRef = useRef(null);
 
-    // 검색 조건이 웨이브를 거르므로, 조건에 맞는 라인이 어느 것인지 우측에서 짚어준다
+    // 검색이 좁히는 건 웨이브까지라, 우측에는 조건에 안 맞는 라인까지 딸려 나온다.
+    // 그중 어느 라인이 조건에 맞는지 가려내는 판정
     const matchesCond = (line) => {
         const hit = (v, kw) => !kw || String(v ?? '').toLowerCase().includes(kw.toLowerCase());
         if (!cond.outbNo && !cond.prodCd && !cond.storeId) return false;
-        // 점포만 정확일치다 — 팝업에서 고른 storeId라 부분일치를 따질 여지가 없다 (서버 EXISTS와 같은 의미)
         const storeHit = !cond.storeId || line.storeId === cond.storeId;
         return hit(line.outbNo, cond.outbNo) && hit(line.prodCd, cond.prodCd) && storeHit;
     };
@@ -113,8 +113,7 @@ export default function Allocation() {
         setDetail(wavId == null ? null : await outbAllocApi.detail(wavId));
     };
 
-    // 목록과 열려 있던 상세를 함께 다시 읽는다. 전량 할당돼도 해제 가능한 동안은 웨이브가
-    // 목록에 남으므로, 새 목록에 없다는 건 조건 밖이거나 지시가 다 나갔다는 뜻이다 — 상세도 닫는다
+    // 목록과 열려 있던 상세를 함께 다시 읽는다.
     const refetch = async () => {
         const list = await fetchWaves();
         if (!detail) return;
@@ -268,11 +267,6 @@ export default function Allocation() {
                 </div>
             )}
 
-            {/*
-              * 좌: 대상 웨이브(체크 = 실행 대상) / 우: 선택 웨이브의 주문 라인 — 편성 화면과 같은 구성.
-              * 할당 레코드는 상시 그리드로 두지 않고 「할당 내역」 팝업에서 본다 — 해제는 예외 경로라
-              * 자주 쓰지 않는데, 상시로 두면 세 그리드가 화면을 나눠 매번 보는 웨이브·라인이 좁아진다.
-              */}
             <PanelGroup direction="horizontal" autoSaveId="outb-alloc-split-v2" className="flex-1 min-h-0">
                 <Panel defaultSize={33} minSize={16} className="flex flex-col gap-2 min-h-0">
                     <div className="flex items-center gap-2">
@@ -280,7 +274,6 @@ export default function Allocation() {
                         <span className="text-xs text-slate-400 truncate">
                             잔량이 남았거나 해제할 할당이 있는 웨이브
                         </span>
-                        <span className="text-xs text-slate-500 font-medium ml-auto shrink-0">{waves.length}건</span>
                         <button onClick={handleExecClick} className="btn-primary shrink-0"
                                 title="체크한 웨이브의 미할당 잔량을 FEFO로 채웁니다">
                             <Rocket size={13} /> 자동할당
@@ -310,10 +303,7 @@ export default function Allocation() {
                         <span className="text-xs text-slate-400 truncate">
                             {detail ? detail.wavNo : '왼쪽에서 웨이브를 선택하세요'}
                         </span>
-                        <span className="text-xs text-slate-500 font-medium ml-auto shrink-0">
-                            {detail?.lines.length ?? 0}건
-                        </span>
-                        <button onClick={handleManualClick} disabled={!selectedLine} className="btn-ghost shrink-0
+                        <button onClick={handleManualClick} disabled={!selectedLine} className="btn-ghost ml-auto shrink-0
                                 disabled:text-slate-300 disabled:border-slate-200 disabled:hover:bg-white"
                                 title="선택한 라인에 Lot·로케이션을 직접 골라 할당합니다">
                             <Hand size={13} /> 수동할당
@@ -333,15 +323,13 @@ export default function Allocation() {
                             headerHeight={38}
                             rowSelection={{ mode: 'singleRow', checkboxes: false, enableClickSelection: true }}
                             onSelectionChanged={(e) => setSelectedLine(e.api.getSelectedNodes()[0]?.data ?? null)}
-                            // 검색 조건이 웨이브를 거르므로 「왜 안 찾은 주문까지 보이나」가 생긴다 —
-                            // 조건에 맞는 라인을 강조해 화면이 그 사실을 설명한다
                             getRowClass={(p) => (matchesCond(p.data) ? 'bg-indigo-50/60' : '')}
                         />
                     </div>
                 </Panel>
             </PanelGroup>
 
-            {/* 할당 내역 팝업 — 열려 있는 동안만 마운트. 해제 후에도 열린 채 갱신된 목록을 보여준다 */}
+            {/* 할당 내역 팝업 */}
             {recordsOpen && detail && (
                 <AllocRecordsModal
                     detail={detail}
@@ -370,13 +358,12 @@ export default function Allocation() {
                     onConfirm={() => { doExec(confirmExec); setConfirmExec(null); }}
                 >
                     <p className="text-sm text-slate-500">
-                        웨이브 <b>{confirmExec.length}건</b>의 미할당 잔량 <b>{num(confirmExec.reduce((s, w) => s + w.remainQty, 0))}</b>개를
-                        유통기한 임박순(FEFO)으로 채웁니다.
+                        웨이브 <b>{confirmExec.length}건</b>의 미할당 잔량 <b>{num(confirmExec.reduce((s, w) => s + w.remainQty, 0))}</b>개를 할당합니다.
                     </p>
                     <p className="text-xs text-slate-600 bg-slate-50 rounded-lg px-3 py-2 leading-relaxed">
-                        재고가 모자라면 앞 순번 주문이 채울 수 있는 만큼 가져가고 나머지는 잔량으로 남습니다 —
-                        나눠서 배분하지 않습니다. 여러 웨이브를 함께 실행해도 <b>한 트랜잭션</b>이라,
-                        도중에 오류가 나면 이번 실행 전체가 되돌아갑니다.
+                        기본 동작은 유통기한 임박순(FEFO) · 순차 소진입니다 — 재고가 모자라면 앞 순번 주문이
+                        채울 수 있는 만큼 가져가고 나머지는 잔량으로 남습니다.
+                        대상에 맞는 할당 전략이 있으면 그 정의를 따르며, 적용된 전략은 실행 결과에 표시됩니다.
                     </p>
                 </ConfirmModal>
             )}
