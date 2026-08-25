@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle2, ChevronLeft, MapPin, PackageOpen, PackageX, RefreshCw, SkipForward } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, MapPin, PackageOpen, PackageX, RefreshCw, SkipForward, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { outbPikngApi } from '@/api/outbPikngApi';
@@ -275,9 +275,15 @@ export default function MobilePicking() {
             <TaskTopBar wave={wave} doneCount={doneCount} total={rows.length} onBack={backToWaves} />
 
             {locKw.trim() && (
-                <p className="text-xs text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2 shrink-0">
-                    구역 「{locKw.trim()}」 지시만 보는 중 · 남은 {openTasks.length}건
-                </p>
+                <div className="flex items-center gap-2 text-xs text-indigo-700 bg-indigo-50 border border-indigo-200
+                                rounded-lg pl-3 pr-1 py-2 shrink-0">
+                    <span className="flex-1 min-w-0">구역 「{locKw.trim()}」 지시만 보는 중 · 남은 {openTasks.length}건</span>
+                    {/* 오타로 좁혀 놓고 웨이브 목록까지 나갔다 오지 않게, 작업 중에도 여기서 푼다 */}
+                    <button onClick={() => changeLocKw('')} aria-label="구역 필터 해제"
+                            className="p-1.5 rounded-lg text-indigo-500 active:bg-indigo-100 shrink-0">
+                        <X size={14} />
+                    </button>
+                </div>
             )}
             {blockedCount > 0 && (
                 <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 shrink-0">
