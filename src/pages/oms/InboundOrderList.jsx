@@ -355,7 +355,7 @@ export default function InboundOrderList() {
                     <div className="flex items-center gap-2">
                         <span className="text-sm font-bold text-slate-700">발주 라인</span>
                         <span className="text-xs text-slate-400">
-                            {selected ? `${selected.vndrNm ?? selected.storeNm}` : '위에서 주문 행을 클릭하세요 (체크는 확정·삭제 대상 선택)'}
+                            {selected ? `${selected.omsIbNo} · ${selected.vndrNm ?? selected.storeNm}` : '위에서 주문 행을 클릭하세요 (체크는 확정·삭제 대상 선택)'}
                         </span>
                     </div>
                     <div className="flex-1 min-h-0">
