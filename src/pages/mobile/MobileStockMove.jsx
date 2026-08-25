@@ -175,6 +175,7 @@ export default function MobileStockMove() {
     };
 
     const doExec = async (n) => {
+        if (busy) return; // Enter 연타로 같은 확정이 두 번 나가는 것을 막는다
         setBusy(true);
         try {
             await invMovApi.confirm([{ taskId: task.invMovTaskId, qty: n }]);

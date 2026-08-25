@@ -162,6 +162,7 @@ export default function MobilePutaway() {
     };
 
     const doExec = async (n) => {
+        if (busy) return; // Enter 연타로 같은 실행이 두 번 나가는 것을 막는다
         setBusy(true);
         try {
             await putawayApi.execute(task.putawayTaskId, n);

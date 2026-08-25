@@ -160,6 +160,7 @@ export default function MobileStockCount() {
     };
 
     const doSave = async (n) => {
+        if (busy) return; // Enter 연타로 같은 카운트가 두 번 저장되는 것을 막는다
         setBusy(true);
         try {
             // 사유는 건드리지 않는다 — 차이 사유는 차이를 아는 쪽(웹의 검토·확정)이 채운다

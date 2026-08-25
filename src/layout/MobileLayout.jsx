@@ -22,7 +22,8 @@ export default function MobileLayout() {
                     <Monitor size={18} />
                 </Link>
             </header>
-            <main className="flex-1 min-h-0 p-3">
+            {/* overflow-y-auto — 화면이 낮은 단말에서 내용이 상하로 넘치면 잘리는 대신 스크롤이 생긴다 */}
+            <main className="flex-1 min-h-0 p-3 overflow-y-auto">
                 <ServerWakeGate>
                     <Outlet />
                 </ServerWakeGate>

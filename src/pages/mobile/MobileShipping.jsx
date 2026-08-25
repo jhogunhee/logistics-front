@@ -118,6 +118,7 @@ export default function MobileShipping() {
 
     // ── 출고확정 ──────────────────────────────────────────────
     const doConfirm = async (order) => {
+        if (busy) return; // 연타로 같은 확정이 두 번 나가는 것을 막는다 — 되돌릴 수 없는 동작이다
         setBusy(true);
         try {
             await outbShmtApi.confirm([order.outbOrderId]);

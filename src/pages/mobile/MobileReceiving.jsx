@@ -151,6 +151,7 @@ export default function MobileReceiving() {
     };
 
     const doSave = async ({ line, mfgDt }, n) => {
+        if (busy) return; // 연타로 같은 검수가 두 번 저장되는 것을 막는다
         setBusy(true);
         try {
             await ibOrderApi.receive(asn.ibOrderId, {

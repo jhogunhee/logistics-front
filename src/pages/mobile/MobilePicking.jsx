@@ -214,6 +214,7 @@ export default function MobilePicking() {
     };
 
     const doExec = async (n) => {
+        if (busy) return; // Enter 연타로 같은 실행이 두 번 나가는 것을 막는다 — 실적 취소가 없다
         setBusy(true);
         try {
             const res = await outbPikngApi.execute([{ pikngTaskId: task.taskId, qty: n }]);
@@ -241,6 +242,7 @@ export default function MobilePicking() {
     };
 
     const doCloseShort = async ({ rsnCd, rsnDscr }) => {
+        if (busy) return;
         setBusy(true);
         try {
             const res = await outbPikngApi.closeShort([{
@@ -383,9 +385,9 @@ export default function MobilePicking() {
                     ${step === 'LOT' ? 'bg-indigo-50 ring-2 ring-indigo-300' : 'bg-slate-50'}`}>
                     <span className="text-xs font-bold text-slate-400 shrink-0">Lot</span>
                     <span className="font-bold text-slate-700 truncate">{task.lotNo}</span>
-                    {task.expiryDt && (
-                        <span className="ml-auto text-xs text-slate-500 shrink-0">유통기한 {fmtDe(task.expiryDt)}</span>
-                    )}
+                    <span className="ml-auto text-xs text-slate-500 shrink-0">
+                        {task.expiryDt ? `유통기한 ${fmtDe(task.expiryDt)}` : '유통기한 미관리'}
+                    </span>
                 </div>
 
                 {/* 담을 곳 — 한 웨이브에 여러 납품처가 섞이므로 지시마다 다르다. 색은 점포 식별용 */}

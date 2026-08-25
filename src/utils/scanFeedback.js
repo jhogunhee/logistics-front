@@ -7,6 +7,8 @@ let audioCtx = null;
 const beep = (freq, ms) => {
     try {
         audioCtx ??= new (window.AudioContext || window.webkitAudioContext)();
+        // 모바일 브라우저는 사용자 제스처 전까지 컨텍스트를 잠가둔다 — 스캔(키 입력)이 제스처라 여기서 푼다
+        if (audioCtx.state === 'suspended') audioCtx.resume();
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         osc.frequency.value = freq;
