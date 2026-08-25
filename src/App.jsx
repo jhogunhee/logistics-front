@@ -51,6 +51,8 @@ import MobilePutaway from "@/pages/mobile/MobilePutaway.jsx";
 import MobileStockMove from "@/pages/mobile/MobileStockMove.jsx";
 import MobileStockCount from "@/pages/mobile/MobileStockCount.jsx";
 import MobileShipping from "@/pages/mobile/MobileShipping.jsx";
+import MobileReceiving from "@/pages/mobile/MobileReceiving.jsx";
+import MobileStockInquiry from "@/pages/mobile/MobileStockInquiry.jsx";
 
 /** 토스트 위치 — PDA(/m)는 좁은 화면 중앙 상단이 눈에 걸린다. 데스크톱은 기존 우상단 그대로 */
 function AppToaster() {
@@ -147,6 +149,8 @@ export default function App() {
                         <Route path="stock-move" element={<MobileStockMove/>}/>
                         <Route path="stock-count" element={<MobileStockCount/>}/>
                         <Route path="shipping" element={<MobileShipping/>}/>
+                        <Route path="receiving" element={<MobileReceiving/>}/>
+                        <Route path="stock-inquiry" element={<MobileStockInquiry/>}/>
                     </Route>
                 </Routes>
             </BrowserRouter>

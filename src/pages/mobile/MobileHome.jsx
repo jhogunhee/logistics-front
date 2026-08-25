@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ArrowLeftRight, Calculator, ChevronRight, Layers, PackageOpen, Send } from 'lucide-react';
+import { ArrowLeftRight, Calculator, ChevronRight, ClipboardCheck, Layers, PackageOpen, Search, Send } from 'lucide-react';
 
 /**
  * PDA에 열린 작업 화면들 — 실행(실적을 쌓는 행위)만 올린다. 지시 발행·관리는 데스크톱 몫.
@@ -10,12 +10,14 @@ const GROUPS = [
     {
         title: '입고',
         items: [
+            { to: '/m/receiving', label: '입고검수', desc: '하차 실물의 상품을 스캔해 수량·제조일자 입력', icon: ClipboardCheck },
             { to: '/m/putaway', label: '적치', desc: 'RCV-STAGE에서 지시된 보관 로케이션으로', icon: Layers },
         ],
     },
     {
         title: '재고',
         items: [
+            { to: '/m/stock-inquiry', label: '현재고 조회', desc: '로케이션·상품을 스캔해 그 자리 재고 확인', icon: Search },
             { to: '/m/stock-move', label: '재고이동', desc: '이동지시 확정 — 출발 로케이션에서 도착 로케이션으로', icon: ArrowLeftRight },
             { to: '/m/stock-count', label: '재고조사', desc: '실사 카운트 — 블라인드 방식으로 실물 수량 입력', icon: Calculator },
         ],
