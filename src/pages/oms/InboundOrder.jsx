@@ -122,16 +122,20 @@ export default function InboundOrder() {
     }));
 
     // 구분을 바꾸면 바뀐 쪽의 상대처만 비운다 — 벤더 발주에 점포가 남거나 반품에 벤더가 남으면 서버가 거부한다.
-    // 정상 ↔ 긴급처럼 반품 여부가 그대로면 벤더는 건드리지 않는다.
+    // 반품 경계를 넘으면 라인도 비운다 — 벤더에 발주한 상품과 점포가 돌려보내는 상품은 출처가 다르고,
+    // 수량 단위(입고단위 ↔ 출고단위)까지 바뀌어 남겨두면 조용히 뜻이 틀린 값이 된다.
+    // 정상 ↔ 긴급처럼 반품 여부가 그대로면 벤더도 라인도 건드리지 않는다.
     const changeDvsn = (odrDvsn) => {
         const nowRtngs = odrDvsn === 'RTNGS';
+        const crossed = nowRtngs !== isRtngs;
+        if (crossed && form.lines.length > 0) {
+            toast(`구분이 바뀌어 상품 ${form.lines.length}건을 비웠습니다 — 다시 담아주세요.`);
+        }
         setForm(prev => ({
             ...prev, odrDvsn,
             ...(nowRtngs ? { vendorId: '', vndrCd: '', vndrNm: '' } : {}),
-            ...(!nowRtngs ? {
-                storeId: '', storeCd: '', storeNm: '', refOutbNo: '',
-                lines: prev.lines.map(l => ({ ...l, rsnCd: '', rsnDscr: '' })),
-            } : {}),
+            ...(!nowRtngs ? { storeId: '', storeCd: '', storeNm: '', refOutbNo: '' } : {}),
+            ...(crossed ? { lines: [] } : {}),
         }));
     };
 
