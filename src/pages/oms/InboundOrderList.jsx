@@ -34,7 +34,11 @@ const HEADER_COLUMN_DEFS = [
         ),
     },
     { field: 'expctDe', headerName: '입고 예정일', width: 120 },
-    { field: 'vndrNm', headerName: '벤더', flex: 1, minWidth: 110 },
+    {
+        headerName: '상대처', flex: 1, minWidth: 110,
+        headerTooltip: '정상 발주는 벤더, 반품입고는 점포',
+        valueGetter: (p) => p.data.vndrNm ?? p.data.storeNm,
+    },
     {
         field: 'status', headerName: '주문상태', width: 90,
         cellStyle: centered,
@@ -50,7 +54,10 @@ const HEADER_COLUMN_DEFS = [
             const nm = p.context.odrDvsnNm(p.value);
             if (!nm) return null;
             if (p.value === 'NRML') return <span className="text-[11px] text-slate-500">{nm}</span>;
-            const tone = p.value === 'ATO' ? 'bg-sky-100 text-sky-700' : 'bg-amber-100 text-amber-700';
+            // 반품(RTNGS)은 rose로 — 긴급 amber와 헷갈리지 않게 별도 색을 준다
+            const tone = p.value === 'ATO' ? 'bg-sky-100 text-sky-700'
+                : p.value === 'RTNGS' ? 'bg-rose-100 text-rose-700'
+                : 'bg-amber-100 text-amber-700';
             return <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${tone}`}>{nm}</span>;
         },
     },
@@ -97,12 +104,12 @@ const LINE_COLUMN_DEFS = [
         cellRenderer: (p) => (
             <>
                 {num(p.value)}
-                {' '}<span className="text-[11px] font-bold text-slate-400">{p.data.inbUomCd}</span>
+                {' '}<span className="text-[11px] font-bold text-slate-400">{p.data.odrUomCd}</span>
             </>
         ),
     },
     {
-        field: 'inbEaQty', headerName: '입수량', width: 90, cellClass: 'ag-right-aligned-cell',
+        field: 'odrEaQty', headerName: '입수량', width: 90, cellClass: 'ag-right-aligned-cell',
         headerTooltip: '발주단위 1개당 입수량(낱개 기준) — 단위 관리의 낱개수량과 같은 값',
         valueFormatter: (p) => num(p.value),
     },
@@ -116,11 +123,16 @@ const LINE_COLUMN_DEFS = [
             </>
         ),
     },
+    {
+        field: 'rsnCd', headerName: '반품사유', width: 120,
+        cellRenderer: (p) => p.value ? (p.context.rtngsRsnNm(p.value) + (p.data.rsnDscr ? ` — ${p.data.rsnDscr}` : '')) : <span className="text-slate-300">-</span>,
+    },
 ];
 
 export default function InboundOrderList() {
     const navigate = useNavigate();
     const odrDvsnCodes = useCodes('ODR_DVSN');
+    const rtngsRsnCodes = useCodes('RTNGS_RSN');
     const [cond, setCond] = useState({ omsIbNo: '', vndrNm: '', status: [], dateFrom: todayStr(), dateTo: daysAheadStr(7) });
     const [rowData, setRowData] = useState([]);
     const [lineRows, setLineRows] = useState([]);
@@ -268,7 +280,7 @@ export default function InboundOrderList() {
             <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
                 <SearchText name="omsIbNo" label="주문번호" placeholder="PO-20260723-001" />
                 <SearchDateRange from="dateFrom" to="dateTo" label="입고예정일" />
-                <SearchItem label="벤더">
+                <SearchItem label="상대처">
                     <button
                         type="button"
                         onClick={() => setVendorPickerOpen(true)}
@@ -343,11 +355,16 @@ export default function InboundOrderList() {
                     <div className="flex items-center gap-2">
                         <span className="text-sm font-bold text-slate-700">발주 라인</span>
                         <span className="text-xs text-slate-400">
-                            {selected ? `${selected.omsIbNo} · ${selected.vndrNm}` : '위에서 주문 행을 클릭하세요 (체크는 확정·삭제 대상 선택)'}
+                            {selected ? `${selected.vndrNm ?? selected.storeNm}` : '위에서 주문 행을 클릭하세요 (체크는 확정·삭제 대상 선택)'}
                         </span>
                     </div>
                     <div className="flex-1 min-h-0">
-                        <AgGridReact rowData={lineRows} columnDefs={LINE_COLUMN_DEFS} rowHeight={34} />
+                        <AgGridReact
+                            rowData={lineRows}
+                            columnDefs={LINE_COLUMN_DEFS}
+                            context={{ rtngsRsnNm: (cd) => rtngsRsnCodes.nm(cd) }}
+                            rowHeight={34}
+                        />
                     </div>
                 </Panel>
             </PanelGroup>

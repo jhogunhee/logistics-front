@@ -18,13 +18,24 @@ const HEADER_COLUMN_DEFS = [
     { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
     { field: 'ibNo', headerName: '입고번호', width: 170 },
     {
+        field: 'odrDvsn', headerName: '구분', width: 90,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+        cellRenderer: (p) => p.value === 'RTNGS'
+            ? <span className="text-[11px] px-2 py-0.5 rounded-full font-bold bg-rose-100 text-rose-700">반품</span>
+            : null,
+    },
+    {
         // 저장 상태(3값)가 아니라 서버가 수량·적치지시에서 파생시킨 5단계 — 3값으론 「어디까지 왔나」가 성기다
         field: 'prgr', headerName: '진행단계', width: 130,
         headerTooltip: '수량·적치지시에서 계산한 진행 단계. 적치완료는 확정 대기라는 뜻이다 — 입고확정 화면에서 닫는다',
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
         cellRenderer: (p) => <Badge meta={ASN_PRGR_META} value={p.value} show="label" />,
     },
-    { field: 'vndrNm', headerName: '벤더', flex: 1, minWidth: 110 },
+    {
+        headerName: '상대처', flex: 1, minWidth: 110,
+        headerTooltip: '정상 발주는 벤더, 반품입고는 점포',
+        valueGetter: (p) => p.data.vndrNm ?? p.data.storeNm,
+    },
     { field: 'expctDe', headerName: '입고 예정일', width: 120 },
     {
         field: 'totalExpctQty', headerName: '예정수량(EA)', width: 110,
@@ -63,13 +74,14 @@ const LINE_COLUMN_DEFS = [
     // 잔량 컬럼은 두지 않는다 — 입고·적치 두 축이 함께 나오는 자리라 어느 쪽에서 뺀 값인지 오해된다
     // 세 수량은 「입고단위 (낱개)」 표기 — 라인은 상품이 하나라 단위가 확정된다 (fmtInbQty)
     { field: 'expctQty', headerName: '예정수량', width: 140, cellClass: 'ag-right-aligned-cell', valueFormatter: inbQtyFmt },
-    { field: 'rcvdQty', headerName: '검수수량', width: 140, cellClass: 'ag-right-aligned-cell', valueFormatter: inbQtyFmt },
+    { field: 'rcvdQty', headerName: '양품', width: 140, cellClass: 'ag-right-aligned-cell', valueFormatter: inbQtyFmt },
+    { field: 'rjctQty', headerName: '불량', width: 120, cellClass: 'ag-right-aligned-cell', valueFormatter: inbQtyFmt },
     { field: 'ptawyQty', headerName: '적치완료', width: 140, cellClass: 'ag-right-aligned-cell', valueFormatter: inbQtyFmt },
     // 라인 검수일시는 두지 않는다 — 분할입고면 마지막 시각만 남아 칸 하나로 부족하다 (검수 이력이 답할 일)
 ];
 
 export default function AsnList() {
-    const [cond, setCond] = useState({ ibNo: '', vndrNm: '', prgr: [], dateFrom: todayStr(), dateTo: daysAheadStr(7) });
+    const [cond, setCond] = useState({ ibNo: '', vndrNm: '', prgr: [], odrDvsn: '', dateFrom: todayStr(), dateTo: daysAheadStr(7) });
     const [rowData, setRowData] = useState([]);
     const [lineRows, setLineRows] = useState([]);
     const [selectedAsn, setSelectedAsn] = useState(null);
@@ -119,7 +131,11 @@ export default function AsnList() {
                 <SearchText name="ibNo" label="입고번호" placeholder="IB-20260717-001" />
                 {/* 필터는 저장 상태(3값)가 아니라 그리드 뱃지와 같은 진행단계(5단계 파생)다 — 서버가 파생 후 거른다 */}
                 <SearchSelect name="prgr" label="진행단계" options={ASN_PRGR_OPTIONS} multiple />
-                <SearchItem label="벤더">
+                <SearchSelect
+                    name="odrDvsn" label="구분"
+                    options={[{ value: '', label: '전체' }, { value: 'NRML', label: '정상' }, { value: 'URGT', label: '긴급' }, { value: 'RTNGS', label: '반품입고' }]}
+                />
+                <SearchItem label="상대처">
                     <button
                         type="button"
                         onClick={() => setVendorPickerOpen(true)}
@@ -172,7 +188,7 @@ export default function AsnList() {
                     <div className="flex items-center gap-2">
                         <span className="text-sm font-bold text-slate-700">입고 라인</span>
                         <span className="text-xs text-slate-400">
-                            {selectedAsn ? `${selectedAsn.ibNo} · ${selectedAsn.vndrNm}` : '위에서 입고예정을 선택하세요'}
+                            {selectedAsn ? `${selectedAsn.ibNo} · ${selectedAsn.vndrNm ?? selectedAsn.storeNm}` : '위에서 입고예정을 선택하세요'}
                         </span>
                     </div>
                     <div className="flex-1 min-h-0">
