@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { Outlet, useLocation } from "react-router-dom";
-import { Menu, Warehouse } from "lucide-react";
+import { Link, Outlet, useLocation } from "react-router-dom";
+import { Menu, Smartphone, Warehouse, X } from "lucide-react";
 import Sidebar from "./Sidebar.jsx";
 import ServerWakeGate from "@/components/common/ServerWakeGate.jsx";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
@@ -18,6 +18,13 @@ export default function Layout() {
     const drawerOpen = !isDesktop && openedAt === pathname;
     const openDrawer = () => setOpenedAt(pathname);
     const closeDrawer = () => setOpenedAt(null);
+
+    // 모바일 폭 접속 안내 — 관리 화면은 데스크톱용이라, 좁은 화면으로 들어온 사용자에게 PDA 화면을 알린다
+    const [pdaBannerHidden, setPdaBannerHidden] = useState(() => sessionStorage.getItem("pdaBanner.hidden") === "1");
+    const hidePdaBanner = () => {
+        sessionStorage.setItem("pdaBanner.hidden", "1");
+        setPdaBannerHidden(true);
+    };
 
     const toggleCollapsed = useCallback(() => {
         setCollapsed(c => {
@@ -69,6 +76,17 @@ export default function Layout() {
                             </span>
                             <span className="font-bold text-slate-800 text-sm">WMS</span>
                         </div>
+                    </div>
+                )}
+                {!isDesktop && !pdaBannerHidden && (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-indigo-50 border-b border-indigo-100 text-xs text-indigo-700 shrink-0">
+                        <Smartphone size={14} className="shrink-0" />
+                        <span className="flex-1 min-w-0">현장 작업(피킹·적치)은 전용 PDA 화면이 편합니다</span>
+                        <Link to="/m" className="font-bold underline shrink-0">PDA 화면으로</Link>
+                        <button onClick={hidePdaBanner} aria-label="안내 닫기"
+                                className="p-1 -mr-1 text-indigo-400 hover:text-indigo-600">
+                            <X size={14} />
+                        </button>
                     </div>
                 )}
                 {/* 실제 콘텐츠 영역 — 창 스크롤 대신 카드 내부 스크롤을 쓴다 */}

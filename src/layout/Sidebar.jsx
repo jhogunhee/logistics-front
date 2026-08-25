@@ -37,6 +37,7 @@ import {
     Settings2,
     ShieldCheck,
     Shuffle,
+    Smartphone,
     Sparkles,
     Split,
     Store,
@@ -128,6 +129,13 @@ const MENU = [
             { to: "/strategy/putaway", label: "적치 전략관리", icon: Settings2, keywords: "putaway strategy 전략 추천 단계 로케이션 입고" },
             { to: "/strategy/wave", label: "웨이브 전략관리", icon: Waves, keywords: "wave strategy 웨이브 편성 출고 조건그룹 출고유형 차량편수 전략" },
             { to: "/strategy/allocation", label: "할당 전략관리", icon: Shuffle, keywords: "allocation strategy 할당 분배 재고 배정 fefo 전략 출고" },
+        ],
+    },
+    {
+        // 현장 단말(PDA) 실행 화면 진입점 — 별도 레이아웃(/m)이라 여기로 나가면 사이드바가 없다
+        title: "PDA",
+        items: [
+            { to: "/m", label: "PDA 화면 (현장 실행)", icon: Smartphone, keywords: "pda 모바일 mobile 스캐너 barcode rf 현장 피킹 적치" },
         ],
     },
 ];

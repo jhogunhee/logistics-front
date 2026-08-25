@@ -1,7 +1,8 @@
-import {BrowserRouter, Routes, Route} from "react-router-dom";
+import {BrowserRouter, Routes, Route, Navigate, useLocation} from "react-router-dom";
 import {Toaster} from "react-hot-toast";
 
 import Layout from "./layout/Layout";
+import MobileLayout from "./layout/MobileLayout";
 import Login from "@/pages/auth/Login.jsx";
 import Dashboard from "@/pages/dashboard/Dashboard.jsx";
 
@@ -44,12 +45,19 @@ import PickOrder from "@/pages/outbound/PickOrder.jsx";
 import Picking from "@/pages/outbound/Picking.jsx";
 import Shipping from "@/pages/outbound/Shipping.jsx";
 import Replenishment from "@/pages/outbound/Replenishment.jsx";
+import MobilePicking from "@/pages/mobile/MobilePicking.jsx";
+
+/** 토스트 위치 — PDA(/m)는 좁은 화면 중앙 상단이 눈에 걸린다. 데스크톱은 기존 우상단 그대로 */
+function AppToaster() {
+    const {pathname} = useLocation();
+    return <Toaster position={pathname.startsWith("/m") ? "top-center" : "top-right"}/>;
+}
 
 export default function App() {
     return (
         <>
-            <Toaster position="top-right"/>
             <BrowserRouter>
+                <AppToaster/>
                 <Routes>
                     {/* 로그인 (백엔드 인증 붙일 때 AuthRoute로 아래 영역을 감싼다) */}
                     <Route path="/login" element={<Login/>}/>
@@ -124,6 +132,12 @@ export default function App() {
                         <Route path="/strategy/putaway" element={<PutawayStrategy/>}/>
                         <Route path="/strategy/wave" element={<WaveStrategy/>}/>
                         <Route path="/strategy/allocation" element={<AllocationStrategy/>}/>
+                    </Route>
+
+                    {/* PDA (모바일, /m) — 현장 실행 화면. 지시 생성·관리는 위 데스크톱 화면, 실행은 여기다 */}
+                    <Route path="/m" element={<MobileLayout/>}>
+                        <Route index element={<Navigate to="/m/picking" replace/>}/>
+                        <Route path="picking" element={<MobilePicking/>}/>
                     </Route>
                 </Routes>
             </BrowserRouter>
