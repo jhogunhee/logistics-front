@@ -6,6 +6,7 @@ import { outbPikngApi } from '@/api/outbPikngApi';
 import { useCodes } from '@/hooks/useCodes';
 import { ETC_RSN_CD } from '@/constants/rsnCodes';
 import { fmtDe, num } from '@/utils/format';
+import { failFeedback, okFeedback } from '@/utils/scanFeedback';
 import { ProdThumb } from '@/components/common/ProdThumb';
 
 /** 집품 단계 — 로케이션·상품·Lot을 차례로 스캔해 맞는 곳·맞는 물건·맞는 Lot임을 확인한 뒤 수량을 넣는다 */
@@ -26,27 +27,6 @@ const STORE_DOTS = ['bg-indigo-500', 'bg-emerald-500', 'bg-amber-500', 'bg-rose-
 /** 진행 위치 복원용 sessionStorage 키 — PDA 슬립·새로고침에도 보던 웨이브로 돌아온다 */
 const WAV_KEY = 'mpicking.wavId';
 const LOC_KEY = 'mpicking.locKw';
-
-// 확인음 — 소음 많은 현장에서 토스트만으로는 부족하다. 소리를 못 내는 환경이면 조용히 넘어간다
-let audioCtx = null;
-const beep = (freq, ms) => {
-    try {
-        audioCtx ??= new (window.AudioContext || window.webkitAudioContext)();
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.frequency.value = freq;
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + ms / 1000);
-        osc.start();
-        osc.stop(audioCtx.currentTime + ms / 1000);
-    } catch { /* empty */ }
-};
-const okFeedback = () => {
-    navigator.vibrate?.(80);
-    beep(1200, 120);
-};
 
 /** 수량 3칸 (지시/기피킹/잔량) */
 const StatBox = ({ label, value, tone = '', big = false }) => (
@@ -144,8 +124,7 @@ export default function MobilePicking() {
 
     // ── 스캔 확인 ─────────────────────────────────────────────
     const scanFail = (msg) => {
-        navigator.vibrate?.(200);
-        beep(250, 300);
+        failFeedback();
         toast.error(msg);
         setScanVal('');
         scanRef.current?.focus();
