@@ -46,7 +46,7 @@ function Login() {
                         Sign in
                     </h1>
                     <p className="mt-2 text-sm text-gray-500">
-                        WMS 시스템에 접속하세요
+                        WareFlow 시스템에 접속하세요
                     </p>
                 </div>
 
@@ -92,7 +92,7 @@ function Login() {
 
                 {/* 하단 문구 */}
                 <div className="mt-6 text-center text-xs text-gray-400">
-                    © WMS Project
+                    © WareFlow Project
                 </div>
             </div>
         </div>

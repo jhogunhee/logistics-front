@@ -16,7 +16,7 @@ export default function MobileLayout() {
                     <span className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center">
                         <Warehouse size={16} className="text-white" />
                     </span>
-                    <span className="font-bold text-slate-800 text-sm">WMS PDA</span>
+                    <span className="font-bold text-slate-800 text-sm">WareFlow PDA</span>
                 </Link>
                 <Link to="/" title="데스크톱 화면으로"
                       className="ml-auto p-2 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-indigo-600">

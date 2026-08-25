@@ -340,7 +340,7 @@ export default function Sidebar({ mode = "expanded", onToggle, onClose }) {
                 </div>
                 {!compact && (
                     <div className="flex-1 min-w-0 whitespace-nowrap">
-                        <h3 className="font-bold text-slate-800 leading-none">WMS</h3>
+                        <h3 className="font-bold text-slate-800 leading-none">WareFlow</h3>
                         <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
                             <span className="w-2 h-2 bg-green-500 rounded-full"></span> 운영 중
                         </p>
