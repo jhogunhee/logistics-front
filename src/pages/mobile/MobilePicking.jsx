@@ -193,6 +193,7 @@ export default function MobilePicking() {
                 rsnCd,
                 rsnDscr: rsnCd === ETC_RSN_CD ? rsnDscr.trim() : null,
             }]);
+            setCloseShort(null); // 성공한 뒤에 닫는다 — 먼저 닫으면 실패했을 때 고른 사유가 날아간다
             const done = res.orderChanges.filter(c => c.status === 'PICKED');
             toast.success(`잔량 ${num(res.shotgeQty)}개를 결품으로 닫았습니다 (예약 반환)`
                 + (done.length > 0 ? ` — 피킹완료 주문 ${done.map(c => c.outbNo).join(', ')}` : ''));
@@ -410,7 +411,6 @@ export default function MobilePicking() {
                             return;
                         }
                         doCloseShort(closeShort);
-                        setCloseShort(null);
                     }}
                 />
             )}
