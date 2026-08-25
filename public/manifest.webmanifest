@@ -1,0 +1,18 @@
+{
+    "name": "WMS PDA",
+    "short_name": "WMS PDA",
+    "description": "창고 현장 실행 화면 (피킹)",
+    "start_url": "/m/picking",
+    "display": "standalone",
+    "orientation": "portrait",
+    "background_color": "#f1f5f9",
+    "theme_color": "#4f46e5",
+    "icons": [
+        {
+            "src": "/pda-icon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any"
+        }
+    ]
+}
