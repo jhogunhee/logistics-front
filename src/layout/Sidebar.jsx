@@ -3,6 +3,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import {
     ArrowLeftRight,
     Barcode,
+    BookOpen,
     Box,
     Calculator,
     ChevronRight,
@@ -434,6 +435,23 @@ export default function Sidebar({ mode = "expanded", onToggle, onClose }) {
 
             {/* 하단 사용자 정보 + 로그아웃 (상단바를 없애면서 여기로 옮겼다) */}
             <div className={`bg-slate-50 border-t border-slate-200 shrink-0 ${compact ? "p-3" : "p-3"}`}>
+                {/* 사용자설명서 — 라우터 밖 정적 문서라 NavLink가 아니라 새 탭으로 연다.
+                    메뉴 33개 사이에 끼우면 안 눌린다(찾는 사람은 화면이 아니라 도움말을 찾는다).
+                    경로에 index.html까지 적는다 — 「/manual/」로 두면 개발 서버가 SPA로 받아 빈 화면이 뜬다 */}
+                <a
+                    href="/manual/index.html"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="사용자설명서 (새 탭)"
+                    aria-label="사용자설명서"
+                    className={`flex items-center text-sm text-slate-500 hover:text-indigo-600 hover:bg-indigo-50
+                                rounded-lg transition-colors ${compact
+                        ? "justify-center w-11 h-11 mx-auto mb-1"
+                        : "gap-3 px-2 py-2 mb-1"}`}
+                >
+                    <BookOpen size={compact ? 20 : 18} />
+                    {!compact && <span className="flex-1">사용자설명서</span>}
+                </a>
                 <div className={`flex items-center ${compact ? "flex-col gap-1" : "gap-3 px-2 py-2"}`}>
                     <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold shrink-0"
                          title={compact ? "관리자" : undefined}>
