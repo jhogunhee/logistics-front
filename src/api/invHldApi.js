@@ -26,15 +26,18 @@ export const invHldApi = {
         return api.post('/inventory/holds/release', { items });
     },
 
-    /** 보류 실적 조회 (등록 append-only 로그) */
-    listAcrst(cond = {}) {
-        const params = Object.fromEntries(Object.entries(cond).filter(([, v]) => v));
+    /**
+     * 보류 실적 조회 (등록 append-only 로그, 서버 페이징). page: { page(1부터), size }.
+     * 응답은 { rows, totCnt, page, size }. page/size는 빈 값 제거 뒤에 따로 붙인다
+     */
+    listAcrst(cond = {}, page = { page: 1, size: 100 }) {
+        const params = { ...Object.fromEntries(Object.entries(cond).filter(([, v]) => v)), page: page.page, size: page.size };
         return api.get('/inventory/holds/acrsts', { params });
     },
 
-    /** 해제 실적 조회 (append-only 로그 — 부분 해제 N번이면 N행) */
-    listRlzAcrst(cond = {}) {
-        const params = Object.fromEntries(Object.entries(cond).filter(([, v]) => v));
+    /** 해제 실적 조회 (append-only 로그 — 부분 해제 N번이면 N행, 서버 페이징). 응답 형태는 listAcrst와 같다 */
+    listRlzAcrst(cond = {}, page = { page: 1, size: 100 }) {
+        const params = { ...Object.fromEntries(Object.entries(cond).filter(([, v]) => v)), page: page.page, size: page.size };
         return api.get('/inventory/holds/rlz-acrsts', { params });
     },
 };

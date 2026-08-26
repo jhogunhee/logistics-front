@@ -104,9 +104,10 @@ export default function InspectionPolicy() {
         // 오삭제 방지: 이 정책의 최근 실행 기록을 집계해 함께 보여준다
         let execCount = 0;
         try {
-            execCount = (await strategyApi.executions('INSP', plcyId)).length;
+            // 건수만 필요하니 1건짜리 페이지를 묻고 총건수를 읽는다
+            execCount = (await strategyApi.executions('INSP', plcyId, null, { page: 1, size: 1 })).totCnt;
         } catch { /* 집계 실패가 삭제를 막지는 않는다 */ }
-        const execText = execCount >= 100 ? '100회 이상' : `${execCount}회`;
+        const execText = `${execCount}회`;
         const ok = await confirmRef.current.confirm({
             title: '검수 정책 삭제',
             message: `이 정책의 최근 실행 기록이 ${execText} 있습니다.\n`

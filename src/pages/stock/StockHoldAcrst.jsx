@@ -4,8 +4,13 @@ import { History } from 'lucide-react';
 
 import { invHldApi } from '@/api/invHldApi';
 import { useCodes } from '@/hooks/useCodes';
+import { usePage } from '@/hooks/usePage';
 import { daysAheadStr, fmtDt, num, todayStr } from '@/utils/format';
 import SearchBar, { SearchText, SearchSelect, SearchDateRange, SearchProd, SearchLoc } from '@/components/common/SearchBar';
+import Pager from '@/components/common/Pager';
+
+// 서버 페이징이라 헤더 정렬을 끈다 — 한 페이지 안에서만 정렬되면 사용자가 속는다
+const DEFAULT_COL_DEF = { sortable: false };
 
 /** 실적 종류. 보류/해제 실적은 별개 테이블이지만 화면 형태가 같아 토글로 오간다 */
 const KINDS = [
@@ -24,14 +29,16 @@ const initCond = () => ({
  */
 export default function StockHoldAcrst() {
     const [cond, setCond] = useState(initCond);
-    const [rowData, setRowData] = useState([]);
+    const [data, setData] = useState({ rows: [], totCnt: 0 });
     const [kind, setKind] = useState('hold');
+    const { page, size, setPage } = usePage(100);
 
     const meta = KINDS.find(k => k.key === kind);
     const rsn = useCodes(meta.rsnGrp); // 종류마다 사유 그룹이 다르다 (등록 사유 ≠ 해제 사유)
 
     const columnDefs = useMemo(() => [
-        { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
+        // 페이지가 넘어가도 순번이 이어지게 앞 페이지 건수(context.offset)를 더한다
+        { headerName: 'No.', width: 60, valueGetter: (p) => p.context.offset + p.node.rowIndex + 1, cellClass: 'text-slate-400' },
         { field: 'hldNo', headerName: '보류번호', width: 145 },
         { field: 'prodCd', headerName: '상품 코드', width: 115 },
         { field: 'prodNm', headerName: '상품명', flex: 1, minWidth: 160 },
@@ -54,15 +61,18 @@ export default function StockHoldAcrst() {
         { field: 'createdAt', headerName: '실적일시', width: 150, valueFormatter: (p) => fmtDt(p.value), cellClass: 'text-slate-500' },
     ], [meta, rsn]);
 
-    const fetchList = async (kindKey = kind, condOverride = cond) => {
+    // 조회·종류 전환은 1페이지부터, 페이저는 그 페이지로
+    const fetchList = async (kindKey = kind, condOverride = cond, nextPage = 1) => {
         const api = kindKey === 'hold' ? invHldApi.listAcrst : invHldApi.listRlzAcrst;
-        setRowData(await api(condOverride));
+        setPage(nextPage);
+        setData(await api(condOverride, { page: nextPage, size }));
     };
 
     // 마운트 조회는 fetchList를 부르지 않고 API를 직접 호출한다 — 이펙트가 컴포넌트 함수를
     // 의존성으로 잡게 되어 react-hooks 규칙에 걸린다 (Lot 속성 정정 화면과 같은 형태)
     useEffect(() => {
-        invHldApi.listAcrst(initCond()).then(setRowData);
+        invHldApi.listAcrst(initCond(), { page: 1, size }).then(setData);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // 종류 전환은 이펙트가 아니라 여기서 처리한다. kind를 바꾸는 곳이 토글 버튼 하나뿐이라
@@ -107,11 +117,13 @@ export default function StockHoldAcrst() {
             </SearchBar>
 
             <div className="flex-1 min-h-0 flex flex-col gap-3">
-                <span className="text-xs text-slate-500 font-medium">{meta.label} {num(rowData.length)}건</span>
+                <Pager page={page} size={size} totCnt={data.totCnt} label={meta.label} onChange={(p) => fetchList(kind, cond, p)} />
                 <div className="flex-1 min-h-0">
                     <AgGridReact
-                        rowData={rowData}
+                        rowData={data.rows}
                         columnDefs={columnDefs}
+                        defaultColDef={DEFAULT_COL_DEF}
+                        context={{ offset: (page - 1) * size }}
                         rowHeight={34}
                         headerHeight={38}
                     />

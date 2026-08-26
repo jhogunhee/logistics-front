@@ -171,16 +171,19 @@ export const strategyApi = {
     },
 
     /**
-     * 실행 로그. stgyTyp: 'INSP' | 'PTAWY' | 'WAV' | 'ALOC'.
+     * 실행 로그 (서버 페이징). stgyTyp: 'INSP' | 'PTAWY' | 'WAV' | 'ALOC'.
      * trgrTyps를 주지 않으면 서버가 실행 기록만(MANUAL·AUTO) 돌려준다 —
      * 미리보기 기록까지 보려면 ['MANUAL','AUTO','PREVIEW']처럼 명시한다.
+     * page: { page(1부터), size }. 응답은 { rows, totCnt, page, size } — 건수만 필요하면 size 1로 묻고 totCnt를 읽는다.
      */
-    executions(stgyTyp, stgyId, trgrTyps) {
+    executions(stgyTyp, stgyId, trgrTyps, page = { page: 1, size: 30 }) {
         return api.get('/strategy/executions', {
             params: {
                 stgyTyp,
                 ...(stgyId ? { stgyId } : {}),
                 ...(trgrTyps?.length ? { trgrTyp: trgrTyps.join(',') } : {}),
+                page: page.page,
+                size: page.size,
             },
         });
     },

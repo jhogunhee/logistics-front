@@ -2,17 +2,21 @@ import { useEffect, useState } from 'react';
 import { ChevronDown, ChevronRight, ScrollText, X } from 'lucide-react';
 
 import { strategyApi } from '@/api/strategyApi';
+import { usePage } from '@/hooks/usePage';
 import { fmtDt, num } from '@/utils/format';
+import Pager from '@/components/common/Pager';
 import AllocPlanTrace from './AllocPlanTrace';
 import PutawayStageTrace from './PutawayStageTrace';
 import WaveOrderTrace from './WaveOrderTrace';
 
 const TRGR_LABELS = { MANUAL: '화면 조작', AUTO: '스케줄 실행', PREVIEW: '미리보기' };
 
+// 페이지가 작은 이유 — 행마다 판정 근거(dcsn_trc) JSON을 통째로 실어 온다
+const PAGE_SIZE = 30;
 
 /**
  * 전략 실행 이력 모달 — "이 라인이 왜 차단됐나 / 이 배치가 왜 이렇게 배정됐나"를
- * 판정 근거(dcsn_trc) 그대로 보여준다. 최근 100건.
+ * 판정 근거(dcsn_trc) 그대로 보여준다. 서버 페이징(최근 순).
  *
  * props:
  *   open     표시 여부
@@ -23,20 +27,29 @@ const TRGR_LABELS = { MANUAL: '화면 조작', AUTO: '스케줄 실행', PREVIEW
  *   openLatest 열릴 때 최신 행을 펼친 채로 시작 — 실행 직후 "방금 실행 결과"로 여는 용도
  */
 export default function ExecutionHistory({ open, onClose, stgyTyp, stgyId, stgyNmOf, openLatest = false }) {
-    const [rows, setRows] = useState([]);
+    const [data, setData] = useState({ rows: [], totCnt: 0 });
     const [openId, setOpenId] = useState(null);
-    // 기본은 실행 기록만. 미리보기는 결과를 반영하지 않은 산정이라 「무엇이 실제로 일어났나」와
-    // 섞이면 안 되고, 100건 상한을 나눠 쓰면 실행 이력이 화면에서 밀려난다
+    // 기본은 실행 기록만. 미리보기는 결과를 반영하지 않은 산정이라 「무엇이 실제로 일어났나」와 섞이면 안 된다
     const [withPreview, setWithPreview] = useState(false);
+    const { page, size, setPage, reset } = usePage(PAGE_SIZE);
+
+    // 모달은 언마운트되지 않고 open만 바뀐다 — 다시 열 때·미리보기 토글 때 1페이지로 돌리지 않으면 이전 페이지가 남는다
+    useEffect(() => { reset(); }, [open, withPreview, stgyTyp, stgyId, reset]);
 
     useEffect(() => {
         if (!open) return;
         let ignore = false;
-        strategyApi.executions(stgyTyp, stgyId, withPreview ? ['MANUAL', 'AUTO', 'PREVIEW'] : null)
-            .then(data => { if (!ignore) { setRows(data); setOpenId(openLatest ? data[0]?.id ?? null : null); } })
+        strategyApi.executions(stgyTyp, stgyId, withPreview ? ['MANUAL', 'AUTO', 'PREVIEW'] : null, { page, size })
+            .then(res => {
+                if (ignore) return;
+                setData(res);
+                // 「방금 실행 결과」로 열 때만 최신 행을 펼친다 — 1페이지의 첫 행이 그것이다
+                setOpenId(openLatest && page === 1 ? res.rows[0]?.id ?? null : null);
+            })
             .catch(() => {}); // 실패 토스트는 axios 인터셉터가 띄운다
         return () => { ignore = true; };
-    }, [open, stgyTyp, stgyId, withPreview, openLatest]);
+    }, [open, stgyTyp, stgyId, withPreview, openLatest, page, size]);
+    const rows = data.rows;
 
     if (!open) return null;
 
@@ -48,7 +61,7 @@ export default function ExecutionHistory({ open, onClose, stgyTyp, stgyId, stgyN
                     <div className="flex items-center gap-2">
                         <ScrollText size={16} className="text-indigo-600" />
                         <h3 className="text-lg font-bold text-slate-800">실행 이력</h3>
-                        <span className="text-xs text-slate-400">최근 100건 — 행을 펼치면 건별 판정 근거를 보여줍니다</span>
+                        <span className="text-xs text-slate-400">최근 순 — 행을 펼치면 건별 판정 근거를 보여줍니다</span>
                     </div>
                     <div className="flex items-center gap-3">
                         <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
@@ -94,6 +107,11 @@ export default function ExecutionHistory({ open, onClose, stgyTyp, stgyId, stgyN
                             )}
                         </div>
                     ))}
+                </div>
+
+                {/* 페이저는 스크롤 영역 밖 — 목록이 길어도 늘 보인다 */}
+                <div className="shrink-0 flex justify-end">
+                    <Pager page={page} size={size} totCnt={data.totCnt} onChange={setPage} />
                 </div>
             </div>
         </div>
