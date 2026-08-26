@@ -31,7 +31,7 @@ export default function StockHoldAcrst() {
     const [cond, setCond] = useState(initCond);
     const [data, setData] = useState({ rows: [], totCnt: 0 });
     const [kind, setKind] = useState('hold');
-    const { page, size, setPage } = usePage(100);
+    const { page, size, setPage } = usePage(30);
 
     const meta = KINDS.find(k => k.key === kind);
     const rsn = useCodes(meta.rsnGrp); // 종류마다 사유 그룹이 다르다 (등록 사유 ≠ 해제 사유)
@@ -116,8 +116,8 @@ export default function StockHoldAcrst() {
                 <SearchDateRange from="dateFrom" to="dateTo" label="실적일자" />
             </SearchBar>
 
+            {/* 페이저는 그리드 아래 — 마지막 행까지 훑고 나서 다음 페이지를 누르는 순서가 된다 */}
             <div className="flex-1 min-h-0 flex flex-col gap-3">
-                <Pager page={page} size={size} totCnt={data.totCnt} label={meta.label} onChange={(p) => fetchList(kind, cond, p)} />
                 <div className="flex-1 min-h-0">
                     <AgGridReact
                         rowData={data.rows}
@@ -128,6 +128,7 @@ export default function StockHoldAcrst() {
                         headerHeight={38}
                     />
                 </div>
+                <Pager page={page} size={size} totCnt={data.totCnt} label={meta.label} onChange={(p) => fetchList(kind, cond, p)} />
             </div>
         </div>
     );

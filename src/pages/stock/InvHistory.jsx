@@ -61,7 +61,7 @@ const COLUMN_DEFS = [
 export default function InvHistory() {
     const [cond, setCond] = useState({ prodCd: '', locCd: '', lotNo: '', txTyp: '', rfnDocNo: '', dateFrom: daysAheadStr(-6), dateTo: todayStr() });
     const [data, setData] = useState({ rows: [], totCnt: 0 });
-    const { page, size, setPage } = usePage(100);
+    const { page, size, setPage } = usePage(30);
 
     // 조회 버튼은 1페이지부터, 페이저는 그 페이지로 — 조건이 바뀌었는데 3페이지에 머물면 빈 화면이 된다
     const fetchList = async (nextPage = 1) => {
@@ -93,8 +93,8 @@ export default function InvHistory() {
                 <SearchDateRange from="dateFrom" to="dateTo" label="생성일자" />
             </SearchBar>
 
+            {/* 페이저는 그리드 아래 — 마지막 행까지 훑고 나서 다음 페이지를 누르는 순서가 된다 */}
             <div className="flex-1 min-h-0 flex flex-col gap-2">
-                <Pager page={page} size={size} totCnt={data.totCnt} onChange={fetchList} />
                 <div className="flex-1 min-h-0">
                     <AgGridReact
                         rowData={data.rows}
@@ -105,6 +105,7 @@ export default function InvHistory() {
                         headerHeight={38}
                     />
                 </div>
+                <Pager page={page} size={size} totCnt={data.totCnt} onChange={fetchList} />
             </div>
         </div>
     );
