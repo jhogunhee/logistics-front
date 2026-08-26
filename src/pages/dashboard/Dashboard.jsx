@@ -84,7 +84,12 @@ const dailyFlow = (hist, month) => monthDays(month).map(d => {
     };
 });
 
-const EMPTY = { asns: [], putawayPending: [], outbOrders: [], pickingWaves: [], inv: [], hist: [] };
+// 재고이력은 서버 페이징이라 한 번에 받을 수 있는 상한(PageCond.MAX_SIZE)이 1000이다.
+// 일별 차트는 그 달 전량을 집계하므로, 한 달이 이를 넘으면 덜 집계된다 — totCnt를 함께 들어
+// 그 사실을 화면이 말하게 한다(조용히 낮은 값을 그리는 것이 이 화면의 유일한 위험이다)
+const HIST_PAGE_SIZE = 1000;
+
+const EMPTY = { asns: [], putawayPending: [], outbOrders: [], pickingWaves: [], inv: [], hist: [], histTotCnt: 0 };
 
 // 여섯 API를 한 번에 — 하나가 실패해도 나머지는 그린다 (실패한 것만 빈 목록)
 const loadAll = async (month) => {
@@ -95,12 +100,14 @@ const loadAll = async (month) => {
         outbOrderApi.list({ expctDeFrom: range.dateFrom, expctDeTo: range.dateTo }),
         outbPikngApi.pickingWaves(),
         invApi.list(),
-        invHistApi.list(range),
+        invHistApi.list(range, { page: 1, size: HIST_PAGE_SIZE }),
     ]);
     const pick = (i) => (results[i].status === 'fulfilled' ? results[i].value : []);
+    const histPage = results[5].status === 'fulfilled' ? results[5].value : { rows: [], totCnt: 0 };
     return {
         asns: pick(0), putawayPending: pick(1), outbOrders: pick(2),
-        pickingWaves: pick(3), inv: pick(4), hist: pick(5),
+        pickingWaves: pick(3), inv: pick(4),
+        hist: histPage.rows, histTotCnt: histPage.totCnt,
     };
 };
 
@@ -111,7 +118,7 @@ export default function Dashboard() {
     const [updatedAt, setUpdatedAt] = useState(null);
 
     const today = todayStr();
-    const { asns, putawayPending, outbOrders, pickingWaves, inv, hist } = data;
+    const { asns, putawayPending, outbOrders, pickingWaves, inv, hist, histTotCnt } = data;
 
     const isCurrentMonth = month === monthOf(today);
     const monthNo = Number(month.slice(5, 7));
@@ -124,6 +131,7 @@ export default function Dashboard() {
     const pickRemain = sum(pickingWaves, w => w.remainQty);
     const attentionCount = expiring.length + openPickTasks + putawayPending.length;
     const flow = dailyFlow(hist, month);
+    const histTruncated = histTotCnt > hist.length;
     const asnDone = count(asns, a => a.prgr === 'CONFIRMED');
     const outbDone = count(outbOrders, o => o.status === 'SHIPPED');
 
@@ -254,7 +262,11 @@ export default function Dashboard() {
                 </div>
             </div>
 
-            <Panel title={`${monthLabel(month)} 일별 입출고`} icon={History} hint="재고이력 기준">
+            <Panel
+                title={`${monthLabel(month)} 일별 입출고`}
+                icon={History}
+                hint={histTruncated ? `재고이력 기준 · 최근 ${num(hist.length)}건만 집계 (전체 ${num(histTotCnt)}건)` : '재고이력 기준'}
+            >
                 <MonthlyFlow rows={flow} today={isCurrentMonth ? today : null} />
             </Panel>
 
