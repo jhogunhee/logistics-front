@@ -48,8 +48,11 @@ export const invAdjApi = {
         return api.post('/inventory/adjs', { items });
     },
 
-    /** 실적 조회 (append-only 로그 — 취소 경로가 없어 되돌린 것도 새 행으로 남는다) */
-    list(cond = {}) {
-        return api.get('/inventory/adjs', { params: clean(cond) });
+    /**
+     * 실적 조회 (append-only 로그 — 취소 경로가 없어 되돌린 것도 새 행으로 남는다).
+     * 무한히 자라는 목록이라 서버 페이징이고 전량 조회는 없다 — 응답은 { rows, totCnt, page, size }.
+     */
+    list(cond = {}, page = { page: 1, size: 30 }) {
+        return api.get('/inventory/adjs', { params: { ...clean(cond), page: page.page, size: page.size } });
     },
 };
