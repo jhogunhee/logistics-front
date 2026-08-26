@@ -4,6 +4,8 @@ import {Toaster} from "react-hot-toast";
 import Layout from "./layout/Layout";
 import MobileLayout from "./layout/MobileLayout";
 import Login from "@/pages/auth/Login.jsx";
+import {AuthProvider} from "@/auth/AuthContext.jsx";
+import RequireAuth from "@/auth/RequireAuth.jsx";
 import Dashboard from "@/pages/dashboard/Dashboard.jsx";
 
 import ProdMaster from "@/pages/master/ProdMaster.jsx";
@@ -15,6 +17,7 @@ import ProdVndrMaster from "@/pages/master/ProdVndrMaster.jsx";
 import VendorMaster from "@/pages/master/VendorMaster.jsx";
 import StoreMaster from "@/pages/master/StoreMaster.jsx";
 import NbrRuleMaster from "@/pages/master/NbrRuleMaster.jsx";
+import UsrMaster from "@/pages/master/UsrMaster.jsx";
 import CodeMaster from "@/pages/master/CodeMaster.jsx";
 import LabelPrint from "@/pages/master/LabelPrint.jsx";
 import InspectionPolicy from "@/pages/strategy/InspectionPolicy.jsx";
@@ -67,11 +70,12 @@ export default function App() {
         <>
             <BrowserRouter>
                 <AppToaster/>
+                <AuthProvider>
                 <Routes>
-                    {/* 로그인 (백엔드 인증 붙일 때 AuthRoute로 아래 영역을 감싼다) */}
                     <Route path="/login" element={<Login/>}/>
 
-                    <Route element={<Layout/>}>
+                    {/* 데스크톱과 PDA 두 트리를 각각 감싼다 — 하나만 감싸면 나머지가 무인증으로 남는다 */}
+                    <Route element={<RequireAuth><Layout/></RequireAuth>}>
                         {/* 모니터링 */}
                         <Route index element={<Dashboard/>}/>
 
@@ -134,6 +138,8 @@ export default function App() {
                         <Route path="/master/store" element={<StoreMaster/>}/>
                         <Route path="/master/nbr-rules" element={<NbrRuleMaster/>}/>
                         <Route path="/master/codes" element={<CodeMaster/>}/>
+                        {/* 사용자 관리 — 조회까지 시스템관리자만이다(백엔드 /master/usrs 규칙) */}
+                        <Route path="/master/usr" element={<UsrMaster/>}/>
                         {/* 라벨 인쇄 — PDA가 찍을 바코드를 발행한다. 현장 화면(/m)의 스캔과 짝이다 */}
                         <Route path="/master/labels" element={<LabelPrint/>}/>
 
@@ -146,7 +152,7 @@ export default function App() {
                     </Route>
 
                     {/* PDA (모바일, /m) — 현장 실행 화면. 지시 생성·관리는 위 데스크톱 화면, 실행은 여기다 */}
-                    <Route path="/m" element={<MobileLayout/>}>
+                    <Route path="/m" element={<RequireAuth><MobileLayout/></RequireAuth>}>
                         <Route index element={<MobileHome/>}/>
                         <Route path="picking" element={<MobilePicking/>}/>
                         <Route path="putaway" element={<MobilePutaway/>}/>
@@ -158,6 +164,7 @@ export default function App() {
                         <Route path="replenishment" element={<MobileReplenishment/>}/>
                     </Route>
                 </Routes>
+                </AuthProvider>
             </BrowserRouter>
         </>
     );

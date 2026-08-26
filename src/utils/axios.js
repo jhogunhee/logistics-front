@@ -9,14 +9,23 @@ const instance = axios.create({
     // 배열 조건(상태 다중선택)을 status=A&status=B로 보낸다. axios 기본은 status[]=A라
     // Spring이 List<Enum> 파라미터로 바인딩하지 못한다
     paramsSerializer: { indexes: null },
+    // 인증이 세션 쿠키라 크로스 도메인에서도 쿠키를 실어 보내야 한다
+    withCredentials: true,
 });
+
+// CSRF 토큰. 쿠키가 아니라 메모리에 둔다 — 백엔드가 다른 도메인이라 그쪽이 심은 쿠키를
+// 이 스크립트가 읽을 수 없어서, 로그인/내정보 응답 본문으로 받아 여기에 보관한다.
+let csrfToken = null;
+export const setCsrfToken = (token) => { csrfToken = token; };
+
+const SAFE_METHODS = ['get', 'head', 'options'];
 
 // [요청 인터셉터] 서버로 보내기 전 공통 작업
 instance.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('token');
-        if (token) {
-            config.headers['Authorization'] = `Bearer ${token}`;
+        const method = (config.method || 'get').toLowerCase();
+        if (csrfToken && !SAFE_METHODS.includes(method)) {
+            config.headers['X-XSRF-TOKEN'] = csrfToken;
         }
         return config;
     },
@@ -27,8 +36,14 @@ instance.interceptors.request.use(
 instance.interceptors.response.use(
     (response) => response.data, // .data를 미리 꺼내서 전달
     (error) => {
+        // 세션이 끊겼다(만료·서버 재시작·관리자가 역할을 바꿔 세션을 끊음). 남은 흔적을 지우고
+        // 로그인으로 보낸다 — 이미 로그인 화면이면 옮기지 않는다(새로고침이 반복된다)
         if (error.response?.status === 401) {
-            window.location.href = '/login';
+            csrfToken = null;
+            localStorage.removeItem('authUser');
+            if (!window.location.pathname.startsWith('/login')) {
+                window.location.href = '/login';
+            }
         }
         // 서버 에러 응답({ message })을 e.message로 노출 → 화면에서 토스트에 그대로 사용
         if (error.response?.data?.message) {

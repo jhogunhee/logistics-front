@@ -45,15 +45,21 @@ import {
     Store,
     Tags,
     Truck,
+    Users,
     Warehouse,
     Waves,
     X,
 } from "lucide-react";
 
 import { matchesSearch } from "@/utils/hangul";
+import { useAuth } from "@/auth/AuthContext";
+import { roleLabels } from "@/auth/roles";
 
 // 메뉴를 JSX가 아니라 데이터로 둔다 — 검색이 이 배열을 걸러 렌더하기 때문이다.
 // keywords는 라벨에 없는 검색어를 잡아주는 보조어다 (약어 · 영문 · 업무에서 부르는 다른 이름).
+//
+// roles는 그 그룹(또는 항목)을 보는 역할이다. 없으면 로그인한 누구나 본다.
+// 조회(INQ)는 모든 화면을 보되 저장이 막힌다 — 화면을 감추는 것은 편의일 뿐이고 막는 것은 백엔드다.
 const MENU = [
     {
         title: "모니터링",
@@ -63,6 +69,7 @@ const MENU = [
     },
     {
         title: "OMS",
+        roles: ["ADMR", "ODR_PIC", "INQ"],
         items: [
             { to: "/oms/inbound-order", label: "입고주문", icon: FileInput, keywords: "발주 po purchase order 등록" },
             { to: "/oms/inbound-orders", label: "입고주문 관리", icon: ClipboardList, keywords: "발주 목록 확정 취소 삭제" },
@@ -73,6 +80,7 @@ const MENU = [
     },
     {
         title: "입고",
+        roles: ["ADMR", "CENT_ADMR", "IB_PIC", "INQ"],
         items: [
             { to: "/inbound/asn", label: "입고예정(ASN) 관리", icon: Truck, keywords: "asn 예정 inbound" },
             { to: "/inbound/receiving", label: "입고검수", icon: ClipboardCheck, keywords: "검수 수령 receiving lot 제조일자" },
@@ -83,6 +91,7 @@ const MENU = [
     },
     {
         title: "재고",
+        roles: ["ADMR", "CENT_ADMR", "INV_PIC", "INQ"],
         items: [
             { to: "/stock/status", label: "현재고 조회", icon: Box,
               keywords: "inventory 재고 현황 수량 map 맵 점유 로케이션 평면도 구조도 랙 베이 레벨 빈자리 occupancy" },
@@ -97,6 +106,7 @@ const MENU = [
     },
     {
         title: "출고",
+        roles: ["ADMR", "CENT_ADMR", "OUTB_PIC", "INQ"],
         items: [
             { to: "/outbound/order", label: "출고예정 관리", icon: PackageCheck, keywords: "출고예정 출고주문 obs outbound order 예정 창고 문서 조회" },
             { to: "/outbound/wave", label: "웨이브 편성", icon: Layers, keywords: "wave 묶음 출고주문 담기 전략 실행 피킹지시 발행단위" },
@@ -109,6 +119,7 @@ const MENU = [
     },
     {
         title: "마스터",
+        roles: ["ADMR", "INQ"],
         items: [
             { to: "/master/prod", label: "상품 관리", icon: Barcode, keywords: "product 상품 기준정보 온도대" },
             { to: "/master/uom", label: "단위 관리", icon: Ruler, keywords: "uom 포장 낱개수량 중량 박스 파렛트" },
@@ -121,12 +132,15 @@ const MENU = [
             { to: "/master/nbr-rules", label: "채번규칙 관리", icon: Hash, keywords: "nbr 채번 번호 규칙 패턴 시퀀스" },
             { to: "/master/codes", label: "공통코드 관리", icon: ListTree, keywords: "code 공통코드 그룹 코드값 온도대 보관유형 업무구분 발주구분 계량단위" },
             { to: "/master/labels", label: "라벨 인쇄", icon: Printer, keywords: "label 라벨 barcode 바코드 code128 인쇄 print 출력 로케이션 상품 lot pda 스캔" },
+            // 조회까지 시스템관리자만이라 그룹(ADMR·INQ)보다 좁다 — INQ에게도 보이면 403만 만난다
+            { to: "/master/usr", label: "사용자 관리", icon: Users, roles: ["ADMR"], keywords: "user 사용자 계정 로그인 역할 role 권한 비밀번호" },
         ],
     },
     {
         // 마스터(무엇이 있는가)와 성격이 다르다 — 여기 있는 건 "어떻게 판단할지"의 정의다.
         // 저장하면 곧 운영에 반영되므로 각 화면이 미리보기를 끼고 있다.
         title: "전략",
+        roles: ["ADMR", "CENT_ADMR", "INQ"],
         items: [
             { to: "/strategy/inspection", label: "검수 정책관리", icon: ShieldCheck, keywords: "inspection 검수 제약 정책 역순제한 유통기한 잔여비율 전략 입고" },
             { to: "/strategy/putaway", label: "적치 전략관리", icon: Settings2, keywords: "putaway strategy 전략 추천 단계 로케이션 입고" },
@@ -241,6 +255,7 @@ export default function Sidebar({ mode = "expanded", onToggle, onClose }) {
     const compact = mode === "collapsed";
     const wantFocus = useRef(false);
     const { pathname } = useLocation();
+    const { user, logout, hasRole } = useAuth();
 
     // 지금 있는 화면이 속한 그룹 — 펼침 기본값이자 스크롤을 맞출 기준
     const activeTitle = useMemo(
@@ -299,9 +314,15 @@ export default function Sidebar({ mode = "expanded", onToggle, onClose }) {
     // 검색어는 라벨 · 그룹명 · 보조어 · 경로를 한 문자열로 합쳐 본다.
     // 경로까지 넣은 덕에 'uom', 'master', 'outbound' 같은 영문 URL 조각으로도 찾히고,
     // matchesSearch가 초성('ㄷㅇ' → 단위 관리)까지 처리한다.
+    // 역할로 먼저 거른 뒤 검색으로 거른다 — 검색으로도 안 보이는 것이 나오면 안 된다
+    const visible = useMemo(() => MENU
+        .filter(g => !g.roles || hasRole(g.roles))
+        .map(g => ({ ...g, items: g.items.filter(i => !i.roles || hasRole(i.roles)) }))
+        .filter(g => g.items.length > 0), [hasRole]);
+
     const groups = useMemo(() => {
-        if (!q.trim()) return MENU;
-        return MENU
+        if (!q.trim()) return visible;
+        return visible
             .map(g => ({
                 ...g,
                 items: g.items.filter(i =>
@@ -309,7 +330,7 @@ export default function Sidebar({ mode = "expanded", onToggle, onClose }) {
                 ),
             }))
             .filter(g => g.items.length > 0);
-    }, [q]);
+    }, [q, visible]);
 
     const hitCount = groups.reduce((n, g) => n + g.items.length, 0);
 
@@ -465,14 +486,20 @@ export default function Sidebar({ mode = "expanded", onToggle, onClose }) {
                 </a>
                 <div className={`flex items-center ${compact ? "flex-col gap-1" : "gap-3 px-2 py-2"}`}>
                     <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold shrink-0"
-                         title={compact ? "관리자" : undefined}>
-                        A
+                         title={compact ? user?.usrNm : undefined}>
+                        {user?.usrNm?.[0] ?? "?"}
                     </div>
-                    {!compact && <span className="flex-1 text-sm font-semibold text-slate-700 whitespace-nowrap">관리자</span>}
-                    {/* 로그아웃 (인증 붙이기 전까지는 로그인 화면 이동만) */}
+                    {!compact && (
+                        <div className="flex-1 min-w-0">
+                            <div className="text-sm font-semibold text-slate-700 truncate">{user?.usrNm}</div>
+                            <div className="text-[11px] text-slate-400 truncate" title={roleLabels(user?.roles)}>
+                                {roleLabels(user?.roles)}
+                            </div>
+                        </div>
+                    )}
                     <button
-                        onClick={() => {
-                            sessionStorage.removeItem("loginUser");
+                        onClick={async () => {
+                            await logout();
                             window.location.href = "/login";
                         }}
                         title="로그아웃"
