@@ -24,8 +24,10 @@ const SAFE_METHODS = ['get', 'head', 'options'];
 instance.interceptors.request.use(
     (config) => {
         const method = (config.method || 'get').toLowerCase();
+        // 헤더 이름은 백엔드가 쓰는 저장소가 정한다 — 세션 저장(HttpSessionCsrfTokenRepository)의
+        // 기본 이름이 X-CSRF-TOKEN이다. X-XSRF-TOKEN은 쿠키 저장 방식의 이름이라 여기선 403이 된다
         if (csrfToken && !SAFE_METHODS.includes(method)) {
-            config.headers['X-XSRF-TOKEN'] = csrfToken;
+            config.headers['X-CSRF-TOKEN'] = csrfToken;
         }
         return config;
     },
