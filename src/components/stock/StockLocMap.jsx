@@ -3,14 +3,15 @@ import { PackageSearch, Pin, Table2, TriangleAlert, Truck, X } from 'lucide-reac
 import toast from 'react-hot-toast';
 
 import { invApi } from '@/api/invApi';
-import { BIZ_DVSN_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
+import { TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { num } from '@/utils/format';
 import { Badge } from '@/components/common/Badge';
 import { StatTile } from '@/components/common/StatTile';
 import { ProdThumb } from '@/components/common/ProdThumb';
+import RackGrid, { MapCell } from '@/components/locmap/RackGrid';
 import {
     OVERLAYS, TMP_COLS, buildZones, cellFacts, gridOf, isOver, isShort, overlayOf, pctOf,
-} from './locMapLayout';
+} from '@/components/locmap/locMapLayout';
 
 /**
  * 로케이션 점유 맵 — 두 모드.
@@ -34,9 +35,6 @@ import {
 // 「현재고/min」에 오고 있는 지시 잔량을 덧붙인다 — min 아래인데 미달이 아닌 칸의 이유가 읽히게
 const fxngQtyText = (r) => `${num(r.fxngOnHandQty)}/${num(r.fxngMinQty)}`
     + (r.fxngInflowQty > 0 ? ` (+유입 ${num(r.fxngInflowQty)})` : '');
-
-// 랙 상세 채움 색 — 높이가 점유율을 말하므로 색은 상태만 가른다: 정상 indigo, 초과만 rose
-const fillColor = (pct) => (pct > 100 ? 'bg-rose-500' : pct === 100 ? 'bg-indigo-600' : 'bg-indigo-400');
 
 export default function StockLocMap({ focusLocCd, onGoTable }) {
     const [rows, setRows] = useState(null);
@@ -283,61 +281,8 @@ export default function StockLocMap({ focusLocCd, onGoTable }) {
             ) : (
                 /* ── 랙 상세: 존 → 통로 → 베이×레벨 입면 ── */
                 <div className="flex-1 min-w-0 min-h-0 overflow-auto flex flex-col gap-4 pb-2">
-                    {zones.length === 0 && (
-                        <p className="text-sm text-slate-400 py-8 text-center">조건에 맞는 보관 로케이션이 없습니다.</p>
-                    )}
-                    {zones.map(zone => (
-                        <section key={zone.zonCd}
-                                 className={`bg-white border border-slate-200 rounded-xl p-4 transition-opacity ${zone.dim ? 'opacity-25' : ''}`}>
-                            <div className="flex items-center gap-2 mb-3">
-                                <h3 className="text-sm font-bold text-slate-700">{zone.zonCd}</h3>
-                                <span className="text-xs text-slate-400">{zone.zonNm}</span>
-                                <Badge meta={BIZ_DVSN_META} value={zone.bizDvsn} show="label" />
-                                <Badge meta={TEMP_ZONE_META} value={zone.tmpZon} />
-                                <div className="ml-auto flex items-center gap-2 text-[11px] text-slate-400">
-                                    <span>{num(zone.all.length)}자리</span>
-                                    {zone.occupancy != null && (
-                                        <>
-                                            <span className="w-20 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                                                <span className={`block h-full rounded-full ${zone.occupancy > 100 ? 'bg-rose-500' : 'bg-indigo-500'}`}
-                                                      style={{ width: `${Math.min(zone.occupancy, 100)}%` }} />
-                                            </span>
-                                            <span className="font-medium text-slate-500 tabular-nums">점유 {zone.occupancy}%</span>
-                                        </>
-                                    )}
-                                </div>
-                            </div>
-                            <div className="flex gap-6 flex-wrap items-end">
-                                {zone.aisles.map(({ aisle, bays, levels, at }) => (
-                                    <div key={aisle || '(단일)'} className="flex flex-col gap-1">
-                                        {aisle && <span className="text-[11px] font-bold text-slate-400">통로 {aisle}</span>}
-                                        <div className="grid gap-1"
-                                             style={{ gridTemplateColumns: `repeat(${bays.length}, minmax(0, 1fr))` }}>
-                                            {levels.map(level => bays.map(bay => {
-                                                const cell = at.get(`${bay}|${level}`);
-                                                return cell
-                                                    ? <MapCell key={`${bay}|${level}`} r={cell}
-                                                               selected={sel?.query === cell.locCd}
-                                                               onClick={() => selectLoc(cell)}
-                                                               onHover={setTip} />
-                                                    : <span key={`${bay}|${level}`} />;
-                                            }))}
-                                        </div>
-                                        <div className="grid gap-1"
-                                             style={{ gridTemplateColumns: `repeat(${bays.length}, minmax(0, 1fr))` }}>
-                                            {bays.map(bay => (
-                                                <span key={bay} className="text-center text-[10px] text-slate-400">{bay}</span>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ))}
-                                {zone.flat.map(r => (
-                                    <MapCell key={r.locId} r={r} wide selected={sel?.query === r.locCd}
-                                             onClick={() => selectLoc(r)} onHover={setTip} />
-                                ))}
-                            </div>
-                        </section>
-                    ))}
+                    <RackGrid zones={zones} selectedLocCd={sel?.query}
+                              onSelect={selectLoc} onHover={setTip} />
                 </div>
             )}
 
@@ -500,43 +445,6 @@ const PlanCell = ({ b, selected, fill: fillOf, onClick, onHover }) => {
                 <Pin size={10} className={`absolute top-0.5 right-0.5 ${fill?.includes('text-white') ? 'text-white/85' : 'text-indigo-600'}`} />
             )}
             {b.short && <TriangleAlert size={10} className="absolute bottom-0.5 right-0.5 text-amber-500 fill-amber-100" />}
-        </button>
-    );
-};
-
-const MapCell = ({ r, wide, selected, onClick, onHover }) => {
-    const pct = pctOf(r);
-    const short = isShort(r);
-    const empty = pct == null || pct === 0;
-    const height = pct == null ? 0 : Math.min(Math.max(pct, pct > 0 ? 8 : 0), 100); // 미량도 보이게 최소 8%
-
-    return (
-        <button onClick={onClick}
-                onMouseEnter={(e) => onHover({ r, x: e.clientX, y: e.clientY })}
-                onMouseMove={(e) => onHover({ r, x: e.clientX, y: e.clientY })}
-                onMouseLeave={() => onHover(null)}
-                className={`relative h-11 ${wide ? 'px-3' : 'w-16'} rounded-md overflow-hidden
-                    flex items-start justify-center pt-1 text-[11px] font-medium tabular-nums
-                    transition-transform hover:scale-105 hover:z-10 hover:shadow-md
-                    ${empty
-                        ? 'bg-white border border-dashed border-slate-300 text-slate-400'
-                        : 'bg-slate-100 border border-slate-200 text-slate-600'}
-                    ${selected ? 'ring-2 ring-inset ring-slate-900 z-10' : short ? 'ring-2 ring-amber-400' : ''}`}>
-            {/* 점유율만큼 아래에서 차오르는 채움 */}
-            {!empty && (
-                <span className={`absolute bottom-0 inset-x-0 ${fillColor(pct)} opacity-90`}
-                      style={{ height: `${height}%` }} />
-            )}
-            <span className={`relative ${pct >= 75 ? 'text-white' : ''}`}>
-                {wide ? r.locCd : `${r.bay}-${r.level}`}
-            </span>
-            {/* 고정 자리는 「이 자리는 이 상품 자리」를 그림으로 — 이미지가 없으면 압정으로 되돌아간다.
-                구조도(PlanCell)에는 넣지 않는다: 거긴 베이 합산이라 레벨마다 다른 고정상품을 하나로 대표할 수 없다 */}
-            {r.fxngProdCd && (r.fxngProdImgUrl
-                ? <span className="absolute top-1 right-1"><ProdThumb src={r.fxngProdImgUrl} alt={r.fxngProdNm} size={18} /></span>
-                : <Pin size={11} className={`absolute top-1 right-1 ${pct >= 75 ? 'text-white/85' : 'text-indigo-600'}`} />
-            )}
-            {short && <TriangleAlert size={11} className="absolute bottom-1 right-1 text-amber-500 fill-amber-100" />}
         </button>
     );
 };
