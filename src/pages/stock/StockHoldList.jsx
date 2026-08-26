@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 
 import { invHldApi } from '@/api/invHldApi';
 import { useCodes } from '@/hooks/useCodes';
-import { ETC_RSN_CD } from '@/constants/rsnCodes';
+import { ETC_RSN_CD, RLZ_RSN_ADJ } from '@/constants/rsnCodes';
 import { INV_HLD_STATUS_META } from '@/constants/badgeMeta';
 import { fmtDt, num } from '@/utils/format';
 import SearchBar, { SearchText, SearchSelect, SearchProd, SearchLoc } from '@/components/common/SearchBar';
@@ -29,6 +29,10 @@ const INIT_COND = { hldNo: '', prodCd: '', locCd: '', lotNo: '', rsnCd: '', stat
 export default function StockHoldList() {
     const hldRsn = useCodes('HLD_RSN');     // 보류사유 (조회 필터 + 그리드 표시)
     const rlzRsn = useCodes('HLD_RLZ_RSN'); // 해제사유 (그리드 편집)
+    // 「재고조정」은 조정이 보류분을 폐기하며 남기는 사유라 고를 수 없다 — 고르면 조정 없이
+    // 사유만 조정인 해제가 된다. 서버(InvHldService.release)도 같은 코드를 거부하므로
+    // 「등록은 되는데 동작하지 않는 옵션」이 되지 않게 목록에서 뺀다
+    const rlzRsnValues = useMemo(() => rlzRsn.values.filter(cd => cd !== RLZ_RSN_ADJ), [rlzRsn]);
     const [cond, setCond] = useState(INIT_COND);
     const [rowData, setRowData] = useState([]);
     const [confirmTargets, setConfirmTargets] = useState(null);
@@ -89,7 +93,7 @@ export default function StockHoldList() {
             editable: (p) => p.data.status === 'HELD',
             headerTooltip: '해제수량을 입력한 행만 필수. 오등록 취소도 이 경로다 (사유: 오등록)',
             cellEditor: SelectCellEditor,
-            cellEditorParams: { values: rlzRsn.values, labelMap: rlzRsn.nmByCd, placeholder: '사유 선택' },
+            cellEditorParams: { values: rlzRsnValues, labelMap: rlzRsn.nmByCd, placeholder: '사유 선택' },
             cellClass: (p) => (p.data.status === 'HELD' ? 'bg-emerald-50' : ''),
             cellRenderer: (p) => {
                 if (p.data.status !== 'HELD') return <span className="text-slate-300">—</span>;
@@ -112,7 +116,7 @@ export default function StockHoldList() {
         },
         { field: 'createdAt', headerName: '등록일시', width: 140, valueFormatter: (p) => fmtDt(p.value), cellClass: 'text-slate-500' },
         { field: 'rlzDt', headerName: '해제일시', width: 140, valueFormatter: (p) => fmtDt(p.value), cellClass: 'text-slate-500' },
-    ], [hldRsn, rlzRsn]);
+    ], [hldRsn, rlzRsn, rlzRsnValues]);
 
     const fetchList = async () => {
         const data = await invHldApi.list(cond);
