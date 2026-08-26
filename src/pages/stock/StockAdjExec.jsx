@@ -28,7 +28,7 @@ const avalToLine = (r) => ({
 
 /** 보류 건을 편집 라인으로 — 감소 한도는 가용이 아니라 그 건의 미해제 잔량이다 */
 const hldToLine = (r) => ({
-    ...r, avalQty: null,
+    ...r, hldId: r.invHldId, avalQty: null,
     adjBfrQty: r.onHandQty, adjQty: null, adjAftQty: null, rsnCd: '', rsnDscr: '', _new: false,
 });
 
@@ -155,7 +155,7 @@ export default function StockAdjExec() {
         },
         {
             field: 'adjQty', headerName: '조정수량', width: 105, editable: true,
-            headerTooltip: '부호를 넣습니다 — 양수 증가 / 음수 감소. 보류 라인과 신규 라인은 한 방향만 됩니다',
+            headerTooltip: '부호를 넣습니다 — 양수 증가 / 음수 감소. 보류(−)·신규(+) 라인은 방향이 하나뿐이라 부호 없이 넣어도 그쪽으로 잡힙니다',
             cellClass: 'ag-right-aligned-cell bg-indigo-50 font-bold',
             cellRenderer: (p) => {
                 if (p.value == null || p.value === '') return <span className="text-slate-300 font-normal">—</span>;
@@ -264,6 +264,8 @@ export default function StockAdjExec() {
     /**
      * 조정수량 ↔ 조정후수량 양방향 계산. 기본 텍스트 에디터는 문자열을 남기므로 빈 값은 null로,
      * 그 외는 숫자로 맞춘다. 결과가 0이면 상대 칸에 0을 명시해 빈칸이 되지 않게 한다.
+     * 보류(−)·신규(+) 라인은 방향이 하나뿐이라 조정수량은 부호 없이 넣은 값을 그 방향으로 읽는다 —
+     * 조정후수량은 값 자체가 방향을 가지므로(조정후 > 보유는 증가 의도다) 고치지 않고 저장 검증에 맡긴다.
      */
     const onLineValueChanged = (e) => {
         const key = lineKey(e.data);
@@ -273,7 +275,9 @@ export default function StockAdjExec() {
             if (lineKey(r) !== key) return r;
             const next = { ...r, ...e.data };
             if (e.colDef.field === 'adjQty') {
-                const q = toNum(e.data.adjQty);
+                const q0 = toNum(e.data.adjQty);
+                const dir = r.hldId != null ? -1 : (r._new ? 1 : 0);
+                const q = q0 == null || q0 === 0 || dir === 0 ? q0 : dir * Math.abs(q0);
                 return { ...next, adjQty: q, adjAftQty: q == null ? null : bfr + q };
             }
             if (e.colDef.field === 'adjAftQty') {
