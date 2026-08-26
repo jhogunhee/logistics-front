@@ -6,6 +6,7 @@ import {
     BookOpen,
     Box,
     Calculator,
+    SlidersHorizontal,
     ChevronRight,
     ChevronsLeft,
     ChevronsRight,
@@ -101,7 +102,9 @@ const MENU = [
             { to: "/stock/hold", label: "재고 보류", icon: PauseCircle, keywords: "hold 출고 금지" },
             { to: "/stock/move", label: "재고 이동", icon: ArrowLeftRight, keywords: "move 로케이션 이동 지시 예약 등록 확정 취소" },
             { to: "/stock/spmt", label: "정기 보충", icon: Repeat, keywords: "보충 replenish spmt min max 피킹존 고정로케이션 fefo 재보충점" },
-            { to: "/stock/count", label: "재고조사", icon: Calculator, keywords: "실사 count 조정 adjust" },
+            { to: "/stock/count", label: "재고조사", icon: Calculator, keywords: "실사 count 차이 오차 전산수량 블라인드" },
+            { to: "/stock/adjust", label: "재고조정", icon: SlidersHorizontal,
+              keywords: "adjust 조정 폐기 스크랩 불량 반품 견본 처분 증감 scrap" },
         ],
     },
     {
