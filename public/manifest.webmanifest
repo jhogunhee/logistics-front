@@ -1,7 +1,7 @@
 {
     "name": "WMS PDA",
     "short_name": "WMS PDA",
-    "description": "창고 현장 실행 화면 (피킹)",
+    "description": "창고 현장 실행 화면 — 입고검수·적치·재고이동·재고조사·보충·피킹·출고확정",
     "start_url": "/m",
     "display": "standalone",
     "orientation": "portrait",

@@ -1,0 +1,778 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WareFlow 사용자설명서 — 3. 입고</title>
+<style>
+  :root {
+    --ink: #1e293b;
+    --ink-soft: #475569;
+    --ink-faint: #94a3b8;
+    --line: #e2e8f0;
+    --accent: #4f46e5;
+    --accent-soft: #eef2ff;
+    --warn-bg: #fff7ed;
+    --warn-line: #fed7aa;
+    --warn-ink: #9a3412;
+    --page: #ffffff;
+    --bg: #f8fafc;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Malgun Gothic", "맑은 고딕", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 15px;
+    line-height: 1.75;
+  }
+  .page {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: var(--page);
+    padding: 48px 44px 72px;
+  }
+
+  .doc-head { border-bottom: 2px solid var(--ink); padding-bottom: 16px; margin-bottom: 32px; }
+  .doc-head .kicker { font-size: 12px; letter-spacing: .08em; color: var(--ink-faint); font-weight: 700; }
+  .doc-head h1 { margin: 6px 0 0; font-size: 28px; letter-spacing: -.01em; }
+  .doc-head { position: relative; }
+  .doc-head .back {
+    position: absolute; right: 0; top: 50%; transform: translateY(-60%);
+    font-size: 13px; font-weight: 700; color: var(--ink-faint); text-decoration: none;
+  }
+  .doc-head .back:hover { color: var(--accent); }
+  .page-back { margin: 60px 0 0; padding-top: 20px; border-top: 1px solid var(--line); font-size: 14px; }
+  .page-back a { color: var(--accent); font-weight: 700; text-decoration: none; }
+  .page-back a:hover { text-decoration: underline; }
+
+  /* 목차 */
+  .toc { background: #f8fafc; border: 1px solid var(--line); border-radius: 12px; padding: 16px 22px; margin-bottom: 44px; }
+  .toc b { font-size: 13px; color: var(--ink-faint); display: block; margin-bottom: 6px; }
+  .toc ol { margin: 0; padding-left: 20px; columns: 2; column-gap: 40px; }
+  .toc li { margin-bottom: 3px; }
+  .toc a { color: var(--ink-soft); text-decoration: none; }
+  .toc a:hover { color: var(--accent); text-decoration: underline; }
+
+  h2 {
+    font-size: 22px;
+    margin: 64px 0 18px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--line);
+    scroll-margin-top: 16px;
+  }
+  h2 .where { font-size: 13px; font-weight: 400; color: var(--ink-faint); margin-left: 10px; }
+  h3 { font-size: 17px; margin: 36px 0 12px; padding-left: 11px; border-left: 4px solid var(--accent); }
+  h4 { font-size: 15px; margin: 26px 0 8px; color: var(--ink-soft); }
+  p { margin: 0 0 12px; }
+  ol, ul { margin: 0 0 16px; padding-left: 22px; }
+  li { margin-bottom: 6px; }
+
+  /* 화면 캡처 + 번호 배지 */
+  figure { margin: 0 0 26px; }
+  .shot { position: relative; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(15,23,42,.08); line-height: 0; }
+  .shot img { width: 100%; height: auto; display: block; }
+  .pin {
+    position: absolute; transform: translate(-50%, -50%);
+    width: 26px; height: 26px; border-radius: 50%;
+    background: var(--accent); color: #fff;
+    font-size: 13px; font-weight: 700; line-height: 26px; text-align: center;
+    box-shadow: 0 0 0 3px rgba(79,70,229,.25);
+    font-family: system-ui, sans-serif;
+  }
+  figcaption { margin-top: 10px; font-size: 12px; color: var(--ink-faint); line-height: 1.6; }
+
+  /* PDA 화면 — 실제 단말 비율로 좁게, 단계 순서대로 나란히 */
+  .steps { display: flex; gap: 20px; flex-wrap: wrap; margin: 0 0 26px; }
+  .steps figure { flex: 1 1 240px; max-width: 300px; margin: 0; }
+  .steps .shot { border-radius: 14px; }
+  .steps figcaption { display: flex; gap: 8px; align-items: flex-start; margin-top: 10px; color: var(--ink-soft); font-size: 13px; }
+  .steps figcaption .n {
+    flex: 0 0 22px; height: 22px; border-radius: 50%;
+    background: var(--accent); color: #fff;
+    font-size: 12px; font-weight: 700; line-height: 22px; text-align: center;
+    font-family: system-ui, sans-serif;
+  }
+  .steps figcaption b { display: block; color: var(--ink); }
+
+  /* 캡처 대기 자리 */
+  .pending {
+    border: 2px dashed var(--warn-line); background: var(--warn-bg); color: var(--warn-ink);
+    border-radius: 12px; padding: 28px; text-align: center; font-size: 13px; margin-bottom: 26px;
+  }
+  .pending b { display: block; margin-bottom: 4px; font-size: 14px; }
+
+  /* 번호 설명 */
+  .callouts { list-style: none; padding: 0; margin: 0 0 26px; border-top: 1px solid var(--line); }
+  .callouts li { display: flex; gap: 14px; padding: 13px 4px; border-bottom: 1px solid var(--line); margin: 0; }
+  .callouts .n {
+    flex: 0 0 26px; height: 26px; border-radius: 50%;
+    background: var(--accent-soft); color: var(--accent);
+    font-size: 13px; font-weight: 700; line-height: 26px; text-align: center;
+    font-family: system-ui, sans-serif;
+  }
+  .callouts .t { flex: 1; min-width: 0; }
+  .callouts .t > b { display: block; margin-bottom: 2px; }
+  .callouts .t span { color: var(--ink-soft); font-size: 14px; }
+
+  table { width: 100%; border-collapse: collapse; margin: 0 0 20px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 9px 12px; text-align: left; vertical-align: top; }
+  th { background: #f1f5f9; font-weight: 700; }
+
+  .stuck { border: 1px solid var(--line); border-radius: 12px; padding: 4px 20px 10px; margin-bottom: 8px; }
+  .stuck dt { font-weight: 700; margin-top: 14px; }
+  .stuck dd { margin: 4px 0 0; color: var(--ink-soft); }
+
+  .flow {
+    background: #f8fafc; border: 1px solid var(--line); border-radius: 12px;
+    padding: 18px 22px; margin-bottom: 20px; overflow-x: auto;
+  }
+  .flow-row { display: flex; align-items: stretch; gap: 8px; min-width: 640px; }
+  .flow-step { flex: 1; text-align: center; }
+  .flow-step .name { display: block; font-weight: 700; font-size: 14px; padding: 8px 4px; background: #fff; border: 1px solid var(--line); border-radius: 8px; }
+  .flow-step .sub { display: block; font-size: 11px; color: var(--ink-faint); margin-top: 5px; }
+  .flow-arrow { align-self: center; color: var(--ink-faint); font-size: 13px; }
+
+  code { background: #f1f5f9; border-radius: 4px; padding: 1px 6px; font-size: 13px; font-family: "Consolas", "D2Coding", monospace; }
+  .ui { background: #f1f5f9; border-radius: 4px; padding: 1px 6px; font-size: 13px; font-weight: 700; color: var(--ink); }
+
+  @media print {
+    body { background: #fff; }
+    .doc-head .back, .page-back { display: none; }
+    .page { padding: 0; max-width: none; }
+    .toc { break-after: page; }
+    h2 { break-before: page; break-after: avoid; }
+    h2:first-of-type { break-before: avoid; }
+    h3, h4 { break-after: avoid; }
+    figure, .callouts li, .stuck, .flow, table { break-inside: avoid; }
+  }
+  @media (max-width: 720px) {
+    .page { padding: 28px 18px 48px; }
+    .toc ol { columns: 1; }
+    .pin { width: 20px; height: 20px; line-height: 20px; font-size: 11px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="doc-head">
+    <a class="back" href="index.html">← 목차</a>
+    <div class="kicker">WareFlow 사용자설명서</div>
+    <h1>3. 입고</h1>
+  </div>
+
+  <nav class="toc">
+    <b>이 장의 차례</b>
+    <ol>
+      <li><a href="#s30">이 장의 흐름</a></li>
+      <li><a href="#s31">입고예정(ASN) 관리</a></li>
+      <li><a href="#s32">입고검수</a></li>
+      <li><a href="#s33">적치지시</a></li>
+      <li><a href="#s34">적치</a></li>
+      <li><a href="#s35">입고확정</a></li>
+      <li><a href="#s36">PDA — 입고검수</a></li>
+      <li><a href="#s37">PDA — 적치</a></li>
+    </ol>
+  </nav>
+
+  <!-- ══════════════════ 3.0 ══════════════════ -->
+  <h2 id="s30">3.0 이 장의 흐름</h2>
+
+  <div class="flow">
+    <div class="flow-row">
+      <div class="flow-step"><span class="name">입고예정(ASN)</span><span class="sub">조회 전용</span></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><span class="name">입고검수</span><span class="sub">실물 확인</span></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><span class="name">적치지시</span><span class="sub">자리 배정</span></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><span class="name">적치</span><span class="sub">실물 이동</span></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><span class="name">입고확정</span><span class="sub">문서 마감</span></div>
+    </div>
+  </div>
+
+  <ul>
+    <li><b>입고예정(ASN)</b>은 이 시스템에서 만들지 않습니다. OMS의 입고주문을 확정하면 생깁니다.</li>
+    <li><b>검수</b>를 하면 물건이 입고 스테이징(RCV-STAGE)에 재고로 잡힙니다. 아직 보관 자리에는 없습니다.</li>
+    <li><b>적치지시</b>는 어느 보관 로케이션에 넣을지 정하는 단계입니다. 물건은 움직이지 않습니다.</li>
+    <li><b>적치</b>를 해야 물건이 RCV-STAGE에서 보관 로케이션으로 옮겨집니다.</li>
+    <li><b>입고확정</b>은 사람이 눌러야 끝납니다. 전량 입고돼도 자동으로 닫히지 않습니다.</li>
+  </ul>
+
+  <p>사무실에서는 다섯 화면을 모두 씁니다. 현장 PDA에는 <b>검수</b>와 <b>적치</b> 두 가지만 있습니다. 지시를 내리고 취소하고 문서를 닫는 일은 사무실에서 합니다.</p>
+
+  <h3>진행단계 읽는 법</h3>
+  <p>목록에 뱃지로 표시되는 진행단계는 다섯 가지입니다. 수량과 적치지시 상황에 따라 자동으로 정해집니다. 사람이 직접 바꾸는 값이 아닙니다.</p>
+  <table>
+    <thead><tr><th style="width:130px">진행단계</th><th>뜻</th></tr></thead>
+    <tbody>
+      <tr><td>입고예정</td><td>아직 검수를 시작하지 않음</td></tr>
+      <tr><td>검수</td><td>검수 중. 예정수량이 다 채워지지 않음</td></tr>
+      <tr><td>적치지시</td><td>검수는 끝났고 적치지시가 걸려 있음</td></tr>
+      <tr><td>적치완료</td><td>온 것을 다 적치함. <b>확정을 기다리는 상태</b></td></tr>
+      <tr><td>입고확정</td><td>확정 버튼을 눌러 닫음</td></tr>
+    </tbody>
+  </table>
+  <p>덜 온 것이 있으면 적치를 다 했더라도 「검수」에 머뭅니다. 예를 들어 100개 예정에 60개만 와서 그 60개를 전부 적치했다면, 진행단계는 「적치완료」가 아니라 「검수」입니다. 나머지 40개를 아직 기다리는 중이기 때문입니다.</p>
+
+  <h3>자주 나오는 용어</h3>
+  <table>
+    <thead><tr><th style="width:130px">용어</th><th>뜻</th></tr></thead>
+    <tbody>
+      <tr><td>RCV-STAGE</td><td>입고 스테이징. 검수한 물건이 적치 전까지 머무는 자리</td></tr>
+      <tr><td>반품존</td><td>반품입고의 불량품을 받는 자리. 받는 즉시 보류돼 출고에 쓰이지 않음</td></tr>
+      <tr><td>Lot</td><td>검수할 때 만들어지는 재고 묶음. 제조일자·유통기한이 여기 붙음</td></tr>
+      <tr><td>입고단위</td><td>발주·검수할 때 세는 단위(BOX, PLT 등). 검수수량은 이 단위로 입력</td></tr>
+      <tr><td>EA(낱개)</td><td>재고가 실제로 저장되는 단위. 상품이 섞인 합계는 EA로만 더할 수 있음</td></tr>
+      <tr><td>FEFO</td><td>유통기한이 임박한 것부터 처리하는 순서</td></tr>
+      <tr><td>미지시</td><td>적치지시를 아직 걸지 않은 수량</td></tr>
+      <tr><td>지시중</td><td>지시는 걸렸는데 아직 적치되지 않은 수량</td></tr>
+      <tr><td>라인</td><td>입고건 안의 상품 한 줄. 「검수 진행 1 / 4」는 상품 4종 중 1종을 다 받았다는 뜻</td></tr>
+      <tr><td>잔량 · 잔여수량</td><td>아직 남은 수량. 검수 화면은 「잔량」, 적치 화면은 「잔여수량」으로 부름</td></tr>
+      <tr><td>온도대</td><td>상온 · 냉장 · 냉동 구분. 상품과 자리의 온도대가 맞아야 넣을 수 있음</td></tr>
+      <tr><td>보관존</td><td>물건을 쌓아 두는 구역. 적치는 이곳으로 들어감</td></tr>
+      <tr><td>전략 · 정책</td><td>관리자가 「전략」 메뉴에서 미리 정해 둔 규칙. 적치 자리를 자동으로 고르거나(적치 전략), 받으면 안 되는 물건을 막음(검수 정책)</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ══════════════════ 3.1 ══════════════════ -->
+  <h2 id="s31">3.1 입고예정(ASN) 관리 <span class="where">입고 › 입고예정(ASN) 관리</span></h2>
+
+  <h3>언제 쓰나</h3>
+  <p>오늘 무엇이 들어오는지 보고, 개별 입고건이 어디까지 진행됐는지 확인할 때 씁니다. <b>조회 전용 화면입니다.</b> 여기서 입고예정을 만들거나 지울 수 없습니다.</p>
+
+  <h3>시작 전 준비</h3>
+  <p>없습니다. 입고예정은 OMS에서 입고주문을 확정하면 자동으로 생깁니다.</p>
+
+  <h3>화면 구성</h3>
+  <figure>
+    <div class="shot">
+      <img src="img/03-01-입고예정.jpg" width="1529" height="804" alt="입고예정(ASN) 관리 화면">
+      <span class="pin" style="left:18.90%; top:8.50%;">1</span>
+      <span class="pin" style="left:28.80%; top:24.25%;">2</span>
+      <span class="pin" style="left:34.20%; top:24.25%;">3</span>
+      <span class="pin" style="left:16.70%; top:48.00%;">4</span>
+      <span class="pin" style="left:16.70%; top:67.20%;">5</span>
+      <span class="pin" style="left:82.40%; top:69.65%;">6</span>
+    </div>
+    <figcaption>입고예정(ASN) 관리 — 조회 기간을 넓혀(2026-01-01 ~) 조회한 상태입니다. 기본값은 오늘부터 7일 뒤까지입니다.</figcaption>
+  </figure>
+
+  <ol class="callouts">
+    <li><span class="n">1</span><span class="t"><b>검색 조건</b><span>입고번호·진행단계·구분·벤더·입고예정일로 찾습니다.</span></span></li>
+    <li><span class="n">2</span><span class="t"><b>구분 열</b><span><b>반품</b> 표시가 붙으면 점포에서 되돌아온 반품입고입니다. 상대처가 점포로 나옵니다.</span></span></li>
+    <li><span class="n">3</span><span class="t"><b>진행단계 열</b><span>위 표의 다섯 단계입니다. 「적치완료」는 확정을 기다린다는 뜻입니다.</span></span></li>
+    <li><span class="n">4</span><span class="t"><b>입고건 목록</b><span>한 줄을 클릭하면 아래에 그 건의 상품이 열립니다.</span></span></li>
+    <li><span class="n">5</span><span class="t"><b>입고 라인</b><span>선택한 입고건의 상품 목록입니다.</span></span></li>
+    <li><span class="n">6</span><span class="t"><b>라인 수량 열</b><span>「입고단위 (낱개)」로 보여줍니다. <code>5 BOX (60)</code>은 5박스이고 낱개로 60개입니다.</span></span></li>
+  </ol>
+
+  <h3>조작 순서</h3>
+  <ol>
+    <li>검색 조건을 지정하고 <span class="ui">[조회]</span>를 누릅니다. 입고예정일은 기본이 오늘부터 7일 뒤까지입니다. 예정일이 지난 건은 시작일을 과거로 내려서 찾습니다. 진행단계는 여러 개를 한꺼번에 고를 수 있고, 벤더는 칸을 눌러 팝업에서 고릅니다.</li>
+    <li>목록에서 입고건 한 줄을 클릭합니다.</li>
+    <li>아래 「입고 라인」에서 상품별 진행을 확인합니다.</li>
+    <li>위아래 경계선을 끌면 두 목록의 비율을 바꿀 수 있습니다. 바꾼 비율은 다음에 들어와도 유지됩니다.</li>
+  </ol>
+
+  <h3>결과 확인</h3>
+  <table>
+    <thead><tr><th style="width:120px">컬럼</th><th>뜻</th></tr></thead>
+    <tbody>
+      <tr><td>예정수량</td><td>들어오기로 한 수량</td></tr>
+      <tr><td>양품</td><td>검수해서 받은 수량</td></tr>
+      <tr><td>불량</td><td>반품입고에서 불량으로 받은 수량</td></tr>
+      <tr><td>적치완료</td><td>보관 로케이션까지 들어간 수량</td></tr>
+    </tbody>
+  </table>
+
+  <h3>자주 막히는 지점</h3>
+  <dl class="stuck">
+    <dt>찾는 입고건이 없습니다</dt>
+    <dd>예정일 조건을 먼저 확인하세요. 기본값이 오늘~+7일이라 어제 도착 예정이던 건은 안 보입니다.</dd>
+    <dt>취소 버튼이 없습니다</dt>
+    <dd>정상입니다. 입고예정만 지우면 OMS 주문 상태와 어긋나기 때문에, 취소는 OMS › 입고주문 관리에서 확정취소로 합니다.</dd>
+  </dl>
+
+  <!-- ══════════════════ 3.2 ══════════════════ -->
+  <h2 id="s32">3.2 입고검수 <span class="where">입고 › 입고검수</span></h2>
+
+  <h3>언제 쓰나</h3>
+  <p>물건이 하차된 뒤, 실물을 세어 시스템에 넣을 때 씁니다. 저장하는 순간 재고가 RCV-STAGE에 생깁니다. 아직 보관 자리에는 없습니다.</p>
+
+  <h3>시작 전 준비</h3>
+  <ul>
+    <li>입고예정이 있어야 합니다. 확정된 입고건은 이 화면에 나오지 않습니다.</li>
+    <li>유통기한을 관리하는 상품이면 제조일자를 알아야 합니다. 박스에 찍힌 날짜를 확인해 두세요.</li>
+  </ul>
+
+  <h3>화면 구성</h3>
+  <figure>
+    <div class="shot">
+      <img src="img/03-02-입고검수.jpg" width="1512" height="790" alt="입고검수 화면">
+      <span class="pin" style="left:18.98%; top:9.87%;">1</span>
+      <span class="pin" style="left:19.31%; top:42.53%;">2</span>
+      <span class="pin" style="left:20.60%; top:47.60%;">3</span>
+      <span class="pin" style="left:66.60%; top:54.20%;">4</span>
+      <span class="pin" style="left:75.40%; top:54.20%;">5</span>
+      <span class="pin" style="left:89.50%; top:54.20%;">6</span>
+      <span class="pin" style="left:91.20%; top:51.39%;">7</span>
+    </div>
+    <figcaption>입고검수 — 조회 기간을 넓혀(2026-01-01 ~) 조회한 상태입니다. 기본값은 오늘부터 7일 뒤까지입니다.</figcaption>
+  </figure>
+
+  <ol class="callouts">
+    <li><span class="n">1</span><span class="t"><b>검색 조건</b><span>입고번호·벤더·입고예정일로 찾습니다.</span></span></li>
+    <li><span class="n">2</span><span class="t"><b>입고건 목록</b><span>검수할 건을 클릭하면 아래에 상품이 열립니다. 「검수 진행」은 다 받은 라인 / 전체 라인입니다.</span></span></li>
+    <li><span class="n">3</span><span class="t"><b>검수 입력 · 검수 이력 탭</b><span>입력 탭에는 남은 라인만 나옵니다. 다 받은 라인은 이력 탭으로 넘어갑니다.</span></span></li>
+    <li><span class="n">4</span><span class="t"><b>검수수량</b><span>이번에 센 개수. <b>입고단위</b> 기준입니다.</span></span></li>
+    <li><span class="n">5</span><span class="t"><b>입고일자 · 제조일자</b><span>입고일자 기본값은 오늘. 제조일자는 유통기한 관리 상품만 넣습니다.</span></span></li>
+    <li><span class="n">6</span><span class="t"><b>제조일자 하한 · 유통기한</b><span>입력 칸이 아니라 보여주는 값입니다. 하한보다 앞선 날짜는 저장되지 않습니다.</span></span></li>
+    <li><span class="n">7</span><span class="t"><b>검수 저장</b><span>저장하면 그 수량이 곧바로 RCV-STAGE 재고가 됩니다.</span></span></li>
+  </ol>
+
+  <h3>조작 순서</h3>
+  <ol>
+    <li>검색 조건을 지정하고 <span class="ui">[조회]</span>를 누릅니다.</li>
+    <li>위 목록에서 검수할 입고건을 클릭합니다.</li>
+    <li>「검수 입력」 탭에서 파란색 칸을 채웁니다. 칸을 한 번 클릭하면 바로 입력됩니다.
+      <table>
+        <thead><tr><th style="width:120px">칸</th><th>입력 내용</th></tr></thead>
+        <tbody>
+          <tr><td>검수수량</td><td>이번에 센 개수. <b>입고단위 기준</b>입니다</td></tr>
+          <tr><td>입고일자</td><td>실제 들어온 날. 기본값은 오늘</td></tr>
+          <tr><td>제조일자</td><td>유통기한 관리 상품만. 클릭하면 달력이 열립니다</td></tr>
+        </tbody>
+      </table>
+    </li>
+    <li>이번에 안 센 상품은 비워 둡니다. 빈 칸은 저장 대상에서 빠집니다.</li>
+    <li>제조일자를 넣으면 오른쪽 「유통기한」에 계산된 날짜가 나옵니다. 날짜를 잘못 친 것은 여기서 잡습니다.</li>
+    <li><span class="ui">[검수 저장]</span>을 누르고, 확인 창의 숫자를 본 뒤 <span class="ui">[저장]</span>을 누릅니다.</li>
+  </ol>
+
+  <h3>반품입고일 때</h3>
+  <p>「구분」에 <b>반품</b> 표시가 붙은 건은 입력 칸이 늘어납니다.</p>
+  <ul>
+    <li><b>양품수량</b>(파란 칸) — RCV-STAGE로 들어가 정상 재고가 됩니다.</li>
+    <li><b>불량수량</b>(붉은 칸) — 반품존으로 들어가 즉시 보류됩니다. 출고에 쓰이지 않습니다.</li>
+    <li><b>불량사유</b> — 불량수량이 있으면 반드시 골라야 합니다. 「기타」를 고르면 사유 내용까지 적어야 합니다.</li>
+  </ul>
+  <p>양품과 불량을 더한 값이 잔량을 넘을 수 없습니다.</p>
+
+  <h3>검수를 잘못했을 때</h3>
+  <p>「검수 이력」 탭에서 해당 건의 <span class="ui">[취소]</span>를 누릅니다. 취소할 수 있는 조건은 이렇습니다.</p>
+  <ul>
+    <li>입고확정 전이어야 합니다. 확정한 건은 닫힌 문서라 되돌릴 수 없습니다.</li>
+    <li>그 수량이 아직 적치되지 않았어야 합니다. 이미 적치됐으면 거부됩니다.</li>
+    <li>반품 불량건은 반품존 보류를 먼저 해제해야 취소됩니다.</li>
+  </ul>
+  <p>취소한 건은 목록에서 지워지지 않고 취소선이 그어진 채 남습니다.</p>
+
+  <h3>자주 막히는 지점</h3>
+  <dl class="stuck">
+    <dt>검수수량 칸이 잠겨 있습니다</dt>
+    <dd>위에서 입고건을 선택하지 않았습니다. 확정된 입고건은 이 화면 목록에 아예 나오지 않습니다.</dd>
+    <dt>「제조일자 하한」보다 앞선 날짜가 빨갛게 됩니다</dt>
+    <dd>관리자가 정해 둔 검수 정책이 막는 것입니다. 화면에는 「검수 제약」으로 표시됩니다. 유통기한이 너무 적게 남은 물건이나, 이미 받은 것보다 오래된 물건을 걸러 냅니다. 하한 날짜 이후로 입력해야 저장됩니다. 칸 위에 마우스를 올리면 어떤 규칙에 걸렸는지 나옵니다.</dd>
+    <dt>붉은 배너가 뜨고 저장이 안 됐습니다</dt>
+    <dd>검수 제약 위반입니다. <b>저장은 전부 취소됩니다.</b> 일부만 들어가지 않습니다. 배너에 상품별로 어떤 규칙에 걸렸는지 나오고, 위반 라인은 행 전체가 붉게 표시됩니다.</dd>
+    <dt>「잔량을 초과합니다」가 뜹니다</dt>
+    <dd>예정수량보다 많이 받으려는 경우입니다. 실물이 더 왔다면 발주를 먼저 정리해야 합니다.</dd>
+    <dt>유통기한 칸에 날짜가 아니라 「14일」처럼 나옵니다</dt>
+    <dd>제조일자를 아직 안 넣은 상태입니다. 제조일자를 넣으면 계산된 만료일로 바뀝니다.</dd>
+  </dl>
+
+  <!-- ══════════════════ 3.3 ══════════════════ -->
+  <h2 id="s33">3.3 적치지시 <span class="where">입고 › 적치지시</span></h2>
+  <p>이 화면은 탭이 두 개입니다. <b>지시 등록</b>에서 발행하고, <b>지시 관리</b>에서 진행 상황을 보거나 취소합니다.</p>
+
+  <h3>3.3.1 지시 등록</h3>
+
+  <h4>언제 쓰나</h4>
+  <p>검수가 끝나 RCV-STAGE에 올라온 물건을 어느 보관 로케이션에 넣을지 정할 때 씁니다. <b>여기서는 자리만 정합니다. 물건은 움직이지 않습니다.</b></p>
+
+  <h4>시작 전 준비</h4>
+  <p>검수가 끝나 있어야 합니다. 목록이 비어 있으면 검수부터 하세요.</p>
+
+  <h4>화면 구성</h4>
+  <figure>
+    <div class="shot">
+      <img src="img/03-03-적치지시등록.jpg" width="1512" height="795" alt="적치지시 등록 화면">
+      <span class="pin" style="left:19.20%; top:13.80%;">1</span>
+      <span class="pin" style="left:45.00%; top:34.70%;">2</span>
+      <span class="pin" style="left:84.50%; top:31.10%;">3</span>
+      <span class="pin" style="left:89.60%; top:26.80%;">4</span>
+      <span class="pin" style="left:45.00%; top:61.30%;">5</span>
+    </div>
+    <figcaption>적치지시 등록 — 위에서 입고건을 고르면 아래에 그 건의 Lot이 나옵니다.</figcaption>
+  </figure>
+
+  <ol class="callouts">
+    <li><span class="n">1</span><span class="t"><b>검색 조건</b><span>기본 기간은 7일 전부터 오늘까지입니다.</span></span></li>
+    <li><span class="n">2</span><span class="t"><b>지시 대상 입고건</b><span>검수가 끝나 RCV-STAGE에 올라온 입고건입니다.</span></span></li>
+    <li><span class="n">3</span><span class="t"><b>지시중 · 미지시 수량</b><span><b>미지시</b>가 이번에 지시를 걸 수 있는 수량입니다. 0이면 발행할 것이 없습니다.</span></span></li>
+    <li><span class="n">4</span><span class="t"><b>[이 입고 전체 지시]</b><span>전략으로 자리를 배정해 봅니다. <b>아직 발행되지 않습니다.</b></span></span></li>
+    <li><span class="n">5</span><span class="t"><b>적치 대상 상품 (Lot 목록)</b><span>미지시가 남은 줄을 클릭하면 아래에 수동 지시 칸이 열립니다.</span></span></li>
+  </ol>
+
+  <h4>조작 순서</h4>
+  <ol>
+    <li>조회합니다.</li>
+    <li>위 「지시 대상 입고건」에서 한 건을 클릭합니다.</li>
+    <li><span class="ui">[이 입고 전체 지시]</span>를 누릅니다. 전략이 자리를 배정한 <b>추천 결과</b>가 나옵니다.</li>
+    <li>결과를 확인합니다. 상품·Lot별로 어느 로케이션에 몇 개씩 갈지 나옵니다.</li>
+    <li><span class="ui">[지시 생성]</span>을 누릅니다. 확인 창에서 총 수량과 로케이션 수를 보고 <span class="ui">[발행]</span>을 누릅니다.</li>
+  </ol>
+  <p>발행은 전부 되거나 전부 안 되거나 둘 중 하나입니다. 한 건이라도 실패하면 이번에 누른 것 전체가 취소됩니다.</p>
+
+  <h4>추천이 다 배정하지 못했을 때</h4>
+  <figure>
+    <div class="shot">
+      <img src="img/03-03-적치추천결과.jpg" width="1512" height="795" alt="적치 추천 결과 — 전략 없음">
+      <span class="pin" style="left:34.40%; top:58.50%;">1</span>
+      <span class="pin" style="left:54.90%; top:61.80%;">2</span>
+      <span class="pin" style="left:31.70%; top:64.40%;">3</span>
+      <span class="pin" style="left:93.10%; top:58.50%;">4</span>
+    </div>
+    <figcaption>추천 결과 — 맞는 적치 전략이 없어 두 건 모두 배정되지 않은 상태입니다. 이 경우 수동 지시로 처리합니다.</figcaption>
+  </figure>
+
+  <ol class="callouts">
+    <li><span class="n">1</span><span class="t"><b>[지시 생성]</b><span>배정된 결과만 실제 지시로 발행합니다.</span></span></li>
+    <li><span class="n">2</span><span class="t"><b>적치 전략 없음</b><span>이 상품에 맞는 전략이 없다는 뜻입니다. 수동 지시로 처리합니다.</span></span></li>
+    <li><span class="n">3</span><span class="t"><b>미배정 N — 로케이션 용량 부족</b><span>넣을 자리가 모자란 경우입니다. 남은 수량은 수동 지시로 처리합니다.</span></span></li>
+    <li><span class="n">4</span><span class="t"><b>[닫기]</b><span>추천 결과를 접고 Lot 목록으로 돌아갑니다.</span></span></li>
+  </ol>
+
+  <p>수동 지시 순서는 이렇습니다.</p>
+  <ol>
+    <li>추천 결과 오른쪽의 <span class="ui">[닫기]</span>를 눌러 Lot 목록으로 돌아갑니다.</li>
+    <li>미지시 수량이 남은 Lot 줄을 클릭합니다. 아래에 수동 지시 칸이 열립니다.</li>
+    <li>지시수량과 대상 로케이션을 정합니다. 로케이션 목록에는 온도대가 맞는 보관존만 나오고, 적재가능 수량이 함께 표시됩니다.</li>
+    <li><span class="ui">[수동 지시]</span>를 누릅니다.</li>
+  </ol>
+  <p>미지시 수량보다 적게 지시해도 됩니다. 남은 수량은 그대로 남아 나중에 다시 지시할 수 있습니다.</p>
+
+  <h4>자주 막히는 지점</h4>
+  <dl class="stuck">
+    <dt>입고건 목록이 비어 있습니다</dt>
+    <dd>검수된 물건이 없습니다. 조회 기간도 확인하세요.</dd>
+    <dt>[이 입고 전체 지시]가 눌리지 않습니다</dt>
+    <dd>입고건을 선택하지 않았습니다.</dd>
+    <dt>「이미 전량 지시됐습니다」가 뜹니다</dt>
+    <dd>미지시 수량이 0입니다. 지시 관리 탭에서 진행 상황을 보세요.</dd>
+    <dt>하나의 상품이 여러 줄로 나옵니다</dt>
+    <dd>검수를 나눠서 했으면 Lot이 갈립니다. Lot마다 유통기한이 다르므로 줄도 나뉩니다.</dd>
+  </dl>
+
+  <h3>3.3.2 지시 관리</h3>
+
+  <h4>언제 쓰나</h4>
+  <p>발행한 지시가 얼마나 처리됐는지 보거나, 잘못 발행한 지시를 취소할 때 씁니다.</p>
+
+  <h4>화면 구성</h4>
+  <figure>
+    <div class="shot">
+      <img src="img/03-03-지시관리.jpg" width="1512" height="795" alt="적치지시 관리 화면">
+      <span class="pin" style="left:17.20%; top:20.90%;">1</span>
+      <span class="pin" style="left:76.10%; top:26.00%;">2</span>
+      <span class="pin" style="left:85.80%; top:26.00%;">3</span>
+      <span class="pin" style="left:95.20%; top:26.00%;">4</span>
+    </div>
+    <figcaption>적치지시 관리 — 상태 조건을 「전체」로 바꿔 조회한 상태입니다. 기본값은 「지시」입니다.</figcaption>
+  </figure>
+
+  <ol class="callouts">
+    <li><span class="n">1</span><span class="t"><b>상태 조건</b><span>기본값은 「지시」입니다. 지난 이력까지 보려면 「전체」로 바꿉니다.</span></span></li>
+    <li><span class="n">2</span><span class="t"><b>지시 · 완료 · 잔여수량</b><span>잔여 = 지시 − 완료입니다.</span></span></li>
+    <li><span class="n">3</span><span class="t"><b>상태</b><span>지시 · 완료 · 취소 세 가지입니다.</span></span></li>
+    <li><span class="n">4</span><span class="t"><b>취소</b><span>상태가 「지시」이고 완료수량이 0일 때만 눌립니다.</span></span></li>
+  </ol>
+
+  <h4>조작 순서</h4>
+  <ol>
+    <li>상태·입고번호·상품·대상 로케이션으로 좁혀 조회합니다.</li>
+    <li>취소할 지시의 오른쪽 <span class="ui">[취소]</span>를 누릅니다.</li>
+    <li>확인 창에서 <span class="ui">[취소 처리]</span>를 누릅니다. 재고는 움직이지 않고, 그 수량이 다시 「미지시」로 돌아갑니다.</li>
+  </ol>
+
+  <h4>자주 막히는 지점</h4>
+  <dl class="stuck">
+    <dt>[취소]가 회색으로 잠겨 있습니다</dt>
+    <dd>이미 일부라도 적치된 지시입니다. 완료수량이 0일 때만 취소할 수 있습니다. 남은 수량만 정리하려면 적치 화면에서 로케이션을 바꾸는 쪽을 쓰세요.</dd>
+  </dl>
+
+  <!-- ══════════════════ 3.4 ══════════════════ -->
+  <h2 id="s34">3.4 적치 <span class="where">입고 › 적치</span></h2>
+
+  <h3>언제 쓰나</h3>
+  <p>발행된 적치지시대로 물건을 실제로 옮기고, 그 실적을 입력할 때 씁니다. 이 화면을 저장해야 재고가 RCV-STAGE에서 보관 로케이션으로 넘어갑니다.</p>
+
+  <h3>시작 전 준비</h3>
+  <p>적치지시가 발행돼 있어야 합니다. 목록이 비어 있으면 적치지시 화면에서 먼저 발행하세요.</p>
+
+  <h3>화면 구성</h3>
+  <figure>
+    <div class="shot">
+      <img src="img/03-04-적치.jpg" width="1512" height="795" alt="적치 화면">
+      <span class="pin" style="left:46.30%; top:23.50%;">1</span>
+      <span class="pin" style="left:82.50%; top:17.70%;">2</span>
+      <span class="pin" style="left:87.70%; top:17.70%;">3</span>
+      <span class="pin" style="left:23.00%; top:61.60%;">4</span>
+      <span class="pin" style="left:41.00%; top:61.60%;">5</span>
+      <span class="pin" style="left:92.60%; top:53.70%;">6</span>
+    </div>
+    <figcaption>적치 — 위에서 상품을 고르면 아래에 어느 로케이션으로 얼마씩 가는지 나옵니다.</figcaption>
+  </figure>
+
+  <ol class="callouts">
+    <li><span class="n">1</span><span class="t"><b>적치할 상품</b><span>유통기한 임박순입니다. 위에서부터 처리하면 FEFO가 지켜집니다.</span></span></li>
+    <li><span class="n">2</span><span class="t"><b>로케이션 수</b><span>2 이상이면 그 상품을 여러 자리에 나눠 넣어야 합니다.</span></span></li>
+    <li><span class="n">3</span><span class="t"><b>잔여수량</b><span>이 상품에 남은 적치 대상 총량입니다.</span></span></li>
+    <li><span class="n">4</span><span class="t"><b>대상 로케이션과 연필 아이콘</b><span>지시된 적치 위치입니다. 못 넣을 때는 연필로 다른 위치를 담아 둡니다.</span></span></li>
+    <li><span class="n">5</span><span class="t"><b>적치수량</b><span>기본값은 잔여 전량입니다. 잔여를 넘겨 적으면 붉게 변하고 저장되지 않습니다.</span></span></li>
+    <li><span class="n">6</span><span class="t"><b>적치 저장</b><span>확인 창에 줄마다 수량이 나옵니다. 숫자를 보고 누릅니다.</span></span></li>
+  </ol>
+
+  <h3>조작 순서</h3>
+  <ol>
+    <li>위 「적치할 상품」 목록에서 상품을 클릭합니다.</li>
+    <li>아래 「적치 위치」에서 어느 로케이션에 몇 개씩인지 확인하고 물건을 옮깁니다.</li>
+    <li>「적치수량」을 실제 옮긴 대로 맞춥니다. 전부 옮겼으면 그대로 두고, <b>이번에 안 옮긴 줄은 수량을 지웁니다.</b> 빈 칸은 저장 대상에서 빠집니다.</li>
+    <li><span class="ui">[적치 저장]</span>을 누릅니다.</li>
+    <li>확인 창의 숫자를 보고 <span class="ui">[적치]</span>를 누릅니다.</li>
+  </ol>
+  <p>저장은 전부 되거나 전부 안 되거나 둘 중 하나입니다. 한 줄이라도 실패하면 이번에 누른 적치 전체가 취소됩니다.</p>
+
+  <h3>지시받은 자리에 못 넣을 때</h3>
+  <ol>
+    <li>「대상 로케이션」 칸의 연필 아이콘을 누릅니다.</li>
+    <li>변경 수량과 새 로케이션을 고릅니다. 현재 지시 위치와 용량이 모자란 자리는 선택되지 않습니다.</li>
+    <li><span class="ui">[담기]</span>를 누릅니다. <b>아직 저장된 것이 아닙니다.</b>
+      <ul>
+        <li>전량을 옮기면 그 줄의 목적지가 바뀌고 「변경 예정」이 붙습니다.</li>
+        <li>일부만 옮기면 그만큼 새 줄로 갈라지고 「분할 예정」이 붙습니다. 나머지는 원래 자리에 남습니다.</li>
+      </ul>
+    </li>
+    <li><span class="ui">[적치 저장]</span>을 누르면 지시 변경과 적치가 함께 처리됩니다.</li>
+  </ol>
+  <p>담아 둔 변경은 <span class="ui">[담아둔 변경 취소]</span>로 물릴 수 있습니다. 저장 전에 조회를 다시 해도 원래대로 돌아갑니다.</p>
+
+  <h3>결과 확인</h3>
+  <ul>
+    <li>전량 적치하면 그 상품이 목록에서 사라집니다.</li>
+    <li>일부만 적치하면 같은 상품이 선택된 채 남아 이어서 처리할 수 있습니다.</li>
+    <li>입고건 전체가 적치되면 진행단계가 「적치완료」가 됩니다. 입고확정 화면에서 닫을 차례입니다.</li>
+  </ul>
+
+  <h3>자주 막히는 지점</h3>
+  <dl class="stuck">
+    <dt>적치수량 칸이 붉게 됩니다</dt>
+    <dd>잔여수량을 넘겨 적었습니다. 값이 자동으로 깎이지 않으므로 직접 고쳐야 저장됩니다.</dd>
+    <dt>검색 조건에 로케이션이 없습니다</dt>
+    <dd>이 화면은 상품으로 찾는 곳이라 로케이션 조건이 없습니다. 「이 자리에 뭐가 들어올 예정인가」를 보려면 적치지시 › 지시 관리에서 대상 로케이션으로 찾으세요.</dd>
+    <dt>저장이 실패했습니다</dt>
+    <dd>화면이 자동으로 다시 조회합니다. 담아 둔 로케이션 변경은 이미 반영됐을 수 있으니, 새로 뜬 숫자를 확인하고 남은 것만 다시 저장하세요.</dd>
+  </dl>
+
+  <!-- ══════════════════ 3.5 ══════════════════ -->
+  <h2 id="s35">3.5 입고확정 <span class="where">입고 › 입고확정</span></h2>
+
+  <h3>언제 쓰나</h3>
+  <p>적치까지 끝난 입고건을 닫을 때 씁니다. 입고 흐름의 마지막 단계입니다. 확정하면 이렇게 됩니다.</p>
+  <ul>
+    <li><b>결품(예정 − 양품 − 불량)이 못박힙니다.</b> 안 온 수량은 더 안 오는 것으로 정리됩니다.</li>
+    <li>그 입고건에는 더 이상 <b>검수·검수취소·적치지시를 할 수 없습니다.</b></li>
+  </ul>
+  <p>전량 입고돼 결품이 0이어도 자동으로 닫히지 않습니다. 사람이 눌러야 끝납니다.</p>
+
+  <h3>시작 전 준비</h3>
+  <ul>
+    <li>진행단계가 「적치완료」여야 합니다. 즉 검수한 수량이 전부 적치돼 있어야 합니다.</li>
+    <li>미적치 수량이 남아 있으면 적치 화면에서 먼저 옮기세요.</li>
+  </ul>
+
+  <h3>화면 구성</h3>
+  <figure>
+    <div class="shot">
+      <img src="img/03-05-입고확정.jpg" width="1464" height="812" alt="입고확정 화면">
+      <span class="pin" style="left:65.80%; top:7.60%;">1</span>
+      <span class="pin" style="left:51.20%; top:26.40%;">2</span>
+      <span class="pin" style="left:82.00%; top:35.10%;">3</span>
+      <span class="pin" style="left:51.90%; top:59.50%;">4</span>
+      <span class="pin" style="left:90.20%; top:59.50%;">5</span>
+    </div>
+    <figcaption>입고확정 — 기본 조건 그대로 조회한 상태입니다. 두 건을 체크해 한 번에 확정하려는 참입니다.</figcaption>
+  </figure>
+
+  <ol class="callouts">
+    <li><span class="n">1</span><span class="t"><b>진행단계 조건</b><span>기본값은 「적치완료」입니다. 확정할 수 있는 단계만 걸려 있습니다.</span></span></li>
+    <li><span class="n">2</span><span class="t"><b>입고건 체크</b><span>여러 건을 한 번에 체크할 수 있습니다. 맨 위 체크박스는 전체 선택입니다.</span></span></li>
+    <li><span class="n">3</span><span class="t"><b>결품 · 불량 · 미적치 열</b><span>확정 전에 봐야 할 숫자 셋입니다. <b>미적치가 0이어야 확정됩니다.</b></span></span></li>
+    <li><span class="n">4</span><span class="t"><b>라인 검토</b><span>마지막으로 체크한 건의 상품 목록입니다.</span></span></li>
+    <li><span class="n">5</span><span class="t"><b>입고확정 버튼</b><span>확정 가능한 건수가 괄호에 나옵니다. 잠겨 있으면 왼쪽에 이유가 적힙니다.</span></span></li>
+  </ol>
+
+  <h3>조작 순서</h3>
+  <ol>
+    <li>조회합니다. 기본 조건은 진행단계 「적치완료」, 기간 ±7일입니다.</li>
+    <li>확정할 입고건을 체크합니다. 여러 건을 한 번에 체크할 수 있습니다.</li>
+    <li>마지막으로 체크한 건의 라인이 아래에 나옵니다. 결품과 미적치를 확인합니다.</li>
+    <li><span class="ui">[입고확정]</span>을 누릅니다. 확인 창에 건별 결품 수량이 전부 나옵니다.</li>
+    <li>숫자를 보고 <span class="ui">[입고확정]</span>을 누릅니다.</li>
+  </ol>
+  <p>여러 건을 확정할 때는 한 건씩 순서대로 처리됩니다. 일부가 실패해도 성공한 건은 그대로 확정됩니다. 끝에 몇 건이 됐고 무엇이 실패했는지 알려줍니다.</p>
+
+  <h3>목록에서 봐야 할 숫자</h3>
+  <table>
+    <thead><tr><th style="width:130px">컬럼</th><th>뜻</th></tr></thead>
+    <tbody>
+      <tr><td>결품(EA)</td><td>예정 − 양품 − 불량. 확정하는 순간 이 수량이 못박힙니다</td></tr>
+      <tr><td>불량(EA)</td><td>반품존에 받아 보류된 수량. 적치 대상이 아닙니다</td></tr>
+      <tr><td>미적치(EA)</td><td>검수 − 적치. <b>0이어야 확정됩니다</b></td></tr>
+    </tbody>
+  </table>
+
+  <h3>자주 막히는 지점</h3>
+  <dl class="stuck">
+    <dt>[입고확정] 버튼이 잠겨 있습니다</dt>
+    <dd>버튼 왼쪽에 이유가 적혀 있습니다. 체크를 안 했거나, 체크한 건이 적치완료 상태가 아닙니다.</dd>
+    <dt>체크는 했는데 일부가 확정에서 빠집니다</dt>
+    <dd>적치완료가 아닌 건은 자동으로 제외됩니다. 확인 창에 몇 건이 빠지는지 나옵니다.</dd>
+    <dt>확정한 뒤 검수가 잘못된 걸 알았습니다</dt>
+    <dd>이 화면에서는 되돌릴 수 없습니다. 재고 수량을 고치는 유일한 경로는 재고조사(실사)입니다.</dd>
+  </dl>
+
+  <!-- ══════════════════ 3.6 ══════════════════ -->
+  <h2 id="s36">3.6 PDA — 입고검수 <span class="where">PDA › 현장 작업 › 입고 › 입고검수</span></h2>
+
+  <h3>언제 쓰나</h3>
+  <p>하차 현장에서 실물을 보며 바로 검수할 때 씁니다. 사무실 화면과 같은 기능이지만, <b>입고일자는 오늘로 고정</b>됩니다. 지난 날짜로 넣는 검수, 검수 취소, 입고확정은 사무실 화면에서 합니다.</p>
+
+  <h3>화면 흐름</h3>
+  <div class="steps">
+    <figure>
+      <div class="shot"><img src="img/03-06-pda-검수-목록.png" width="422" height="1009" alt="PDA 입고검수 — 입고건 목록"></div>
+      <figcaption><span class="n">1</span><span><b>입고건 고르기</b>확정 전 입고건이 카드로 나옵니다. 아래 막대가 완료 라인 진행도입니다.</span></figcaption>
+    </figure>
+    <figure>
+      <div class="shot"><img src="img/03-06-pda-검수-스캔.png" width="422" height="1009" alt="PDA 입고검수 — 상품 스캔 대기"></div>
+      <figcaption><span class="n">2</span><span><b>상품 스캔</b>미검수 상품과 잔량이 아래에 뜹니다. 상품 바코드를 쏘면 그 상품의 입력 창이 열립니다.</span></figcaption>
+    </figure>
+    <figure>
+      <div class="shot"><img src="img/03-06-pda-검수-시트.png" width="422" height="1009" alt="PDA 입고검수 — 수량·제조일자 입력"></div>
+      <figcaption><span class="n">3</span><span><b>수량·제조일자 입력</b>수량은 잔량만큼 채워져 있습니다. 유통기한 관리 상품은 제조일자를 넣어야 저장됩니다.</span></figcaption>
+    </figure>
+  </div>
+
+  <h3>조작 순서</h3>
+  <ol>
+    <li>화면을 열면 검수할 입고건 목록이 나옵니다. 작업할 건을 누릅니다.</li>
+    <li>상품 바코드를 스캔합니다. 그 라인의 입력 창이 열립니다.</li>
+    <li>수량을 확인합니다. 기본값은 잔량이 담기는 입고단위 개수만큼 채워져 있습니다. −/+ 버튼이나 숫자 입력으로 고칩니다.</li>
+    <li>유통기한 관리 상품이면 제조일자를 입력합니다. 아래에 계산된 유통기한이 같이 나옵니다.</li>
+    <li>저장합니다. 화면이 스캔 대기로 돌아갑니다. 다음 상품을 계속 스캔하면 됩니다.</li>
+  </ol>
+  <p>반품입고는 양품수량과 불량수량을 따로 넣습니다. 불량수량이 있으면 저장 전에 <b>불량사유</b> 단계가 한 번 더 나옵니다. 사유가 「기타」면 내용까지 적어야 합니다.</p>
+
+  <h3>스캔 입력 방법</h3>
+  <ul>
+    <li><b>하드웨어 스캐너</b> — 기본입니다. 그냥 쏘면 됩니다. 소프트 키보드는 뜨지 않습니다.</li>
+    <li><b>카메라 버튼</b> — 스캐너가 없는 스마트폰에서 카메라로 인식합니다. 브라우저가 지원하지 않으면 안내가 뜹니다.</li>
+    <li><b>키보드 버튼</b> — 바코드가 손상됐을 때 직접 입력합니다.</li>
+  </ul>
+
+  <h3>자주 막히는 지점</h3>
+  <dl class="stuck">
+    <dt>「이 입고건에 없는 상품입니다」</dt>
+    <dd>다른 입고건의 물건이거나 상품을 잘못 집었습니다. 뒤로 가서 입고건을 다시 고르세요.</dd>
+    <dt>「이미 전량 검수된 라인입니다」</dt>
+    <dd>그 상품은 끝났습니다. 미검수 목록에서 남은 상품을 확인하세요.</dd>
+    <dt>잔량이 남았는데 「잔량을 초과합니다」가 뜹니다</dt>
+    <dd>남은 잔량이 입고단위로 떨어지지 않는 경우입니다. 예를 들어 1BOX가 12개인데 잔량이 10개면 PDA로는 넣을 수 없습니다. 이 끝수는 사무실 검수 화면에서 처리합니다.</dd>
+    <dt>화면을 새로고침했습니다</dt>
+    <dd>검수하던 입고건으로 다시 돌아옵니다. 처음부터 다시 고를 필요 없습니다.</dd>
+    <dt>검수정책에 걸렸습니다</dt>
+    <dd>규칙 이름과 이유가 그대로 표시됩니다. 제조일자를 확인하고, 판단이 필요하면 사무실에 문의하세요.</dd>
+  </dl>
+
+  <!-- ══════════════════ 3.7 ══════════════════ -->
+  <h2 id="s37">3.7 PDA — 적치 <span class="where">PDA › 현장 작업 › 입고 › 적치</span></h2>
+
+  <h3>언제 쓰나</h3>
+  <p>RCV-STAGE의 물건을 지시받은 보관 로케이션으로 옮길 때 씁니다. <b>지시된 자리로만 넣을 수 있습니다.</b> 자리를 바꾸는 것은 사무실 화면의 몫입니다.</p>
+
+  <h3>화면 흐름</h3>
+  <div class="steps">
+    <figure>
+      <div class="shot"><img src="img/03-07-pda-적치-상품.png" width="422" height="1009" alt="PDA 적치 — 상품 스캔 단계"></div>
+      <figcaption><span class="n">1</span><span><b>상품 스캔</b>지시 하나가 카드로 뜹니다. RCV-STAGE에서 집은 물건의 상품 바코드를 쏩니다.</span></figcaption>
+    </figure>
+    <figure>
+      <div class="shot"><img src="img/03-07-pda-적치-로케이션.png" width="422" height="1009" alt="PDA 적치 — 로케이션 스캔 단계"></div>
+      <figcaption><span class="n">2</span><span><b>Lot · 로케이션 스캔</b>지나온 단계에는 체크가 붙습니다. 지시된 자리에 도착해 로케이션 바코드를 쏩니다.</span></figcaption>
+    </figure>
+    <figure>
+      <div class="shot"><img src="img/03-07-pda-적치-수량.png" width="422" height="1009" alt="PDA 적치 — 수량 확인 단계"></div>
+      <figcaption><span class="n">3</span><span><b>수량 확인</b>기본값은 잔여 전량입니다. 넣은 만큼 맞추고 <span class="ui">[적치 확인]</span>을 누릅니다.</span></figcaption>
+    </figure>
+    <figure>
+      <div class="shot"><img src="img/03-07-pda-적치-빈화면.png" width="420" height="1064" alt="PDA 적치 — 실행할 지시가 없는 상태"></div>
+      <figcaption><span class="n">—</span><span><b>실행할 지시가 없을 때</b>발행된 적치지시가 하나도 없으면 이 화면이 뜹니다. 사무실 「적치지시」 화면에서 먼저 발행해야 합니다.</span></figcaption>
+    </figure>
+  </div>
+
+  <h3>조작 순서</h3>
+  <p>지시를 <b>한 번에 하나씩</b> 처리합니다. 순서는 유통기한 임박순으로 정해져 있습니다.</p>
+  <ol>
+    <li>필요하면 맨 위 「구역 필터」에 담당 구역을 적습니다. 예: <code>DRY-A</code>. 그 구역 지시만 나옵니다.</li>
+    <li>화면에 지금 처리할 지시가 뜹니다. 상품, Lot, 대상 로케이션이 큰 글씨로 나옵니다.</li>
+    <li>네 단계를 순서대로 진행합니다.
+      <table>
+        <thead><tr><th style="width:110px">단계</th><th>할 일</th></tr></thead>
+        <tbody>
+          <tr><td>상품</td><td>RCV-STAGE에서 집은 물건의 상품 바코드를 스캔</td></tr>
+          <tr><td>Lot</td><td>그 물건의 Lot 바코드를 스캔</td></tr>
+          <tr><td>로케이션</td><td>지시된 자리에 도착해 로케이션 바코드를 스캔</td></tr>
+          <tr><td>수량</td><td>넣은 수량을 확인하고 <span class="ui">[적치 확인]</span></td></tr>
+        </tbody>
+      </table>
+      맞는 것을 스캔하면 다음 단계로 넘어갑니다. 틀리면 소리와 함께 무엇이 맞는지 알려줍니다.
+    </li>
+    <li>수량은 기본값이 잔여 전량입니다. 일부만 넣었으면 고칩니다.</li>
+    <li><span class="ui">[적치 확인]</span>을 누릅니다.</li>
+  </ol>
+
+  <h3>남은 동작</h3>
+  <ul>
+    <li><b>건너뛰기</b> — 지금 지시를 뒤로 미루고 다음 지시로 넘어갑니다. 지시가 사라지지는 않습니다.</li>
+    <li><b>스캔 생략</b> — 바코드가 없거나 손상됐을 때 그 단계를 넘깁니다.</li>
+  </ul>
+
+  <h3>결과 확인</h3>
+  <ul>
+    <li>잔여가 남으면 그 지시에 머물러 이어서 처리합니다.</li>
+    <li>전량 넣었으면 다음 지시로 자동으로 넘어갑니다. 목록 맨 위부터가 유통기한 임박순입니다.</li>
+    <li>상단에 「남은 지시 N건 · M개」가 계속 표시됩니다.</li>
+  </ul>
+
+  <h3>자주 막히는 지점</h3>
+  <dl class="stuck">
+    <dt>「로케이션이 다릅니다」</dt>
+    <dd>지시된 자리가 아닙니다. 화면에 적힌 로케이션으로 이동하세요.</dd>
+    <dt>지시받은 자리에 못 넣습니다</dt>
+    <dd>PDA에서는 처리할 수 없습니다. 사무실 「적치」 화면에서 로케이션을 변경한 뒤, PDA에서 <span class="ui">[다시 조회]</span>하세요.</dd>
+    <dt>「구역에 남은 지시가 없습니다」</dt>
+    <dd>내 구역은 끝났고 다른 구역에는 남아 있습니다. <span class="ui">[필터 해제]</span>를 누르면 전체가 나옵니다.</dd>
+    <dt>「실행할 적치지시가 없습니다」</dt>
+    <dd>지시가 발행되지 않았습니다. 사무실 「적치지시」 화면에서 발행해야 합니다.</dd>
+  </dl>
+
+
+  <p class="page-back"><a href="index.html">← 사용자설명서 목차로 돌아가기</a></p>
+</div>
+</body>
+</html>

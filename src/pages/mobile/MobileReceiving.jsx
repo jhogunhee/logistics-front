@@ -3,7 +3,9 @@ import { CheckCircle2, ChevronLeft, ClipboardCheck, RefreshCw } from 'lucide-rea
 import toast from 'react-hot-toast';
 
 import { ibOrderApi } from '@/api/ibOrderApi';
+import { useCodes } from '@/hooks/useCodes';
 import { ASN_STATUS_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
+import { ETC_RSN_CD } from '@/constants/rsnCodes';
 import { eaQtyPerInbUomOf, fmtDe, fmtInbQty, num, todayStr, ymd } from '@/utils/format';
 import { failFeedback, okFeedback } from '@/utils/scanFeedback';
 import { Badge } from '@/components/common/Badge';
@@ -21,13 +23,24 @@ const expiryPreview = (mfgDt, shelfLifeDays) => {
     return ymd(new Date(y, m - 1, d + shelfLifeDays));
 };
 
-/** 라인의 검수 잔량 (EA) */
-const remainEaOf = (l) => l.expctQty - l.rcvdQty;
+/** 라인의 검수 잔량 (EA) — 예정에서 양품·불량 누계를 모두 뺀다 */
+const remainEaOf = (l) => l.expctQty - l.rcvdQty - (l.rjctQty ?? 0);
+
+/** 반품입고 문서인가 — 양품과 함께 불량수량·불량사유를 받는다 (정상 입고에는 불량 자체가 없다) */
+const isRtngsOf = (a) => a?.odrDvsn === 'RTNGS';
+
+/** 반품 표식 — 불량수량 칸이 왜 떴는지 보이게 목록 카드와 검수 화면에 같이 붙인다 */
+const RtngsPill = () => (
+    <span className="text-[11px] px-2 py-0.5 rounded-full font-bold bg-rose-100 text-rose-700 shrink-0">반품</span>
+);
 
 /**
  * 입고검수 (PDA — /m). 출고확정처럼 <b>스캔 주도</b>다 — 하차한 실물의 상품 바코드를 스캔하면
  * 그 라인이 뜨고, 입고단위 수량(관리 상품은 제조일자까지)을 넣어 저장한다. Lot 채번·유통기한
  * 계산·검수정책 판정은 전부 서버 몫이라 이 화면은 「무엇이 몇 개 왔나」만 입력한다.
+ *
+ * 반품입고(RTNGS)만 양품과 불량을 갈라 받는다 — 불량은 반품존에 받아 즉시 보류되므로 사유가
+ * 곧 보류사유다. 그래서 수량 다음에 사유 단계를 한 번 더 거친다.
  *
  * 입고일자는 오늘 고정이다 — 소급 검수, 검수 취소, 정책 시뮬레이션, 입고확정(마감)은 웹 검수·확정
  * 화면의 몫이다.
@@ -37,11 +50,14 @@ export default function MobileReceiving() {
     const [asn, setAsn] = useState(null);            // 선택 입고건 (없으면 목록 화면)
     const [lines, setLines] = useState([]);
     const [scanVal, setScanVal] = useState('');
-    // 검수 시트 — { line, qty(입고단위), mfgDt }를 한 상태로 들고 있다가 저장 시점에 검증한다
+    // 검수 시트 — { line, qty·rjctQty(검수단위), mfgDt, 불량사유, step }을 한 상태로 들고 있다가
+    // 단계마다 검증한다. step: 'QTY'(수량) → 불량이 있으면 'RSN'(불량사유)
     const [sheet, setSheet] = useState(null);
     const [busy, setBusy] = useState(false);
     const scanRef = useRef(null);
+    const hldRsnCodes = useCodes('HLD_RSN'); // 불량사유 = 반품존 보류사유
 
+    const isRtngs = isRtngsOf(asn);
     const openLines = useMemo(() => lines.filter(l => remainEaOf(l) > 0), [lines]);
     const doneCount = lines.length - openLines.length;
 
@@ -91,7 +107,12 @@ export default function MobileReceiving() {
             line,
             // 기본값 = 잔량이 담기는 최대 입고단위 수 — 배수로 안 떨어지는 끝수는 웹 검수가 처리한다
             qty: String(Math.max(1, Math.floor(remainEaOf(line) / ea))),
+            // 불량은 있는 쪽이 예외다 — 0에서 시작해 실물을 본 만큼만 올린다
+            rjctQty: '0',
+            rsnCd: '',
+            rsnDscr: '',
             mfgDt: '',
+            step: 'QTY',
         });
     };
 
@@ -115,16 +136,23 @@ export default function MobileReceiving() {
     };
 
     // ── 검수 저장 ─────────────────────────────────────────────
-    const handleSaveClick = () => {
-        const { line, qty, mfgDt } = sheet;
+    // 1단계(수량) — 불량이 있으면 저장하지 않고 사유 단계로 넘긴다. 사유 없는 불량은 서버도 거부한다
+    const handleQtyNext = () => {
+        const { line, qty, rjctQty, mfgDt } = sheet;
         const n = Number(qty);
+        const rjct = isRtngs ? Number(rjctQty) : 0;
         const ea = eaQtyPerInbUomOf(line);
-        if (!(n >= 1) || !Number.isInteger(n)) {
-            toast.error(`검수수량은 입고단위(${line.inbUomCd}) 1 이상 정수여야 합니다.`);
+        if (!Number.isInteger(n) || n < 0 || !Number.isInteger(rjct) || rjct < 0) {
+            toast.error(`수량은 검수단위(${line.inbUomCd}) 0 이상 정수여야 합니다.`);
             return;
         }
-        if (n * ea > remainEaOf(line)) {
-            toast.error(`검수수량이 잔량(${fmtInbQty(remainEaOf(line), ea, line.inbUomCd)})을 초과합니다.`);
+        if (n + rjct < 1) {
+            toast.error(isRtngs ? '양품 또는 불량 수량을 입력하세요.' : '검수수량은 1 이상이어야 합니다.');
+            return;
+        }
+        if ((n + rjct) * ea > remainEaOf(line)) {
+            const remain = fmtInbQty(remainEaOf(line), ea, line.inbUomCd);
+            toast.error(`${isRtngs ? '양품+불량이' : '검수수량이'} 잔량(${remain})을 초과합니다.`);
             return;
         }
         if (line.shelfLifeDays != null && !mfgDt) {
@@ -135,10 +163,28 @@ export default function MobileReceiving() {
             toast.error('제조일자가 오늘(입고일자)보다 미래일 수 없습니다.');
             return;
         }
-        doSave(sheet, n);
+        if (rjct > 0) {
+            setSheet(s => ({ ...s, step: 'RSN' }));
+            return;
+        }
+        doSave(sheet, n, 0);
     };
 
-    const doSave = async ({ line, mfgDt }, n) => {
+    // 2단계(불량사유) — 불량수량이 있을 때만 온다
+    const handleRsnSaveClick = () => {
+        const { rsnCd, rsnDscr } = sheet;
+        if (!rsnCd) {
+            toast.error('불량사유를 선택하세요.');
+            return;
+        }
+        if (rsnCd === ETC_RSN_CD && !rsnDscr.trim()) {
+            toast.error('사유가 기타일 때는 사유 내용을 입력해야 합니다.');
+            return;
+        }
+        doSave(sheet, Number(sheet.qty), Number(sheet.rjctQty));
+    };
+
+    const doSave = async ({ line, mfgDt, rsnCd, rsnDscr }, n, rjct) => {
         if (busy) return; // 연타로 같은 검수가 두 번 저장되는 것을 막는다
         setBusy(true);
         try {
@@ -148,10 +194,15 @@ export default function MobileReceiving() {
                     inspectQty: n,
                     receiptDt: todayStr(),
                     mfgDt: line.shelfLifeDays != null ? mfgDt : null,
+                    rjctQty: isRtngs ? rjct : null,
+                    rjctRsnCd: rjct > 0 ? rsnCd : null,
+                    rjctRsnDscr: rjct > 0 && rsnCd === ETC_RSN_CD ? rsnDscr.trim() : null,
                 }],
             });
             okFeedback();
-            toast.success(`${line.prodNm} — ${num(n)} ${line.inbUomCd} (${num(n * eaQtyPerInbUomOf(line))}개) 검수`);
+            toast.success(rjct > 0
+                ? `${line.prodNm} — 양품 ${num(n)} · 불량 ${num(rjct)} ${line.inbUomCd} 검수`
+                : `${line.prodNm} — ${num(n)} ${line.inbUomCd} (${num(n * eaQtyPerInbUomOf(line))}개) 검수`);
             setSheet(null);
             // 재조회 실패는 인터셉터가 알린다 — 여기서 삼키지 않으면 성공한 검수가 실패 토스트로 둔갑한다
             await ibOrderApi.lines(asn.ibOrderId).then(setLines).catch(() => {});
@@ -195,6 +246,7 @@ export default function MobileReceiving() {
                     <ChevronLeft size={20} />
                 </button>
                 <span className="font-bold text-slate-800 text-sm truncate">{asn.ibNo}</span>
+                {isRtngs && <RtngsPill />}
                 <span className="ml-auto text-xs text-slate-500 tabular-nums shrink-0">
                     완료 라인 {doneCount} / {lines.length}
                 </span>
@@ -237,16 +289,26 @@ export default function MobileReceiving() {
                 ))}
             </div>
 
-            {/* 검수 시트 — 수량(입고단위) + 관리 상품은 제조일자 */}
-            {sheet && (
+            {/* 검수 시트 — 수량(검수단위) + 관리 상품은 제조일자, 반품의 불량은 사유 단계로 이어진다 */}
+            {sheet && (sheet.step === 'RSN' ? (
+                <RejectReasonSheet
+                    sheet={sheet}
+                    setSheet={setSheet}
+                    options={hldRsnCodes.selectOptions}
+                    busy={busy}
+                    onBack={() => setSheet(s => ({ ...s, step: 'QTY' }))}
+                    onConfirm={handleRsnSaveClick}
+                />
+            ) : (
                 <ReceiveSheet
                     sheet={sheet}
                     setSheet={setSheet}
+                    isRtngs={isRtngs}
                     busy={busy}
                     onCancel={() => setSheet(null)}
-                    onConfirm={handleSaveClick}
+                    onConfirm={handleQtyNext}
                 />
-            )}
+            ))}
         </div>
     );
 }
@@ -254,17 +316,20 @@ export default function MobileReceiving() {
 /** 입고건 목록 카드 — 라인 진행도와 상태를 보여준다 */
 function AsnCard({ asn, onOpen }) {
     const pct = asn.lineCount > 0 ? Math.round((asn.cmplLineCount / asn.lineCount) * 100) : 0;
+    const rtngs = isRtngsOf(asn);
     return (
         <button onClick={onOpen}
                 className="text-left bg-white border border-slate-200 rounded-xl p-4 active:bg-indigo-50 transition-colors shrink-0">
             <div className="flex items-center gap-2">
                 <span className="font-bold text-slate-800 truncate">{asn.ibNo}</span>
+                {rtngs && <RtngsPill />}
                 <span className="ml-auto shrink-0">
                     <Badge meta={ASN_STATUS_META} value={asn.status} show="label" />
                 </span>
             </div>
             <div className="mt-1 flex items-center gap-3 text-xs text-slate-500">
-                <span className="truncate">{asn.vndrNm}</span>
+                {/* 반품은 거래처가 없다 — 물건을 되돌려 보낸 점포가 상대다 */}
+                <span className="truncate">{rtngs ? asn.storeNm : asn.vndrNm}</span>
                 <span className="shrink-0">완료 라인 {num(asn.cmplLineCount)} / {num(asn.lineCount)}</span>
                 <span className="ml-auto shrink-0">{fmtDe(asn.expctDe)}</span>
             </div>
@@ -275,12 +340,14 @@ function AsnCard({ asn, onOpen }) {
     );
 }
 
-/** 검수 입력 바텀시트 — 수량은 입고단위로 받고 낱개 환산을 함께 보여준다 */
-function ReceiveSheet({ sheet, setSheet, busy, onCancel, onConfirm }) {
-    const { line, qty, mfgDt } = sheet;
+/** 검수 입력 바텀시트 — 수량은 검수단위로 받고 낱개 환산을 함께 보여준다. 반품이면 불량 칸이 하나 더 붙는다 */
+function ReceiveSheet({ sheet, setSheet, isRtngs, busy, onCancel, onConfirm }) {
+    const { line, qty, rjctQty, mfgDt } = sheet;
     const ea = eaQtyPerInbUomOf(line);
     const maxUnits = Math.max(1, Math.floor(remainEaOf(line) / ea));
     const expiry = expiryPreview(mfgDt, line.shelfLifeDays);
+    const rjct = isRtngs ? Number(rjctQty) || 0 : 0;
+    const totalUnits = (Number(qty) || 0) + rjct;
     return (
         <div className="fixed inset-0 z-50 bg-black/30 flex items-end" onMouseDown={onCancel}>
             <div className="w-full bg-white rounded-t-2xl p-4 pb-6 flex flex-col gap-3"
@@ -297,14 +364,35 @@ function ReceiveSheet({ sheet, setSheet, busy, onCancel, onConfirm }) {
                 </div>
                 <p className="text-sm text-slate-500">
                     예정 {fmtInbQty(line.expctQty, ea, line.inbUomCd)} · 기검수 {fmtInbQty(line.rcvdQty, ea, line.inbUomCd) || '0'} ·{' '}
+                    {isRtngs && <>기불량 {fmtInbQty(line.rjctQty, ea, line.inbUomCd) || '0'} · </>}
                     잔량 <b className="text-amber-600">{fmtInbQty(remainEaOf(line), ea, line.inbUomCd)}</b>
                 </p>
-                <QtyStepper
-                    qty={qty} onChange={(v) => setSheet(s => ({ ...s, qty: v }))} onSubmit={onConfirm}
-                    max={maxUnits} suffix={line.inbUomCd} autoFocus
-                />
-                {ea > 1 && Number(qty) > 0 && (
-                    <p className="text-xs text-slate-500 text-right">= 낱개 {num(Number(qty) * ea)}개</p>
+                {isRtngs ? (
+                    <>
+                        {/* 양품·불량 둘 다 0에서 시작할 수 있어야 한다 — 전량 불량인 반품이 흔하다 */}
+                        <div className="flex flex-col gap-1.5">
+                            <span className="text-xs font-bold text-slate-600">양품수량 — RCV-STAGE에 입고</span>
+                            <QtyStepper
+                                qty={qty} onChange={(v) => setSheet(s => ({ ...s, qty: v }))} onSubmit={onConfirm}
+                                min={0} max={maxUnits} suffix={line.inbUomCd} autoFocus
+                            />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                            <span className="text-xs font-bold text-rose-600">불량수량 — 반품존에 받아 즉시 보류</span>
+                            <QtyStepper
+                                qty={rjctQty} onChange={(v) => setSheet(s => ({ ...s, rjctQty: v }))} onSubmit={onConfirm}
+                                min={0} max={maxUnits} suffix={line.inbUomCd}
+                            />
+                        </div>
+                    </>
+                ) : (
+                    <QtyStepper
+                        qty={qty} onChange={(v) => setSheet(s => ({ ...s, qty: v }))} onSubmit={onConfirm}
+                        max={maxUnits} suffix={line.inbUomCd} autoFocus
+                    />
+                )}
+                {ea > 1 && totalUnits > 0 && (
+                    <p className="text-xs text-slate-500 text-right">= 낱개 {num(totalUnits * ea)}개</p>
                 )}
                 {line.shelfLifeDays != null && (
                     <label className="flex items-center gap-2">
@@ -321,6 +409,46 @@ function ReceiveSheet({ sheet, setSheet, busy, onCancel, onConfirm }) {
                 )}
                 <div className="flex gap-2">
                     <button onClick={onCancel} className="btn-modal-cancel flex-1">취소</button>
+                    <button onClick={onConfirm} disabled={busy} className="btn-modal-primary flex-1 disabled:opacity-40">
+                        {rjct > 0 ? '다음 — 불량사유' : '검수 저장'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+/** 불량사유 바텀시트 — 불량수량이 있을 때만 거치는 2단계. 이 사유가 그대로 반품존 보류사유가 된다 */
+function RejectReasonSheet({ sheet, setSheet, options, busy, onBack, onConfirm }) {
+    const { line, qty, rjctQty, rsnCd, rsnDscr } = sheet;
+    return (
+        <div className="fixed inset-0 z-50 bg-black/30 flex items-end" onMouseDown={onBack}>
+            <div className="w-full bg-white rounded-t-2xl p-4 pb-6 flex flex-col gap-3"
+                 onMouseDown={(e) => e.stopPropagation()}>
+                <h3 className="text-base font-bold text-slate-800">불량사유</h3>
+                <p className="text-sm text-slate-500">
+                    {line.prodNm} — 양품 <b className="text-slate-700">{num(Number(qty) || 0)}</b> ·{' '}
+                    불량 <b className="text-rose-600">{num(Number(rjctQty) || 0)}</b> {line.inbUomCd}.
+                    불량은 <b>반품존 재고로 잡히고 즉시 보류</b>됩니다.
+                </p>
+                <select
+                    value={rsnCd}
+                    onChange={(e) => setSheet(s => ({ ...s, rsnCd: e.target.value }))}
+                    className="input-base w-full py-3"
+                >
+                    <option value="">사유 선택</option>
+                    {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+                {rsnCd === ETC_RSN_CD && (
+                    <input
+                        type="text" maxLength={200} autoFocus
+                        value={rsnDscr}
+                        onChange={(e) => setSheet(s => ({ ...s, rsnDscr: e.target.value }))}
+                        className="input-base w-full py-3" placeholder="불량 사유를 입력하세요"
+                    />
+                )}
+                <div className="flex gap-2">
+                    <button onClick={onBack} className="btn-modal-cancel flex-1">이전</button>
                     <button onClick={onConfirm} disabled={busy} className="btn-modal-primary flex-1 disabled:opacity-40">
                         검수 저장
                     </button>

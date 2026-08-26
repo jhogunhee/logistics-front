@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WareFlow 사용자설명서</title>
+<style>
+  :root {
+    --ink: #1e293b;
+    --ink-soft: #475569;
+    --ink-faint: #94a3b8;
+    --line: #e2e8f0;
+    --accent: #4f46e5;
+    --accent-soft: #eef2ff;
+    --page: #ffffff;
+    --bg: #f8fafc;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Malgun Gothic", "맑은 고딕", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 15px;
+    line-height: 1.75;
+  }
+  .page { max-width: 780px; margin: 0 auto; background: var(--page); padding: 56px 44px 72px; min-height: 100vh; }
+
+  .doc-head { border-bottom: 2px solid var(--ink); padding-bottom: 16px; margin-bottom: 28px; }
+  .doc-head .kicker { font-size: 12px; letter-spacing: .08em; color: var(--ink-faint); font-weight: 700; }
+  .doc-head h1 { margin: 6px 0 0; font-size: 30px; letter-spacing: -.01em; }
+  .lead { color: var(--ink-soft); margin: 0 0 36px; }
+
+  h2 { font-size: 15px; color: var(--ink-faint); margin: 36px 0 12px; letter-spacing: .02em; }
+
+  .chapters { list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--line); }
+  .chapters li { border-bottom: 1px solid var(--line); }
+  .chapters a, .chapters .soon {
+    display: flex; align-items: baseline; gap: 14px;
+    padding: 18px 6px; text-decoration: none; color: inherit;
+  }
+  .chapters a:hover { background: var(--accent-soft); }
+  .chapters .no {
+    flex: 0 0 auto; font-size: 13px; font-weight: 700; color: var(--accent);
+    font-family: system-ui, sans-serif; min-width: 18px;
+  }
+  .chapters .soon .no { color: var(--ink-faint); }
+  .chapters .t { flex: 1; min-width: 0; }
+  .chapters .t b { display: block; font-size: 17px; }
+  .chapters .t span { color: var(--ink-soft); font-size: 14px; }
+  .chapters .soon { color: var(--ink-faint); }
+  .chapters .soon .t b { color: var(--ink-faint); font-weight: 700; }
+  .tag {
+    flex: 0 0 auto; font-size: 11px; font-weight: 700; border-radius: 999px;
+    padding: 3px 10px; background: #f1f5f9; color: var(--ink-faint);
+  }
+  .tag.ready { background: var(--accent-soft); color: var(--accent); }
+
+  .note { margin-top: 40px; font-size: 13px; color: var(--ink-faint); line-height: 1.8; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="doc-head">
+    <div class="kicker">WareFlow</div>
+    <h1>사용자설명서</h1>
+  </div>
+
+  <p class="lead">화면을 어떤 순서로 쓰는지, 각 칸에 무엇을 넣는지, 막혔을 때 어디를 보는지 정리했습니다. 사무실 화면과 현장 PDA를 같이 다룹니다.</p>
+
+  <h2>업무별 설명서</h2>
+  <ul class="chapters">
+    <li>
+      <span class="soon">
+        <span class="no">1</span>
+        <span class="t"><b>시작하기</b><span>로그인 · 화면 구조 · 메뉴 검색 · 목록 공통 조작</span></span>
+        <span class="tag">준비 중</span>
+      </span>
+    </li>
+    <li>
+      <span class="soon">
+        <span class="no">2</span>
+        <span class="t"><b>주문</b><span>입고주문 · 자동발주 산정 · 출고주문</span></span>
+        <span class="tag">준비 중</span>
+      </span>
+    </li>
+    <li>
+      <a href="03-입고.html">
+        <span class="no">3</span>
+        <span class="t"><b>입고</b><span>입고예정 → 검수 → 적치지시 → 적치 → 입고확정 · PDA 2화면</span></span>
+        <span class="tag ready">보기</span>
+      </a>
+    </li>
+    <li>
+      <a href="04-재고.html">
+        <span class="no">4</span>
+        <span class="t"><b>재고</b><span>현재고 · 이력 · 속성변경 · 로트변경 · 보류 · 이동 · 보충 · 재고조사 · PDA 3화면</span></span>
+        <span class="tag ready">보기</span>
+      </a>
+    </li>
+    <li>
+      <a href="05-출고.html">
+        <span class="no">5</span>
+        <span class="t"><b>출고</b><span>출고예정 → 웨이브 편성 → 할당 → 피킹지시 → 피킹 → 출고확정 · PDA 3화면</span></span>
+        <span class="tag ready">보기</span>
+      </a>
+    </li>
+  </ul>
+
+  <p class="note">
+    각 장은 화면마다 「언제 쓰나 → 시작 전 준비 → 화면 구성 → 조작 순서 → 자주 막히는 지점」 순서로 되어 있습니다.<br>
+    화면 캡처에 붙은 번호가 그 아래 설명의 번호와 같습니다.
+  </p>
+
+</div>
+</body>
+</html>
