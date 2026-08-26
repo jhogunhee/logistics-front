@@ -15,6 +15,9 @@ import MultiCheckCellEditor from '@/components/common/MultiCheckCellEditor';
 
 const ROLE_CODES = Object.keys(ROLE_LABELS);
 
+/** 서버 Usr.MIN_PWD_LENGTH와 같은 값. 저장 전에 걸러 왕복을 아끼는 용도이고 최종 판정은 서버가 한다 */
+const MIN_PWD_LENGTH = 8;
+
 export default function UsrMaster() {
     const {
         gridRef, rowCount, saveConfirm, setSaveConfirm,
@@ -96,6 +99,11 @@ export default function UsrMaster() {
             }
             if (r._status === 'C' && !String(r.pwd ?? '').trim()) {
                 toast.error('신규 사용자는 비밀번호가 필수입니다.');
+                return false;
+            }
+            // 빈 값은 「바꾸지 않는다」는 뜻이라 통과. 서버(Usr.validateRawPwd)와 같은 기준으로 먼저 거른다
+            if (String(r.pwd ?? '').trim() && String(r.pwd).length < MIN_PWD_LENGTH) {
+                toast.error(`비밀번호는 ${MIN_PWD_LENGTH}자 이상이어야 합니다.`);
                 return false;
             }
             if (!String(r.usrNm ?? '').trim()) {
