@@ -47,9 +47,9 @@ export const outbAllocApi = {
         return api.get('/outbound/allocations/candidates', { params: { outbLineId } });
     },
 
-    /** 수동할당. items: [{ outbLineId, invId, qty }] */
+    /** 수동할당. items: [{ outbLineId, invId, qty }]. 2026-08-29 경로가 웨이브 접두를 벗어나 wavId가 본문으로 내려갔다 */
     allocateManual(wavId, items) {
-        return api.post(`/outbound/waves/${wavId}/allocations/manual`, { items });
+        return api.post('/outbound/allocations/manual', { wavId, items });
     },
 
     /**
