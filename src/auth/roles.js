@@ -6,7 +6,7 @@ export const ROLE_LABELS = {
     IB_PIC: '입고담당',
     INV_PIC: '재고담당',
     OUTB_PIC: '출고담당',
-    INQ: '조회',
+    INQ: '조회전용',
 };
 
 export const ROLE_OPTIONS = Object.entries(ROLE_LABELS).map(([value, label]) => ({ value, label }));

@@ -177,18 +177,23 @@ export default function MnuAuthMaster() {
             cellClass: (p) => (p.data._group ? 'cursor-pointer' : ''),
             onCellClicked: (p) => { if (p.data._group) toggleCollapse(p.data.grpNm); },
         },
-        ...ROLE_CODES.map(code => ({
-            field: code,
-            headerName: ROLE_LABELS[code],
-            width: 118,
-            editable: false,
-            headerTooltip: `머리글을 누르면 ${ROLE_LABELS[code]} 열 전체가 켜지고 꺼집니다`,
-            cellRenderer: RoleCell,
-            cellClass: 'cursor-pointer',
-            onCellClicked: (p) => (p.data._group
-                ? toggleGroupRole(p.data.grpNm, code)
-                : toggleOne(p.data.mnuCd, code)),
-        })),
+        {
+            // 열 이름이 역할 이름이라는 것을 머리 위에서 밝힌다 — 「조회」가 조회 권한으로 읽히지 않게
+            headerName: '역할 — 체크하면 그 역할의 메뉴에 뜬다',
+            headerClass: 'text-slate-500',
+            children: ROLE_CODES.map(code => ({
+                field: code,
+                headerName: ROLE_LABELS[code],
+                width: 118,
+                editable: false,
+                headerTooltip: `머리글을 누르면 ${ROLE_LABELS[code]} 열 전체가 켜지고 꺼집니다`,
+                cellRenderer: RoleCell,
+                cellClass: 'cursor-pointer',
+                onCellClicked: (p) => (p.data._group
+                    ? toggleGroupRole(p.data.grpNm, code)
+                    : toggleOne(p.data.mnuCd, code)),
+            })),
+        },
     ], [toggleCollapse, toggleGroupRole, toggleOne]);
 
     const save = async () => {
