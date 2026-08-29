@@ -7,6 +7,9 @@ import toast from 'react-hot-toast';
 import { invApi } from '@/api/invApi';
 import { locApi } from '@/api/locApi';
 import { prodApi } from '@/api/prodApi';
+import { usrApi } from '@/api/usrApi';
+import { useAuth } from '@/auth/AuthContext';
+import { roleLabels } from '@/auth/roles';
 import { LOC_TYPE_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { fmtDe } from '@/utils/format';
 import { isCode128B } from '@/utils/code128';
@@ -22,6 +25,9 @@ const TABS = [
     { key: 'LOC', label: '로케이션', memo: '랙·통로에 붙인다. 적치·피킹·이동·실사가 이걸 찍어 자리를 확인한다' },
     { key: 'PROD', label: '상품', memo: '자체 라벨이 필요한 상품에 붙인다' },
     { key: 'LOT', label: 'Lot', memo: '검수가 채번한 Lot을 팔레트·박스에 붙인다. 재고가 있는 Lot만 나온다' },
+    // 사원증에 붙인다. PDA 간편 로그인이 찍는 값이 로그인 아이디 그대로라 작업자 코드가 곧 아이디다.
+    // 대상 조회가 /master/usrs라 시스템관리자에게만 보인다 — 조회 역할에게 띄우면 403만 만난다
+    { key: 'WRKR', label: '작업자', memo: 'PDA 간편 로그인용 사원증. 코드는 로그인 아이디 그대로다', admrOnly: true },
     { key: 'FREE', label: '직접 입력', memo: '문서번호 등 목록에 없는 코드 — 한 줄에 하나씩' },
 ];
 
@@ -51,6 +57,11 @@ const COLUMN_DEFS = {
             cellRenderer: (p) => <Badge meta={TEMP_ZONE_META} value={p.value} />,
         },
     ],
+    WRKR: [
+        { field: 'loginId', headerName: '작업자 코드', width: 160, cellClass: 'font-bold text-slate-700' },
+        { field: 'usrNm', headerName: '이름', width: 140 },
+        { field: 'roles', headerName: '역할', flex: 1, minWidth: 200, valueFormatter: (p) => roleLabels(p.value) },
+    ],
     LOT: [
         { field: 'lotNo', headerName: 'Lot번호', width: 170, cellClass: 'font-bold text-slate-700' },
         { field: 'prodCd', headerName: '상품 코드', width: 130, cellClass: 'text-slate-600' },
@@ -77,7 +88,7 @@ const dedupeLots = (rows) => {
     return [...byKey.values()];
 };
 
-const EMPTY_COND = { locCd: '', prodCd: '', prodNm: '', lotNo: '' };
+const EMPTY_COND = { locCd: '', prodCd: '', prodNm: '', lotNo: '', keyword: '' };
 
 /** 종류별 대상 조회. 행마다 _id를 붙여 그리드가 선택을 유지할 키로 쓴다 */
 const load = async (kind, cond) => {
@@ -88,6 +99,9 @@ const load = async (kind, cond) => {
     if (kind === 'PROD') {
         return (await prodApi.list({ prodCd: cond.prodCd, prodNm: cond.prodNm })).map(r => ({ ...r, _id: r.prodCd }));
     }
+    if (kind === 'WRKR') {
+        return (await usrApi.list({ keyword: cond.keyword })).map(r => ({ ...r, _id: r.loginId }));
+    }
     // Lot은 마스터 목록이 상품 단위라, 라벨을 붙일 대상인 「재고가 있는 Lot」을 현재고에서 뽑는다
     return dedupeLots(await invApi.list({ prodCd: cond.prodCd, lotNo: cond.lotNo }));
 };
@@ -96,6 +110,7 @@ const load = async (kind, cond) => {
 const toLabel = (kind, row) => {
     if (kind === 'LOC') return { key: row._id, code: row.locCd, memo: `${row.zonCd} · ${LOC_TYPE_META[row.locTyp]?.label ?? row.locTyp}` };
     if (kind === 'PROD') return { key: row._id, code: row.prodCd, memo: row.prodNm };
+    if (kind === 'WRKR') return { key: row._id, code: row.loginId, memo: row.usrNm };
     return { key: row._id, code: row.lotNo, memo: `${row.prodNm}${row.expiryDt ? ` · ~${fmtDe(row.expiryDt)}` : ''}` };
 };
 
@@ -108,6 +123,7 @@ const toLabel = (kind, row) => {
  * 인쇄하면 보이는 만큼만 잘려 나온다. 새 창에는 라벨만 넣어 페이지가 자연스럽게 넘어가게 한다.
  */
 export default function LabelPrint() {
+    const { hasRole } = useAuth();
     const [kind, setKind] = useState('LOC');
     const [cond, setCond] = useState({ locCd: '', prodCd: '', prodNm: '', lotNo: '' });
     const [rows, setRows] = useState([]);
@@ -116,6 +132,7 @@ export default function LabelPrint() {
     const [sizeKey, setSizeKey] = useState('M');
     const sheetRef = useRef(null);
 
+    const tabs = useMemo(() => TABS.filter(t => !t.admrOnly || hasRole('ADMR')), [hasRole]);
     const size = SIZES.find(s => s.key === sizeKey);
     const labels = useMemo(() => {
         if (kind !== 'FREE') return selected.map(r => toLabel(kind, r));
@@ -191,7 +208,7 @@ export default function LabelPrint() {
             {/* 탭 — 라벨 종류마다 대상 목록과 검색 조건이 다르다 */}
             <div className="flex items-center gap-3 shrink-0">
                 <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit">
-                    {TABS.map(t => (
+                    {tabs.map(t => (
                         <button
                             key={t.key}
                             onClick={() => changeKind(t.key)}
@@ -213,6 +230,7 @@ export default function LabelPrint() {
                     {kind === 'PROD' && <SearchText name="prodNm" label="상품명" placeholder="삼다수" />}
                     {kind === 'LOT' && <SearchText name="prodCd" label="상품 코드" placeholder="PROD-0001" />}
                     {kind === 'LOT' && <SearchText name="lotNo" label="Lot번호" placeholder="LOT-260718" />}
+                    {kind === 'WRKR' && <SearchText name="keyword" label="작업자" placeholder="아이디 또는 이름" />}
                 </SearchBar>
             )}
 

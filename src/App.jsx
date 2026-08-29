@@ -7,6 +7,7 @@ import Login from "@/pages/auth/Login.jsx";
 import {AuthProvider} from "@/auth/AuthContext.jsx";
 import RequireAuth from "@/auth/RequireAuth.jsx";
 import Dashboard from "@/pages/dashboard/Dashboard.jsx";
+import WrkrAcrst from "@/pages/monitoring/WrkrAcrst.jsx";
 
 import ProdMaster from "@/pages/master/ProdMaster.jsx";
 import UomMaster from "@/pages/master/UomMaster.jsx";
@@ -52,6 +53,7 @@ import PickOrder from "@/pages/outbound/PickOrder.jsx";
 import Picking from "@/pages/outbound/Picking.jsx";
 import Shipping from "@/pages/outbound/Shipping.jsx";
 import Replenishment from "@/pages/outbound/Replenishment.jsx";
+import MobileLogin from "@/pages/mobile/MobileLogin.jsx";
 import MobileHome from "@/pages/mobile/MobileHome.jsx";
 import MobilePicking from "@/pages/mobile/MobilePicking.jsx";
 import MobilePutaway from "@/pages/mobile/MobilePutaway.jsx";
@@ -76,11 +78,15 @@ export default function App() {
                 <AuthProvider>
                 <Routes>
                     <Route path="/login" element={<Login/>}/>
+                    {/* PDA 입구 — 작업자 코드 스캔. RequireAuth 밖이다(로그인 전에 여는 화면) */}
+                    <Route path="/m/login" element={<MobileLogin/>}/>
 
                     {/* 데스크톱과 PDA 두 트리를 각각 감싼다 — 하나만 감싸면 나머지가 무인증으로 남는다 */}
                     <Route element={<RequireAuth><Layout/></RequireAuth>}>
                         {/* 모니터링 */}
                         <Route index element={<Dashboard/>}/>
+                        {/* 작업자 실적 — 재고이력의 작성자(created_by)를 작업 종류별로 집계한다 */}
+                        <Route path="/monitoring/worker" element={<WrkrAcrst/>}/>
 
                         {/* OMS: 주문 원장 (WMS 입고예정/출고주문의 발생지) */}
                         <Route path="/oms/inbound-order" element={<InboundOrder/>}/>
@@ -162,7 +168,7 @@ export default function App() {
                     </Route>
 
                     {/* PDA (모바일, /m) — 현장 실행 화면. 지시 생성·관리는 위 데스크톱 화면, 실행은 여기다 */}
-                    <Route path="/m" element={<RequireAuth><MobileLayout/></RequireAuth>}>
+                    <Route path="/m" element={<RequireAuth loginPath="/m/login"><MobileLayout/></RequireAuth>}>
                         <Route index element={<MobileHome/>}/>
                         <Route path="picking" element={<MobilePicking/>}/>
                         <Route path="putaway" element={<MobilePutaway/>}/>

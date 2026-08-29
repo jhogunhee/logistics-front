@@ -40,11 +40,17 @@ instance.interceptors.response.use(
     (error) => {
         // 세션이 끊겼다(만료·서버 재시작·관리자가 역할을 바꿔 세션을 끊음). 남은 흔적을 지우고
         // 로그인으로 보낸다 — 이미 로그인 화면이면 옮기지 않는다(새로고침이 반복된다)
+        // 현장 단말(/m)은 PDA 로그인으로 되돌린다 — 데스크톱 /login으로 보내면 작업자가
+        // 아이디·비밀번호 화면을 만나 스캔으로는 돌아올 길이 없다
         if (error.response?.status === 401) {
             csrfToken = null;
             localStorage.removeItem('authUser');
-            if (!window.location.pathname.startsWith('/login')) {
-                window.location.href = '/login';
+            const path = window.location.pathname;
+            // 접두 비교가 아니라 경로 경계로 본다 — startsWith('/m')은 /master·/monitoring까지 삼켜
+            // 데스크톱 세션이 끊겼을 때 관리자를 PDA 스캔 화면에 떨어뜨린다(그 계정은 스캔으로 못 들어온다)
+            const loginPath = (path === '/m' || path.startsWith('/m/')) ? '/m/login' : '/login';
+            if (path !== loginPath) {
+                window.location.href = loginPath;
             }
         }
         // 서버 에러 응답({ message })을 e.message로 노출 → 화면에서 토스트에 그대로 사용

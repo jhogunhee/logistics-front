@@ -17,8 +17,13 @@ function readCachedUser() {
     }
 }
 
-// 로그인 화면에서는 세션을 묻지 않는다 — 아직 없는 게 정상이라 401만 받는다
-const onLoginPage = () => window.location.pathname.startsWith('/login');
+// 로그인 화면에서는 세션을 묻지 않는다 — 아직 없는 게 정상이라 401만 받는다.
+// PDA 간편 로그인(/m/login)도 같은 자리다 — 여기서 물으면 401이 나고 인터셉터가
+// 데스크톱 /login으로 튕겨 현장 단말이 로그인 화면조차 못 본다
+const onLoginPage = () => {
+    const path = window.location.pathname;
+    return path.startsWith('/login') || path.startsWith('/m/login');
+};
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(readCachedUser);
@@ -52,6 +57,11 @@ export function AuthProvider({ children }) {
         return apply(await authApi.login({ loginId, pwd }));
     }, [apply]);
 
+    /** PDA 간편 로그인 — 세션이 서는 방식만 다르고 이후는 비밀번호 로그인과 같다 */
+    const scanLogin = useCallback(async (loginId) => {
+        return apply(await authApi.scanLogin({ loginId }));
+    }, [apply]);
+
     const logout = useCallback(async () => {
         try {
             await authApi.logout();   // 서버 세션을 실제로 없앤다
@@ -69,8 +79,8 @@ export function AuthProvider({ children }) {
 
     // menus는 서버가 역할로 걸러 준 목록이다 — 사이드바·PDA 홈이 이것만 보고 그린다.
     // 캐시된 값이 있으면 첫 페인트부터 그려져 빈 사이드바가 보이지 않는다
-    const value = useMemo(() => ({ user, loading, login, logout, hasRole, menus: user?.menus ?? [] }),
-        [user, loading, login, logout, hasRole]);
+    const value = useMemo(() => ({ user, loading, login, scanLogin, logout, hasRole, menus: user?.menus ?? [] }),
+        [user, loading, login, scanLogin, logout, hasRole]);
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -9,6 +9,7 @@
  */
 export const ROUTE_PATHS = [
     '/',
+    '/monitoring/worker',
     '/oms/inbound-order',
     '/oms/inbound-orders',
     '/oms/ato-odr',
