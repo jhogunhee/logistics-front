@@ -9,6 +9,14 @@ export const authApi = {
         return api.post('/auth/login', body);
     },
 
+    /**
+     * PDA 간편 로그인 — 작업자 코드(= 로그인 아이디) 바코드만 보낸다. 응답은 login과 같다.
+     * 현장 역할만으로 이루어진 계정에만 열려 있고, 그 판정은 서버가 한다.
+     */
+    scanLogin(body) {
+        return api.post('/auth/scan-login', body);
+    },
+
     /** 내 정보. 세션이 살아 있는지 확인하는 용도를 겸한다 */
     me() {
         return api.get('/auth/me');

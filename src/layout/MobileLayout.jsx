@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { BookOpen, Monitor, Warehouse, X } from "lucide-react";
+import { BookOpen, LogOut, Monitor, Warehouse, X } from "lucide-react";
+import { useAuth } from "@/auth/AuthContext";
 import ServerWakeGate from "@/components/common/ServerWakeGate.jsx";
 
 const MANUAL_INDEX = { href: '/manual/index.html', label: '사용자설명서' };
@@ -22,6 +23,7 @@ const MANUAL_BY_PATH = {
  */
 export default function MobileLayout() {
     const { pathname } = useLocation();
+    const { user, logout } = useAuth();
     const [manualOpen, setManualOpen] = useState(false);
     const manual = MANUAL_BY_PATH[pathname] ?? MANUAL_INDEX;
 
@@ -45,17 +47,26 @@ export default function MobileLayout() {
                     </span>
                     <span className="font-bold text-slate-800 text-sm">WareFlow PDA</span>
                 </Link>
+                {/* 지금 누구로 실적이 쌓이는지를 늘 띄워 둔다 — 앞사람 세션에 그대로 작업하는 것을 막는 표시다 */}
+                <span className="ml-auto text-xs font-bold text-slate-600 truncate max-w-[6.5rem]">
+                    {user?.usrNm ?? user?.loginId}
+                </span>
                 {/* 새 탭이 아니라 덮개로 연다 — 작업 화면이 마운트된 채로 남아 스캔 진행이 유지된다 */}
                 <button type="button" title="사용자설명서"
                         onMouseDown={() => { lastFocusedRef.current = document.activeElement; }}
                         onClick={() => setManualOpen(true)}
-                        className="ml-auto p-2 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-indigo-600">
+                        className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-indigo-600">
                     <BookOpen size={18} />
                 </button>
                 <Link to="/" title="데스크톱 화면으로"
                       className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-indigo-600">
                     <Monitor size={18} />
                 </Link>
+                {/* 교대 종료 — 다음 작업자가 자기 코드를 찍게 하려면 여기서 끊어야 한다 */}
+                <button type="button" title="로그아웃" onClick={logout}
+                        className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-rose-600">
+                    <LogOut size={18} />
+                </button>
             </header>
             {/* overflow-y-auto — 화면이 낮은 단말에서 내용이 상하로 넘치면 잘리는 대신 스크롤이 생긴다 */}
             <main className="flex-1 min-h-0 p-3 overflow-y-auto">
