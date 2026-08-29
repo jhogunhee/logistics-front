@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import toast from "react-hot-toast";
 import { Warehouse } from "lucide-react";
 import { useAuth } from '@/auth/AuthContext';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 function Login() {
     const navigate = useNavigate();
     const { login } = useAuth();
+    const isDesktop = useMediaQuery('(min-width: 1024px)');
     const [submitting, setSubmitting] = useState(false);
     // 둘러보기 편하도록 관리자 계정을 미리 채워 둔다 — 그대로 [Login]만 누르면 저장까지 다 된다.
     // 정식 서비스가 아니라 시연용이라는 전제다. 실제로 열게 되면 조회 전용 계정(viewer)으로
@@ -35,7 +37,7 @@ function Login() {
         try {
             const me = await login(form.loginId, form.pwd);
             toast.success(`${me.usrNm}님 환영합니다.`);
-            navigate("/");
+            navigate(isDesktop ? "/" : "/m");
         } catch (e) {
             // 로그인 실패는 서버가 400으로 준다 — 401이면 인터셉터가 이 화면으로 되돌려 사유가 묻힌다
             toast.error(e.message || "로그인에 실패했습니다.");
