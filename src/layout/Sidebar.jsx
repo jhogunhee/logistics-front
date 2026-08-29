@@ -101,6 +101,8 @@ const MENU = [
             { to: "/stock/lot-change", label: "재고 로트변경", icon: Split, keywords: "lot 로트 분할 병합 부분 수량 정정 split merge" },
             { to: "/stock/hold", label: "재고 보류", icon: PauseCircle, keywords: "hold 출고 금지" },
             { to: "/stock/move", label: "재고 이동", icon: ArrowLeftRight, keywords: "move 로케이션 이동 지시 예약 등록 확정 취소" },
+            // 창고 구조가 아니라 재보충 기준(min/max)이라 여기다 — 바로 아래 정기 보충이 이 값으로 돈다
+            { to: "/master/fxng-loc", label: "고정 로케이션 관리", icon: Pin, keywords: "fxng fixed 고정 피킹존 보충 재보충점 마스터" },
             { to: "/stock/spmt", label: "정기 보충", icon: Repeat, keywords: "보충 replenish spmt min max 피킹존 고정로케이션 fefo 재보충점" },
             { to: "/stock/count", label: "재고조사", icon: Calculator, keywords: "실사 count 차이 오차 전산수량 블라인드" },
             { to: "/stock/adjust", label: "재고조정", icon: SlidersHorizontal,
@@ -121,14 +123,23 @@ const MENU = [
         ],
     },
     {
+        // 마스터에서 떼어낸 그룹 — URL은 /master/지만 창고 물리 구조라 센터 운영 업무다.
+        // 랙을 늘리는 데 시스템관리자를 부를 이유가 없어 CENT_ADMR이 만진다.
+        // 백엔드 규칙(/master/zons · /master/locs)과 이 그룹이 1:1이다 —
+        // 고정로케이션은 구조가 아니라 재보충 기준이라 재고 그룹에 있다
+        title: "창고",
+        roles: ["ADMR", "CENT_ADMR", "INQ"],
+        items: [
+            { to: "/master/zone", label: "존 관리", icon: LayoutGrid, keywords: "zone 존 보관유형" },
+            { to: "/master/location", label: "로케이션 관리", icon: MapPin, keywords: "location 로케이션 랙" },
+        ],
+    },
+    {
         title: "마스터",
         roles: ["ADMR", "INQ"],
         items: [
             { to: "/master/prod", label: "상품 관리", icon: Barcode, keywords: "product 상품 기준정보 온도대" },
             { to: "/master/uom", label: "단위 관리", icon: Ruler, keywords: "uom 포장 낱개수량 중량 박스 파렛트" },
-            { to: "/master/zone", label: "존 관리", icon: LayoutGrid, keywords: "zone 존 보관유형" },
-            { to: "/master/location", label: "로케이션 관리", icon: MapPin, keywords: "location 로케이션 랙" },
-            { to: "/master/fxng-loc", label: "고정 로케이션 관리", icon: Pin, keywords: "fxng fixed 고정 피킹존 보충 재보충점" },
             { to: "/master/prod-vndr", label: "상품 거래처 관리", icon: Handshake, keywords: "prod vendor 공급 발주점 발주상한 자동발주 moq 최소주문 리드타임" },
             { to: "/master/vendor", label: "벤더 관리", icon: Truck, keywords: "vendor 거래처 납품처" },
             { to: "/master/store", label: "점포 관리", icon: Store, keywords: "store 점포 매장" },
