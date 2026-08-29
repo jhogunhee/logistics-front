@@ -6,7 +6,7 @@ import { invApi } from '@/api/invApi';
 import { num } from '@/utils/format';
 
 /**
- * 예약 대사 팝업 — 재고 키마다 inv.aloc_qty(장부)와 원천별 미소진 합(할당 · 이동지시 · 스테이징 피킹분)을
+ * 예약 대사 팝업 — 재고 키마다 inv.aloc_qty(장부)와 원천별 미소진 합(할당 · 이동·적치지시 · 스테이징 피킹분)을
  * 나란히 놓는다. 예약은 이력에 남지 않아 이 비교가 잔류·누락을 잡는 유일한 수단이다.
  * 차이(diff)가 0이 아닌 행은 코드 결함의 증거라 맨 위에 붉게 모은다.
  */
@@ -34,7 +34,7 @@ export default function AlocRecModal({ onClose }) {
                     <div className="flex items-center gap-2">
                         <Scale size={16} className="text-indigo-600" />
                         <h3 className="text-base font-bold text-slate-800">예약 대사</h3>
-                        <span className="text-xs text-slate-400">장부 예약 = 할당 미소진 + 이동지시 미소진 + 스테이징 피킹분</span>
+                        <span className="text-xs text-slate-400">장부 예약 = 할당 미소진 + 이동·적치지시 미소진 + 스테이징 피킹분</span>
                     </div>
                     <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
                         <X size={18} />
@@ -60,7 +60,7 @@ export default function AlocRecModal({ onClose }) {
                                         <th className="text-left py-1.5 font-medium">Lot</th>
                                         <th className="text-right py-1.5 font-medium">장부 예약</th>
                                         <th className="text-right py-1.5 font-medium">할당</th>
-                                        <th className="text-right py-1.5 font-medium">이동지시</th>
+                                        <th className="text-right py-1.5 font-medium">이동·적치지시</th>
                                         <th className="text-right py-1.5 font-medium">스테이징</th>
                                         <th className="text-right py-1.5 font-medium">차이</th>
                                     </tr>
