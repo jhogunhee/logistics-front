@@ -178,8 +178,9 @@ export default function MnuAuthMaster() {
             onCellClicked: (p) => { if (p.data._group) toggleCollapse(p.data.grpNm); },
         },
         {
-            // 열 이름이 역할 이름이라는 것을 머리 위에서 밝힌다 — 「조회」가 조회 권한으로 읽히지 않게
-            headerName: '역할 — 체크하면 그 역할의 메뉴에 뜬다',
+            // 열 이름이 역할 이름이라는 것을 머리 위에서 밝힌다 — 「조회전용」이 동작으로 읽히지 않게.
+            // 무슨 뜻인지는 하단 범례가 말하므로 여기서는 이름만 둔다
+            headerName: '역할',
             headerClass: 'text-slate-500',
             children: ROLE_CODES.map(code => ({
                 field: code,
