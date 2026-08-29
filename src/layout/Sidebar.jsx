@@ -1,175 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
-import {
-    ArrowLeftRight,
-    Barcode,
-    BookOpen,
-    Box,
-    Calculator,
-    SlidersHorizontal,
-    ChevronRight,
-    ChevronsLeft,
-    ChevronsRight,
-    CheckCircle2,
-    ClipboardCheck,
-    ClipboardList,
-    FileInput,
-    FileOutput,
-    FilePlus,
-    Handshake,
-    Hash,
-    History,
-    Layers,
-    LayoutDashboard,
-    LayoutGrid,
-    ListChecks,
-    ListTree,
-    LogOut,
-    MapPin,
-    PackageCheck,
-    PackageOpen,
-    PackagePlus,
-    PauseCircle,
-    Pin,
-    Printer,
-    Repeat,
-    Ruler,
-    ScrollText,
-    Search,
-    Send,
-    Settings2,
-    ShieldCheck,
-    Shuffle,
-    Smartphone,
-    Sparkles,
-    Split,
-    Store,
-    Tags,
-    Truck,
-    Users,
-    Warehouse,
-    Waves,
-    X,
-} from "lucide-react";
+import { BookOpen, ChevronRight, ChevronsLeft, ChevronsRight, LogOut, Search, Warehouse, X } from "lucide-react";
 
 import { matchesSearch } from "@/utils/hangul";
 import { useAuth } from "@/auth/AuthContext";
 import { roleLabels } from "@/auth/roles";
-
-// 메뉴를 JSX가 아니라 데이터로 둔다 — 검색이 이 배열을 걸러 렌더하기 때문이다.
-// keywords는 라벨에 없는 검색어를 잡아주는 보조어다 (약어 · 영문 · 업무에서 부르는 다른 이름).
-//
-// roles는 그 그룹(또는 항목)을 보는 역할이다. 없으면 로그인한 누구나 본다.
-// 조회(INQ)는 모든 화면을 보되 저장이 막힌다 — 화면을 감추는 것은 편의일 뿐이고 막는 것은 백엔드다.
-const MENU = [
-    {
-        title: "모니터링",
-        items: [
-            { to: "/", label: "대시보드", icon: LayoutDashboard, keywords: "dashboard 홈 메인" },
-        ],
-    },
-    {
-        title: "OMS",
-        roles: ["ADMR", "ODR_PIC", "INQ"],
-        items: [
-            { to: "/oms/inbound-order", label: "입고주문", icon: FileInput, keywords: "발주 po purchase order 등록" },
-            { to: "/oms/inbound-orders", label: "입고주문 관리", icon: ClipboardList, keywords: "발주 목록 확정 취소 삭제" },
-            { to: "/oms/ato-odr", label: "자동발주 산정", icon: Sparkles, keywords: "ato auto 자동 발주점 순재고 제안 스케줄" },
-            { to: "/oms/outbound-order", label: "출고주문", icon: FileOutput, keywords: "수주 so 점포 등록" },
-            { to: "/oms/outbound-orders", label: "출고주문 관리", icon: FilePlus, keywords: "수주 목록 취소" },
-        ],
-    },
-    {
-        title: "입고",
-        roles: ["ADMR", "CENT_ADMR", "IB_PIC", "INQ"],
-        items: [
-            { to: "/inbound/asn", label: "입고예정(ASN) 관리", icon: Truck, keywords: "asn 예정 inbound" },
-            { to: "/inbound/receiving", label: "입고검수", icon: ClipboardCheck, keywords: "검수 수령 receiving lot 제조일자" },
-            { to: "/inbound/putaway-order", label: "적치지시", icon: ListChecks, keywords: "putaway 지시 로케이션 배정" },
-            { to: "/inbound/putaway", label: "적치", icon: PackageOpen, keywords: "putaway 이동 보관" },
-            { to: "/inbound/confirm", label: "입고확정", icon: CheckCircle2, keywords: "확정 confirm 결품 마감" },
-        ],
-    },
-    {
-        title: "재고",
-        roles: ["ADMR", "CENT_ADMR", "INV_PIC", "INQ"],
-        items: [
-            { to: "/stock/status", label: "현재고 조회", icon: Box,
-              keywords: "inventory 재고 현황 수량 map 맵 점유 로케이션 평면도 구조도 랙 베이 레벨 빈자리 occupancy" },
-            { to: "/stock/history", label: "재고 이력 조회", icon: History, keywords: "inventory history 원장 입출고" },
-            { to: "/stock/attribute", label: "재고 속성변경", icon: Tags, keywords: "lot 유통기한 제조일자 정정 변경 전량 라벨 유지" },
-            { to: "/stock/lot-change", label: "재고 로트변경", icon: Split, keywords: "lot 로트 분할 병합 부분 수량 정정 split merge" },
-            { to: "/stock/hold", label: "재고 보류", icon: PauseCircle, keywords: "hold 출고 금지" },
-            { to: "/stock/move", label: "재고 이동", icon: ArrowLeftRight, keywords: "move 로케이션 이동 지시 예약 등록 확정 취소" },
-            // 창고 구조가 아니라 재보충 기준(min/max)이라 여기다 — 바로 아래 정기 보충이 이 값으로 돈다
-            { to: "/master/fxng-loc", label: "고정 로케이션 관리", icon: Pin, keywords: "fxng fixed 고정 피킹존 보충 재보충점 마스터" },
-            { to: "/stock/spmt", label: "정기 보충", icon: Repeat, keywords: "보충 replenish spmt min max 피킹존 고정로케이션 fefo 재보충점" },
-            { to: "/stock/count", label: "재고조사", icon: Calculator, keywords: "실사 count 차이 오차 전산수량 블라인드" },
-            { to: "/stock/adjust", label: "재고조정", icon: SlidersHorizontal,
-              keywords: "adjust 조정 폐기 스크랩 불량 반품 견본 처분 증감 scrap" },
-        ],
-    },
-    {
-        title: "출고",
-        roles: ["ADMR", "CENT_ADMR", "OUTB_PIC", "INQ"],
-        items: [
-            { to: "/outbound/order", label: "출고예정 관리", icon: PackageCheck, keywords: "출고예정 출고주문 obs outbound order 예정 창고 문서 조회" },
-            { to: "/outbound/wave", label: "웨이브 편성", icon: Layers, keywords: "wave 묶음 출고주문 담기 전략 실행 피킹지시 발행단위" },
-            { to: "/outbound/allocation", label: "할당", icon: Shuffle, keywords: "allocation 재고 배정 fefo" },
-            { to: "/outbound/pick-order", label: "피킹지시", icon: ScrollText, keywords: "picking 지시" },
-            { to: "/outbound/replenishment", label: "수시보충", icon: PackagePlus, keywords: "replenishment 보충 피킹존 보관존 이동" },
-            { to: "/outbound/picking", label: "피킹", icon: PackageOpen, keywords: "picking 집품" },
-            { to: "/outbound/shipping", label: "출고확정", icon: Send, keywords: "shipping 상차 출하" },
-        ],
-    },
-    {
-        // 마스터에서 떼어낸 그룹 — URL은 /master/지만 창고 물리 구조라 센터 운영 업무다.
-        // 랙을 늘리는 데 시스템관리자를 부를 이유가 없어 CENT_ADMR이 만진다.
-        // 백엔드 규칙(/master/zons · /master/locs)과 이 그룹이 1:1이다 —
-        // 고정로케이션은 구조가 아니라 재보충 기준이라 재고 그룹에 있다
-        title: "창고",
-        roles: ["ADMR", "CENT_ADMR", "INQ"],
-        items: [
-            { to: "/master/zone", label: "존 관리", icon: LayoutGrid, keywords: "zone 존 보관유형" },
-            { to: "/master/location", label: "로케이션 관리", icon: MapPin, keywords: "location 로케이션 랙" },
-        ],
-    },
-    {
-        title: "마스터",
-        roles: ["ADMR", "INQ"],
-        items: [
-            { to: "/master/prod", label: "상품 관리", icon: Barcode, keywords: "product 상품 기준정보 온도대" },
-            { to: "/master/uom", label: "단위 관리", icon: Ruler, keywords: "uom 포장 낱개수량 중량 박스 파렛트" },
-            { to: "/master/prod-vndr", label: "상품 거래처 관리", icon: Handshake, keywords: "prod vendor 공급 발주점 발주상한 자동발주 moq 최소주문 리드타임" },
-            { to: "/master/vendor", label: "벤더 관리", icon: Truck, keywords: "vendor 거래처 납품처" },
-            { to: "/master/store", label: "점포 관리", icon: Store, keywords: "store 점포 매장" },
-            { to: "/master/nbr-rules", label: "채번규칙 관리", icon: Hash, keywords: "nbr 채번 번호 규칙 패턴 시퀀스" },
-            { to: "/master/codes", label: "공통코드 관리", icon: ListTree, keywords: "code 공통코드 그룹 코드값 온도대 보관유형 업무구분 발주구분 계량단위" },
-            { to: "/master/labels", label: "라벨 인쇄", icon: Printer, keywords: "label 라벨 barcode 바코드 code128 인쇄 print 출력 로케이션 상품 lot pda 스캔" },
-            // 조회까지 시스템관리자만이라 그룹(ADMR·INQ)보다 좁다 — INQ에게도 보이면 403만 만난다
-            { to: "/master/usr", label: "사용자 관리", icon: Users, roles: ["ADMR"], keywords: "user 사용자 계정 로그인 역할 role 권한 비밀번호" },
-        ],
-    },
-    {
-        // 마스터(무엇이 있는가)와 성격이 다르다 — 여기 있는 건 "어떻게 판단할지"의 정의다.
-        // 저장하면 곧 운영에 반영되므로 각 화면이 미리보기를 끼고 있다.
-        title: "전략",
-        roles: ["ADMR", "CENT_ADMR", "INQ"],
-        items: [
-            { to: "/strategy/inspection", label: "검수 정책관리", icon: ShieldCheck, keywords: "inspection 검수 제약 정책 역순제한 유통기한 잔여비율 전략 입고" },
-            { to: "/strategy/putaway", label: "적치 전략관리", icon: Settings2, keywords: "putaway strategy 전략 추천 단계 로케이션 입고" },
-            { to: "/strategy/wave", label: "웨이브 전략관리", icon: Waves, keywords: "wave strategy 웨이브 편성 출고 조건그룹 출고유형 차량편수 전략" },
-            { to: "/strategy/allocation", label: "할당 전략관리", icon: Shuffle, keywords: "allocation strategy 할당 분배 재고 배정 fefo 전략 출고" },
-        ],
-    },
-    {
-        // 현장 단말(PDA) 실행 화면 진입점 — 별도 레이아웃(/m)이라 여기로 나가면 사이드바가 없다
-        title: "PDA",
-        items: [
-            { to: "/m", label: "현장 작업", icon: Smartphone, keywords: "pda 모바일 mobile 스캐너 barcode rf 현장 실행 피킹 적치 재고이동 재고조사" },
-        ],
-    },
-];
+import { menuIcon } from "@/layout/menuIcons";
 
 /** 경로가 이 메뉴에 속하나 — 그룹 펼침 기본값을 정한다. NavLink의 활성 판정과 같은 규칙(대시보드만 완전일치) */
 const isActivePath = (to, pathname) =>
@@ -269,12 +105,29 @@ export default function Sidebar({ mode = "expanded", onToggle, onClose }) {
     const compact = mode === "collapsed";
     const wantFocus = useRef(false);
     const { pathname } = useLocation();
-    const { user, logout, hasRole } = useAuth();
+    const { user, logout, menus } = useAuth();
+
+    // 서버가 준 메뉴만 그린다 — 어느 역할이 무엇을 보는지는 백엔드(mnu_role)가 이미 걸렀다.
+    // 그룹 사이 순서는 각 그룹의 최소 srtSeq다 — grpNm만으로는 순서를 알 수 없어, 시드가
+    // 그룹마다 겹치지 않는 대역을 쓴다(모니터링 10번대 · OMS 100번대 · 입고 200번대 …)
+    const visible = useMemo(() => {
+        const byGroup = new Map();
+        menus.filter(m => m.dvsn === "WEB")
+            .slice()
+            .sort((a, b) => a.srtSeq - b.srtSeq)
+            .forEach(m => {
+                if (!byGroup.has(m.grpNm)) byGroup.set(m.grpNm, []);
+                byGroup.get(m.grpNm).push({
+                    to: m.scrnPth, label: m.mnuNm, icon: menuIcon(m.iconNm), keywords: m.kywd ?? "",
+                });
+            });
+        return [...byGroup.entries()].map(([title, items]) => ({ title, items }));
+    }, [menus]);
 
     // 지금 있는 화면이 속한 그룹 — 펼침 기본값이자 스크롤을 맞출 기준
     const activeTitle = useMemo(
-        () => MENU.find(g => g.items.some(i => isActivePath(i.to, pathname)))?.title ?? null,
-        [pathname],
+        () => visible.find(g => g.items.some(i => isActivePath(i.to, pathname)))?.title ?? null,
+        [visible, pathname],
     );
 
     // 펼침은 여럿 허용한다(하나만 여는 아코디언이 아니다) — 다른 그룹을 열어 둔 채 일하는 흐름을 끊지 않는다.
@@ -328,12 +181,6 @@ export default function Sidebar({ mode = "expanded", onToggle, onClose }) {
     // 검색어는 라벨 · 그룹명 · 보조어 · 경로를 한 문자열로 합쳐 본다.
     // 경로까지 넣은 덕에 'uom', 'master', 'outbound' 같은 영문 URL 조각으로도 찾히고,
     // matchesSearch가 초성('ㄷㅇ' → 단위 관리)까지 처리한다.
-    // 역할로 먼저 거른 뒤 검색으로 거른다 — 검색으로도 안 보이는 것이 나오면 안 된다
-    const visible = useMemo(() => MENU
-        .filter(g => !g.roles || hasRole(g.roles))
-        .map(g => ({ ...g, items: g.items.filter(i => !i.roles || hasRole(i.roles)) }))
-        .filter(g => g.items.length > 0), [hasRole]);
-
     const groups = useMemo(() => {
         if (!q.trim()) return visible;
         return visible

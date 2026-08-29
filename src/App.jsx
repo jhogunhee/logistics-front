@@ -19,6 +19,8 @@ import StoreMaster from "@/pages/master/StoreMaster.jsx";
 import NbrRuleMaster from "@/pages/master/NbrRuleMaster.jsx";
 import UsrMaster from "@/pages/master/UsrMaster.jsx";
 import CodeMaster from "@/pages/master/CodeMaster.jsx";
+import MnuMaster from "@/pages/master/MnuMaster.jsx";
+import MnuAuthMaster from "@/pages/master/MnuAuthMaster.jsx";
 import LabelPrint from "@/pages/master/LabelPrint.jsx";
 import InspectionPolicy from "@/pages/strategy/InspectionPolicy.jsx";
 import PutawayStrategy from "@/pages/strategy/PutawayStrategy.jsx";
@@ -145,6 +147,11 @@ export default function App() {
                         <Route path="/master/usr" element={<UsrMaster/>}/>
                         {/* 라벨 인쇄 — PDA가 찍을 바코드를 발행한다. 현장 화면(/m)의 스캔과 짝이다 */}
                         <Route path="/master/labels" element={<LabelPrint/>}/>
+
+                        {/* 메뉴 관리 — 사이드바 자체를 정의하는 화면이라 마스터 그룹에 둔다.
+                            둘 다 시스템관리자만이다(백엔드 /master/mnus 규칙) */}
+                        <Route path="/master/menu" element={<MnuMaster/>}/>
+                        <Route path="/master/menu-auth" element={<MnuAuthMaster/>}/>
 
                         {/* 전략: 관리자가 정의하는 실행 정책 (기준정보와 달리 "어떻게 판단할지"를 담는다).
                             백엔드 API 접두(/strategy)와 경로를 맞춘다 */}

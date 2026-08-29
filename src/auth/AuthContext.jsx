@@ -27,7 +27,7 @@ export function AuthProvider({ children }) {
 
     const apply = useCallback((me) => {
         setCsrfToken(me.csrfToken);
-        const shown = { loginId: me.loginId, usrNm: me.usrNm, roles: me.roles };
+        const shown = { loginId: me.loginId, usrNm: me.usrNm, roles: me.roles, menus: me.menus ?? [] };
         localStorage.setItem(USER_KEY, JSON.stringify(shown));
         setUser(shown);
         return shown;
@@ -67,7 +67,9 @@ export function AuthProvider({ children }) {
         return codes.flat().some((code) => user.roles.includes(code));
     }, [user]);
 
-    const value = useMemo(() => ({ user, loading, login, logout, hasRole }),
+    // menus는 서버가 역할로 걸러 준 목록이다 — 사이드바·PDA 홈이 이것만 보고 그린다.
+    // 캐시된 값이 있으면 첫 페인트부터 그려져 빈 사이드바가 보이지 않는다
+    const value = useMemo(() => ({ user, loading, login, logout, hasRole, menus: user?.menus ?? [] }),
         [user, loading, login, logout, hasRole]);
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
