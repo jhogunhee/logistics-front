@@ -5,23 +5,23 @@ import toast from 'react-hot-toast';
 
 import { mnuApi } from '@/api/mnuApi';
 import { ROUTE_PATHS } from '@/routes';
-import { MENU_ICONS } from '@/layout/menuIcons';
+import { menuIcon } from '@/layout/menuIcons';
 import { useMasterGrid } from '@/hooks/useMasterGrid';
 import { fmtDe, num } from '@/utils/format';
 import SearchBar, { SearchSelect, SearchText } from '@/components/common/SearchBar';
 import SelectCellEditor from '@/components/common/SelectCellEditor';
+import IconCellEditor from '@/components/common/IconCellEditor';
 import { RowStatusCell } from '@/components/common/Badge';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import SaveCountSummary from '@/components/common/SaveCountSummary';
 
 const DVSN_OPTIONS = [{ value: 'WEB', label: '데스크톱' }, { value: 'PDA', label: '현장 단말' }];
 const DVSN_LABELS = { WEB: '데스크톱', PDA: '현장 단말' };
-const ICON_NAMES = Object.keys(MENU_ICONS);
 
 /**
  * 메뉴 관리 — 사이드바와 PDA 홈이 이 표를 그대로 그린다.
  *
- * 화면 경로와 아이콘은 직접 입력받지 않고 드롭다운으로 고르게 한다. 경로는 라우트로 등록된
+ * 화면 경로는 드롭다운, 아이콘은 그림 격자에서 고르게 한다. 경로는 라우트로 등록된
  * 것이어야 죽은 링크가 안 생기고, 아이콘은 menuIcons.js의 이름표에 있어야 그려진다 —
  * 둘 다 실체가 프론트에만 있어서 서버가 검증해 줄 수 없다.
  */
@@ -75,8 +75,18 @@ export default function MnuMaster() {
         {
             field: 'iconNm', headerName: '아이콘', width: 180,
             headerClass: 'header-required', editable: notDeleted,
-            cellEditor: SelectCellEditor,
-            cellEditorParams: { values: ICON_NAMES },
+            // 이름 드롭다운이 아니라 그림 격자로 고른다 — 이름만 봐서는 어떤 아이콘인지 알 수 없다
+            cellEditor: IconCellEditor,
+            cellEditorPopup: true,
+            cellRenderer: (p) => {
+                const Icon = menuIcon(p.value);
+                return (
+                    <span className="flex items-center gap-2 h-full">
+                        <Icon size={16} className="text-slate-500 shrink-0" />
+                        <span className="text-xs text-slate-500 truncate">{p.value}</span>
+                    </span>
+                );
+            },
         },
         {
             field: 'scrnPth', headerName: '화면 경로', width: 215,
