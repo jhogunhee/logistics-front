@@ -66,6 +66,9 @@ const MENU = [
         title: "모니터링",
         items: [
             { to: "/", label: "대시보드", icon: LayoutDashboard, keywords: "dashboard 홈 메인" },
+            // 개인별 생산성이라 조회(INQ)에게도 열지 않는다 — 백엔드 /wrkr 규칙과 같은 범위다
+            { to: "/monitoring/worker", label: "작업자 실적", icon: Users, roles: ["ADMR", "CENT_ADMR"],
+              keywords: "worker 작업자 실적 생산성 집계 건수 처리량 피킹 적치 검수 누가 담당자 productivity" },
         ],
     },
     {

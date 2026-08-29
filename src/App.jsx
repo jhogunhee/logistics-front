@@ -7,6 +7,7 @@ import Login from "@/pages/auth/Login.jsx";
 import {AuthProvider} from "@/auth/AuthContext.jsx";
 import RequireAuth from "@/auth/RequireAuth.jsx";
 import Dashboard from "@/pages/dashboard/Dashboard.jsx";
+import WrkrAcrst from "@/pages/monitoring/WrkrAcrst.jsx";
 
 import ProdMaster from "@/pages/master/ProdMaster.jsx";
 import UomMaster from "@/pages/master/UomMaster.jsx";
@@ -82,6 +83,8 @@ export default function App() {
                     <Route element={<RequireAuth><Layout/></RequireAuth>}>
                         {/* 모니터링 */}
                         <Route index element={<Dashboard/>}/>
+                        {/* 작업자 실적 — 재고이력의 작성자(created_by)를 작업 종류별로 집계한다 */}
+                        <Route path="/monitoring/worker" element={<WrkrAcrst/>}/>
 
                         {/* OMS: 주문 원장 (WMS 입고예정/출고주문의 발생지) */}
                         <Route path="/oms/inbound-order" element={<InboundOrder/>}/>

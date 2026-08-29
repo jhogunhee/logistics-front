@@ -5,7 +5,7 @@
  */
 import {
     ASN_PRGR_META, OMS_IB_STATUS_META, OMS_OUTB_STATUS_META, OUTB_STATUS_META, TX_TYPE_META,
-    WAVE_STATUS_META,
+    WAVE_STATUS_META, WORK_TYP_META,
 } from '@/constants/badgeMeta';
 
 /** 공통코드 목록 → 검색 콤보 옵션 ('전체' 포함) */
@@ -48,4 +48,10 @@ export const WAVE_STATUS_OPTIONS = [
 export const TX_TYPE_OPTIONS = [
     { value: '', label: '전체' },
     ...Object.entries(TX_TYPE_META).map(([value, m]) => ({ value, label: m.label })),
+];
+
+/** 작업자 실적의 작업 종류 검색 드롭다운 옵션 */
+export const WORK_TYP_OPTIONS = [
+    { value: '', label: '전체' },
+    ...Object.entries(WORK_TYP_META).map(([value, m]) => ({ value, label: m.label })),
 ];

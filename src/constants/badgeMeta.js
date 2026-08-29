@@ -119,6 +119,24 @@ export const TX_TYPE_META = {
     SHIP:    { label: '출고확정', badge: 'bg-rose-100 text-rose-700' },
 };
 
+/**
+ * 작업자 실적의 작업 종류. 재고이력의 유형(TX_TYPE_META)보다 잘게 나뉜다 — 원장의 MOVE 하나가
+ * 현장에서는 적치와 재고이동 둘이고, ADJUST 하나가 조사·조정·로트변경·검수취소 넷이다.
+ * 색은 업무 흐름을 따른다(입고 초록 → 재고 파랑·보라 → 출고 노랑·빨강).
+ */
+export const WORK_TYP_META = {
+    RECEIVE:      { label: '입고검수', badge: 'bg-emerald-100 text-emerald-700', bar: 'bg-emerald-500' },
+    RECEIVE_CNCL: { label: '검수취소', badge: 'bg-slate-100 text-slate-500',     bar: 'bg-slate-400' },
+    PUTAWAY:      { label: '적치',     badge: 'bg-teal-100 text-teal-700',       bar: 'bg-teal-500' },
+    INV_MOV:      { label: '재고이동', badge: 'bg-sky-100 text-sky-700',         bar: 'bg-sky-500' },
+    STKTK:        { label: '재고조사', badge: 'bg-violet-100 text-violet-700',   bar: 'bg-violet-500' },
+    INV_ADJ:      { label: '재고조정', badge: 'bg-fuchsia-100 text-fuchsia-700', bar: 'bg-fuchsia-500' },
+    LOT_CHNG:     { label: '로트변경', badge: 'bg-purple-100 text-purple-700',   bar: 'bg-purple-500' },
+    RPLN:         { label: '수시보충', badge: 'bg-cyan-100 text-cyan-700',       bar: 'bg-cyan-500' },
+    PICK:         { label: '피킹',     badge: 'bg-amber-100 text-amber-700',     bar: 'bg-amber-500' },
+    SHIP:         { label: '출고확정', badge: 'bg-rose-100 text-rose-700',       bar: 'bg-rose-500' },
+};
+
 /** 보류 건 상태 표시 메타. 2값뿐 — 부분 해제 여부는 수량(rlzQty vs hldQty)으로 본다 */
 export const INV_HLD_STATUS_META = {
     HELD:     { label: '보류중', badge: 'bg-rose-100 text-rose-700' },
