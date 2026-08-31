@@ -149,6 +149,24 @@ export default function PutawayLocMap({ tasks, dragTask, onDragEnd, hoverLocCd, 
         return ranked;
     }, [rankTask, candidatesByLine]);
 
+    /** 1순위 칸 — 안내 줄이 코드로 보여 주고, 눌러서 그 자리로 간다 */
+    const topRankLocCd = [...rankByLocCd.entries()].find(([, rank]) => rank === 1)?.[0] ?? null;
+
+    /*
+     * 칸 아래 적재가능수량 — 칸마다 붙는 값이라 세기를 갈라야 읽힌다.
+     * 지금 옮기려는 수량이 다 들어가지 않는 칸만 주황으로 세우고, 넉넉한 칸은 흐리게 둔다 —
+     * 66칸이 전부 같은 초록이면 「어디가 빠듯한가」를 숫자를 하나씩 읽어야 안다.
+     * 가리키는 지시가 없으면 기준이 없으므로 전부 흐리다(그때는 훑어보는 화면이다).
+     */
+    const availBadgeOf = useMemo(() => {
+        const need = rankTask?.remainingQty ?? null;
+        return (r) => {
+            if (r.availQty == null) return { text: '∞', tone: 'muted' };
+            const tone = need == null ? 'muted' : r.availQty < need ? 'tight' : 'ok';
+            return { text: num(r.availQty), tone };
+        };
+    }, [rankTask]);
+
     /** 드롭 가능 판정 — 서버 규칙과 같은 셋. 수량은 아직 모르므로 「한 개라도 들어가나」까지만 본다 */
     const droppableOf = useMemo(() => (r) => {
         if (!activeTask) return { ok: false, reason: '왼쪽에서 지시를 끌어오세요' };
@@ -336,20 +354,43 @@ export default function PutawayLocMap({ tasks, dragTask, onDragEnd, hoverLocCd, 
                         </span>
                     )}
                     {!activeTask && rankTask && (
-                        <span className="text-emerald-700 font-medium truncate">
-                            {rankTask.prodNm} — 추천 자리에 순위를 표시했습니다. 카드를 끌어 옮기세요
+                        <span className="flex items-center gap-1.5 min-w-0">
+                            <span className="text-emerald-700 font-medium truncate">{rankTask.prodNm}</span>
+                            {/* 지금 지시가 향하는 칸 — 66칸에 파란 배지 하나라 눈으로 찾기 어렵다.
+                                「지금 어디로 가나」가 이 화면의 첫 질문이므로 추천보다 앞에 둔다 */}
+                            <button type="button" onClick={() => scrollToLoc(targetLocOf(rankTask))}
+                                    title="지금 지시 위치로 이동"
+                                    className="flex items-center gap-1 px-1.5 py-0.5 rounded shrink-0
+                                               bg-indigo-50 text-indigo-700 font-mono font-bold
+                                               hover:bg-indigo-100 transition-colors">
+                                <span className="text-[9px] font-sans">지금</span>
+                                {targetLocOf(rankTask)}
+                            </button>
+                            {topRankLocCd && (
+                                // 추천 칸이 스크롤 밖일 수 있다 — 순위만 칠해 두면 「추천이 있다는데 안 보인다」가 된다.
+                                // 코드를 눌러 그 자리로 갈 수 있게 해 두면 도면이 길어져도 한 번에 닿는다
+                                <button type="button" onClick={() => scrollToLoc(topRankLocCd)}
+                                        title="추천 1순위 자리로 이동"
+                                        className="flex items-center gap-1 px-1.5 py-0.5 rounded shrink-0
+                                                   bg-emerald-50 text-emerald-700 font-mono font-bold
+                                                   hover:bg-emerald-100 transition-colors">
+                                    <span className="w-3.5 h-3.5 rounded-full bg-emerald-600 text-white
+                                                     flex items-center justify-center text-[9px]">1</span>
+                                    {topRankLocCd}
+                                </button>
+                            )}
                         </span>
                     )}
                     {!rankTask && <span className="truncate">카드에 올리면 그 칸이, 칸에 올리면 그 카드가 켜집니다</span>}
                 </span>
                 {/* 범례에 숫자를 넣지 않는다 — 「969 적재가능」처럼 쓰면 어느 칸의 실제 값으로 읽힌다 */}
                 <span className="ml-auto flex items-center gap-2 shrink-0 whitespace-nowrap">
-                    <Legend cls="bg-emerald-600 text-white">1</Legend> 1순위
-                    <Legend cls="bg-white border border-emerald-500 text-emerald-700">2</Legend> 다음 후보
-                    <Legend cls="bg-indigo-600 text-white">▶n</Legend> 지시 목적지(잔여)
-                    <Legend cls="bg-amber-400 text-amber-950">+n</Legend> 변경 예정
-                    <Legend cls="bg-white border border-slate-300 text-slate-500">−n</Legend> 나갈 분
-                    <span className="text-emerald-600 font-medium">칸 아래 초록 숫자</span> = 적재가능
+                    <Legend cls="bg-emerald-600 text-white">1</Legend>
+                    <Legend cls="bg-white border border-emerald-500 text-emerald-700">2</Legend> 추천 순위
+                    <Legend cls="bg-indigo-600 text-white">▶n</Legend> 지시
+                    <Legend cls="bg-amber-400 text-amber-950">+n</Legend>
+                    <Legend cls="bg-white border border-slate-300 text-slate-500">−n</Legend> 변경 예정
+                    <span className="text-emerald-600 font-medium">초록 숫자</span> 적재가능
                 </span>
             </div>
             <div className="flex-1 min-h-0 flex gap-3">
@@ -376,7 +417,7 @@ export default function PutawayLocMap({ tasks, dragTask, onDragEnd, hoverLocCd, 
                                                   onHover={(tip) => onHoverCell(tip?.r.locCd ?? null)}
                                                   selectedLocCd={pickedLoc?.locCd}
                                                   onSelect={(r) => setPickedLoc(prev => (prev?.locCd === r.locCd ? null : r))}
-                                                  badgeOf={(r) => (r.availQty == null ? '∞' : num(r.availQty))}
+                                                  badgeOf={availBadgeOf}
                                                   markOf={(r) => marks.get(r.locCd) ?? null}
                                                   rankOf={(r) => rankByLocCd.get(r.locCd) ?? null}
                                                   highlightLocCds={highlightLocCds} />

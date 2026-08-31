@@ -26,7 +26,8 @@ import { isShort, pctOf } from './locMapLayout';
  * @param onDropTo       (r) => void — 드롭 수락
  * @param dragOverLocCd  지금 커서가 얹힌 칸 (테두리 강조)
  * @param onDragOverCell (r | null) => void
- * @param badgeOf        (r) => string | null — 칸 아래에 붙일 보조 표기(적치 탭의 적재가능수량)
+ * @param badgeOf        (r) => string | { text, tone } | null — 칸 아래 보조 표기(적치 탭의 적재가능수량).
+ *                       tone: 'tight'(모자람 — 강조) · 'muted'(넉넉함 — 흐리게) · 'ok'(기본)
  * @param markOf         (r) => { drct, pendingIn, pendingOut } | null — 칸 위에 얹는 표식(지시 목적지·담아둔 변경)
  * @param rankOf         (r) => number | null — 추천 순위(적치 탭). 「놓을 수 있다」 위에 「여기가 몇 순위」를 얹는다
  * @param highlightLocCds Set<locCd> — 바깥에서 가리킨 칸(카드 hover 등)을 진하게
@@ -213,12 +214,17 @@ export const MapCell = ({
     );
 
     if (!badge) return cell;
+    // badgeOf는 문자열이나 { text, tone }을 준다 — 칸마다 숫자가 붙는 자리라 전부 같은 세기로
+    // 칠하면 도면이 숫자 밭이 된다. 지금 필요한 만큼 안 들어가는 칸만 눈에 걸리게 한다
+    const { text, tone } = typeof badge === 'string' ? { text: badge, tone: 'ok' } : badge;
+    const badgeTone = dimmed ? 'text-slate-300'
+        : tone === 'tight' ? 'text-amber-600 font-bold'
+        : tone === 'muted' ? 'text-slate-400'
+        : 'text-emerald-600 font-medium';
     return (
         <div className={wide ? '' : 'flex flex-col items-center gap-0.5'}>
             {cell}
-            <span className={`text-[10px] tabular-nums leading-none ${dimmed ? 'text-slate-300' : 'text-emerald-600 font-medium'}`}>
-                {badge}
-            </span>
+            <span className={`text-[10px] tabular-nums leading-none ${badgeTone}`}>{text}</span>
         </div>
     );
 };
