@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
-import { Layers, Loader2, Map as MapIcon, MapPin, PackageOpen, Table2, Undo2 } from 'lucide-react';
+import { Layers, Loader2, Map as MapIcon, MapPin, PackageOpen, PanelLeftClose, PanelLeftOpen, Table2, Undo2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { putawayApi } from '@/api/putawayApi';
@@ -23,6 +23,9 @@ import { Badge } from '@/components/common/Badge';
 // 왼쪽을 그리드가 아니라 카드로 둔 이유는 PutawayOrderColumn 머리말에 있다.
 
 const VIEW_KEY = 'wms-putaway-view';
+const COL_KEY = 'wms-putaway-col';
+const loadCol = () => { try { return localStorage.getItem(COL_KEY) === 'off'; } catch { return false; } };
+const saveCol = (off) => { try { localStorage.setItem(COL_KEY, off ? 'off' : 'on'); } catch { /* 저장 못 해도 화면은 동작한다 */ } };
 const loadView = () => { try { return localStorage.getItem(VIEW_KEY) === 'table' ? 'table' : 'map'; } catch { return 'map'; } };
 const saveView = (v) => { try { localStorage.setItem(VIEW_KEY, v); } catch { /* 저장 못 해도 화면은 동작한다 */ } };
 
@@ -57,6 +60,8 @@ export default function Putaway() {
     // 한 번 더 changeLoc으로 나가 분할이 중복 생성된다. 실행은 서버가 「완료」로 거부하지만 변경은 막아주지 않는다
     const [saving, setSaving] = useState(false);
     const [view, setViewState] = useState(loadView); // map(창고 도면 — 기본) | table(표)
+    const [colOff, setColOffState] = useState(loadCol); // 왼쪽 기둥 접힘 — 도면을 넓게 볼 때
+    const toggleCol = () => setColOffState(prev => { saveCol(!prev); return !prev; });
     const [mapKey, setMapKey] = useState(0); // 저장 후 맵 재조회 트리거 (적재가능수량이 바뀐다)
     // 왼쪽 카드와 오른쪽 도면을 잇는 상태 — 드래그 원천은 왼쪽, 드롭 대상은 오른쪽이라 여기서 든다
     const [dragTaskId, setDragTaskId] = useState(null);
@@ -69,6 +74,8 @@ export default function Putaway() {
 
     const orderRows = useMemo(() => groupByOrder(tasks), [tasks]);
     const selectedOrder = orderRows.find(g => g.ibNo === selectedIbNo) ?? null;
+    // 고른 입고건이 없으면 접힘을 무시한다 — 접힌 채로 화면을 열면 고를 목록 자체가 없어 막힌다
+    const hideCol = colOff && selectedOrder != null;
     // 분할 예정 행(_virtualOf)은 끌 수 없다 — 담아두기는 원 지시 단위라 원 행을 다시 끌어야 고쳐진다
     const dragTask = selectedOrder?.tasks.find(t => t.putawayTaskId === dragTaskId && !t._virtualOf) ?? null;
 
@@ -360,8 +367,10 @@ export default function Putaway() {
             </SearchBar>
 
             <div className="flex gap-3 flex-1 min-h-0">
-                {/* 왼쪽 기둥: 입고건 → 상품 → 지시 카드 (「무엇을」) */}
-                <div className="w-72 shrink-0 flex flex-col gap-2 min-h-0">
+                {/* 왼쪽 기둥: 입고건 → 상품 → 지시 카드 (「무엇을」). 접으면 도면이 그만큼 넓어진다 —
+                    입고건이 한둘일 때는 288px이 그대로 비어 있고 도면은 눌린다 */}
+                <div className={`shrink-0 flex flex-col gap-2 min-h-0 transition-[width] duration-200
+                                 ${hideCol ? 'w-0 overflow-hidden' : 'w-72'}`}>
                     <div className="flex items-center gap-2">
                         <span className="text-sm font-bold text-slate-700 shrink-0">적치할 입고건</span>
                         <span className="text-xs text-slate-400 truncate">유통기한 임박순</span>
@@ -387,6 +396,14 @@ export default function Putaway() {
                 {/* 오른쪽: 선택 입고건의 지시 — 도면(기본) 또는 표 + 적치 저장 (「어디로」) */}
                 <div className="flex-1 min-w-0 flex flex-col gap-2 min-h-0">
                     <div className="flex items-center gap-2 min-w-0">
+                        {/* 기둥 접기 — 도면 폭이 곧 한 화면에 들어오는 랙 수다.
+                            접힌 동안에도 선택된 입고건은 유지되므로 작업 흐름이 끊기지 않는다 */}
+                        <button type="button" onClick={toggleCol}
+                                title={hideCol ? '입고건 목록 펼치기' : '입고건 목록 접기 (도면을 넓게)'}
+                                aria-label={hideCol ? '입고건 목록 펼치기' : '입고건 목록 접기'}
+                                className="shrink-0 p-1 rounded text-slate-400 hover:text-indigo-600 hover:bg-indigo-50">
+                            {hideCol ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
+                        </button>
                         <span className="text-sm font-bold text-slate-700 shrink-0">적치 위치</span>
                         <span className="text-xs text-slate-400 truncate">
                             {orderLabel ?? '왼쪽에서 입고건을 선택하세요'}

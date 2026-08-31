@@ -62,7 +62,7 @@ export default function RackGrid({
             {zones.map(zone => (
                 <section key={zone.zonCd} data-tmpzon={zone.tmpZon}
                          className={`bg-white border border-slate-200 rounded-xl transition-opacity ${compact ? 'p-3' : 'p-4'} ${zone.dim ? 'opacity-25' : ''}`}>
-                    <div className={`flex items-center gap-2 ${compact ? 'mb-2' : 'mb-3'}`}>
+                    <div className={`sticky top-0 z-20 bg-white flex items-center gap-2 ${compact ? 'mb-2 py-1' : 'mb-3 py-1'}`}>
                         <h3 className="text-sm font-bold text-slate-700">{zone.zonCd}</h3>
                         {!compact && <span className="text-xs text-slate-400">{zone.zonNm}</span>}
                         <Badge meta={BIZ_DVSN_META} value={zone.bizDvsn} show="label" />
