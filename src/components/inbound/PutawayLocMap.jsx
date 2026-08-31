@@ -3,13 +3,18 @@ import { ChevronDown, ChevronRight, MapPin } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { invApi } from '@/api/invApi';
+import { putawayApi } from '@/api/putawayApi';
 import { TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { num } from '@/utils/format';
 import { Badge } from '@/components/common/Badge';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import RackGrid from '@/components/locmap/RackGrid';
 import { buildZones } from '@/components/locmap/locMapLayout';
+import LocStockPanel from './LocStockPanel';
 import { targetLocOf } from './putawayTask';
+
+/** 도면에 순위를 붙일 후보 개수 — 셋을 넘기면 「추천」이 아니라 또 하나의 목록이 된다 */
+const RANK_COUNT = 3;
 
 /**
  * 적치 도면 — 선택 입고건의 지시가 「어디로 가는지」를 보여주고, 왼쪽 기둥에서 끌어온 카드를 받아 목적지를 바꾼다.
@@ -30,14 +35,16 @@ import { targetLocOf } from './putawayTask';
  * @param dragTask    끌리는 중인 지시 (없으면 null) — 드래그 원천은 왼쪽 기둥이라 부모가 들고 있다
  * @param onDragEnd   () => void — 드롭을 받았거나 끌기가 끝났을 때
  * @param hoverLocCd  왼쪽 카드가 가리키는 칸 — 켠다
+ * @param hoverTask   왼쪽에서 마우스를 올린 지시 — 끌지 않아도 추천 순위를 띄운다(판단은 끌기 전에 한다)
  * @param onHoverCell (locCd | null) => void — 칸 hover를 부모에 알려 카드를 켜게 한다
  * @param focusLoc    { locCd, seq } — 카드 클릭으로 요청된 「그 칸으로 이동」. seq가 바뀌면 다시 간다
  * @param onStage     (task, loc, qty) => boolean — 담아두기
  * @param reloadKey   값이 바뀌면 맵을 다시 조회한다 (저장 후 적재가능수량 갱신)
  */
-export default function PutawayLocMap({ tasks, dragTask, onDragEnd, hoverLocCd, onHoverCell, focusLoc, onStage, reloadKey }) {
+export default function PutawayLocMap({ tasks, dragTask, onDragEnd, hoverLocCd, hoverTask, onHoverCell, focusLoc, onStage, reloadKey }) {
     const [rows, setRows] = useState(null);
     const [dragOverLocCd, setDragOverLocCd] = useState(null);
+    const [pickedLoc, setPickedLoc] = useState(null);   // 칸 클릭 → 오른쪽 상세 패널
     const [drop, setDrop] = useState(null); // 드롭 후 수량 입력 { task, loc, qty, baseRemaining, cap }
     const [arrows, setArrows] = useState([]);
     const canvasRef = useRef(null); // 도면 + 화살표 겹침 상자 (스크롤 내용물이라 좌표가 스크롤과 무관)
@@ -83,6 +90,65 @@ export default function PutawayLocMap({ tasks, dragTask, onDragEnd, hoverLocCd, 
     // ── 드래그 ───────────────────────────────────────────────────────────────
     const activeTask = drop?.task ?? dragTask;
 
+    /*
+     * 추천 순위 — 「놓을 수 있다」(밝은 칸)와 「여기가 좋다」는 다른 질문이다.
+     * 온도대만 맞으면 수십 칸이 밝아지므로, 그중 어디가 나은지는 도면이 따로 말해야 한다.
+     *
+     * 순위의 주인은 서버다(적치 우선순위 `ptawy_prty` 순 · 반품존 제외 · 적재가능수량 포함) —
+     * 화면이 자기 기준으로 다시 매기면 지시를 낸 전략과 조용히 갈라진다.
+     * 지금 목적지는 빼고 센다: 옮기려고 끌었는데 1순위가 원래 자리면 답이 되지 않는다.
+     */
+    // ibLineId → 후보 목록. 한 번 받은 라인은 다시 가리켜도 조회하지 않는다
+    const [candidatesByLine, setCandidatesByLine] = useState(new Map());
+    const inFlight = useRef(new Set());
+
+    // 흐림·드롭 판정은 activeTask 그대로다 — hover만으로 도면이 어두워지면 훑어보기가 방해된다
+    const rankTask = activeTask ?? hoverTask;
+
+    /*
+     * 입고건을 고르는 순간 그 지시들의 후보를 미리 받아 둔다.
+     *
+     * hover 시점에 부르면 늦다 — 원격 DB라 이 조회가 2초쯤 걸려서, 마우스를 올렸다 옮기는
+     * 사이에 응답이 와 「추천이 있다는데 화면엔 안 뜨는」 상태가 된다. 카드를 보고 손을 옮기는
+     * 시간이면 충분히 받아 두므로, 가리키는 즉시 순위가 뜬다.
+     */
+    // 살아 있는지는 언마운트로만 판단한다 — effect 정리에서 껐다가는 담아두기로 tasks가 바뀔 때마다
+    // 진행 중이던 조회가 버려져, 매번 다시 부르면서 영영 채워지지 않는다
+    // setup에서 다시 켜는 것이 중요하다 — StrictMode는 개발에서 마운트를 한 번 접었다 펴는데,
+    // 그때 꺼진 채로 남으면 이후 응답이 전부 버려져 순위가 영영 안 뜬다
+    const mounted = useRef(true);
+    useEffect(() => {
+        mounted.current = true;
+        return () => { mounted.current = false; };
+    }, []);
+
+    useEffect(() => {
+        for (const ibLineId of new Set(tasks.map(t => t.ibLineId).filter(Boolean))) {
+            if (candidatesByLine.has(ibLineId) || inFlight.current.has(ibLineId)) continue;
+            inFlight.current.add(ibLineId);
+            const remember = (list) => {
+                inFlight.current.delete(ibLineId);
+                if (mounted.current) setCandidatesByLine(prev => new Map(prev).set(ibLineId, list));
+            };
+            putawayApi.candidateLocs(ibLineId)
+                .then(remember)
+                // 순위는 보조 정보다 — 못 받아도 드롭은 그대로 되므로 토스트로 방해하지 않고 빈 목록으로 둔다
+                .catch(() => remember([]));
+        }
+    }, [tasks, candidatesByLine]);
+
+    const rankByLocCd = useMemo(() => {
+        const candidates = rankTask ? candidatesByLine.get(rankTask.ibLineId) : null;
+        if (!candidates) return new Map();
+        const here = targetLocOf(rankTask);
+        const ranked = new Map();
+        candidates
+            .filter(c => c.locCd !== here && c.availQty !== 0)
+            .slice(0, RANK_COUNT)
+            .forEach((c, i) => ranked.set(c.locCd, i + 1));
+        return ranked;
+    }, [rankTask, candidatesByLine]);
+
     /** 드롭 가능 판정 — 서버 규칙과 같은 셋. 수량은 아직 모르므로 「한 개라도 들어가나」까지만 본다 */
     const droppableOf = useMemo(() => (r) => {
         if (!activeTask) return { ok: false, reason: '왼쪽에서 지시를 끌어오세요' };
@@ -93,18 +159,36 @@ export default function PutawayLocMap({ tasks, dragTask, onDragEnd, hoverLocCd, 
         return { ok: true };
     }, [activeTask]);
 
+    /*
+     * 이 입고건이 갈 수 있는 자리만 그린다 — 다른 온도대와 반품존은 아예 빼 버린다.
+     *
+     * 접어서 한 줄로 두던 것을 없앤 이유는 그 자리가 「지금 못 쓰는」이 아니라 <b>이 화면에서
+     * 영구히 못 쓰는</b> 자리라서다. 온도대 불일치도 반품존도 서버가 거부하고(반품 입고여도
+     * 적치 목적지가 아니다 — 불량이 반품존으로 가는 것은 검수 단계다), 후보 산출도 이미 뺀다.
+     *
+     * 다만 <b>지시가 이미 가리키는 칸은 예외 없이 남긴다</b> — 옛 데이터로 그런 지시가 있으면
+     * 칸이 사라져 ▶표식과 화살표가 갈 곳을 잃는다. 도면은 먼저 「지금 무엇이 어디로 가나」다.
+     */
+    const visibleRows = useMemo(() => {
+        const tmpZons = new Set(tasks.map(t => t.tmpZon).filter(Boolean));
+        const pinned = new Set(tasks.flatMap(t => [t.toLocCd, t._pendingLoc?.locCd]).filter(Boolean));
+        return (rows ?? []).filter(r => pinned.has(r.locCd)
+            || (r.bizDvsn !== 'RTNGS' && (tmpZons.size === 0 || tmpZons.has(r.tmpZon))));
+    }, [rows, tasks]);
+
     // 가만히 있을 땐 아무것도 흐리지 않는다 — 도면은 「이 입고건이 어디로 가나」를 보여주는 그림이다
     const zones = useMemo(
-        () => buildZones(rows ?? [], (r) => (activeTask ? droppableOf(r).ok : true)),
-        [rows, activeTask, droppableOf],
+        () => buildZones(visibleRows, (r) => (activeTask ? droppableOf(r).ok : true)),
+        [visibleRows, activeTask, droppableOf],
     );
 
     /*
      * 온도대로 접고, 그 안에서 존을 가로로 편다.
      *
-     * 지시 하나가 갈 수 있는 자리는 그 상품 온도대의 보관존·피킹존 둘뿐이라, 존 9개를 세로로 쌓으면
-     * 화면의 대부분이 구조적으로 못 놓는 자리가 된다(반품존 3개는 아예 영구 불가). 그래서 이 입고건이
-     * 실제로 쓰는 온도대만 펼치고 나머지는 한 줄로 접는다 — 자동 스크롤은 그 증상을 덮던 것이었다.
+     * 지시 하나가 갈 수 있는 자리는 그 상품 온도대의 보관존·피킹존 둘뿐이다. 나머지(다른 온도대·
+     * 반품존)는 위 `visibleRows`가 아예 걸러 내므로 여기 오지 않는다 — 한때 접어서 한 줄로 뒀는데,
+     * 이 화면에서 영구히 못 쓰는 자리를 굳이 자리 잡아 둘 이유가 없었다.
+     * 온도대가 섞인 입고건이면 그만큼 묶음이 여럿 뜨고, 접기는 그때 쓰인다.
      *
      * 센터 평면도(구조도의 U자)를 여기 쓰지 않는 이유는 둘이다. ① 구조도의 칸은 베이 합산이라
      * 레벨까지 특정해야 하는 적치 목적지를 가리킬 수 없다. ② 그 U자는 loc에 좌표가 없어 하드코딩한
@@ -148,6 +232,17 @@ export default function PutawayLocMap({ tasks, dragTask, onDragEnd, hoverLocCd, 
         if (next.has(z)) next.delete(z); else next.add(z);
         return { key: tmpZonKey, open: next };
     });
+
+    // 카드를 가리키면 그 온도대를 펼친다 — 접힌 묶음 안에 순위를 붙여 봐야 「추천이 있다는데 안 보인다」가 된다.
+    // 위 펼침과 같은 렌더 중 조정이고, 접었다가 다시 가리키면 또 펼쳐진다(추천은 숨을 자리가 아니다)
+    const [lastRankTmpZon, setLastRankTmpZon] = useState(null);
+    const rankTmpZon = rankTask?.tmpZon ?? null;
+    if (rankTmpZon !== lastRankTmpZon) {
+        setLastRankTmpZon(rankTmpZon);
+        if (rankTmpZon && !openTmpZons.has(rankTmpZon)) {
+            setOpenState({ key: tmpZonKey, open: new Set([...openTmpZons, rankTmpZon]) });
+        }
+    }
 
     // block은 'start'다 — 'nearest'는 섹션이 스크롤 상자 위로 완전히 벗어나 있을 때 Chrome에서 아무것도 안 했다(2026-08-26 실측)
     const scrollToTmpZon = (tmpZon) => {
@@ -230,20 +325,34 @@ export default function PutawayLocMap({ tasks, dragTask, onDragEnd, hoverLocCd, 
 
     return (
         <div className="flex flex-col gap-2 h-full min-h-0">
-            <div className="flex items-center gap-3 text-[11px] text-slate-400 shrink-0 flex-wrap">
-                <span className="flex items-center gap-1"><MapPin size={12} className="text-indigo-500" />
-                    {activeTask
-                        ? <span className="text-indigo-600 font-medium">{activeTask.prodNm} — 놓을 수 있는 칸만 진하게 보입니다</span>
-                        : '카드에 올리면 그 칸이, 칸에 올리면 그 카드가 켜집니다'}
+            {/* 한 줄로 고정한다(h-5 · nowrap · truncate) — 카드를 가리킬 때마다 문구가 길어져 줄이 늘면
+                그만큼 도면이 아래로 밀려, 보려던 칸이 눈앞에서 움직인다 */}
+            <div className="flex items-center gap-3 text-[11px] text-slate-400 shrink-0 h-5 overflow-hidden">
+                <span className="flex items-center gap-1 min-w-0 whitespace-nowrap">
+                    <MapPin size={12} className="text-indigo-500 shrink-0" />
+                    {activeTask && (
+                        <span className="text-indigo-600 font-medium truncate">
+                            {activeTask.prodNm} — 놓을 수 있는 칸만 진하게, 추천 자리에는 순위가 붙습니다
+                        </span>
+                    )}
+                    {!activeTask && rankTask && (
+                        <span className="text-emerald-700 font-medium truncate">
+                            {rankTask.prodNm} — 추천 자리에 순위를 표시했습니다. 카드를 끌어 옮기세요
+                        </span>
+                    )}
+                    {!rankTask && <span className="truncate">카드에 올리면 그 칸이, 칸에 올리면 그 카드가 켜집니다</span>}
                 </span>
                 {/* 범례에 숫자를 넣지 않는다 — 「969 적재가능」처럼 쓰면 어느 칸의 실제 값으로 읽힌다 */}
-                <span className="ml-auto flex items-center gap-2">
+                <span className="ml-auto flex items-center gap-2 shrink-0 whitespace-nowrap">
+                    <Legend cls="bg-emerald-600 text-white">1</Legend> 1순위
+                    <Legend cls="bg-white border border-emerald-500 text-emerald-700">2</Legend> 다음 후보
                     <Legend cls="bg-indigo-600 text-white">▶n</Legend> 지시 목적지(잔여)
                     <Legend cls="bg-amber-400 text-amber-950">+n</Legend> 변경 예정
                     <Legend cls="bg-white border border-slate-300 text-slate-500">−n</Legend> 나갈 분
                     <span className="text-emerald-600 font-medium">칸 아래 초록 숫자</span> = 적재가능
                 </span>
             </div>
+            <div className="flex-1 min-h-0 flex gap-3">
             <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto">
                 <div ref={canvasRef} className="relative flex flex-col gap-3">
                     {groups.length === 0 && (
@@ -265,8 +374,11 @@ export default function PutawayLocMap({ tasks, dragTask, onDragEnd, hoverLocCd, 
                                                   dragOverLocCd={dragOverLocCd}
                                                   onDragOverCell={(r) => setDragOverLocCd(r?.locCd ?? null)}
                                                   onHover={(tip) => onHoverCell(tip?.r.locCd ?? null)}
+                                                  selectedLocCd={pickedLoc?.locCd}
+                                                  onSelect={(r) => setPickedLoc(prev => (prev?.locCd === r.locCd ? null : r))}
                                                   badgeOf={(r) => (r.availQty == null ? '∞' : num(r.availQty))}
                                                   markOf={(r) => marks.get(r.locCd) ?? null}
+                                                  rankOf={(r) => rankByLocCd.get(r.locCd) ?? null}
                                                   highlightLocCds={highlightLocCds} />
                                     </div>
                                 )}
@@ -296,6 +408,10 @@ export default function PutawayLocMap({ tasks, dragTask, onDragEnd, hoverLocCd, 
                         </svg>
                     )}
                 </div>
+            </div>
+            {/* 칸을 누르면 그 자리에 무엇이 쌓여 있는지 — 상품·Lot·유통기한·예약까지 */}
+            <LocStockPanel loc={pickedLoc} prodCd={rankTask?.prodCd ?? tasks[0]?.prodCd}
+                           onClose={() => setPickedLoc(null)} />
             </div>
 
             {/* 드롭 직후 수량 — 기본값은 「넣을 수 있는 만큼 전부」라 그냥 [담기]만 눌러도 된다 */}

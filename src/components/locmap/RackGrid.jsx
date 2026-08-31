@@ -28,6 +28,7 @@ import { isShort, pctOf } from './locMapLayout';
  * @param onDragOverCell (r | null) => void
  * @param badgeOf        (r) => string | null — 칸 아래에 붙일 보조 표기(적치 탭의 적재가능수량)
  * @param markOf         (r) => { drct, pendingIn, pendingOut } | null — 칸 위에 얹는 표식(지시 목적지·담아둔 변경)
+ * @param rankOf         (r) => number | null — 추천 순위(적치 탭). 「놓을 수 있다」 위에 「여기가 몇 순위」를 얹는다
  * @param highlightLocCds Set<locCd> — 바깥에서 가리킨 칸(카드 hover 등)을 진하게
  * @param compact        존 헤더에서 존명·온도대·점유율을 뺀다. 존을 가로로 나란히 놓는 쪽(적치 맵)이 쓴다 —
  *                       헤더가 넓으면 존 하나의 최소 폭이 커져 두 개도 한 줄에 못 들어간다.
@@ -35,7 +36,7 @@ import { isShort, pctOf } from './locMapLayout';
  */
 export default function RackGrid({
     zones, selectedLocCd, onSelect, onHover, emptyText = '조건에 맞는 보관 로케이션이 없습니다.',
-    droppableOf, onDropTo, dragOverLocCd, onDragOverCell, badgeOf, markOf, highlightLocCds, compact,
+    droppableOf, onDropTo, dragOverLocCd, onDragOverCell, badgeOf, markOf, rankOf, highlightLocCds, compact,
 }) {
     const cellProps = (r) => ({
         r,
@@ -48,6 +49,7 @@ export default function RackGrid({
         onDragOverCell,
         badge: badgeOf?.(r) ?? null,
         mark: markOf?.(r) ?? null,
+        rank: rankOf?.(r) ?? null,
         highlight: highlightLocCds?.has(r.locCd) ?? false,
     });
 
@@ -78,22 +80,33 @@ export default function RackGrid({
                         </div>
                     </div>
                     <div className={`flex flex-wrap items-end ${compact ? 'gap-4' : 'gap-6'}`}>
+                        {/* 통로 → 랙(베이) → 층(레벨). 랙 머리와 층 라벨을 붙여 「몇 번 랙 몇 층」을 코드 없이 읽게 한다 —
+                            칸에 적힌 01-02가 베이-레벨이라는 것은 아는 사람만 아는 규칙이다.
+                            랙마다 세로 기둥으로 세워야 「이 랙의 위아래」가 한 덩어리로 보인다 */}
                         {zone.aisles.map(({ aisle, bays, levels, at }) => (
                             <div key={aisle || '(단일)'} className="flex flex-col gap-1">
                                 {aisle && <span className="text-[11px] font-bold text-slate-400">통로 {aisle}</span>}
-                                <div className="grid gap-1"
-                                     style={{ gridTemplateColumns: `repeat(${bays.length}, minmax(0, 1fr))` }}>
-                                    {levels.map(level => bays.map(bay => {
-                                        const cell = at.get(`${bay}|${level}`);
-                                        return cell
-                                            ? <MapCell key={`${bay}|${level}`} {...cellProps(cell)} />
-                                            : <span key={`${bay}|${level}`} />;
-                                    }))}
-                                </div>
-                                <div className="grid gap-1"
-                                     style={{ gridTemplateColumns: `repeat(${bays.length}, minmax(0, 1fr))` }}>
+                                <div className="flex items-end gap-2">
+                                    {/* 층 라벨은 왼쪽에 한 번만 — 랙마다 반복하면 격자가 숫자로 뒤덮인다 */}
+                                    <div className="flex flex-col gap-1 pb-4">
+                                        {levels.map(level => (
+                                            <span key={level}
+                                                  className="h-11 flex items-center text-[10px] text-slate-400 tabular-nums">
+                                                {Number(level)}층
+                                            </span>
+                                        ))}
+                                    </div>
                                     {bays.map(bay => (
-                                        <span key={bay} className="text-center text-[10px] text-slate-400">{bay}</span>
+                                        <div key={bay} className="flex flex-col gap-1">
+                                            {levels.map(level => {
+                                                const cell = at.get(`${bay}|${level}`);
+                                                return cell
+                                                    ? <MapCell key={level} {...cellProps(cell)} />
+                                                    // 없는 층도 자리를 비워 둔다 — 랙마다 높이가 달라지면 층이 어긋나 보인다
+                                                    : <span key={level} className={wideCellClass} />;
+                                            })}
+                                            <span className="text-center text-[10px] font-medium text-slate-400">랙 {bay}</span>
+                                        </div>
                                     ))}
                                 </div>
                             </div>
@@ -108,12 +121,15 @@ export default function RackGrid({
     );
 }
 
+/** 빈 층 자리 — MapCell과 같은 크기라야 랙 사이의 층이 나란히 선다 */
+const wideCellClass = 'h-11 w-16';
+
 /** 랙 상세 채움 색 — 높이가 점유율을 말하므로 색은 상태만 가른다: 정상 indigo, 초과만 rose */
 const fillColor = (pct) => (pct > 100 ? 'bg-rose-500' : pct === 100 ? 'bg-indigo-600' : 'bg-indigo-400');
 
 /** 칸 하나 = 로케이션 하나. 구조도의 나열 칸(`wide`)도 같은 그림이라 밖에서도 쓴다 */
 export const MapCell = ({
-    r, wide, selected, onClick, onHover, drop, onDropTo, dragOver, onDragOverCell, badge, mark, highlight,
+    r, wide, selected, onClick, onHover, drop, onDropTo, dragOver, onDragOverCell, badge, mark, rank, highlight,
 }) => {
     const pct = pctOf(r);
     const short = isShort(r);
@@ -148,6 +164,7 @@ export const MapCell = ({
                             ? 'bg-white border border-dashed border-slate-300 text-slate-400'
                             : 'bg-slate-100 border border-slate-200 text-slate-600'}
                         ${dimmed ? 'opacity-25' : blocked ? 'opacity-60' : ''}
+                        ${rank === 1 ? 'outline outline-2 outline-emerald-500' : ''}
                         ${dragOver ? 'ring-2 ring-emerald-500 scale-105 z-10 shadow-md' : ''}
                         ${highlight ? 'ring-2 ring-indigo-500 scale-105 z-10 shadow-md' : ''}
                         ${selected ? 'ring-2 ring-inset ring-slate-900 z-10' : short && !highlight ? 'ring-2 ring-amber-400' : ''}`}>
@@ -166,6 +183,18 @@ export const MapCell = ({
                     : <Pin size={11} className={`absolute top-1 right-1 ${pct >= 75 ? 'text-white/85' : 'text-indigo-600'}`} />
                 )}
                 {short && !marked && <TriangleAlert size={11} className="absolute bottom-1 right-1 text-amber-500 fill-amber-100" />}
+                {/* 추천 순위 — 왼쪽 위. 「놓을 수 있다」(밝기)와 「여기가 좋다」(순위)를 갈라 놓는다.
+                    고정 자리 표시는 오른쪽 위라 겹치지 않는다.
+                    1순위만 채운 배지 + 칸 테두리로 멀리서도 보이게 하고, 2·3순위는 테두리 배지로 뒤로 물린다 —
+                    셋을 같은 무게로 그리면 「추천」이 아니라 또 하나의 목록이 된다 */}
+                {rank != null && (
+                    <span className={`absolute top-0.5 left-0.5 rounded-full font-bold leading-none
+                                      flex items-center justify-center shadow-sm ${rank === 1
+                        ? 'w-5 h-5 text-[11px] bg-emerald-600 text-white'
+                        : 'w-4 h-4 text-[9px] bg-white text-emerald-700 border border-emerald-500'}`}>
+                        {rank}
+                    </span>
+                )}
                 {/* 표식 — 지시 목적지(▶잔여)와 담아둔 변경(+들어올 / −나갈). 칸 아래쪽에 겹쳐 얹는다 */}
                 {marked && (
                     <span className="absolute bottom-0.5 inset-x-0.5 flex justify-center gap-0.5 text-[9px] font-bold leading-none">

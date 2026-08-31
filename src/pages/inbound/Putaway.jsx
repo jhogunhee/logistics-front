@@ -61,6 +61,7 @@ export default function Putaway() {
     // 왼쪽 카드와 오른쪽 도면을 잇는 상태 — 드래그 원천은 왼쪽, 드롭 대상은 오른쪽이라 여기서 든다
     const [dragTaskId, setDragTaskId] = useState(null);
     const [hoverLocCd, setHoverLocCd] = useState(null);   // 카드 hover → 도면의 그 칸
+    const [hoverTask, setHoverTask] = useState(null);     // 카드 hover → 도면의 추천 순위(끌기 전에 판단한다)
     const [hoverCellCd, setHoverCellCd] = useState(null); // 칸 hover → 그리로 가는 카드
     const [focusLoc, setFocusLoc] = useState(null);       // 카드 클릭 → 도면 이동 요청 { locCd, seq }
 
@@ -374,7 +375,7 @@ export default function Putaway() {
                             dragTaskId={dragTaskId}
                             onDragStart={(t) => { setDragTaskId(t.putawayTaskId); setHoverLocCd(null); }}
                             onDragEnd={() => setDragTaskId(null)}
-                            onHoverTask={(t) => setHoverLocCd(t ? targetLocOf(t) : null)}
+                            onHoverTask={(t) => { setHoverLocCd(t ? targetLocOf(t) : null); setHoverTask(t); }}
                             onClickTask={(t) => setFocusLoc(prev => ({ locCd: targetLocOf(t), seq: (prev?.seq ?? 0) + 1 }))}
                             litLocCd={hoverCellCd}
                             onUnstage={unstageLoc}
@@ -425,7 +426,7 @@ export default function Putaway() {
                             selectedOrder
                                 ? <PutawayLocMap tasks={selectedOrder.tasks}
                                                  dragTask={dragTask} onDragEnd={() => setDragTaskId(null)}
-                                                 hoverLocCd={hoverLocCd} onHoverCell={setHoverCellCd}
+                                                 hoverLocCd={hoverLocCd} hoverTask={hoverTask} onHoverCell={setHoverCellCd}
                                                  focusLoc={focusLoc}
                                                  onStage={stageLoc} reloadKey={mapKey} />
                                 : <p className="text-sm text-slate-400 py-8 text-center">왼쪽에서 입고건을 선택하세요</p>
