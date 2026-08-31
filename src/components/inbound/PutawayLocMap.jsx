@@ -36,12 +36,13 @@ const RANK_COUNT = 3;
  * @param onDragEnd   () => void — 드롭을 받았거나 끌기가 끝났을 때
  * @param hoverLocCd  왼쪽 카드가 가리키는 칸 — 켠다
  * @param hoverTask   왼쪽에서 마우스를 올린 지시 — 끌지 않아도 추천 순위를 띄운다(판단은 끌기 전에 한다)
+ * @param pickedTask  왼쪽에서 클릭해 고정한 지시 — 마우스가 도면으로 와도 추천이 남는다
  * @param onHoverCell (locCd | null) => void — 칸 hover를 부모에 알려 카드를 켜게 한다
  * @param focusLoc    { locCd, seq } — 카드 클릭으로 요청된 「그 칸으로 이동」. seq가 바뀌면 다시 간다
  * @param onStage     (task, loc, qty) => boolean — 담아두기
  * @param reloadKey   값이 바뀌면 맵을 다시 조회한다 (저장 후 적재가능수량 갱신)
  */
-export default function PutawayLocMap({ tasks, dragTask, onDragEnd, hoverLocCd, hoverTask, onHoverCell, focusLoc, onStage, reloadKey }) {
+export default function PutawayLocMap({ tasks, dragTask, onDragEnd, hoverLocCd, hoverTask, pickedTask, onHoverCell, focusLoc, onStage, reloadKey }) {
     const [rows, setRows] = useState(null);
     const [dragOverLocCd, setDragOverLocCd] = useState(null);
     const [pickedLoc, setPickedLoc] = useState(null);   // 칸 클릭 → 오른쪽 상세 패널
@@ -103,7 +104,9 @@ export default function PutawayLocMap({ tasks, dragTask, onDragEnd, hoverLocCd, 
     const inFlight = useRef(new Set());
 
     // 흐림·드롭 판정은 activeTask 그대로다 — hover만으로 도면이 어두워지면 훑어보기가 방해된다
-    const rankTask = activeTask ?? hoverTask;
+    // 끌고 있는 것 > 가리킨 것 > 고정한 것. 가리킴이 고정보다 앞이라 다른 카드를 훑어보다
+    // 마우스를 떼면 고정한 지시로 돌아온다
+    const rankTask = activeTask ?? hoverTask ?? pickedTask;
 
     /*
      * 입고건을 고르는 순간 그 지시들의 후보를 미리 받아 둔다.

@@ -67,6 +67,9 @@ export default function Putaway() {
     const [dragTaskId, setDragTaskId] = useState(null);
     const [hoverLocCd, setHoverLocCd] = useState(null);   // 카드 hover → 도면의 그 칸
     const [hoverTask, setHoverTask] = useState(null);     // 카드 hover → 도면의 추천 순위(끌기 전에 판단한다)
+    // 카드 클릭 → 그 지시를 고정. hover만으로는 마우스를 도면으로 옮기는 순간 추천이 사라져,
+    // 정작 「어디에 놓을지」를 보는 동안 근거가 없어진다
+    const [pickedTaskId, setPickedTaskId] = useState(null);
     const [hoverCellCd, setHoverCellCd] = useState(null); // 칸 hover → 그리로 가는 카드
     const [focusLoc, setFocusLoc] = useState(null);       // 카드 클릭 → 도면 이동 요청 { locCd, seq }
 
@@ -385,7 +388,11 @@ export default function Putaway() {
                             onDragStart={(t) => { setDragTaskId(t.putawayTaskId); setHoverLocCd(null); }}
                             onDragEnd={() => setDragTaskId(null)}
                             onHoverTask={(t) => { setHoverLocCd(t ? targetLocOf(t) : null); setHoverTask(t); }}
-                            onClickTask={(t) => setFocusLoc(prev => ({ locCd: targetLocOf(t), seq: (prev?.seq ?? 0) + 1 }))}
+                            onClickTask={(t) => {
+                                setPickedTaskId(prev => (prev === t.putawayTaskId ? null : t.putawayTaskId));
+                                setFocusLoc(prev => ({ locCd: targetLocOf(t), seq: (prev?.seq ?? 0) + 1 }));
+                            }}
+                            pickedTaskId={pickedTaskId}
                             litLocCd={hoverCellCd}
                             onUnstage={unstageLoc}
                             onExecQtyChange={setExecQty}
@@ -443,7 +450,9 @@ export default function Putaway() {
                             selectedOrder
                                 ? <PutawayLocMap tasks={selectedOrder.tasks}
                                                  dragTask={dragTask} onDragEnd={() => setDragTaskId(null)}
-                                                 hoverLocCd={hoverLocCd} hoverTask={hoverTask} onHoverCell={setHoverCellCd}
+                                                 hoverLocCd={hoverLocCd} hoverTask={hoverTask}
+                                                 pickedTask={selectedOrder?.tasks.find(t => t.putawayTaskId === pickedTaskId) ?? null}
+                                                 onHoverCell={setHoverCellCd}
                                                  focusLoc={focusLoc}
                                                  onStage={stageLoc} reloadKey={mapKey} />
                                 : <p className="text-sm text-slate-400 py-8 text-center">왼쪽에서 입고건을 선택하세요</p>

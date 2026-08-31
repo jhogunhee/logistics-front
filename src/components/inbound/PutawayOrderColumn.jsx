@@ -22,13 +22,14 @@ import { targetLocOf } from './putawayTask';
  * @param onDragStart   (task) => void
  * @param onDragEnd     () => void
  * @param onHoverTask   (task | null) => void — 도면의 그 칸을 켠다
- * @param onClickTask   (task) => void — 도면에서 그 칸으로 이동
+ * @param onClickTask   (task) => void — 그 지시를 고정 선택하고 도면에서 그 칸으로 이동
+ * @param pickedTaskId  고정 선택된 지시 — 마우스를 도면으로 옮겨도 추천이 유지된다
  * @param litLocCd      도면에서 hover 중인 칸 — 그리로 가는 카드를 켠다
  * @param onUnstage     (task) => void — 담아둔 변경 취소
  * @param onExecQtyChange (task, value) => void — 이번에 옮길 수량
  */
 export default function PutawayOrderColumn({
-    orders, selectedIbNo, onSelect, dragTaskId, onDragStart, onDragEnd, onHoverTask, onClickTask, litLocCd,
+    orders, selectedIbNo, onSelect, dragTaskId, onDragStart, onDragEnd, onHoverTask, onClickTask, pickedTaskId, litLocCd,
     onUnstage, onExecQtyChange,
 }) {
     if (orders.length === 0) {
@@ -44,7 +45,7 @@ export default function PutawayOrderColumn({
             {orders.map(o => (
                 <OrderCard key={o.ibNo} order={o} open={o.ibNo === selectedIbNo} onSelect={() => onSelect(o.ibNo)}
                            dragTaskId={dragTaskId} onDragStart={onDragStart} onDragEnd={onDragEnd}
-                           onHoverTask={onHoverTask} onClickTask={onClickTask} litLocCd={litLocCd}
+                           onHoverTask={onHoverTask} onClickTask={onClickTask} pickedTaskId={pickedTaskId} litLocCd={litLocCd}
                            onUnstage={onUnstage} onExecQtyChange={onExecQtyChange} />
             ))}
         </div>
@@ -52,7 +53,7 @@ export default function PutawayOrderColumn({
 }
 
 /** 입고건 카드 — 접히면 두 줄 요약, 펼치면 상품별 지시 카드 */
-const OrderCard = ({ order, open, onSelect, dragTaskId, onDragStart, onDragEnd, onHoverTask, onClickTask, litLocCd, onUnstage, onExecQtyChange }) => {
+const OrderCard = ({ order, open, onSelect, dragTaskId, onDragStart, onDragEnd, onHoverTask, onClickTask, pickedTaskId, litLocCd, onUnstage, onExecQtyChange }) => {
     // 상품별로 묶는다 — 작업자가 집어 드는 단위는 여전히 상품이다
     const groups = [];
     const byProd = new Map();
@@ -113,6 +114,7 @@ const OrderCard = ({ order, open, onSelect, dragTaskId, onDragStart, onDragEnd, 
                                 <TaskCard key={t.putawayTaskId} task={t}
                                           dragging={t.putawayTaskId === dragTaskId}
                                           lit={litLocCd != null && litLocCd === targetLocOf(t)}
+                                          picked={t.putawayTaskId === pickedTaskId}
                                           onDragStart={() => onDragStart(t)}
                                           onDragEnd={onDragEnd}
                                           onHover={(on) => onHoverTask(on ? t : null)}
@@ -129,7 +131,7 @@ const OrderCard = ({ order, open, onSelect, dragTaskId, onDragStart, onDragEnd, 
 };
 
 /** 지시 카드 — 담아둔 변경이 있으면 「현재 → 새 위치」를 함께 보여준다. 분할 예정 행은 끌 수 없다(원 지시 단위로 담기 때문) */
-const TaskCard = ({ task, dragging, lit, onDragStart, onDragEnd, onHover, onClick, onUnstage, onExecQtyChange }) => {
+const TaskCard = ({ task, dragging, lit, picked, onDragStart, onDragEnd, onHover, onClick, onUnstage, onExecQtyChange }) => {
     const pending = task._pendingLoc;
     const virtual = Boolean(task._virtualOf);
     const staged = Boolean(task._stagedLoc);
@@ -144,11 +146,11 @@ const TaskCard = ({ task, dragging, lit, onDragStart, onDragEnd, onHover, onClic
              onMouseEnter={() => onHover(true)}
              onMouseLeave={() => onHover(false)}
              onClick={onClick}
-             title="클릭하면 도면에서 그 칸으로 이동합니다"
+             title="클릭하면 이 지시를 고정합니다 — 도면에 추천이 남고 그 칸으로 이동합니다"
              className={`rounded-lg border px-2.5 py-2 text-xs flex flex-col gap-1 select-none transition-shadow
                  ${virtual ? 'border-dashed border-amber-300 bg-amber-50/60 cursor-default'
                            : 'border-slate-200 bg-white cursor-grab active:cursor-grabbing hover:border-indigo-300 hover:shadow-sm'}
-                 ${lit ? 'ring-2 ring-indigo-500 shadow-md' : ''}
+                 ${picked ? 'ring-2 ring-emerald-500 shadow-md' : lit ? 'ring-2 ring-indigo-500 shadow-md' : ''}
                  ${dragging ? 'opacity-40 ring-2 ring-indigo-400' : ''}`}>
             <div className="flex items-center gap-1.5 min-w-0">
                 {virtual && <span className="font-mono text-[10px] text-slate-400 shrink-0">{task._fromLocCd} →</span>}
