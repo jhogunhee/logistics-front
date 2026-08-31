@@ -1,17 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import { CheckCircle2, Search, X } from 'lucide-react';
+import { CheckCircle2, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { ibOrderApi } from '@/api/ibOrderApi';
 import { ASN_PRGR_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { ASN_PRGR_OPTIONS } from '@/constants/codeOptions';
 import { daysAheadStr, eaQtyPerInbUomOf, fmtDt, fmtInbQty, num } from '@/utils/format';
-import SearchBar, { SearchItem, SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
+import SearchBar, { SearchText, SearchSelect, SearchDateRange, SearchPartner } from '@/components/common/SearchBar';
 import { Badge } from '@/components/common/Badge';
 import ConfirmModal from '@/components/common/ConfirmModal';
-import VendorPickerModal from '@/components/common/VendorPickerModal';
 
 /**
  * 입고확정 — 입고 흐름의 마지막 단계. 온 것은 전부 적치 완료된 입고건을 사람이 검토하고
@@ -113,7 +112,6 @@ export default function InboundConfirm() {
     const [lineRows, setLineRows] = useState([]);
     const [selectedAsns, setSelectedAsns] = useState([]); // 체크된 입고건들 (일괄 확정 대상)
     const [previewAsn, setPreviewAsn] = useState(null);   // 아래 라인 검토가 보여주는 한 건
-    const [vendorPickerOpen, setVendorPickerOpen] = useState(false);
     const [confirmTargets, setConfirmTargets] = useState(null); // 확정 확인 모달 대상 (배열)
     const gridRef = useRef(null);
 
@@ -184,24 +182,7 @@ export default function InboundConfirm() {
             {/* 검색 조건 */}
             <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
                 <SearchText name="ibNo" label="입고번호" placeholder="IB-20260717-001" />
-                <SearchItem label="벤더">
-                    <button
-                        type="button"
-                        onClick={() => setVendorPickerOpen(true)}
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-left flex items-center justify-between gap-2 hover:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400">
-                        <span className={`truncate ${cond.vndrNm ? 'text-slate-700' : 'text-slate-400'}`}>
-                            {cond.vndrNm || '전체'}
-                        </span>
-                        {cond.vndrNm
-                            ? <X
-                                size={13}
-                                title="벤더 조건 지우기"
-                                className="shrink-0 text-slate-400 hover:text-slate-600"
-                                onClick={(e) => { e.stopPropagation(); setCond(prev => ({ ...prev, vndrNm: '' })); }}
-                              />
-                            : <Search size={13} className="shrink-0 text-slate-400" />}
-                    </button>
-                </SearchItem>
+                <SearchPartner name="vndrNm" />
                 <SearchSelect name="prgr" label="진행단계" options={ASN_PRGR_OPTIONS} multiple />
                 <SearchDateRange from="dateFrom" to="dateTo" label="입고예정일" />
             </SearchBar>
@@ -296,12 +277,6 @@ export default function InboundConfirm() {
                 </ConfirmModal>
             )}
 
-            {/* 벤더 선택 팝업 — 자유 입력 대신 팝업에서 고른다 (검수·ASN 관리와 같은 방식, vndrNm contains 검색) */}
-            <VendorPickerModal
-                open={vendorPickerOpen}
-                onClose={() => setVendorPickerOpen(false)}
-                onSelect={(v) => setCond(prev => ({ ...prev, vndrNm: v.vndrNm }))}
-            />
         </div>
     );
 }

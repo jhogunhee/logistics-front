@@ -7,6 +7,7 @@ import DatePicker from './DatePicker';
 import ProdPickerModal from './ProdPickerModal';
 import LocPickerModal from './LocPickerModal';
 import StorePickerModal from './StorePickerModal';
+import PartnerPickerModal from './PartnerPickerModal';
 
 const SearchBarCtx = createContext(null);
 
@@ -263,6 +264,42 @@ export function SearchStore({ name = 'storeId', nmName = 'storeNm', label = '점
  * `multiple`을 주면 여러 값을 함께 고를 수 있고 cond[name]이 배열이 된다 —
  * 상태처럼 「지시 + 진행중」을 같이 보는 조건에 쓴다. 빈 배열이 전체다.
  */
+/**
+ * 상대처(벤더 · 점포) 조건. 값은 <b>이름 문자열</b>이다 — 서버가 벤더명·점포명을 한 조건으로
+ * 훑기 때문에(`vndrNm contains … or storeNm contains …`) 고른 이름을 그대로 검색어로 쓴다.
+ * {@link SearchStore}가 id를 넘기는 것과 다른 이유가 이것이다.
+ */
+export function SearchPartner({ name = 'vndrNm', label = '상대처', required, wide }) {
+    const { cond, setCond } = useContext(SearchBarCtx);
+    const [pickerOpen, setPickerOpen] = useState(false);
+    const picked = cond[name];
+    return (
+        <SearchItem label={label} required={required} wide={wide}>
+            <button
+                type="button"
+                onClick={() => setPickerOpen(true)}
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-left flex items-center justify-between gap-2 hover:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400">
+                <span className={`truncate ${picked ? 'text-slate-700' : 'text-slate-400'}`}>
+                    {picked || '전체'}
+                </span>
+                {picked
+                    ? <X
+                        size={13}
+                        title="상대처 조건 지우기"
+                        className="shrink-0 text-slate-400 hover:text-slate-600"
+                        onClick={(e) => { e.stopPropagation(); setCond(prev => ({ ...prev, [name]: '' })); }}
+                      />
+                    : <Search size={13} className="shrink-0 text-slate-400" />}
+            </button>
+            <PartnerPickerModal
+                open={pickerOpen}
+                onClose={() => setPickerOpen(false)}
+                onSelect={(pt) => setCond(prev => ({ ...prev, [name]: pt.name }))}
+            />
+        </SearchItem>
+    );
+}
+
 export function SearchSelect({ name, label, options, placeholder = '전체', multiple, required, wide }) {
     const { cond, setCond } = useContext(SearchBarCtx);
     return (

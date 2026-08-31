@@ -1,15 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import { Search, Truck, X } from 'lucide-react';
+import { Search, Truck } from 'lucide-react';
 
 import { ibOrderApi } from '@/api/ibOrderApi';
 import { useCodes } from '@/hooks/useCodes';
 import { ASN_PRGR_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { ASN_PRGR_OPTIONS } from '@/constants/codeOptions';
 import { daysAheadStr, eaQtyPerInbUomOf, fmtDt, fmtInbQty, num, todayStr } from '@/utils/format';
-import SearchBar, { SearchItem, SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
-import VendorPickerModal from '@/components/common/VendorPickerModal';
+import SearchBar, { SearchText, SearchSelect, SearchDateRange, SearchPartner } from '@/components/common/SearchBar';
 import { Badge } from '@/components/common/Badge';
 
 /** 라인 수량 셀 — 저장값은 낱개(EA)이고 표시는 「입고단위 (낱개)」다 */
@@ -87,7 +86,6 @@ export default function AsnList() {
     const [rowData, setRowData] = useState([]);
     const [lineRows, setLineRows] = useState([]);
     const [selectedAsn, setSelectedAsn] = useState(null);
-    const [vendorPickerOpen, setVendorPickerOpen] = useState(false);
     const gridRef = useRef(null);
 
     const fetchList = async () => {
@@ -137,24 +135,7 @@ export default function AsnList() {
                     name="odrDvsn" label="구분"
                     options={odrDvsnCodes.searchOptions}
                 />
-                <SearchItem label="벤더">
-                    <button
-                        type="button"
-                        onClick={() => setVendorPickerOpen(true)}
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-left flex items-center justify-between gap-2 hover:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400">
-                        <span className={`truncate ${cond.vndrNm ? 'text-slate-700' : 'text-slate-400'}`}>
-                            {cond.vndrNm || '전체'}
-                        </span>
-                        {cond.vndrNm
-                            ? <X
-                                size={13}
-                                title="벤더 조건 지우기"
-                                className="shrink-0 text-slate-400 hover:text-slate-600"
-                                onClick={(e) => { e.stopPropagation(); setCond(prev => ({ ...prev, vndrNm: '' })); }}
-                              />
-                            : <Search size={13} className="shrink-0 text-slate-400" />}
-                    </button>
-                </SearchItem>
+                <SearchPartner name="vndrNm" />
                 <SearchDateRange from="dateFrom" to="dateTo" label="입고예정일" />
             </SearchBar>
 
@@ -199,12 +180,6 @@ export default function AsnList() {
                 </Panel>
             </PanelGroup>
 
-            {/* 벤더 선택 팝업 — 자유 입력 대신 팝업에서 고른다 (입고검수·OMS 주문목록과 같은 방식, vndrNm contains 검색) */}
-            <VendorPickerModal
-                open={vendorPickerOpen}
-                onClose={() => setVendorPickerOpen(false)}
-                onSelect={(v) => setCond(prev => ({ ...prev, vndrNm: v.vndrNm }))}
-            />
         </div>
     );
 }

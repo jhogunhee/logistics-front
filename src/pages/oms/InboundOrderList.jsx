@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AgGridReact } from 'ag-grid-react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import { CheckCircle2, ClipboardList, Search, Trash2, Undo2, X } from 'lucide-react';
+import { CheckCircle2, ClipboardList, Search, Trash2, Undo2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { omsIbOrderApi } from '@/api/omsIbOrderApi';
@@ -10,8 +10,7 @@ import { useCodes } from '@/hooks/useCodes';
 import { ASN_STATUS_META, OMS_IB_STATUS_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { OMS_IB_STATUS_OPTIONS } from '@/constants/codeOptions';
 import { daysAheadStr, num, todayStr } from '@/utils/format';
-import SearchBar, { SearchItem, SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
-import VendorPickerModal from '@/components/common/VendorPickerModal';
+import SearchBar, { SearchText, SearchSelect, SearchDateRange, SearchPartner } from '@/components/common/SearchBar';
 import { Badge } from '@/components/common/Badge';
 
 const centered = { display: 'flex', alignItems: 'center', justifyContent: 'center' };
@@ -137,9 +136,6 @@ export default function InboundOrderList() {
     const [rowData, setRowData] = useState([]);
     const [lineRows, setLineRows] = useState([]);
     const [selected, setSelected] = useState(null);
-    // 벤더 검색은 자유 입력 대신 등록 화면과 같은 팝업(VendorPickerModal)에서 고른다 —
-    // 서버 검색 파라미터가 vndrNm(contains)이라 값은 id가 아니라 이름 그대로 보낸다.
-    const [vendorPickerOpen, setVendorPickerOpen] = useState(false);
     const [confirmTarget, setConfirmTarget] = useState(null);             // 확정 확인 모달 대상
     const [confirmCancelTarget, setConfirmCancelTarget] = useState(null); // 확정취소 확인 모달 대상
     const [deleteTarget, setDeleteTarget] = useState(null);   // 삭제 확인 모달 대상
@@ -280,24 +276,7 @@ export default function InboundOrderList() {
             <SearchBar cond={cond} setCond={setCond} onSearch={fetchList}>
                 <SearchText name="omsIbNo" label="주문번호" placeholder="PO-20260723-001" />
                 <SearchDateRange from="dateFrom" to="dateTo" label="입고예정일" />
-                <SearchItem label="벤더">
-                    <button
-                        type="button"
-                        onClick={() => setVendorPickerOpen(true)}
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-left flex items-center justify-between gap-2 hover:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400">
-                        <span className={`truncate ${cond.vndrNm ? 'text-slate-700' : 'text-slate-400'}`}>
-                            {cond.vndrNm || '전체'}
-                        </span>
-                        {cond.vndrNm
-                            ? <X
-                                size={13}
-                                title="벤더 조건 지우기"
-                                className="shrink-0 text-slate-400 hover:text-slate-600"
-                                onClick={(e) => { e.stopPropagation(); setCond(prev => ({ ...prev, vndrNm: '' })); }}
-                            />
-                            : <Search size={13} className="shrink-0 text-slate-400" />}
-                    </button>
-                </SearchItem>
+                <SearchPartner name="vndrNm" />
                 <SearchSelect name="status" label="주문상태" options={OMS_IB_STATUS_OPTIONS} multiple />
             </SearchBar>
 
@@ -478,12 +457,6 @@ export default function InboundOrderList() {
                 </div>
             )}
 
-            {/* 벤더 선택 팝업 — 등록 화면과 같은 컴포넌트를 검색 조건에 재사용 */}
-            <VendorPickerModal
-                open={vendorPickerOpen}
-                onClose={() => setVendorPickerOpen(false)}
-                onSelect={(v) => setCond(prev => ({ ...prev, vndrNm: v.vndrNm }))}
-            />
         </div>
     );
 }

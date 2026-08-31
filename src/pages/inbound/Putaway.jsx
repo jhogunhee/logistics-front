@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import { putawayApi } from '@/api/putawayApi';
 import { TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { fmtDe, num } from '@/utils/format';
-import SearchBar, { SearchDateRange, SearchText, SearchProd } from '@/components/common/SearchBar';
+import SearchBar, { SearchDateRange, SearchText, SearchProd, SearchPartner } from '@/components/common/SearchBar';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import PutawayLocMap from '@/components/inbound/PutawayLocMap';
 import PutawayOrderColumn from '@/components/inbound/PutawayOrderColumn';
@@ -364,7 +364,7 @@ export default function Putaway() {
                 「이 로케이션에 뭐가 걸렸나」는 지시 단위 목록인 적치지시 관리 화면이 답한다 */}
             <SearchBar label="검색" cond={cond} setCond={setCond} onSearch={() => fetchList()}>
                 <SearchText name="ibNo" label="입고번호" placeholder="IB-20260717-001" />
-                <SearchText name="vndrNm" label="상대처" placeholder="벤더 또는 점포" />
+                <SearchPartner name="vndrNm" />
                 <SearchDateRange from="dateFrom" to="dateTo" label="입고일자" />
                 <SearchProd name="prodCd" />
             </SearchBar>

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import { ClipboardCheck, History, Search, X } from 'lucide-react';
+import { ClipboardCheck, History, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { ibOrderApi } from '@/api/ibOrderApi';
@@ -9,12 +9,11 @@ import { strategyApi } from '@/api/strategyApi';
 import { useCodes } from '@/hooks/useCodes';
 import { ASN_STATUS_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { eaQtyPerInbUomOf, fmtDt, num, todayStr, daysAheadStr } from '@/utils/format';
-import SearchBar, { SearchItem, SearchText, SearchDateRange } from '@/components/common/SearchBar';
+import SearchBar, { SearchText, SearchDateRange, SearchPartner } from '@/components/common/SearchBar';
 import { Badge } from '@/components/common/Badge';
 import { ProdThumb } from '@/components/common/ProdThumb';
 import { THUMB_CELL_STYLE } from '@/constants/agGrid';
 import ConfirmModal from '@/components/common/ConfirmModal';
-import VendorPickerModal from '@/components/common/VendorPickerModal';
 import DateCellEditor from '@/components/common/DateCellEditor';
 import SelectCellEditor from '@/components/common/SelectCellEditor';
 
@@ -91,7 +90,6 @@ export default function Receiving() {
     const [receipts, setReceipts] = useState([]); // 선택한 입고건의 검수 이력 전부 (최근 순)
     const [violations, setViolations] = useState([]); // 검수 제약 위반 목록 — 저장 거부 응답의 violations
     const [tab, setTab] = useState('input'); // 'input' 검수 입력 / 'history' 검수 이력
-    const [vendorPickerOpen, setVendorPickerOpen] = useState(false);
     const [receiveConfirm, setReceiveConfirm] = useState(null); // 검수 저장 확인 모달 대상 라인들
     const [cancelReceiptTarget, setCancelReceiptTarget] = useState(null); // 검수 취소 확인 대상 (receipt 1건)
     const gridRef = useRef(null);
@@ -544,24 +542,7 @@ export default function Receiving() {
             {/* 검색 조건 */}
             <SearchBar cond={cond} setCond={setCond} onSearch={() => fetchList()}>
                 <SearchText name="ibNo" label="입고번호" placeholder="IB-20260717-001" />
-                <SearchItem label="벤더">
-                    <button
-                        type="button"
-                        onClick={() => setVendorPickerOpen(true)}
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-left flex items-center justify-between gap-2 hover:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400">
-                        <span className={`truncate ${cond.vndrNm ? 'text-slate-700' : 'text-slate-400'}`}>
-                            {cond.vndrNm || '전체'}
-                        </span>
-                        {cond.vndrNm
-                            ? <X
-                                size={13}
-                                title="벤더 조건 지우기"
-                                className="shrink-0 text-slate-400 hover:text-slate-600"
-                                onClick={(e) => { e.stopPropagation(); setCond(prev => ({ ...prev, vndrNm: '' })); }}
-                            />
-                            : <Search size={13} className="shrink-0 text-slate-400" />}
-                    </button>
-                </SearchItem>
+                <SearchPartner name="vndrNm" />
                 <SearchDateRange from="dateFrom" to="dateTo" label="입고예정일" />
             </SearchBar>
 
@@ -691,12 +672,6 @@ export default function Receiving() {
                 </Panel>
             </PanelGroup>
 
-            {/* 벤더 선택 팝업 — 자유 입력 대신 팝업에서 고른다 (OMS 주문목록과 같은 방식, vndrNm contains 검색) */}
-            <VendorPickerModal
-                open={vendorPickerOpen}
-                onClose={() => setVendorPickerOpen(false)}
-                onSelect={(v) => setCond(prev => ({ ...prev, vndrNm: v.vndrNm }))}
-            />
 
             {/* 검수 저장 확인 모달 */}
             {receiveConfirm && (
