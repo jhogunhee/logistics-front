@@ -26,21 +26,25 @@ import { fmtDe, num } from '@/utils/format';
  * @param onClose  닫기
  * @param onSaved  저장 성공 콜백 (목록 재조회)
  */
-export default function AllocCandidateModal({ line, wavId, onClose, onSaved }) {
+export default function AllocCandidateModal({ line, ...props }) {
+    // 라인이 바뀌면 안쪽을 통째로 갈아 끼운다(key) — 후보 목록과 입력 수량을 effect에서
+    // 되돌리는 것보다 단순하고, 앞 라인의 후보가 잠깐 보이는 일도 없다
+    return line ? <AllocCandidatePicker key={line.outbLineId} line={line} {...props} /> : null;
+}
+
+function AllocCandidatePicker({ line, wavId, onClose, onSaved }) {
     const [candidates, setCandidates] = useState(null); // null = 로딩중
     const [qtyById, setQtyById] = useState({});
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
-        if (!line) return;
-        setCandidates(null);
-        setQtyById({});
         let ignore = false;
         outbAllocApi.candidates(line.outbLineId)
             .then(data => { if (!ignore) setCandidates(data); })
             .catch(e => { if (!ignore) { setCandidates([]); toast.error(e.message || '후보 재고를 불러오지 못했습니다.'); } });
         return () => { ignore = true; };
-    }, [line?.outbLineId]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const entered = useMemo(
         () => Object.entries(qtyById)
@@ -49,8 +53,6 @@ export default function AllocCandidateModal({ line, wavId, onClose, onSaved }) {
         [qtyById],
     );
     const enteredQty = entered.reduce((sum, i) => sum + i.qty, 0);
-
-    if (!line) return null;
 
     const remainQty = line.remainQty;
     // 잔량 초과는 서버가 전 행 합계로 막지만, 화면이 먼저 눌러 헛수고를 줄인다

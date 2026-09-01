@@ -540,19 +540,22 @@ const BayTooltip = ({ tip }) => {
  * 여러 자리를 연달아 눌러 비교할 수 있다. 재고는 기존 현재고 API(locCd 부분일치)로 부른다.
  */
 const DetailPanel = ({ sel, onClose, onGoTable }) => {
-    const [stocks, setStocks] = useState(null);
+    // 자리가 바뀌면 앞 자리의 목록을 그대로 두지 않으려고 응답에 조회어를 같이 담는다 —
+    // 조회 시작에 비우면(setState) 렌더 연쇄가 되고, 그러지 않으면 남의 재고가 잠깐 보인다
+    // (LocStockPanel과 같은 방식)
+    const [loaded, setLoaded] = useState(null);   // { query, rows }
     const query = sel?.query;
+    const stocks = loaded && loaded.query === query ? loaded.rows : null;   // null = 조회 중
 
     useEffect(() => {
-        if (!query) return;
-        setStocks(null);
+        if (!query) return undefined;
         let live = true;
         invApi.list({ locCd: query })
-            .then(data => live && setStocks(data))
+            .then(data => { if (live) setLoaded({ query, rows: data }); })
             .catch((e) => {
                 if (!live) return;
                 toast.error(e.message || '재고 조회에 실패했습니다.');
-                setStocks([]);
+                setLoaded({ query, rows: [] });
             });
         return () => { live = false; };
     }, [query]);

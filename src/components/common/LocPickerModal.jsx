@@ -6,7 +6,13 @@ import { LOC_TYPE_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { num } from '@/utils/format';
 
 /**
- * 로케이션 선택 팝업 (VendorPickerModal과 같은 형태).
+ * 받아 둔 목록 — 모듈에 둔다. 팝업은 닫히면 언마운트되므로 컴포넌트 안에 두면
+ * 열 때마다 다시 받는다. 마스터라 세션 중에 바뀔 일이 드물어 한 번이면 족하다.
+ */
+let cachedLocs = null;
+
+/**
+ * 로케이션 선택 팝업 (VendorPickerModal · PartnerPickerModal과 같은 형태).
  *
  * 목록은 처음 열 때 한 번만 받아오고 검색은 클라이언트에서 건다 — 마스터라 건수가 적고
  * 자주 바뀌지 않아서, 타이핑마다 서버를 때리는 것보다 즉시 반응하는 쪽이 낫다.
@@ -16,19 +22,26 @@ import { num } from '@/utils/format';
  * @param onSelect 선택 확정 콜백. 로케이션 객체 하나를 넘긴다
  * @param locTyp   주면 그 유형만 보여준다 (예: 'STORAGE' — 고를 수 없는 유형을 애초에 안 보이게)
  */
-export default function LocPickerModal({ open, onClose, onSelect, locTyp }) {
-    const [locs, setLocs] = useState(null); // null = 아직 안 받아옴
+export default function LocPickerModal({ open, ...props }) {
+    // 안쪽을 갈아 끼워 검색어가 열 때마다 초기 상태로 돌아간다 —
+    // effect에서 상태를 되돌리는 것보다 단순하고, 닫힌 사이의 잔상이 남지 않는다
+    return open ? <LocPicker {...props} /> : null;
+}
+
+function LocPicker({ onClose, onSelect, locTyp }) {
+    const [locs, setLocs] = useState(cachedLocs); // null = 아직 안 받아옴
     const [keyword, setKeyword] = useState('');
 
     useEffect(() => {
-        if (!open) return;
-        setKeyword('');
-        if (locs !== null) return;
-
+        if (locs !== null) return undefined;
         let ignore = false;
-        locApi.list().then(data => { if (!ignore) setLocs(data); });
+        locApi.list().then(data => {
+            if (ignore) return;
+            cachedLocs = data;
+            setLocs(data);
+        });
         return () => { ignore = true; };
-    }, [open]);
+    }, [locs]);
 
     const filtered = useMemo(() => {
         if (!locs) return [];
@@ -41,8 +54,6 @@ export default function LocPickerModal({ open, onClose, onSelect, locTyp }) {
             l.zonCd.toLowerCase().includes(kw)
         );
     }, [locs, keyword, locTyp]);
-
-    if (!open) return null;
 
     return (
         <div className="fixed inset-0 z-50 flex items-start justify-center pt-12 bg-black/20" onMouseDown={onClose}>

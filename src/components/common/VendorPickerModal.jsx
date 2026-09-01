@@ -5,6 +5,12 @@ import { vendorApi } from '@/api/vendorApi';
 import { num } from '@/utils/format';
 
 /**
+ * 받아 둔 목록 — 모듈에 둔다. 팝업은 닫히면 언마운트되므로 컴포넌트 안에 두면
+ * 열 때마다 다시 받는다. 마스터라 세션 중에 바뀔 일이 드물어 한 번이면 족하다.
+ */
+let cachedVendors = null;
+
+/**
  * 벤더(납품처) 선택 팝업.
  *
  * 목록은 처음 열 때 한 번만 받아오고 검색은 클라이언트에서 건다 — 마스터라 건수가 적고
@@ -15,19 +21,26 @@ import { num } from '@/utils/format';
  * @param onClose  닫기
  * @param onSelect 선택 확정 콜백. 벤더 객체 하나를 넘긴다
  */
-export default function VendorPickerModal({ open, onClose, onSelect }) {
-    const [vendors, setVendors] = useState(null); // null = 아직 안 받아옴
+export default function VendorPickerModal({ open, ...props }) {
+    // 안쪽을 갈아 끼워 검색어가 열 때마다 초기 상태로 돌아간다 —
+    // effect에서 상태를 되돌리는 것보다 단순하고, 닫힌 사이의 잔상이 남지 않는다
+    return open ? <VendorPicker {...props} /> : null;
+}
+
+function VendorPicker({ onClose, onSelect }) {
+    const [vendors, setVendors] = useState(cachedVendors); // null = 아직 안 받아옴
     const [keyword, setKeyword] = useState('');
 
     useEffect(() => {
-        if (!open) return;
-        setKeyword('');
-        if (vendors !== null) return;
-
+        if (vendors !== null) return undefined;
         let ignore = false;
-        vendorApi.list().then(data => { if (!ignore) setVendors(data); });
+        vendorApi.list().then(data => {
+            if (ignore) return;
+            cachedVendors = data;
+            setVendors(data);
+        });
         return () => { ignore = true; };
-    }, [open]);
+    }, [vendors]);
 
     const filtered = useMemo(() => {
         if (!vendors) return [];
@@ -40,8 +53,6 @@ export default function VendorPickerModal({ open, onClose, onSelect }) {
             (v.picNm ?? '').toLowerCase().includes(kw)
         );
     }, [vendors, keyword]);
-
-    if (!open) return null;
 
     return (
         <div className="fixed inset-0 z-50 flex items-start justify-center pt-12 bg-black/20" onMouseDown={onClose}>
