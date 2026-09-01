@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 
 import { atoOdrApi } from '@/api/atoOdrApi';
 import { num } from '@/utils/format';
-import SearchBar, { SearchText, SearchProd } from '@/components/common/SearchBar';
+import SearchBar, { SearchText, SearchProd, SearchVendor } from '@/components/common/SearchBar';
 import ConfirmModal from '@/components/common/ConfirmModal';
 
 /** 수량 컬럼 한 벌 — 오른쪽 정렬 + 천단위 콤마. 컬럼 정의가 useMemo 안이라 모듈 스코프에 둔다 */
@@ -21,6 +21,12 @@ const qtyCol = (field, headerName, width, tooltip) => ({
 // 입고주문(작성)으로 낸다. 확정(→ 입고예정)은 「입고주문 관리」에서 사람이 누른다.
 // 스케줄러가 매일 새벽 같은 경로로 돌고, 이 화면은 임의 시점 재계산·수량 보정용이다.
 
+/** 수량을 화면에서 고칠 수 있게 라인을 복사해 든다 — 서버 응답은 그대로 두고 _odrQty만 편집한다 */
+const toEditable = (data) => data.map(p => ({
+    ...p,
+    lines: p.lines.map(l => ({ ...l, _odrQty: l.odrQty })),
+}));
+
 export default function AtoOdrPlan() {
     const [cond, setCond] = useState({ prodCd: '', prodNm: '', vndrCd: '' });
     const [proposals, setProposals] = useState(null); // null = 아직 조회 전
@@ -33,16 +39,17 @@ export default function AtoOdrPlan() {
     const selected = proposals?.find(p => p.vendorId === selectedVendorId) ?? null;
     const totalLines = (proposals ?? []).reduce((s, p) => s + p.lines.length, 0);
 
+    // 마운트 조회는 프라미스 체인을 그대로 쓴다 — effect 안에서 조회 함수를 부르면
+    // 「effect 안의 동기 setState」로 잡힌다(다른 화면들도 이 형태다)
     useEffect(() => {
-        fetchPlan();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        atoOdrApi.plan({})
+            .then(data => setProposals(toEditable(data)))
+            .catch(e => toast.error(e.message || '자동발주 산정에 실패했습니다.'));
     }, []);
 
     const fetchPlan = async () => {
         try {
-            const data = await atoOdrApi.plan(cond);
-            // 수량을 화면에서 고칠 수 있게 라인을 복사해 든다 — 서버 응답은 그대로 두고 _odrQty만 편집한다
-            setProposals(data.map(p => ({ ...p, lines: p.lines.map(l => ({ ...l, _odrQty: l.odrQty })) })));
+            setProposals(toEditable(await atoOdrApi.plan(cond)));
             setSelectedVendorId(null);
         } catch (e) {
             toast.error(e.message || '자동발주 산정에 실패했습니다.');
@@ -172,7 +179,7 @@ export default function AtoOdrPlan() {
             <SearchBar cond={cond} setCond={setCond} onSearch={fetchPlan}>
                 <SearchProd name="prodCd" />
                 <SearchText name="prodNm" label="상품명" placeholder="서울우유" />
-                <SearchText name="vndrCd" label="거래처" placeholder="VD-0001" />
+                <SearchVendor name="vndrCd" />
             </SearchBar>
 
             <PanelGroup direction="vertical" autoSaveId="wms-ato-odr-split-v1" className="flex-1 min-h-0">

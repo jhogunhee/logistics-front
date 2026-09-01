@@ -6,6 +6,7 @@ import DropdownSelect from './DropdownSelect';
 import DatePicker from './DatePicker';
 import ProdPickerModal from './ProdPickerModal';
 import LocPickerModal from './LocPickerModal';
+import VendorPickerModal from './VendorPickerModal';
 import StorePickerModal from './StorePickerModal';
 import PartnerPickerModal from './PartnerPickerModal';
 
@@ -161,6 +162,73 @@ export function SearchProd({ name = 'prodCd', label = '상품', placeholder = 'P
                 onSelect={(p) => {
                     setPicked({ prodCd: p.prodCd, prodNm: p.prodNm });
                     setValue(p.prodCd);
+                }}
+            />
+        </SearchItem>
+    );
+}
+
+/**
+ * 벤더 선택 조건 — {@link SearchProd}와 같은 형태다. 화면에는 벤더명을 보여주고
+ * 검색키는 <b>코드</b>(cond[name])로 나간다.
+ *
+ * 팝업이 필요한 이유는 서버가 벤더 코드를 <b>정확히 일치</b>로 거르기 때문이다
+ * (`ProdVndrRepositoryImpl.vndrCdEq`) — 부분일치가 아니라서 `VD-0001`을 외워 치지 않으면
+ * 아무것도 안 나오고, 화면에는 코드를 찾을 길이 없었다.
+ *
+ * 이름으로 훑는 상대처 조건({@link SearchPartner})과 다르다 — 그쪽은 서버 계약이 이름 부분일치다.
+ */
+export function SearchVendor({ name = 'vndrCd', label = '거래처', placeholder = 'VD-0001', required, wide }) {
+    const { cond, setCond, onSearch } = useContext(SearchBarCtx);
+    const [pickerOpen, setPickerOpen] = useState(false);
+    const [picked, setPicked] = useState(null);
+    const isPicked = picked != null && cond[name] === picked.vndrCd;
+    const setValue = (v) => setCond(prev => ({ ...prev, [name]: v }));
+    return (
+        <SearchItem label={label} required={required} wide={wide}>
+            <div className="relative">
+                <input
+                    type="text"
+                    value={isPicked ? picked.vndrNm : cond[name]}
+                    title={isPicked ? picked.vndrCd : undefined}
+                    onChange={(e) => {
+                        // 명칭이 표시된 상태에서 타이핑하면 선택을 풀고 빈 코드 입력으로 돌아간다
+                        if (isPicked) {
+                            setPicked(null);
+                            setValue('');
+                            return;
+                        }
+                        setValue(e.target.value);
+                    }}
+                    onKeyDown={(e) => e.key === 'Enter' && onSearch()}
+                    placeholder={placeholder}
+                    className={`w-full input-base pr-12 ${isPicked ? 'text-indigo-700 font-medium' : ''}`}
+                />
+                <div className="absolute inset-y-0 right-2 flex items-center gap-0.5">
+                    {cond[name] && (
+                        <button
+                            type="button"
+                            onClick={() => { setPicked(null); setValue(''); }}
+                            title="지우기"
+                            className="p-0.5 text-slate-300 hover:text-slate-500">
+                            <X size={13} />
+                        </button>
+                    )}
+                    <button
+                        type="button"
+                        onClick={() => setPickerOpen(true)}
+                        title="벤더 팝업에서 선택"
+                        className="p-0.5 text-slate-400 hover:text-indigo-600">
+                        <Search size={14} />
+                    </button>
+                </div>
+            </div>
+            <VendorPickerModal
+                open={pickerOpen}
+                onClose={() => setPickerOpen(false)}
+                onSelect={(v) => {
+                    setPicked({ vndrCd: v.vndrCd, vndrNm: v.vndrNm });
+                    setValue(v.vndrCd);
                 }}
             />
         </SearchItem>
