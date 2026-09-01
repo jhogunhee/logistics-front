@@ -10,7 +10,7 @@ import { Badge } from '@/components/common/Badge';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import RackGrid from '@/components/locmap/RackGrid';
 import { buildZones } from '@/components/locmap/locMapLayout';
-import LocStockPanel from './LocStockPanel';
+import LocStockPanel from '@/components/locmap/LocStockPanel';
 import { targetLocOf } from './putawayTask';
 
 /** 도면에 순위를 붙일 후보 개수 — 셋을 넘기면 「추천」이 아니라 또 하나의 목록이 된다 */

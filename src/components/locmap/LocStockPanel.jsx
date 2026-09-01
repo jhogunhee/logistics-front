@@ -15,10 +15,12 @@ import { ProdThumb } from '@/components/common/ProdThumb';
  * 조회는 현재고 API를 로케이션으로 걸러 그대로 쓴다 — 같은 값을 두 벌로 만들지 않는다.
  *
  * @param loc      선택된 칸 (locMap 행). null이면 아무것도 그리지 않는다
- * @param prodCd   지금 적치하려는 상품 코드 — 같은 상품 행을 위로 올리고 표시한다
+ * @param prodCd   지금 놓으려는 상품 코드 — 같은 상품 행을 위로 올리고 표시한다
  * @param onClose  닫기
+ * @param action   맨 아래 붙일 실행 버튼(선택). 재고이동 도면이 「이 자리로 보내기」를 여기 단다 —
+ *                 칸을 눌러 내용을 확인한 그 자리에서 바로 정해야 확인과 결정이 갈라지지 않는다
  */
-export default function LocStockPanel({ loc, prodCd, onClose }) {
+export default function LocStockPanel({ loc, prodCd, onClose, action }) {
     // 칸이 바뀌면 앞 칸의 목록을 그대로 두지 않으려고 응답에 칸 코드를 같이 담는다 —
     // 조회 시작에 비우면(setState) 렌더 연쇄가 되고, 그러지 않으면 남의 재고가 잠깐 보인다
     const [loaded, setLoaded] = useState(null);   // { locCd, rows }
@@ -100,6 +102,8 @@ export default function LocStockPanel({ loc, prodCd, onClose }) {
                     </div>
                 ))}
             </div>
+
+            {action && <div className="px-3 py-2 border-t border-slate-100 shrink-0">{action}</div>}
         </aside>
     );
 }

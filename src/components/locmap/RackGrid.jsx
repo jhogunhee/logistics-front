@@ -30,6 +30,9 @@ import { isShort, pctOf } from './locMapLayout';
  *                       tone: 'tight'(모자람 — 강조) · 'muted'(넉넉함 — 흐리게) · 'ok'(기본)
  * @param markOf         (r) => { drct, pendingIn, pendingOut } | null — 칸 위에 얹는 표식(지시 목적지·담아둔 변경)
  * @param rankOf         (r) => number | null — 추천 순위(적치 탭). 「놓을 수 있다」 위에 「여기가 몇 순위」를 얹는다
+ * @param sameProdOf     (r) => 'lot' | 'prod' | null — 지금 고른 상품이 이 칸에 이미 있다(재고이동 탭).
+ *                       'lot'은 같은 Lot(합칠 자리), 'prod'는 같은 상품 다른 Lot(유통기한이 섞이는 자리).
+ *                       안쪽 테두리로 그린다 — 추천 순위의 바깥 테두리와 겹쳐도 둘 다 읽힌다
  * @param highlightLocCds Set<locCd> — 바깥에서 가리킨 칸(카드 hover 등)을 진하게
  * @param compact        존 헤더에서 존명·온도대·점유율을 뺀다. 존을 가로로 나란히 놓는 쪽(적치 맵)이 쓴다 —
  *                       헤더가 넓으면 존 하나의 최소 폭이 커져 두 개도 한 줄에 못 들어간다.
@@ -37,7 +40,8 @@ import { isShort, pctOf } from './locMapLayout';
  */
 export default function RackGrid({
     zones, selectedLocCd, onSelect, onHover, emptyText = '조건에 맞는 보관 로케이션이 없습니다.',
-    droppableOf, onDropTo, dragOverLocCd, onDragOverCell, badgeOf, markOf, rankOf, highlightLocCds, compact,
+    droppableOf, onDropTo, dragOverLocCd, onDragOverCell, badgeOf, markOf, rankOf, sameProdOf,
+    highlightLocCds, compact,
 }) {
     const cellProps = (r) => ({
         r,
@@ -51,6 +55,7 @@ export default function RackGrid({
         badge: badgeOf?.(r) ?? null,
         mark: markOf?.(r) ?? null,
         rank: rankOf?.(r) ?? null,
+        sameProd: sameProdOf?.(r) ?? null,
         highlight: highlightLocCds?.has(r.locCd) ?? false,
     });
 
@@ -130,7 +135,8 @@ const fillColor = (pct) => (pct > 100 ? 'bg-rose-500' : pct === 100 ? 'bg-indigo
 
 /** 칸 하나 = 로케이션 하나. 구조도의 나열 칸(`wide`)도 같은 그림이라 밖에서도 쓴다 */
 export const MapCell = ({
-    r, wide, selected, onClick, onHover, drop, onDropTo, dragOver, onDragOverCell, badge, mark, rank, highlight,
+    r, wide, selected, onClick, onHover, drop, onDropTo, dragOver, onDragOverCell,
+    badge, mark, rank, sameProd, highlight,
 }) => {
     const pct = pctOf(r);
     const short = isShort(r);
@@ -173,6 +179,13 @@ export const MapCell = ({
                 {!empty && (
                     <span className={`absolute bottom-0 inset-x-0 ${fillColor(pct)} opacity-90`}
                           style={{ height: `${height}%` }} />
+                )}
+                {/* 같은 상품이 이미 있는 칸 — 채움 막대 <b>뒤에</b> 그려야 한다. 클래스로 주면
+                    안쪽 테두리가 자식인 채움에 덮여, 가득 찬 칸일수록 안 보인다 */}
+                {sameProd && (
+                    <span aria-hidden="true"
+                          className={`absolute inset-0 rounded-md pointer-events-none ring-2 ring-inset ${
+                              sameProd === 'lot' ? 'ring-indigo-500' : 'ring-amber-400'}`} />
                 )}
                 <span className={`relative ${pct >= 75 ? 'text-white' : ''}`}>
                     {wide ? r.locCd : `${r.bay}-${r.level}`}

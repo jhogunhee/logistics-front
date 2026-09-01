@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
-import { ArrowLeftRight, ArrowRight } from 'lucide-react';
+import { ArrowLeftRight, ArrowRight, Map as MapIcon, Table2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { invApi } from '@/api/invApi';
@@ -11,11 +11,17 @@ import { num } from '@/utils/format';
 import SearchBar, { SearchText, SearchSelect, SearchProd, SearchLoc } from '@/components/common/SearchBar';
 import SelectCellEditor from '@/components/common/SelectCellEditor';
 import { Badge } from '@/components/common/Badge';
+import StockMoveLocMap from '@/components/stock/StockMoveLocMap';
 
 const TEMP_ZONE_OPTIONS = [
     { value: '', label: '전체' },
     ...Object.entries(TEMP_ZONE_META).map(([value, m]) => ({ value, label: m.label })),
 ];
+
+// 표/도면 선택은 사람마다 갈리고 화면을 다시 열 때마다 고르게 하면 성가시다 — 적치 화면과 같은 규칙
+const VIEW_KEY = 'wms-invmov-view';
+const loadView = () => { try { return localStorage.getItem(VIEW_KEY) === 'table' ? 'table' : 'map'; } catch { return 'map'; } };
+const saveView = (v) => { try { localStorage.setItem(VIEW_KEY, v); } catch { /* 저장 못 해도 화면은 동작한다 */ } };
 
 // 조회 결과에 입력 2필드를 붙인다 — 행이 곧 지시 후보라, 별도 담기 목록이 없다
 const toEditableRow = (r) => ({ ...r, qty: null, toLocCd: '' });
@@ -28,7 +34,10 @@ export default function StockMoveOrder() {
     const [rowData, setRowData] = useState([]);
     const [storageLocs, setStorageLocs] = useState([]); // 보관 로케이션 전체 (TO 후보의 모집단)
     const [confirmTargets, setConfirmTargets] = useState(null);
+    const [view, setViewState] = useState(loadView);  // map(창고 도면 — 기본) | table(표)
+    const [mapKey, setMapKey] = useState(0);          // 등록 성공 후 도면의 적재가능수량을 다시 받는다
     const gridRef = useRef(null);
+    const setView = (v) => { setViewState(v); saveView(v); };
 
     const locZonByCd = useMemo(
         () => Object.fromEntries(storageLocs.map(l => [l.locCd, l.zonCd])),
@@ -128,6 +137,22 @@ export default function StockMoveOrder() {
         gridRef.current?.api?.refreshCells({ force: true });
     }, [rowData]);
 
+    /**
+     * 도면에서 담아두기 — 표의 「이동수량 · 도착 로케이션」 두 칸을 채우는 것과 같은 일이다.
+     * 등록도 검증도 표와 하나라, 도면은 두 값을 넣는 또 하나의 입력기일 뿐이다.
+     */
+    const stageLoc = (row, loc, qty) => {
+        setRowData(prev => prev.map(r => (r.invId === row.invId
+            ? { ...r, qty: Number(qty), toLocCd: loc.locCd }
+            : r)));
+        toast.success(`${row.prodNm} → ${loc.locCd} ${num(qty)}개를 담았습니다.`);
+    };
+
+    /** 도면에서 담아둔 것 지우기 — 표에서 두 칸을 비우는 것과 같다 */
+    const unstageLoc = (row) => setRowData(prev => prev.map(r => (r.invId === row.invId
+        ? { ...r, qty: null, toLocCd: '' }
+        : r)));
+
     const onCellValueChanged = (e) => {
         // 기본 텍스트 에디터는 문자열을 남긴다 — 빈 값은 null로, 그 외는 숫자로 맞춰 올린다
         const raw = e.data.qty;
@@ -136,11 +161,12 @@ export default function StockMoveOrder() {
     };
 
     const handleSubmit = () => {
-        // 편집 중인 셀은 아직 행에 반영되지 않았다 — 열린 에디터를 닫고 나서 그리드에서 직접 걷는다
-        gridRef.current?.api.stopEditing();
+        // 편집 중인 셀은 아직 행에 반영되지 않았다 — 열린 에디터를 닫고 나서 그리드에서 직접 걷는다.
+        // 도면 탭이면 그리드 자체가 없다(언마운트) — 그쪽은 드롭이 곧바로 rowData를 고치므로 그걸 쓴다
+        gridRef.current?.api?.stopEditing();
         const rows = [];
-        gridRef.current?.api.forEachNode(n => rows.push(n.data));
-        const targets = rows.filter(isEntered);
+        gridRef.current?.api?.forEachNode(n => rows.push(n.data));
+        const targets = (rows.length > 0 ? rows : rowData).filter(isEntered);
         if (targets.length === 0) {
             toast('이동수량을 입력한 행이 없습니다.');
             return;
@@ -177,6 +203,7 @@ export default function StockMoveOrder() {
             })));
             toast.success(`이동지시 ${movNos.length}건을 등록했습니다 (${movNos.join(', ')}).`);
             fetchStock(); // 예약(aloc) 반영된 재고로 갱신 + 입력 초기화
+            setMapKey(k => k + 1); // 도면의 적재가능수량도 같이 — 유입분이 늘어 자리가 줄었다
         } catch (e) {
             // 실패하면 재조회하지 않는다 — 전량 롤백이라 서버 값은 그대로이고,
             // 입력을 살려둬야 지적된 행만 고쳐서 다시 시도할 수 있다
@@ -204,8 +231,25 @@ export default function StockMoveOrder() {
             <div className="flex-1 min-h-0 flex flex-col gap-3">
                 <div className="flex items-center gap-3 flex-wrap">
                     <span className="text-xs text-slate-500 font-medium">보관 재고 {num(rowData.length)}건 (가용 &gt; 0)</span>
-                    <span className="text-[11px] text-slate-400">이동수량·도착 로케이션을 행에서 바로 입력한 뒤 등록</span>
+                    <span className="text-[11px] text-slate-400">
+                        {view === 'map'
+                            ? '왼쪽에서 재고를 고르고 도면의 칸을 눌러 도착지를 정한 뒤 등록'
+                            : '이동수량·도착 로케이션을 행에서 바로 입력한 뒤 등록'}
+                    </span>
                     <div className="ml-auto flex items-center gap-2 shrink-0">
+                        {/* 표/도면은 조건이 아니라 같은 입력을 하는 두 방식이다 — 담아둔 값은 탭을 옮겨도 남는다 */}
+                        <div className="flex rounded-lg border border-slate-200 overflow-hidden text-xs font-medium">
+                            <button onClick={() => setView('map')}
+                                    className={`flex items-center gap-1 px-2.5 py-1.5 ${view === 'map'
+                                        ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:bg-slate-50'}`}>
+                                <MapIcon size={13} /> 맵
+                            </button>
+                            <button onClick={() => setView('table')}
+                                    className={`flex items-center gap-1 px-2.5 py-1.5 border-l border-slate-200 ${view === 'table'
+                                        ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:bg-slate-50'}`}>
+                                <Table2 size={13} /> 표
+                            </button>
+                        </div>
                         <span className={`text-xs font-bold ${entered.length > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
                             입력 {num(entered.length)}건 · 총 {num(totalQty)}개
                         </span>
@@ -217,6 +261,10 @@ export default function StockMoveOrder() {
                     </div>
                 </div>
                 <div className="flex-1 min-h-0">
+                    {view === 'map' ? (
+                        <StockMoveLocMap rows={rowData} onStage={stageLoc} onUnstage={unstageLoc}
+                                         reloadKey={mapKey} />
+                    ) : (
                     <AgGridReact
                         ref={gridRef}
                         rowData={rowData}
@@ -228,6 +276,7 @@ export default function StockMoveOrder() {
                         stopEditingWhenCellsLoseFocus={true}
                         onCellValueChanged={onCellValueChanged}
                     />
+                    )}
                 </div>
             </div>
 
