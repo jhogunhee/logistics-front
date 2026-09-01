@@ -10,6 +10,7 @@ import { ETC_RSN_CD } from '@/constants/rsnCodes';
 import { TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { num } from '@/utils/format';
 import SearchBar, { SearchText, SearchSelect, SearchProd, SearchLoc } from '@/components/common/SearchBar';
+import ConfirmDialog from '@/components/common/ConfirmDialog';
 import SelectCellEditor from '@/components/common/SelectCellEditor';
 import { Badge } from '@/components/common/Badge';
 
@@ -33,9 +34,24 @@ export default function StockHoldRegister() {
     // 열리는데, 그동안 0건과 「조회된 데이터가 없습니다」가 떠서 재고가 없는 것으로 읽혔다
     const [loading, setLoading] = useState(true);
     const gridRef = useRef(null);
+    const confirmRef = useRef(null);
 
     const entered = useMemo(() => rowData.filter(isEntered), [rowData]);
     const totalQty = entered.reduce((s, r) => s + (Number(r.qty) || 0), 0);
+
+    /*
+     * 조회는 목록을 통째로 갈아 끼워 담아둔 입력이 사라진다. 예전엔 말없이 날아갔는데,
+     * 도면에서 여러 건을 금방 담을 수 있게 되면서 습관적으로 누른 [조회] 한 번에
+     * 열 건이 지워지는 일이 생긴다. 담긴 게 있을 때만 한 번 묻는다.
+     */
+    const searchWithGuard = async () => {
+        if (entered.length > 0 && !(await confirmRef.current.confirm({
+            title: '입력한 내용을 버리고 조회할까요?',
+            message: `입력해 둔 ${num(entered.length)}건(보류수량·보류사유)이 사라집니다.`,
+            confirmText: '조회',
+        }))) return;
+        fetchStock();
+    };
 
     const columnDefs = useMemo(() => [
         { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
@@ -198,7 +214,7 @@ export default function StockHoldRegister() {
             </div>
 
             {/* 검색 조건 */}
-            <SearchBar cond={cond} setCond={setCond} onSearch={fetchStock}>
+            <SearchBar cond={cond} setCond={setCond} onSearch={searchWithGuard}>
                 <SearchProd name="prodCd" />
                 <SearchLoc name="locCd" />
                 <SearchText name="lotNo" label="Lot번호" placeholder="LOT-260722-001" />
@@ -270,6 +286,8 @@ export default function StockHoldRegister() {
                     </div>
                 </div>
             )}
+
+            <ConfirmDialog ref={confirmRef} />
         </div>
     );
 }

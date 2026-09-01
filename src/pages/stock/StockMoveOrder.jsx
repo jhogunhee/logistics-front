@@ -9,6 +9,7 @@ import { locApi } from '@/api/locApi';
 import { TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { num } from '@/utils/format';
 import SearchBar, { SearchText, SearchSelect, SearchProd, SearchLoc } from '@/components/common/SearchBar';
+import ConfirmDialog from '@/components/common/ConfirmDialog';
 import SelectCellEditor from '@/components/common/SelectCellEditor';
 import { Badge } from '@/components/common/Badge';
 import StockMoveLocMap from '@/components/stock/StockMoveLocMap';
@@ -43,6 +44,7 @@ export default function StockMoveOrder({ onGoTasks }) {
     // 「낸 다음에 어디로 가야 하나」가 화면에 남아 있어야 한다
     const [justRegistered, setJustRegistered] = useState(null); // { movNos }
     const gridRef = useRef(null);
+    const confirmRef = useRef(null);
     const setView = (v) => { setViewState(v); saveView(v); };
 
     const locZonByCd = useMemo(
@@ -56,6 +58,21 @@ export default function StockMoveOrder({ onGoTasks }) {
 
     const entered = useMemo(() => rowData.filter(isEntered), [rowData]);
     const totalQty = entered.reduce((s, r) => s + (Number(r.qty) || 0), 0);
+
+    /*
+     * 조회는 목록을 통째로 갈아 끼워 담아둔 입력이 사라진다. 예전엔 말없이 날아갔는데,
+     * 도면에서 여러 건을 금방 담을 수 있게 되면서 습관적으로 누른 [조회] 한 번에
+     * 열 건이 지워지는 일이 생긴다. 담긴 게 있을 때만 한 번 묻는다.
+     */
+    const searchWithGuard = async () => {
+        if (entered.length > 0 && !(await confirmRef.current.confirm({
+            title: '입력한 내용을 버리고 조회할까요?',
+            message: `입력해 둔 ${num(entered.length)}건(이동수량·도착 로케이션)이 사라집니다.`,
+            confirmText: '조회',
+        }))) return;
+        setJustRegistered(null);
+        fetchStock();
+    };
 
     const columnDefs = useMemo(() => [
         { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
@@ -238,7 +255,7 @@ export default function StockMoveOrder({ onGoTasks }) {
             {/* 등록 직후 갱신도 fetchStock을 부르므로 안내는 여기서만 지운다 —
                 fetchStock 안에서 지우면 방금 세운 안내를 그 자리에서 지운다 */}
             <SearchBar cond={cond} setCond={setCond}
-                       onSearch={() => { setJustRegistered(null); fetchStock(); }}>
+                       onSearch={searchWithGuard}>
                 <SearchProd name="prodCd" />
                 <SearchLoc name="locCd" />
                 <SearchText name="lotNo" label="Lot번호" placeholder="LOT-260722-001" />
@@ -357,6 +374,8 @@ export default function StockMoveOrder({ onGoTasks }) {
                     </div>
                 </div>
             )}
+
+            <ConfirmDialog ref={confirmRef} />
         </div>
     );
 }
