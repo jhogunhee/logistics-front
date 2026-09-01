@@ -22,6 +22,17 @@ const TEMP_ZONE_OPTIONS = [
     ...Object.entries(TEMP_ZONE_META).map(([value, m]) => ({ value, label: m.label })),
 ];
 
+/**
+ * 「행 없음」 오버레이를 지금 문구로 다시 그린다.
+ *
+ * AG Grid는 이 오버레이를 <b>한 번 그린 뒤로는 `overlayNoRowsTemplate`이 바뀌어도 다시 그리지 않는다.</b>
+ * 이 화면처럼 문구가 상태에 따라 갈리면(조회 전 / 결과 없음) 첫 문구가 그대로 남아,
+ * 조회를 끝내고 0건인데도 「[조회]를 눌러…」라고 말하게 된다. 상태가 갈릴 때 직접 다시 그린다.
+ */
+const refreshNoRowsOverlay = (api) => {
+    if (api && !api.isDestroyed() && api.getDisplayedRowCount() === 0) api.showNoRowsOverlay();
+};
+
 /** 배정 행의 합계 (수량 미입력 행 제외) */
 const assignedSum = (t) => t._assignments.reduce((s, a) => s + (Number(a.qty) || 0), 0);
 
@@ -31,6 +42,8 @@ export default function StockSpmt() {
     const [targets, setTargets] = useState(null); // null = 아직 조회 전
     const [selectedFxngLocId, setSelectedFxngLocId] = useState(null);
     const [confirmIssue, setConfirmIssue] = useState(null);
+    // 이 화면도 열자마자 조회한다 — 그동안 「[조회]를 눌러…」가 뜨면 누르지도 않았는데 누르라는 말이 된다
+    const [loading, setLoading] = useState(true);
     const targetGridRef = useRef(null);
     const assignGridRef = useRef(null);
     const keySeq = useRef(0);
@@ -48,6 +61,7 @@ export default function StockSpmt() {
     }, []);
 
     const fetchTargets = async () => {
+        setLoading(true);
         try {
             const data = await spmtApi.targets(cond);
             setTargets(data.map(t => ({
@@ -57,8 +71,15 @@ export default function StockSpmt() {
             setSelectedFxngLocId(null);
         } catch (e) {
             toast.error(e.message || '보충 대상 조회에 실패했습니다.');
+        } finally {
+            setLoading(false);
         }
     };
+
+    // 조회 전 → 결과 없음으로 넘어갈 때 위 그리드의 문구를 갈아 끼운다
+    useEffect(() => { refreshNoRowsOverlay(targetGridRef.current?.api); }, [targets]);
+    // 대상을 고르면 아래 그리드도 「선택하세요」에서 「원천 후보가 없습니다」로 바뀌어야 한다
+    useEffect(() => { refreshNoRowsOverlay(assignGridRef.current?.api); }, [selected]);
 
     // ── 상단: 보충 대상 (min 미달 고정로케이션) ──
     const targetColumnDefs = useMemo(() => [
@@ -292,6 +313,7 @@ export default function StockSpmt() {
                     <div className="flex-1 min-h-0">
                         <AgGridReact
                             ref={targetGridRef}
+                            loading={loading}
                             rowData={targets ?? []}
                             columnDefs={targetColumnDefs}
                             getRowId={(p) => String(p.data.fxngLocId)}
@@ -302,6 +324,7 @@ export default function StockSpmt() {
                             overlayNoRowsTemplate={targets == null
                                 ? '<span class="text-sm text-slate-400">[조회]를 눌러 재보충점 미달 자리를 확인하세요</span>'
                                 : '<span class="text-sm text-slate-400">보충할 자리가 없습니다 — 모든 고정로케이션이 재보충점 이상입니다</span>'}
+                            /* 위 문구는 loading이 끝난 뒤에만 보인다 — 조회 중에는 AG Grid의 로딩 오버레이가 덮는다 */
                         />
                     </div>
                 </Panel>
