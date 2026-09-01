@@ -54,14 +54,8 @@ export default function StockSpmt() {
 
     const zonOptions = [{ value: '', label: '전체' }, ...zonCodes.map(z => ({ value: z.zonCd, label: z.zonCd }))];
 
-    useEffect(() => {
-        zonApi.list().then(setZonCodes);
-        fetchTargets();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
-    const fetchTargets = async () => {
-        setLoading(true);
+    /** 대상 채우기. 로딩 표시는 부르는 쪽이 맡는다 — 마운트는 이미 loading으로 시작한다 */
+    const loadTargets = async () => {
         try {
             const data = await spmtApi.targets(cond);
             setTargets(data.map(t => ({
@@ -75,6 +69,20 @@ export default function StockSpmt() {
             setLoading(false);
         }
     };
+
+    /** 사용자가 누른 조회 — 로딩 표시를 다시 켠다 */
+    const fetchTargets = () => {
+        setLoading(true);
+        return loadTargets();
+    };
+
+    // loadTargets보다 아래에 둔다 — 위에 두면 선언 전에 참조하는 꼴이 된다(동작은 같지만 읽는 사람이 헷갈린다).
+    // 여기서 loading을 다시 켜지 않는 이유는 이미 true로 시작해서다 — effect 안의 동기 setState를 피한다
+    useEffect(() => {
+        zonApi.list().then(setZonCodes);
+        loadTargets();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // 조회 전 → 결과 없음으로 넘어갈 때 위 그리드의 문구를 갈아 끼운다
     useEffect(() => { refreshNoRowsOverlay(targetGridRef.current?.api); }, [targets]);
