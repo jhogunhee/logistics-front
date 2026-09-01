@@ -48,11 +48,12 @@ const RANK_COUNT = 3;
  * 정말 반품존에 넣어야 하면 표 탭의 드롭다운에서 고른다 — 서버 규칙은 그대로다.
  *
  * @param rows      이동 후보 재고 행들 (`qty` · `toLocCd`를 부모가 관리한다 — 표 탭과 같은 값)
+ * @param loading   재고 조회가 아직 진행 중 — 빈 목록을 「없다」로 말하지 않으려고 받는다
  * @param onStage   (row, loc, qty) => void — 도착지·수량을 부모 행에 채운다
  * @param onUnstage (row) => void — 담아둔 도착지·수량을 지운다
  * @param reloadKey 값이 바뀌면 맵을 다시 조회한다 (등록 후 적재가능수량 갱신)
  */
-export default function StockMoveLocMap({ rows, onStage, onUnstage, reloadKey }) {
+export default function StockMoveLocMap({ rows, loading, onStage, onUnstage, reloadKey }) {
     const [mapRows, setMapRows] = useState(null);
     const [pickedInvId, setPickedInvId] = useState(null);  // 왼쪽 카드 클릭 → 고정. 추천 순위의 기준
     const [dragInvId, setDragInvId] = useState(null);
@@ -386,11 +387,15 @@ export default function StockMoveLocMap({ rows, onStage, onUnstage, reloadKey })
                 <div className="px-3 py-2 border-b border-slate-100 shrink-0 flex items-center gap-2">
                     <PackageSearch size={14} className="text-indigo-600" />
                     <span className="text-xs font-bold text-slate-700">이동할 재고</span>
-                    <span className="ml-auto text-[11px] text-slate-400 tabular-nums">{num(rows.length)}건</span>
+                    <span className="ml-auto text-[11px] text-slate-400 tabular-nums">
+                        {loading ? '…' : `${num(rows.length)}건`}
+                    </span>
                 </div>
                 <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
                     {rows.length === 0 && (
-                        <p className="py-8 text-center text-xs text-slate-400">조회된 보관 재고가 없습니다</p>
+                        <p className="py-8 text-center text-xs text-slate-400">
+                            {loading ? '불러오는 중…' : '조회된 보관 재고가 없습니다'}
+                        </p>
                     )}
                     {rows.map(r => (
                         <StockCard key={r.invId} row={r}

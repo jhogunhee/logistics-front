@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
-import { ArrowLeftRight, ArrowRight, Map as MapIcon, Table2 } from 'lucide-react';
+import { ArrowLeftRight, ArrowRight, CheckCircle2, Map as MapIcon, Table2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { invApi } from '@/api/invApi';
@@ -29,13 +29,19 @@ const toEditableRow = (r) => ({ ...r, qty: null, toLocCd: '' });
 // 수량이든 도착지든 손댄 행이 등록 대상이다 — 반쪽 입력은 대상에 넣어 검증에서 걸리게 한다
 const isEntered = (r) => r.qty != null || r.toLocCd !== '';
 
-export default function StockMoveOrder() {
+export default function StockMoveOrder({ onGoTasks }) {
     const [cond, setCond] = useState({ prodCd: '', locCd: '', lotNo: '', tmpZon: '' });
     const [rowData, setRowData] = useState([]);
     const [storageLocs, setStorageLocs] = useState([]); // 보관 로케이션 전체 (TO 후보의 모집단)
     const [confirmTargets, setConfirmTargets] = useState(null);
+    // 첫 조회가 끝나기 전에는 「없음」이 아니라 「불러오는 중」이다 — DB가 원격이라 이 창이 몇 초씩
+    // 열리는데, 그동안 0건과 「조회된 데이터가 없습니다」가 떠서 재고가 없는 것으로 읽혔다
+    const [loading, setLoading] = useState(true);
     const [view, setViewState] = useState(loadView);  // map(창고 도면 — 기본) | table(표)
     const [mapKey, setMapKey] = useState(0);          // 등록 성공 후 도면의 적재가능수량을 다시 받는다
+    // 방금 낸 지시 — 토스트는 몇 초 뒤 사라지는데, 이동은 지시 → 확정 2단계라
+    // 「낸 다음에 어디로 가야 하나」가 화면에 남아 있어야 한다
+    const [justRegistered, setJustRegistered] = useState(null); // { movNos }
     const gridRef = useRef(null);
     const setView = (v) => { setViewState(v); saveView(v); };
 
@@ -122,12 +128,19 @@ export default function StockMoveOrder() {
 
     // 이동 대상은 보관 재고뿐이다 (스테이징은 적치·출고확정의 소관) — locTyp을 STORAGE로 고정해 조회
     const fetchStock = async () => {
-        const data = await invApi.list({ ...cond, locTyp: 'STORAGE' });
-        setRowData(data.filter(r => r.avalQty > 0).map(toEditableRow));
+        setLoading(true);
+        try {
+            const data = await invApi.list({ ...cond, locTyp: 'STORAGE' });
+            setRowData(data.filter(r => r.avalQty > 0).map(toEditableRow));
+        } finally {
+            setLoading(false);
+        }
     };
 
     useEffect(() => {
-        invApi.list({ locTyp: 'STORAGE' }).then(data => setRowData(data.filter(r => r.avalQty > 0).map(toEditableRow)));
+        invApi.list({ locTyp: 'STORAGE' })
+            .then(data => setRowData(data.filter(r => r.avalQty > 0).map(toEditableRow)))
+            .finally(() => setLoading(false));
         locApi.list({ locTyp: 'STORAGE' }).then(setStorageLocs);
     }, []);
 
@@ -201,7 +214,8 @@ export default function StockMoveOrder() {
                 toLocId: locIdByCd[r.toLocCd],
                 qty: Number(r.qty),
             })));
-            toast.success(`이동지시 ${movNos.length}건을 등록했습니다 (${movNos.join(', ')}).`);
+            toast.success(`이동지시 ${movNos.length}건을 등록했습니다.`);
+            setJustRegistered({ movNos });
             fetchStock(); // 예약(aloc) 반영된 재고로 갱신 + 입력 초기화
             setMapKey(k => k + 1); // 도면의 적재가능수량도 같이 — 유입분이 늘어 자리가 줄었다
         } catch (e) {
@@ -221,16 +235,45 @@ export default function StockMoveOrder() {
             </div>
 
             {/* 검색 조건 */}
-            <SearchBar cond={cond} setCond={setCond} onSearch={fetchStock}>
+            {/* 등록 직후 갱신도 fetchStock을 부르므로 안내는 여기서만 지운다 —
+                fetchStock 안에서 지우면 방금 세운 안내를 그 자리에서 지운다 */}
+            <SearchBar cond={cond} setCond={setCond}
+                       onSearch={() => { setJustRegistered(null); fetchStock(); }}>
                 <SearchProd name="prodCd" />
                 <SearchLoc name="locCd" />
                 <SearchText name="lotNo" label="Lot번호" placeholder="LOT-260722-001" />
                 <SearchSelect name="tmpZon" label="온도대" options={TEMP_ZONE_OPTIONS} />
             </SearchBar>
 
+            {/* 등록 직후 안내 — 이동은 지시(예약)로 끝나지 않고 실물 확정이 남는다.
+                토스트는 사라지지만 이 줄은 다음 조회나 다음 등록까지 남아 다음 걸음을 가리킨다 */}
+            {justRegistered && (
+                <div className="shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg
+                                bg-emerald-50 border border-emerald-200 text-xs text-emerald-800">
+                    <CheckCircle2 size={14} className="shrink-0 text-emerald-600" />
+                    <span className="font-bold shrink-0">이동지시 {num(justRegistered.movNos.length)}건 등록</span>
+                    <span className="font-mono text-emerald-700 truncate min-w-0">
+                        {justRegistered.movNos[0]}
+                        {justRegistered.movNos.length > 1 && ` 외 ${num(justRegistered.movNos.length - 1)}건`}
+                    </span>
+                    <span className="text-emerald-600 shrink-0">— 실물 이동은 확정해야 반영됩니다</span>
+                    <button type="button" onClick={onGoTasks}
+                            className="ml-auto shrink-0 flex items-center gap-1 px-2 py-1 rounded-md
+                                       bg-emerald-600 text-white font-bold hover:bg-emerald-700 transition-colors">
+                        이동지시 관리에서 확정 <ArrowRight size={12} />
+                    </button>
+                    <button type="button" onClick={() => setJustRegistered(null)} aria-label="안내 닫기"
+                            className="shrink-0 p-1 rounded text-emerald-500 hover:text-emerald-800 hover:bg-emerald-100">
+                        <X size={13} />
+                    </button>
+                </div>
+            )}
+
             <div className="flex-1 min-h-0 flex flex-col gap-3">
                 <div className="flex items-center gap-3 flex-wrap">
-                    <span className="text-xs text-slate-500 font-medium">보관 재고 {num(rowData.length)}건 (가용 &gt; 0)</span>
+                    <span className="text-xs text-slate-500 font-medium">
+                        {loading ? '재고를 불러오는 중…' : `보관 재고 ${num(rowData.length)}건 (가용 > 0)`}
+                    </span>
                     <span className="text-[11px] text-slate-400">
                         {view === 'map'
                             ? '왼쪽에서 재고를 고르고 도면의 칸을 눌러 도착지를 정한 뒤 등록'
@@ -262,11 +305,13 @@ export default function StockMoveOrder() {
                 </div>
                 <div className="flex-1 min-h-0">
                     {view === 'map' ? (
-                        <StockMoveLocMap rows={rowData} onStage={stageLoc} onUnstage={unstageLoc}
+                        <StockMoveLocMap rows={rowData} loading={loading}
+                                         onStage={stageLoc} onUnstage={unstageLoc}
                                          reloadKey={mapKey} />
                     ) : (
                     <AgGridReact
                         ref={gridRef}
+                        loading={loading}
                         rowData={rowData}
                         columnDefs={columnDefs}
                         getRowId={(p) => String(p.data.invId)}
@@ -315,3 +360,4 @@ export default function StockMoveOrder() {
         </div>
     );
 }
+

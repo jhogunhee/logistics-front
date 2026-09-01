@@ -56,6 +56,9 @@ export default function StockAttrChange() {
     const [cond, setCond] = useState(INIT_COND);
     const [rowData, setRowData] = useState([]);
     const [confirmTargets, setConfirmTargets] = useState(null);
+    // 첫 조회가 끝나기 전에는 「없음」이 아니라 「불러오는 중」이다 — DB가 원격이라 이 창이 몇 초씩
+    // 열리는데, 그동안 0건과 「조회된 데이터가 없습니다」가 떠서 대상이 없는 것으로 읽혔다
+    const [loading, setLoading] = useState(true);
     const gridRef = useRef(null);
 
     const changedCnt = useMemo(() => rowData.filter(isChanged).length, [rowData]);
@@ -134,12 +137,19 @@ export default function StockAttrChange() {
     ], [rsn]);
 
     const fetchTargets = async () => {
-        const data = await lotAttrChngApi.listTargets(listParams(cond));
-        setRowData(data.map(toEditableRow));
+        setLoading(true);
+        try {
+            const data = await lotAttrChngApi.listTargets(listParams(cond));
+            setRowData(data.map(toEditableRow));
+        } finally {
+            setLoading(false);
+        }
     };
 
     useEffect(() => {
-        lotAttrChngApi.listTargets(listParams(INIT_COND)).then(d => setRowData(d.map(toEditableRow)));
+        lotAttrChngApi.listTargets(listParams(INIT_COND))
+            .then(d => setRowData(d.map(toEditableRow)))
+            .finally(() => setLoading(false));
     }, []);
 
     // 이 화면의 셀은 제 값이 아니라 다른 값을 보고 칠해진다 — 날짜 셀은 정정 전 값(_mfgDt0·_expiryDt0)을,
@@ -254,7 +264,7 @@ export default function StockAttrChange() {
             <div className="flex-1 min-h-0 flex flex-col gap-3">
                 <div className="flex items-center gap-3 flex-wrap">
                     <span className="text-xs text-slate-500 font-medium">
-                        유통기한 관리 상품의 Lot {num(rowData.length)}건
+                        {loading ? 'Lot을 불러오는 중…' : `유통기한 관리 상품의 Lot ${num(rowData.length)}건`}
                     </span>
                     <span className="text-[11px] text-slate-400">
                         유통기한을 관리하지 않는 상품은 목록에 없습니다
@@ -273,6 +283,7 @@ export default function StockAttrChange() {
                 <div className="flex-1 min-h-0">
                     <AgGridReact
                         ref={gridRef}
+                        loading={loading}
                         rowData={rowData}
                         columnDefs={columnDefs}
                         getRowId={(p) => String(p.data.lotId)}

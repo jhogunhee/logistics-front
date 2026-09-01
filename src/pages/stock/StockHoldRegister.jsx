@@ -29,6 +29,9 @@ export default function StockHoldRegister() {
     const [cond, setCond] = useState({ prodCd: '', locCd: '', lotNo: '', tmpZon: '' });
     const [rowData, setRowData] = useState([]);
     const [confirmTargets, setConfirmTargets] = useState(null);
+    // 첫 조회가 끝나기 전에는 「없음」이 아니라 「불러오는 중」이다 — DB가 원격이라 이 창이 몇 초씩
+    // 열리는데, 그동안 0건과 「조회된 데이터가 없습니다」가 떠서 재고가 없는 것으로 읽혔다
+    const [loading, setLoading] = useState(true);
     const gridRef = useRef(null);
 
     const entered = useMemo(() => rowData.filter(isEntered), [rowData]);
@@ -107,12 +110,19 @@ export default function StockHoldRegister() {
 
     // 보류 대상은 보관 재고뿐이다 (v1 — 스테이징 보류는 적치·출고확정 파급을 수반해 제외)
     const fetchStock = async () => {
-        const data = await invApi.list({ ...cond, locTyp: 'STORAGE' });
-        setRowData(data.filter(r => r.avalQty > 0).map(toEditableRow));
+        setLoading(true);
+        try {
+            const data = await invApi.list({ ...cond, locTyp: 'STORAGE' });
+            setRowData(data.filter(r => r.avalQty > 0).map(toEditableRow));
+        } finally {
+            setLoading(false);
+        }
     };
 
     useEffect(() => {
-        invApi.list({ locTyp: 'STORAGE' }).then(data => setRowData(data.filter(r => r.avalQty > 0).map(toEditableRow)));
+        invApi.list({ locTyp: 'STORAGE' })
+            .then(data => setRowData(data.filter(r => r.avalQty > 0).map(toEditableRow)))
+            .finally(() => setLoading(false));
     }, []);
 
     // 사유 셀은 qty를, 기타 사유 셀은 rsnCd를 보고 그려진다 — 제 값이 안 바뀐 셀은 그리드가
@@ -197,7 +207,9 @@ export default function StockHoldRegister() {
 
             <div className="flex-1 min-h-0 flex flex-col gap-3">
                 <div className="flex items-center gap-3 flex-wrap">
-                    <span className="text-xs text-slate-500 font-medium">보관 재고 {num(rowData.length)}건 (가용 &gt; 0)</span>
+                    <span className="text-xs text-slate-500 font-medium">
+                        {loading ? '재고를 불러오는 중…' : `보관 재고 ${num(rowData.length)}건 (가용 > 0)`}
+                    </span>
                     <span className="text-[11px] text-slate-400">보류수량·보류사유를 행에서 바로 입력한 뒤 등록</span>
                     <div className="ml-auto flex items-center gap-2 shrink-0">
                         <span className={`text-xs font-bold ${entered.length > 0 ? 'text-rose-600' : 'text-slate-400'}`}>
@@ -213,6 +225,7 @@ export default function StockHoldRegister() {
                 <div className="flex-1 min-h-0">
                     <AgGridReact
                         ref={gridRef}
+                        loading={loading}
                         rowData={rowData}
                         columnDefs={columnDefs}
                         getRowId={(p) => String(p.data.invId)}

@@ -61,6 +61,10 @@ export default function StockAdjExec() {
     const [zonOptions, setZonOptions] = useState([{ value: '', label: '전체' }]);
     const [addOpen, setAddOpen] = useState(false);
     const [confirmTargets, setConfirmTargets] = useState(null);
+    // 첫 조회가 끝나기 전에는 「없음」이 아니라 「불러오는 중」이다 — DB가 원격이라 이 창이 몇 초씩
+    // 열리는데, 그동안 0건과 「조회된 데이터가 없습니다」가 떠서 대상이 없는 것으로 읽혔다.
+    // 아래 조정 라인 그리드는 담기 전엔 비는 게 정상이라 이 값을 쓰지 않는다
+    const [loading, setLoading] = useState(true);
     const topGridRef = useRef(null);
     const lineGridRef = useRef(null);
 
@@ -210,17 +214,23 @@ export default function StockAdjExec() {
         : `A${p.data.prodId}-${p.data.locId}-${p.data.lotId}`);
 
     const fetchTargets = async () => {
-        const [aval, hld] = await Promise.all([
-            invAdjApi.listTargets(cond),
-            invAdjApi.listHldTargets(cond),
-        ]);
-        setAvalRows(aval);
-        setHldRows(hld);
+        setLoading(true);
+        try {
+            const [aval, hld] = await Promise.all([
+                invAdjApi.listTargets(cond),
+                invAdjApi.listHldTargets(cond),
+            ]);
+            setAvalRows(aval);
+            setHldRows(hld);
+        } finally {
+            setLoading(false);
+        }
     };
 
     useEffect(() => {
         Promise.all([invAdjApi.listTargets(cond), invAdjApi.listHldTargets(cond)])
-            .then(([aval, hld]) => { setAvalRows(aval); setHldRows(hld); });
+            .then(([aval, hld]) => { setAvalRows(aval); setHldRows(hld); })
+            .finally(() => setLoading(false));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -380,7 +390,7 @@ export default function StockAdjExec() {
                                     ${tab === t.key ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
                                 {t.label}
                                 <span className="ml-1.5 text-[11px] text-slate-400">
-                                    {num(t.key === 'hld' ? hldRows.length : avalRows.length)}
+                                    {loading ? '…' : num(t.key === 'hld' ? hldRows.length : avalRows.length)}
                                 </span>
                             </button>
                         ))}
@@ -406,6 +416,7 @@ export default function StockAdjExec() {
                 <div className="flex-1 min-h-0">
                     <AgGridReact
                         ref={topGridRef}
+                        loading={loading}
                         rowData={topRows}
                         columnDefs={tab === 'hld' ? hldColumnDefs : avalColumnDefs}
                         getRowId={getTopRowId}
@@ -442,6 +453,7 @@ export default function StockAdjExec() {
                         ref={lineGridRef}
                         rowData={lines}
                         columnDefs={lineColumnDefs}
+                        overlayNoRowsTemplate={'<span class="text-sm text-slate-400">위에서 대상을 골라 [담기]를 누르면 여기에 쌓입니다</span>'}
                         getRowId={(p) => lineKey(p.data)}
                         rowHeight={34}
                         headerHeight={38}

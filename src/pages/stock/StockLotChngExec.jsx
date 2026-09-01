@@ -50,6 +50,9 @@ export default function StockLotChngExec() {
     const [confirmTargets, setConfirmTargets] = useState(null);
     // 목적지 선택 모달 상태 — dest.row가 있으면 열림
     const [dest, setDest] = useState(null); // { row, cands: null(로딩)|[], mode: 'cand'|'manual', lotId, mfgDt, expiryDt }
+    // 첫 조회가 끝나기 전에는 「없음」이 아니라 「불러오는 중」이다 — DB가 원격이라 이 창이 몇 초씩
+    // 열리는데, 그동안 0건과 「조회된 데이터가 없습니다」가 떠서 재고가 없는 것으로 읽혔다
+    const [loading, setLoading] = useState(true);
     const gridRef = useRef(null);
 
     const entered = useMemo(() => rowData.filter(isEntered), [rowData]);
@@ -124,12 +127,19 @@ export default function StockLotChngExec() {
     ], [rsn]);
 
     const fetchTargets = async () => {
-        const data = await invLotChngApi.listTargets(cond);
-        setRowData(data.map(toEditableRow));
+        setLoading(true);
+        try {
+            const data = await invLotChngApi.listTargets(cond);
+            setRowData(data.map(toEditableRow));
+        } finally {
+            setLoading(false);
+        }
     };
 
     useEffect(() => {
-        invLotChngApi.listTargets(cond).then(d => setRowData(d.map(toEditableRow)));
+        invLotChngApi.listTargets(cond)
+            .then(d => setRowData(d.map(toEditableRow)))
+            .finally(() => setLoading(false));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -287,7 +297,7 @@ export default function StockLotChngExec() {
             <div className="flex-1 min-h-0 flex flex-col gap-3">
                 <div className="flex items-center gap-3 flex-wrap">
                     <span className="text-xs text-slate-500 font-medium">
-                        보관 재고 {num(rowData.length)}건 (가용 수량이 있는 것만)
+                        {loading ? '재고를 불러오는 중…' : `보관 재고 ${num(rowData.length)}건 (가용 수량이 있는 것만)`}
                     </span>
                     <span className="text-[11px] text-slate-400">
                         수량을 넣고 「변경 후 Lot」 칸을 눌러 옮길 곳을 고르세요 — 새 Lot이 생기면 라벨을 다시 출력합니다
@@ -306,6 +316,7 @@ export default function StockLotChngExec() {
                 <div className="flex-1 min-h-0">
                     <AgGridReact
                         ref={gridRef}
+                        loading={loading}
                         rowData={rowData}
                         columnDefs={columnDefs}
                         getRowId={(p) => String(p.data.invId)}

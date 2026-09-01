@@ -68,6 +68,10 @@ export default function StockCountList({ onOpen }) {
         fromDe: daysAheadStr(-6), toDe: todayStr(),
     });
     const [rowData, setRowData] = useState([]);
+    // 첫 조회가 끝나기 전에는 「없음」이 아니라 「불러오는 중」이다 — DB가 원격이라 이 창이 몇 초씩
+    // 열리는데, 그동안 0건과 「조회된 데이터가 없습니다」가 떠서 조사 건이 없는 것으로 읽혔다
+    const [loading, setLoading] = useState(true);
+
     const [zonCodes, setZonCodes] = useState([]);
     const [storageLocs, setStorageLocs] = useState([]);
     const [scope, setScope] = useState({ zonCd: '', locId: '', prod: null });
@@ -84,12 +88,17 @@ export default function StockCountList({ onOpen }) {
     ];
 
     const fetchList = async () => {
-        const data = await invStktkApi.list(cond);
-        setRowData(data);
+        setLoading(true);
+        try {
+            const data = await invStktkApi.list(cond);
+            setRowData(data);
+        } finally {
+            setLoading(false);
+        }
     };
 
     useEffect(() => {
-        invStktkApi.list(cond).then(setRowData);
+        invStktkApi.list(cond).then(setRowData).finally(() => setLoading(false));
         zonApi.list().then(setZonCodes);
         // 조사 대상은 보관 재고뿐이라 범위 로케이션도 보관만 고른다
         locApi.list({ locTyp: 'STORAGE' }).then(setStorageLocs);
@@ -143,9 +152,12 @@ export default function StockCountList({ onOpen }) {
             </SearchBar>
 
             <div className="flex-1 min-h-0 flex flex-col gap-3">
-                <span className="text-xs text-slate-500 font-medium">{num(rowData.length)}건 · 행을 클릭하면 실사 입력 화면으로 이동합니다</span>
+                <span className="text-xs text-slate-500 font-medium">
+                    {loading ? '재고조사를 불러오는 중…' : `${num(rowData.length)}건 · 행을 클릭하면 실사 입력 화면으로 이동합니다`}
+                </span>
                 <div className="flex-1 min-h-0">
                     <AgGridReact
+                        loading={loading}
                         rowData={rowData}
                         columnDefs={COLUMN_DEFS}
                         rowHeight={34}
