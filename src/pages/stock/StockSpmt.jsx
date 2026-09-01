@@ -35,13 +35,6 @@ export default function StockSpmt() {
     const assignGridRef = useRef(null);
     const keySeq = useRef(0);
 
-    // 진단용 임시 가드 — 렌더 루프면 얼기 전에 터뜨려 스택을 남긴다
-    const renderCount = useRef(0);
-    renderCount.current++;
-    if (renderCount.current > 300) {
-        throw new Error('SPMT render loop detected');
-    }
-
     const selected = targets?.find(t => t.fxngLocId === selectedFxngLocId) ?? null;
     const totalShort = (targets ?? []).reduce((s, t) => s + t.shortQty, 0);
     const totalAssigned = (targets ?? []).reduce((s, t) => s + assignedSum(t), 0);
