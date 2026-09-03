@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import { omsIbOrderApi } from '@/api/omsIbOrderApi';
 import { useCodes } from '@/hooks/useCodes';
 import { ASN_STATUS_META, OMS_IB_STATUS_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
+import StatusChips from '@/components/common/StatusChips';
 import { OMS_IB_STATUS_OPTIONS } from '@/constants/codeOptions';
 import { daysAheadStr, num, todayStr } from '@/utils/format';
 import SearchBar, { SearchText, SearchSelect, SearchDateRange, SearchPartner } from '@/components/common/SearchBar';
@@ -134,6 +135,10 @@ export default function InboundOrderList() {
     const rtngsRsnCodes = useCodes('RTNGS_RSN');
     const [cond, setCond] = useState({ omsIbNo: '', vndrNm: '', status: [], dateFrom: todayStr(), dateTo: daysAheadStr(7) });
     const [rowData, setRowData] = useState([]);
+    // 상태 칩 필터 — 조회 결과를 화면에서 거른다 (StatusChips). 새로 조회하면 푼다
+    const [statusChip, setStatusChip] = useState(null);
+    // 칩이 걸려 있으면 그 상태만 그리드에 준다 — 받은 결과를 거르는 것이라 즉시다
+    const shownRows = statusChip == null ? rowData : rowData.filter(r => r.status === statusChip);
     const [lineRows, setLineRows] = useState([]);
     const [selected, setSelected] = useState(null);
     const [confirmTarget, setConfirmTarget] = useState(null);             // 확정 확인 모달 대상
@@ -144,6 +149,7 @@ export default function InboundOrderList() {
 
     const fetchList = async () => {
         const data = await omsIbOrderApi.list(cond);
+        setStatusChip(null);   // 새 결과의 분포를 그대로 보여준다
         setRowData(data);
         setSelected(null);
         setLineRows([]);
@@ -284,7 +290,8 @@ export default function InboundOrderList() {
             <PanelGroup direction="vertical" autoSaveId="oms-ib-order-split-v1" className="flex-1 min-h-0">
                 <Panel defaultSize={60} minSize={20} className="flex flex-col gap-2 min-h-0">
                     <div className="flex items-center justify-between">
-                        <span className="text-xs text-slate-500 font-medium">{num(rowData.length)}건</span>
+                        <StatusChips rows={rowData} statusOf={(r) => r.status} meta={OMS_IB_STATUS_META}
+                                     value={statusChip} onChange={setStatusChip} />
                         <div className="flex gap-2">
                             <button
                                 onClick={handleDeleteClick}
@@ -312,7 +319,7 @@ export default function InboundOrderList() {
                     <div className="flex-1 min-h-0">
                         <AgGridReact
                             ref={gridRef}
-                            rowData={rowData}
+                            rowData={shownRows}
                             columnDefs={HEADER_COLUMN_DEFS}
                             context={{
                                 openOrder: (o) => navigate(`/oms/inbound-order/${o.omsIbOrderId}`),

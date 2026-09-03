@@ -8,8 +8,10 @@ import toast from 'react-hot-toast';
 import { omsOutbOrderApi } from '@/api/omsOutbOrderApi';
 import { useCodes } from '@/hooks/useCodes';
 import { OMS_OUTB_STATUS_META, OUTB_STATUS_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
+import StatusChips from '@/components/common/StatusChips';
 import { OMS_OUTB_STATUS_OPTIONS } from '@/constants/codeOptions';
 import { daysAheadStr, num, todayStr } from '@/utils/format';
+import { urlDateRange } from '@/utils/urlDates';
 import SearchBar, { SearchItem, SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
 import StorePickerModal from '@/components/common/StorePickerModal';
 import { Badge } from '@/components/common/Badge';
@@ -117,11 +119,19 @@ export default function OutboundOrderList() {
     const navigate = useNavigate();
     const outbTypCodes = useCodes('OUTB_TYP');
     const vhclFltnoCodes = useCodes('VHCL_FLTNO');
-    const [cond, setCond] = useState({
-        omsOutbNo: '', storeNm: '', status: [], outbTyp: '', vhclFltno: '',
-        dateFrom: todayStr(), dateTo: daysAheadStr(7),
+    // 대시보드 카드가 기간을 실어 보내면 그 기간으로 연다 — 카드가 센 것과 화면이 같은 것을 보게 (utils/urlDates.js)
+    const [cond, setCond] = useState(() => {
+        const linked = urlDateRange();
+        return {
+            omsOutbNo: '', storeNm: '', status: [], outbTyp: '', vhclFltno: '',
+            dateFrom: linked?.from ?? todayStr(), dateTo: linked?.to ?? daysAheadStr(7),
+        };
     });
     const [rowData, setRowData] = useState([]);
+    // 상태 칩 필터 — 조회 결과를 화면에서 거른다 (StatusChips). 새로 조회하면 푼다
+    const [statusChip, setStatusChip] = useState(null);
+    // 칩이 걸려 있으면 그 상태만 그리드에 준다 — 받은 결과를 거르는 것이라 즉시다
+    const shownRows = statusChip == null ? rowData : rowData.filter(r => r.status === statusChip);
     const [lineRows, setLineRows] = useState([]);
     const [selected, setSelected] = useState(null);
 
@@ -134,6 +144,7 @@ export default function OutboundOrderList() {
 
     const fetchList = async () => {
         const data = await omsOutbOrderApi.list(cond);
+        setStatusChip(null);   // 새 결과의 분포를 그대로 보여준다
         setRowData(data);
         setSelected(null);
         setLineRows([]);
@@ -288,7 +299,8 @@ export default function OutboundOrderList() {
             <PanelGroup direction="vertical" autoSaveId="oms-outb-order-split-v1" className="flex-1 min-h-0">
                 <Panel defaultSize={60} minSize={20} className="flex flex-col gap-2 min-h-0">
                     <div className="flex items-center justify-between">
-                        <span className="text-xs text-slate-500 font-medium">{num(rowData.length)}건</span>
+                        <StatusChips rows={rowData} statusOf={(r) => r.status} meta={OMS_OUTB_STATUS_META}
+                                     value={statusChip} onChange={setStatusChip} />
                         <div className="flex gap-2">
                             <button
                                 onClick={handleDeleteClick}
@@ -316,7 +328,7 @@ export default function OutboundOrderList() {
                     <div className="flex-1 min-h-0">
                         <AgGridReact
                             ref={gridRef}
-                            rowData={rowData}
+                            rowData={shownRows}
                             columnDefs={HEADER_COLUMN_DEFS}
                             context={{
                                 openOrder: (o) => navigate(`/oms/outbound-order/${o.omsOutbOrderId}`),

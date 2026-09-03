@@ -6,6 +6,7 @@ import { PackageCheck } from 'lucide-react';
 import { outbOrderApi } from '@/api/outbOrderApi';
 import { useCodes } from '@/hooks/useCodes';
 import { OUTB_STATUS_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
+import StatusChips from '@/components/common/StatusChips';
 import { OUTB_STATUS_OPTIONS } from '@/constants/codeOptions';
 import { daysAheadStr, fmtDt, num, todayStr } from '@/utils/format';
 import SearchBar, { SearchText, SearchSelect, SearchDateRange, SearchStore } from '@/components/common/SearchBar';
@@ -101,6 +102,10 @@ export default function OutbOrderList() {
         expctDeFrom: todayStr(), expctDeTo: daysAheadStr(7),
     });
     const [rowData, setRowData] = useState([]);
+    // 상태 칩 필터 — 조회 결과를 화면에서 거른다 (StatusChips). 새로 조회하면 푼다
+    const [statusChip, setStatusChip] = useState(null);
+    // 칩이 걸려 있으면 그 상태만 그리드에 준다 — 받은 결과를 거르는 것이라 즉시다
+    const shownRows = statusChip == null ? rowData : rowData.filter(r => r.status === statusChip);
     const [lineRows, setLineRows] = useState([]);
     const [selectedOrder, setSelectedOrder] = useState(null);
     const gridRef = useRef(null);
@@ -112,6 +117,7 @@ export default function OutbOrderList() {
 
     const fetchList = async () => {
         const data = await outbOrderApi.list(cond);
+        setStatusChip(null);   // 새 결과의 분포를 그대로 보여준다
         setRowData(data);
         setSelectedOrder(null);
         setLineRows([]);
@@ -161,7 +167,8 @@ export default function OutbOrderList() {
             <PanelGroup direction="vertical" autoSaveId="outb-order-split-v1" className="flex-1 min-h-0">
                 <Panel defaultSize={60} minSize={20} className="flex flex-col gap-2 min-h-0">
                     <div className="flex items-center justify-between">
-                        <span className="text-xs text-slate-500 font-medium">{num(rowData.length)}건</span>
+                        <StatusChips rows={rowData} statusOf={(r) => r.status} meta={OUTB_STATUS_META}
+                                     value={statusChip} onChange={setStatusChip} />
                         <span className="text-[11px] text-slate-400">
                             출고예정의 생성·취소는 OMS 출고주문 관리에서 합니다
                         </span>
@@ -169,7 +176,7 @@ export default function OutbOrderList() {
                     <div className="flex-1 min-h-0">
                         <AgGridReact
                             ref={gridRef}
-                            rowData={rowData}
+                            rowData={shownRows}
                             columnDefs={HEADER_COLUMN_DEFS}
                             context={gridContext}
                             rowHeight={34}

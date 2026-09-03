@@ -6,8 +6,10 @@ import { Search, Truck } from 'lucide-react';
 import { ibOrderApi } from '@/api/ibOrderApi';
 import { useCodes } from '@/hooks/useCodes';
 import { ASN_PRGR_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
+import StatusChips from '@/components/common/StatusChips';
 import { ASN_PRGR_OPTIONS } from '@/constants/codeOptions';
 import { daysAheadStr, eaQtyPerInbUomOf, fmtDt, fmtInbQty, num, todayStr } from '@/utils/format';
+import { urlDateRange } from '@/utils/urlDates';
 import SearchBar, { SearchText, SearchSelect, SearchDateRange, SearchPartner } from '@/components/common/SearchBar';
 import { Badge } from '@/components/common/Badge';
 
@@ -82,14 +84,24 @@ const LINE_COLUMN_DEFS = [
 
 export default function AsnList() {
     const odrDvsnCodes = useCodes('ODR_DVSN');
-    const [cond, setCond] = useState({ ibNo: '', vndrNm: '', prgr: [], odrDvsn: '', dateFrom: todayStr(), dateTo: daysAheadStr(7) });
+    // 대시보드 카드가 기간을 실어 보내면 그 기간으로 연다 — 카드가 센 것과 화면이 같은 것을 보게 (utils/urlDates.js)
+    const [cond, setCond] = useState(() => {
+        const linked = urlDateRange();
+        return { ibNo: '', vndrNm: '', prgr: [], odrDvsn: '',
+            dateFrom: linked?.from ?? todayStr(), dateTo: linked?.to ?? daysAheadStr(7) };
+    });
     const [rowData, setRowData] = useState([]);
+    // 상태 칩 필터 — 조회 결과를 화면에서 거른다 (StatusChips). 새로 조회하면 푼다
+    const [statusChip, setStatusChip] = useState(null);
+    // 칩이 걸려 있으면 그 상태만 그리드에 준다 — 받은 결과를 거르는 것이라 즉시다
+    const shownRows = statusChip == null ? rowData : rowData.filter(r => r.prgr === statusChip);
     const [lineRows, setLineRows] = useState([]);
     const [selectedAsn, setSelectedAsn] = useState(null);
     const gridRef = useRef(null);
 
     const fetchList = async () => {
         const data = await ibOrderApi.list(cond);
+        setStatusChip(null);   // 새 결과의 분포를 그대로 보여준다
         setRowData(data);
         setSelectedAsn(null);
         setLineRows([]);
@@ -143,7 +155,8 @@ export default function AsnList() {
             <PanelGroup direction="vertical" autoSaveId="wms-asn-split-v2" className="flex-1 min-h-0">
                 <Panel defaultSize={60} minSize={20} className="flex flex-col gap-2 min-h-0">
                     <div className="flex items-center justify-between">
-                        <span className="text-xs text-slate-500 font-medium">{num(rowData.length)}건</span>
+                        <StatusChips rows={rowData} statusOf={(r) => r.prgr} meta={ASN_PRGR_META}
+                                     value={statusChip} onChange={setStatusChip} />
                         <span className="text-[11px] text-slate-400">
                             입고예정의 생성·취소는 OMS 입고주문 관리에서 합니다
                         </span>
@@ -151,7 +164,7 @@ export default function AsnList() {
                     <div className="flex-1 min-h-0">
                         <AgGridReact
                             ref={gridRef}
-                            rowData={rowData}
+                            rowData={shownRows}
                             columnDefs={HEADER_COLUMN_DEFS}
                             rowHeight={34}
                             headerHeight={38}

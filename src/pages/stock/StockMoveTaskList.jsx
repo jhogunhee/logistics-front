@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 
 import { invMovApi } from '@/api/invMovApi';
 import { INV_MOV_DVSN_META, INV_MOV_STATUS_META } from '@/constants/badgeMeta';
+import StatusChips from '@/components/common/StatusChips';
 import { daysAheadStr, fmtDt, num, todayStr } from '@/utils/format';
 import SearchBar, { SearchText, SearchSelect, SearchDateRange, SearchProd, SearchLoc } from '@/components/common/SearchBar';
 import { Badge } from '@/components/common/Badge';
@@ -36,6 +37,10 @@ export default function StockMoveTaskList() {
         dateFrom: daysAheadStr(-6), dateTo: todayStr(),
     });
     const [rowData, setRowData] = useState([]);
+    // 상태 칩 필터 — 조회 결과를 화면에서 거른다 (StatusChips). 새로 조회하면 푼다
+    const [statusChip, setStatusChip] = useState(null);
+    // 칩이 걸려 있으면 그 상태만 그리드에 준다 — 받은 결과를 거르는 것이라 즉시다
+    const shownRows = statusChip == null ? rowData : rowData.filter(r => r.status === statusChip);
     const [confirmTargets, setConfirmTargets] = useState(null); // 확정 확인 모달 대상
     const [cancelTarget, setCancelTarget] = useState(null);     // 취소 확인 모달 대상 (행 단위)
     const gridRef = useRef(null);
@@ -112,6 +117,7 @@ export default function StockMoveTaskList() {
 
     const fetchList = async () => {
         const data = await invMovApi.list(cond);
+        setStatusChip(null);   // 새 결과의 분포를 그대로 보여준다
         setRowData(data.map(toEditableRow));
     };
 
@@ -204,7 +210,8 @@ export default function StockMoveTaskList() {
 
             <div className="flex-1 min-h-0 flex flex-col gap-3">
                 <div className="flex items-center gap-3 flex-wrap">
-                    <span className="text-xs text-slate-500 font-medium">{num(rowData.length)}건</span>
+                    <StatusChips rows={rowData} statusOf={(r) => r.status} meta={INV_MOV_STATUS_META}
+                                     value={statusChip} onChange={setStatusChip} />
                     <span className="text-[11px] text-slate-400">확정수량을 행에서 바로 입력한 뒤 확정 · 잔량 취소는 행별 버튼</span>
                     <div className="ml-auto flex items-center gap-2 shrink-0">
                         <span className={`text-xs font-bold ${entered.length > 0 ? 'text-indigo-600' : 'text-slate-400'}`}>
@@ -220,7 +227,7 @@ export default function StockMoveTaskList() {
                 <div className="flex-1 min-h-0">
                     <AgGridReact
                         ref={gridRef}
-                        rowData={rowData}
+                        rowData={shownRows}
                         columnDefs={columnDefs}
                         getRowId={(p) => String(p.data.invMovTaskId)}
                         rowHeight={34}
