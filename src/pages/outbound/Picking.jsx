@@ -10,6 +10,7 @@ import { useCodes } from '@/hooks/useCodes';
 import { ETC_RSN_CD } from '@/constants/rsnCodes';
 import { INV_MOV_STATUS_META } from '@/constants/badgeMeta';
 import { fmtDe, fmtDt, num, todayStr } from '@/utils/format';
+import { urlDateRange } from '@/utils/urlDates';
 import { Badge } from '@/components/common/Badge';
 import { ProdThumb } from '@/components/common/ProdThumb';
 import { THUMB_CELL_STYLE } from '@/constants/agGrid';
@@ -161,8 +162,12 @@ const taskColumnDefs = (wavNo) => [
  */
 export default function Picking() {
     const shotgeRsn = useCodes('SHOTGE_RSN'); // 결품사유
-    const [cond, setCond] = useState({ wavNo: '', prodCd: '', locCd: '', storeId: '', storeNm: '',
-        expctDeFrom: todayStr(), expctDeTo: todayStr() });
+    // 대시보드 카드가 기간을 실어 보내면 그 기간으로 연다 — 카드가 센 것과 화면이 같은 것을 보게 (utils/urlDates.js)
+    const [cond, setCond] = useState(() => {
+        const linked = urlDateRange();
+        return { wavNo: '', prodCd: '', locCd: '', storeId: '', storeNm: '',
+            expctDeFrom: linked?.from ?? todayStr(), expctDeTo: linked?.to ?? todayStr() };
+    });
     const [waves, setWaves] = useState([]);
     const [wave, setWave] = useState(null);          // 선택 웨이브 (단일)
     const [rows, setRows] = useState([]);

@@ -10,6 +10,7 @@ import { strategyApi } from '@/api/strategyApi';
 import { useCodes } from '@/hooks/useCodes';
 import { WAVE_STATUS_META, WAV_REG_TYP_META, OUTB_STATUS_META } from '@/constants/badgeMeta';
 import { fmtDt, num, todayStr } from '@/utils/format';
+import { urlDateRange } from '@/utils/urlDates';
 import { WAVE_STATUS_OPTIONS } from '@/constants/codeOptions';
 import SearchBar, { SearchText, SearchSelect, SearchDateRange, SearchStore } from '@/components/common/SearchBar';
 import ConfirmModal from '@/components/common/ConfirmModal';
@@ -120,8 +121,12 @@ export default function Wave() {
     const vhclFltnos = useCodes('VHCL_FLTNO');
 
     // ── 검색 조건 — 웨이브 목록에만 걸린다.
-    const [cond, setCond] = useState({ wavNo: '', status: [], storeId: '', storeNm: '',
-        expctDeFrom: todayStr(), expctDeTo: todayStr() });
+    // 대시보드 카드가 기간을 실어 보내면 그 기간으로 연다 — 카드가 센 것과 화면이 같은 것을 보게 (utils/urlDates.js)
+    const [cond, setCond] = useState(() => {
+        const linked = urlDateRange();
+        return { wavNo: '', status: [], storeId: '', storeNm: '',
+            expctDeFrom: linked?.from ?? todayStr(), expctDeTo: linked?.to ?? todayStr() };
+    });
 
     // ── 웨이브 목록 ──────────────────────────────────────────
     const [waves, setWaves] = useState([]);

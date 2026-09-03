@@ -8,6 +8,7 @@ import { ibOrderApi } from '@/api/ibOrderApi';
 import { ASN_PRGR_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { ASN_PRGR_OPTIONS } from '@/constants/codeOptions';
 import { daysAheadStr, eaQtyPerInbUomOf, fmtDt, fmtInbQty, num } from '@/utils/format';
+import { urlDateRange } from '@/utils/urlDates';
 import SearchBar, { SearchText, SearchSelect, SearchDateRange, SearchPartner } from '@/components/common/SearchBar';
 import { Badge } from '@/components/common/Badge';
 import ConfirmModal from '@/components/common/ConfirmModal';
@@ -107,7 +108,12 @@ export default function InboundConfirm() {
     // 기본 진행단계 = 적치완료 — 이 화면의 유일한 동작(확정)이 가능한 단계다 (적치지시 관리의 기본 상태=지시와 같은 패턴).
     // 기본 기간 = ±7일 — 대상은 이미 도착한 건이라 과거가 주력이지만, 예정일보다 일찍 와서 적치까지
     // 끝난 건(예정일이 미래)도 확정 대상이다. 진행단계가 적치완료로 좁혀져 있어 미래를 포함해도 노이즈가 없다
-    const [cond, setCond] = useState({ ibNo: '', vndrNm: '', prgr: ['PTAWY_CMPL'], dateFrom: daysAheadStr(-7), dateTo: daysAheadStr(7) });
+    // 대시보드 카드가 기간을 실어 보내면 그 기간으로 연다 — 카드가 센 것과 화면이 같은 것을 보게 (utils/urlDates.js)
+    const [cond, setCond] = useState(() => {
+        const linked = urlDateRange();
+        return { ibNo: '', vndrNm: '', prgr: ['PTAWY_CMPL'],
+            dateFrom: linked?.from ?? daysAheadStr(-7), dateTo: linked?.to ?? daysAheadStr(7) };
+    });
     const [rowData, setRowData] = useState([]);
     const [lineRows, setLineRows] = useState([]);
     const [selectedAsns, setSelectedAsns] = useState([]); // 체크된 입고건들 (일괄 확정 대상)

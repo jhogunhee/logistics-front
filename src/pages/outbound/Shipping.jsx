@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import { outbShmtApi } from '@/api/outbShmtApi';
 import { OUTB_STATUS_META } from '@/constants/badgeMeta';
 import { fmtDe, fmtDt, num, todayStr } from '@/utils/format';
+import { urlDateRange } from '@/utils/urlDates';
 import SearchBar, { SearchText, SearchDateRange, SearchStore } from '@/components/common/SearchBar';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import { Badge } from '@/components/common/Badge';
@@ -83,7 +84,12 @@ const ORDER_COLUMN_DEFS = [
  * 되돌릴 수 없다 — 출고확정 취소는 지원하지 않는다.
  */
 export default function Shipping() {
-    const [cond, setCond] = useState({ wavNo: '', outbNo: '', storeId: '', storeNm: '', expctDeFrom: todayStr(), expctDeTo: todayStr() });
+    // 대시보드 카드가 기간을 실어 보내면 그 기간으로 연다 — 카드가 센 것과 화면이 같은 것을 보게 (utils/urlDates.js)
+    const [cond, setCond] = useState(() => {
+        const linked = urlDateRange();
+        return { wavNo: '', outbNo: '', storeId: '', storeNm: '',
+            expctDeFrom: linked?.from ?? todayStr(), expctDeTo: linked?.to ?? todayStr() };
+    });
     const [waves, setWaves] = useState([]);
     const [wave, setWave] = useState(null);          // 선택 웨이브 (단일)
     const [rows, setRows] = useState([]);

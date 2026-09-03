@@ -9,6 +9,7 @@ import { strategyApi } from '@/api/strategyApi';
 import { useCodes } from '@/hooks/useCodes';
 import { ASN_STATUS_META, TEMP_ZONE_META } from '@/constants/badgeMeta';
 import { eaQtyPerInbUomOf, fmtDt, num, todayStr, daysAheadStr } from '@/utils/format';
+import { urlDateRange } from '@/utils/urlDates';
 import SearchBar, { SearchText, SearchDateRange, SearchPartner } from '@/components/common/SearchBar';
 import { Badge } from '@/components/common/Badge';
 import { ProdThumb } from '@/components/common/ProdThumb';
@@ -83,7 +84,11 @@ const HEADER_COLUMN_DEFS = [
 
 export default function Receiving() {
     // 기본 검색 = 오늘 ~ +7일 (입고주문·출고주문·ASN 관리와 통일. 예정일이 과거인 지연 도착은 기본 조회에 안 잡힌다)
-    const [cond, setCond] = useState({ ibNo: '', vndrNm: '', dateFrom: todayStr(), dateTo: daysAheadStr(7) });
+    // 대시보드 카드가 기간을 실어 보내면 그 기간으로 연다 — 카드가 센 것과 화면이 같은 것을 보게 (utils/urlDates.js)
+    const [cond, setCond] = useState(() => {
+        const linked = urlDateRange();
+        return { ibNo: '', vndrNm: '', dateFrom: linked?.from ?? todayStr(), dateTo: linked?.to ?? daysAheadStr(7) };
+    });
     const [rowData, setRowData] = useState([]);
     const [lineRows, setLineRows] = useState([]);
     const [inspTarget, setInspTarget] = useState(null);

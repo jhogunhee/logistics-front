@@ -121,6 +121,10 @@ export default function Dashboard() {
     const { asns, putawayPending, outbOrders, pickingWaves, inv, hist, histTotCnt } = data;
 
     const isCurrentMonth = month === monthOf(today);
+    // 카드가 이 달 범위로 세므로 링크에도 같은 범위를 싣는다 — 착지 화면의 기본 조회가 「오늘」이라
+    // 「확정 대기 1건」을 누르고 간 화면이 0건으로 열리던 단절을 잇는다 (utils/urlDates.js가 짝)
+    const linkRange = monthRange(month);
+    const withRange = (path) => `${path}?from=${linkRange.dateFrom}&to=${linkRange.dateTo}`;
     const monthNo = Number(month.slice(5, 7));
     const onHand = sum(inv, r => r.onHandQty);
     const avail = sum(inv, r => r.avalQty);
@@ -193,14 +197,14 @@ export default function Dashboard() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                 <StatCard
-                    to="/inbound/asn" icon={Truck} tone="indigo"
+                    to={withRange('/inbound/asn')} icon={Truck} tone="indigo"
                     title={`${monthNo}월 입고예정`} value={asns.length} unit="건"
                     sub={`${num(sum(asns, a => a.totalExpctQty))}개 예정`}
                     meter={{ value: pct(asnDone, asns.length), label: `확정 ${num(asnDone)}/${num(asns.length)}` }}
                     spark={flow.map(r => r.in)} sparkLabel="일별 입고 실적"
                 />
                 <StatCard
-                    to="/outbound/order" icon={Send} tone="violet"
+                    to={withRange('/outbound/order')} icon={Send} tone="violet"
                     title={`${monthNo}월 출고예정`} value={outbOrders.length} unit="건"
                     sub={`${num(sum(outbOrders, o => o.totalOrderQty))}개 예정`}
                     meter={{ value: pct(outbDone, outbOrders.length), label: `출고확정 ${num(outbDone)}/${num(outbOrders.length)}` }}
@@ -220,30 +224,30 @@ export default function Dashboard() {
                     total={attentionCount}
                     items={[
                         { to: '/stock/status', label: '유통기한 임박', value: expiring.length, unit: 'Lot' },
-                        { to: '/outbound/picking', label: '미마감 피킹', value: openPickTasks, unit: '건' },
+                        { to: withRange('/outbound/picking'), label: '미마감 피킹', value: openPickTasks, unit: '건' },
                         { to: '/inbound/putaway', label: '적치 대기', value: putawayPending.length, unit: 'Lot' },
                     ]}
                 />
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                <Panel title="입고 진행" icon={Truck} to="/inbound/asn" hint={`${num(asns.length)}건`}>
+                <Panel title="입고 진행" icon={Truck} to={withRange('/inbound/asn')} hint={`${num(asns.length)}건`}>
                     <Pipeline
                         items={asns} stages={INB_STAGES} statusOf={a => a.prgr} meta={ASN_PRGR_META}
                         todos={[
-                            { to: '/inbound/receiving', icon: ClipboardCheck, label: '검수 대기', value: count(asns, a => a.prgr === 'SCHEDULED'), unit: '건' },
+                            { to: withRange('/inbound/receiving'), icon: ClipboardCheck, label: '검수 대기', value: count(asns, a => a.prgr === 'SCHEDULED'), unit: '건' },
                             { to: '/inbound/putaway', icon: PackageOpen, label: '적치 대기', value: putawayPending.length, unit: 'Lot' },
-                            { to: '/inbound/confirm', icon: CheckCircle2, label: '확정 대기', value: count(asns, a => a.prgr === 'PTAWY_CMPL'), unit: '건' },
+                            { to: withRange('/inbound/confirm'), icon: CheckCircle2, label: '확정 대기', value: count(asns, a => a.prgr === 'PTAWY_CMPL'), unit: '건' },
                         ]}
                     />
                 </Panel>
-                <Panel title="출고 진행" icon={Send} to="/outbound/order" hint={`${num(outbOrders.length)}건`}>
+                <Panel title="출고 진행" icon={Send} to={withRange('/outbound/order')} hint={`${num(outbOrders.length)}건`}>
                     <Pipeline
                         items={outbOrders} stages={OUTB_STAGES} statusOf={o => o.status} meta={OUTB_STATUS_META}
                         todos={[
-                            { to: '/outbound/wave', icon: Waves, label: '미편성', value: count(outbOrders, o => !o.wavId && o.status !== 'SHIPPED'), unit: '건' },
-                            { to: '/outbound/picking', icon: ShoppingCart, label: '피킹 잔량', value: pickRemain, unit: '개', warn: openPickTasks > 0 },
-                            { to: '/outbound/shipping', icon: PackageCheck, label: '출하 대기', value: count(outbOrders, o => o.status === 'PICKED'), unit: '건' },
+                            { to: withRange('/outbound/wave'), icon: Waves, label: '미편성', value: count(outbOrders, o => !o.wavId && o.status !== 'SHIPPED'), unit: '건' },
+                            { to: withRange('/outbound/picking'), icon: ShoppingCart, label: '피킹 잔량', value: pickRemain, unit: '개', warn: openPickTasks > 0 },
+                            { to: withRange('/outbound/shipping'), icon: PackageCheck, label: '출하 대기', value: count(outbOrders, o => o.status === 'PICKED'), unit: '건' },
                         ]}
                     />
                 </Panel>
