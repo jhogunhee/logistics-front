@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 
 import { invApi } from '@/api/invApi';
 import { TEMP_ZONE_META } from '@/constants/badgeMeta';
-import { num } from '@/utils/format';
+import { fmtDe, num } from '@/utils/format';
 import { Badge } from '@/components/common/Badge';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import { ProdThumb } from '@/components/common/ProdThumb';
@@ -24,6 +24,9 @@ const foldByLoc = (list) => {
 
 /** 도면에 순위를 붙일 후보 개수 — 적치 도면과 같은 수. 셋을 넘기면 「추천」이 아니라 또 하나의 목록이다 */
 const RANK_COUNT = 3;
+
+/** 이 수 이하면 상품 묶음을 전부 펼친 채로 연다 — 검색으로 좁힌 뒤에는 클릭 한 번이 아깝다 */
+const AUTO_OPEN_MAX = 5;
 
 /**
  * 재고이동 도면 — 왼쪽 기둥의 재고 카드를 오른쪽 창고 도면의 칸으로 끌어다 도착지를 정한다.
@@ -203,6 +206,47 @@ export default function StockMoveLocMap({ rows, loading, onStage, onUnstage, rel
             .map((r, i) => [r.locCd, i + 1]));
     }, [rankRow, mapRows, sameProdOf]);
 
+    /*
+     * 왼쪽 목록을 상품별로 묶는다 — 이동의 첫 이유가 <b>흩어진 재고 합치기</b>인데,
+     * 평평한 목록에서는 「삼다수가 일곱 자리에 있다」를 눈으로 세어야 했다.
+     * 흩어진 상품이 위로 오게 자리 수 내림차순 — 합칠 대상이 곧 위쪽이다.
+     */
+    const prodGroups = useMemo(() => {
+        const byProd = new Map();
+        for (const r of rows) {
+            if (!byProd.has(r.prodCd)) {
+                byProd.set(r.prodCd, {
+                    prodCd: r.prodCd, prodNm: r.prodNm, tmpZon: r.tmpZon, imgUrl: r.prodImgUrl, rows: [],
+                });
+            }
+            byProd.get(r.prodCd).rows.push(r);
+        }
+        return [...byProd.values()].map(g => ({
+            ...g,
+            locCount: new Set(g.rows.map(r => r.locCd)).size,
+            totalQty: g.rows.reduce((t, r) => t + r.avalQty, 0),
+            stagedCount: g.rows.filter(r => r.toLocCd && Number(r.qty) > 0).length,
+        })).sort((a, b) => b.locCount - a.locCount || a.prodNm.localeCompare(b.prodNm));
+    }, [rows]);
+
+    /*
+     * 펼침 기본값 — 상품이 적으면(검색으로 좁힌 뒤) 전부 펼쳐 클릭 한 번을 아끼고,
+     * 많으면(전건 조회) 전부 접어 「무엇이 몇 자리에 흩어졌나」부터 보이게 한다.
+     */
+    const prodKey = prodGroups.map(g => g.prodCd).join(',');
+    const defaultOpenProds = () => new Set(
+        prodGroups.length <= AUTO_OPEN_MAX ? prodGroups.map(g => g.prodCd) : []);
+    const [prodOpen, setProdOpen] = useState(() => ({ key: prodKey, open: defaultOpenProds() }));
+    const openProdCds = prodOpen.key === prodKey ? prodOpen.open : defaultOpenProds();
+    if (prodOpen.key !== prodKey) {
+        setProdOpen({ key: prodKey, open: openProdCds });
+    }
+    const toggleProd = (cd) => setProdOpen(prev => {
+        const next = new Set(prev.key === prodKey ? prev.open : openProdCds);
+        if (next.has(cd)) next.delete(cd); else next.add(cd);
+        return { key: prodKey, open: next };
+    });
+
     const topRankLocCd = [...rankByLocCd.entries()].find(([, rank]) => rank === 1)?.[0] ?? null;
     /** 추천 1순위 칸 자체 — 고른 카드에 「여기로」 버튼을 달아 클릭 한 번으로 끝내려고 든다 */
     const topRankLoc = topRankLocCd ? (mapRows ?? []).find(m => m.locCd === topRankLocCd) ?? null : null;
@@ -221,18 +265,28 @@ export default function StockMoveLocMap({ rows, loading, onStage, onUnstage, rel
     }, [rankRow]);
 
     /*
-     * 그릴 칸 — 목록에 있는 재고의 온도대만, 반품존은 빼고 남긴다. 둘 다 이 화면에서 <b>영구히</b>
-     * 못 쓰는 자리다(온도대는 서버가 거부하고, 반품존은 넣지 않기로 했다). 도면에 두면
-     * 「끝내 밝아지지 않는 칸」이 화면의 절반을 차지한다.
-     * 다만 출발 칸과 담아둔 도착 칸은 예외 없이 남긴다 — 반품존에서 빼는 이동이 정상 업무라
-     * 그 칸이 사라지면 −나갈 표식과 화살표가 갈 곳을 잃는다.
+     * 그릴 칸 — 이 화면에서 <b>영구히</b> 못 쓰는 자리는 그리지 않는다.
+     *
+     * <b>카드를 고르면 그 온도대만</b> 그린다. 온도대를 넘는 이동은 서버가 거부하므로
+     * (`InvMovService.registerOne`) 다른 온도대는 그 카드로는 영원히 못 쓰는 자리다 —
+     * 상온 재고 하나를 고르면 냉장 28칸 + 냉동 16칸이 화면의 40%를 차지하고 있었다.
+     * 적치 도면이 입고건의 온도대만 그리는 것과 같은 처리다.
+     * 고르지 않았으면 목록에 있는 온도대를 전부 그린다 — 그때는 훑어보는 화면이다.
+     *
+     * 반품존도 뺀다(넣지 않기로 한 자리). 다만 출발 칸과 담아둔 도착 칸은 예외 없이 남긴다 —
+     * 반품존에서 빼는 이동이 정상 업무라 그 칸이 사라지면 −나갈 표식과 화살표가 갈 곳을 잃는다.
+     * 카드를 고른 동안에는 <b>그 카드의 것만</b> 남긴다: 다른 건의 반품존 출발지까지 남기면
+     * 지금 쓸 수 없는 칸이 도로 낀다.
      */
     const visibleRows = useMemo(() => {
-        const tmpZons = new Set(rows.map(r => r.tmpZon).filter(Boolean));
-        const pinned = new Set(rows.flatMap(r => [r.locCd, r.toLocCd]).filter(Boolean));
+        const tmpZons = rankRow
+            ? new Set([rankRow.tmpZon])
+            : new Set(rows.map(r => r.tmpZon).filter(Boolean));
+        const pinSource = rankRow ? [rankRow] : rows;
+        const pinned = new Set(pinSource.flatMap(r => [r.locCd, r.toLocCd]).filter(Boolean));
         return (mapRows ?? []).filter(r => pinned.has(r.locCd)
             || (r.bizDvsn !== 'RTNGS' && (tmpZons.size === 0 || tmpZons.has(r.tmpZon))));
-    }, [mapRows, rows]);
+    }, [mapRows, rows, rankRow]);
 
     // 가만히 있을 땐 아무것도 흐리지 않는다 — 도면은 먼저 「무엇이 어디로 가나」를 보여주는 그림이다
     const zones = useMemo(
@@ -278,14 +332,20 @@ export default function StockMoveLocMap({ rows, loading, onStage, onUnstage, rel
         return { key: tmpZonKey, open: next };
     });
 
-    // 카드를 고르면 그 온도대를 펼친다 — 접힌 묶음에 순위를 붙여 봐야 「추천이 있다는데 안 보인다」가 된다
+    /*
+     * 펼침 상태. 카드를 고르면 위 `visibleRows`가 그 온도대만 남기므로 묶음이 하나뿐이고,
+     * 그 하나를 펼친다. 선택을 풀면 다시 전부 펼친다 — 그때가 훑어보는 화면이다.
+     *
+     * 접기는 <b>고르지 않았을 때</b>의 장치로 남는다(온도대가 섞인 목록을 훑을 때).
+     */
     const [lastRankTmpZon, setLastRankTmpZon] = useState(null);
     const rankTmpZon = rankRow?.tmpZon ?? null;
     if (rankTmpZon !== lastRankTmpZon) {
         setLastRankTmpZon(rankTmpZon);
-        if (rankTmpZon && !openTmpZons.has(rankTmpZon)) {
-            setOpenState({ key: tmpZonKey, open: new Set([...openTmpZons, rankTmpZon]) });
-        }
+        const next = rankTmpZon
+            ? new Set([rankTmpZon])
+            : new Set(tmpZonKey ? tmpZonKey.split(',') : []);
+        setOpenState({ key: tmpZonKey, open: next });
     }
 
     // block은 'start'다 — 'nearest'는 섹션이 스크롤 상자 밖일 때 Chrome에서 아무것도 하지 않는다
@@ -388,7 +448,7 @@ export default function StockMoveLocMap({ rows, loading, onStage, onUnstage, rel
                     <PackageSearch size={14} className="text-indigo-600" />
                     <span className="text-xs font-bold text-slate-700">이동할 재고</span>
                     <span className="ml-auto text-[11px] text-slate-400 tabular-nums">
-                        {loading ? '…' : `${num(rows.length)}건`}
+                        {loading ? '…' : `${num(prodGroups.length)}상품 · ${num(rows.length)}건`}
                     </span>
                 </div>
                 <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
@@ -397,18 +457,25 @@ export default function StockMoveLocMap({ rows, loading, onStage, onUnstage, rel
                             {loading ? '불러오는 중…' : '조회된 보관 재고가 없습니다'}
                         </p>
                     )}
-                    {rows.map(r => (
-                        <StockCard key={r.invId} row={r}
-                                   topRankLoc={pickedInvId === r.invId ? topRankLoc : null}
-                                   onSendTop={() => openDrop(r, topRankLoc)}
-                                   picked={pickedInvId === r.invId}
-                                   dragging={dragInvId === r.invId}
-                                   highlight={hoverLocCd != null && (hoverLocCd === r.locCd || hoverLocCd === r.toLocCd)}
-                                   onPick={() => setPickedInvId(prev => (prev === r.invId ? null : r.invId))}
-                                   onDragStart={() => { setDragInvId(r.invId); setPickedInvId(r.invId); }}
-                                   onDragEnd={() => setDragInvId(null)}
-                                   onGoTo={() => scrollToLoc(r.toLocCd || r.locCd)}
-                                   onUnstage={() => onUnstage(r)} />
+                    {prodGroups.map(g => (
+                        <div key={g.prodCd}>
+                            <ProdGroupHeader group={g}
+                                             open={openProdCds.has(g.prodCd)}
+                                             onToggle={() => toggleProd(g.prodCd)} />
+                            {openProdCds.has(g.prodCd) && g.rows.map(r => (
+                                <StockCard key={r.invId} row={r}
+                                           topRankLoc={pickedInvId === r.invId ? topRankLoc : null}
+                                           onSendTop={() => openDrop(r, topRankLoc)}
+                                           picked={pickedInvId === r.invId}
+                                           dragging={dragInvId === r.invId}
+                                           highlight={hoverLocCd != null && (hoverLocCd === r.locCd || hoverLocCd === r.toLocCd)}
+                                           onPick={() => setPickedInvId(prev => (prev === r.invId ? null : r.invId))}
+                                           onDragStart={() => { setDragInvId(r.invId); setPickedInvId(r.invId); }}
+                                           onDragEnd={() => setDragInvId(null)}
+                                           onGoTo={() => scrollToLoc(r.toLocCd || r.locCd)}
+                                           onUnstage={() => onUnstage(r)} />
+                            ))}
+                        </div>
                     ))}
                 </div>
             </aside>
@@ -601,6 +668,40 @@ const GroupHeader = ({ group, open, onToggle }) => {
     );
 };
 
+/**
+ * 상품 묶음 머리 — 「이 상품이 몇 자리에 흩어져 있나」가 여기 한 줄에 나온다.
+ * 두 자리 이상이면 자리 수를 세워 표시한다: 그게 곧 합칠 대상이다.
+ */
+const ProdGroupHeader = ({ group, open, onToggle }) => {
+    const Chevron = open ? ChevronDown : ChevronRight;
+    const scattered = group.locCount > 1;
+    return (
+        <button type="button" onClick={onToggle}
+                title={open ? '접기' : '펼치기'}
+                className="w-full flex items-center gap-2 px-2.5 py-2 text-left
+                           border-b border-slate-100 bg-slate-50/60 hover:bg-slate-100 transition-colors">
+            <Chevron size={13} className="shrink-0 text-slate-400" />
+            <ProdThumb src={group.imgUrl} alt={group.prodNm} tmpZon={group.tmpZon} size={24} />
+            <span className="min-w-0 flex-1">
+                <span className="block text-xs font-bold text-slate-700 truncate" title={group.prodNm}>
+                    {group.prodNm}
+                </span>
+                <span className="block text-[10px] text-slate-400 tabular-nums">
+                    <b className={scattered ? 'text-indigo-600' : ''}>{group.locCount}자리</b>
+                    {/* 한 자리에 Lot이 여럿이면 줄 수와 자리 수가 다르다 — 다를 때만 건수를 덧붙인다 */}
+                    {group.rows.length !== group.locCount && ` · ${num(group.rows.length)}건`}
+                    {' · '}{num(group.totalQty)}개
+                </span>
+            </span>
+            {group.stagedCount > 0 && (
+                <span className="shrink-0 px-1 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] font-bold">
+                    담김 {group.stagedCount}
+                </span>
+            )}
+        </button>
+    );
+};
+
 /** 재고 카드 하나 — 끌기 원천. 담아둔 도착지가 있으면 카드 안에 「→ 도착지 수량」으로 남긴다 */
 const StockCard = ({
     row, topRankLoc, onSendTop, picked, dragging, highlight, onPick, onDragStart, onDragEnd, onGoTo, onUnstage,
@@ -611,14 +712,18 @@ const StockCard = ({
              onDragStart={onDragStart}
              onDragEnd={onDragEnd}
              onClick={onPick}
-             className={`px-2.5 py-2 border-b border-slate-50 cursor-grab active:cursor-grabbing transition-colors
+             className={`pl-4 pr-2.5 py-2 border-b border-slate-50 border-l-2 border-l-slate-100
+                 cursor-grab active:cursor-grabbing transition-colors
                  ${dragging ? 'opacity-40' : ''}
                  ${picked ? 'bg-indigo-50' : highlight ? 'bg-amber-50' : 'hover:bg-slate-50'}`}>
             <div className="flex gap-2">
-                <ProdThumb src={row.prodImgUrl} alt={row.prodNm} tmpZon={row.tmpZon} size={28} />
                 <div className="min-w-0 flex-1">
-                    <p className="text-xs font-medium text-slate-700 truncate" title={row.prodNm}>{row.prodNm}</p>
-                    <p className="text-[10px] text-slate-400 font-mono truncate">{row.locCd} · {row.lotNo}</p>
+                    <p className="text-xs font-medium text-slate-700 font-mono truncate">{row.locCd}</p>
+                    <p className="text-[10px] text-slate-400 font-mono truncate" title={row.lotNo}>{row.lotNo}</p>
+                    {/* 유통기한 — 임박 재고를 앞자리로 빼는 것도 이동의 이유라 고를 때 보여야 한다 */}
+                    <p className="text-[10px] text-slate-400">
+                        {row.expiryDt ? `~${fmtDe(row.expiryDt)}` : '유통기한 미관리'}
+                    </p>
                 </div>
                 <span className="shrink-0 text-right">
                     <span className="block text-xs font-bold text-emerald-600 tabular-nums">{num(row.avalQty)}</span>
