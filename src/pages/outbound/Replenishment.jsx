@@ -43,8 +43,8 @@ const ROW_COLUMN_DEFS = [
         field: 'status', headerName: '상태', width: 84,
         cellRenderer: (p) => <Badge meta={INV_MOV_STATUS_META} value={p.value} show="label" />,
     },
-    { field: 'outbNo', headerName: '출고번호', width: 150, cellClass: 'font-bold text-slate-700' },
-    { field: 'storeNm', headerName: '점포', flex: 1, minWidth: 110 },
+    { field: 'outbNo', headerName: '출고번호', width: 168, cellClass: 'font-bold text-slate-700' },
+    { field: 'storeNm', headerName: '점포', flex: 1, minWidth: 150, tooltipField: 'storeNm' },
     { field: 'cmplDt', headerName: '확정일시', width: 140, valueFormatter: (p) => fmtDt(p.value) },
 ];
 

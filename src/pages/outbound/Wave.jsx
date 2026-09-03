@@ -11,7 +11,7 @@ import { useCodes } from '@/hooks/useCodes';
 import { WAVE_STATUS_META, WAV_REG_TYP_META, OUTB_STATUS_META } from '@/constants/badgeMeta';
 import { fmtDt, num, todayStr } from '@/utils/format';
 import { WAVE_STATUS_OPTIONS } from '@/constants/codeOptions';
-import SearchBar, { SearchText, SearchSelect, SearchDateRange } from '@/components/common/SearchBar';
+import SearchBar, { SearchText, SearchSelect, SearchDateRange, SearchStore } from '@/components/common/SearchBar';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import { Badge } from '@/components/common/Badge';
 import ExecutionHistory from '@/components/strategy/ExecutionHistory';
@@ -71,8 +71,8 @@ const WAVE_COLUMN_DEFS = [
 /** 미편성 후보(주문 담기 팝업)·웨이브 소속 주문 그리드의 공통 컬럼. 편입 출처는 웨이브 소속 목록에만 의미가 있어 따로 붙인다 */
 const orderColumns = () => [
     { headerName: 'No.', width: 56, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
-    { field: 'outbNo', headerName: '출고번호', width: 150, cellClass: 'font-bold text-slate-700' },
-    { field: 'storeNm', headerName: '점포', flex: 1, minWidth: 110 },
+    { field: 'outbNo', headerName: '출고번호', width: 168, cellClass: 'font-bold text-slate-700' },
+    { field: 'storeNm', headerName: '점포', flex: 1, minWidth: 150, tooltipField: 'storeNm' },
     {
         field: 'outbTyp', headerName: '출고유형', width: 100,
         headerTooltip: '웨이브 전략의 편성 조건 기준값',
@@ -120,7 +120,8 @@ export default function Wave() {
     const vhclFltnos = useCodes('VHCL_FLTNO');
 
     // ── 검색 조건 — 웨이브 목록에만 걸린다.
-    const [cond, setCond] = useState({ wavNo: '', status: [], expctDeFrom: todayStr(), expctDeTo: todayStr() });
+    const [cond, setCond] = useState({ wavNo: '', status: [], storeId: '', storeNm: '',
+        expctDeFrom: todayStr(), expctDeTo: todayStr() });
 
     // ── 웨이브 목록 ──────────────────────────────────────────
     const [waves, setWaves] = useState([]);
@@ -269,6 +270,8 @@ export default function Wave() {
             <SearchBar cond={cond} setCond={setCond} onSearch={search}>
                 <SearchText name="wavNo" label="웨이브번호" placeholder="WV-20260803-001" />
                 <SearchSelect name="status" label="웨이브상태" options={WAVE_STATUS_OPTIONS} multiple />
+                {/* 점포는 이미 편성의 기준이다 — 웨이브 전략이 납품처그룹·유형으로 주문을 고른다 */}
+                <SearchStore />
                 <SearchDateRange from="expctDeFrom" to="expctDeTo" label="출고예정일" />
             </SearchBar>
 

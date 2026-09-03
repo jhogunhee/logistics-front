@@ -13,7 +13,7 @@ import { fmtDe, fmtDt, num, todayStr } from '@/utils/format';
 import { Badge } from '@/components/common/Badge';
 import { ProdThumb } from '@/components/common/ProdThumb';
 import { THUMB_CELL_STYLE } from '@/constants/agGrid';
-import SearchBar, { SearchText, SearchDateRange, SearchProd, SearchLoc } from '@/components/common/SearchBar';
+import SearchBar, { SearchText, SearchDateRange, SearchProd, SearchLoc, SearchStore } from '@/components/common/SearchBar';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import PikngAcrstModal from '@/components/outbound/PikngAcrstModal';
 
@@ -146,7 +146,7 @@ const taskColumnDefs = (wavNo) => [
             : 'ag-right-aligned-cell bg-indigo-50',
         headerTooltip: '이번에 집품한 수량 — 기본값은 잔량 전량, 일부만 집었으면 고쳐서 부분 피킹',
     },
-    { field: 'outbNo', headerName: '출고번호', width: 150, cellClass: 'font-bold text-slate-700' },
+    { field: 'outbNo', headerName: '출고번호', width: 168, cellClass: 'font-bold text-slate-700' },
 ];
 
 /**
@@ -161,7 +161,8 @@ const taskColumnDefs = (wavNo) => [
  */
 export default function Picking() {
     const shotgeRsn = useCodes('SHOTGE_RSN'); // 결품사유
-    const [cond, setCond] = useState({ wavNo: '', prodCd: '', locCd: '', expctDeFrom: todayStr(), expctDeTo: todayStr() });
+    const [cond, setCond] = useState({ wavNo: '', prodCd: '', locCd: '', storeId: '', storeNm: '',
+        expctDeFrom: todayStr(), expctDeTo: todayStr() });
     const [waves, setWaves] = useState([]);
     const [wave, setWave] = useState(null);          // 선택 웨이브 (단일)
     const [rows, setRows] = useState([]);
@@ -318,6 +319,8 @@ export default function Picking() {
                 <SearchText name="wavNo" label="웨이브번호" placeholder="WV-20260820-001" />
                 <SearchProd name="prodCd" />
                 <SearchLoc name="locCd" />
+                {/* 이 화면의 작업 단위가 점포다 — 「담을 곳」 칩과 색 도트가 점포로 묶는다 */}
+                <SearchStore />
                 <SearchDateRange from="expctDeFrom" to="expctDeTo" label="출고예정일" />
             </SearchBar>
 

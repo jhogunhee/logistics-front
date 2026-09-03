@@ -15,13 +15,13 @@ const centered = { display: 'flex', alignItems: 'center', justifyContent: 'cente
 
 const HEADER_COLUMN_DEFS = [
     { headerName: 'No.', width: 60, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
-    { field: 'outbNo', headerName: '출고번호', width: 160, cellClass: 'font-bold text-slate-700' },
+    { field: 'outbNo', headerName: '출고번호', width: 168, cellClass: 'font-bold text-slate-700' },
     {
         field: 'status', headerName: '출고진행상태', width: 120, cellStyle: centered,
         cellRenderer: (p) => <Badge meta={OUTB_STATUS_META} value={p.value} show="label" />,
     },
     // 점포명은 긴 것이 많아 이 폭에서는 잘린다 — 전체 이름은 툴팁과 하단 라인 패널 머리글에서 본다
-    { field: 'storeNm', headerName: '점포', flex: 1, minWidth: 100, tooltipField: 'storeNm' },
+    { field: 'storeNm', headerName: '점포', flex: 1, minWidth: 150, tooltipField: 'storeNm' },
     {
         field: 'outbTyp', headerName: '출고유형', width: 100,
         headerTooltip: '웨이브 전략의 편성 조건 기준값',

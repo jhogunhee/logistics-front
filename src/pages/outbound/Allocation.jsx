@@ -52,8 +52,8 @@ const WAVE_COLUMN_DEFS = [
 
 const LINE_COLUMN_DEFS = [
     { headerName: 'No.', width: 56, valueGetter: (p) => p.node.rowIndex + 1, cellClass: 'text-slate-400' },
-    { field: 'outbNo', headerName: '출고번호', width: 150, cellClass: 'font-bold text-slate-700' },
-    { field: 'storeNm', headerName: '점포', flex: 1, minWidth: 110 },
+    { field: 'outbNo', headerName: '출고번호', width: 168, cellClass: 'font-bold text-slate-700' },
+    { field: 'storeNm', headerName: '점포', flex: 1, minWidth: 150, tooltipField: 'storeNm' },
     { field: 'prodCd', headerName: '상품코드', width: 110, cellClass: 'text-slate-600' },
     { field: 'prodNm', headerName: '상품명', flex: 1, minWidth: 130 },
     { field: 'expctDe', headerName: '출고예정일', width: 105, valueFormatter: (p) => fmtDe(p.value) },

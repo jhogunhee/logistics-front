@@ -51,8 +51,8 @@ const WAVE_COLUMN_DEFS = [
 
 /** 주문 그리드 — 체크 가능한 행은 확정할 수 있는 상태(피킹완료 · 신규)뿐이다 */
 const ORDER_COLUMN_DEFS = [
-    { field: 'outbNo', headerName: '출고번호', width: 150, cellClass: 'font-bold text-slate-700' },
-    { field: 'storeNm', headerName: '점포', flex: 1, minWidth: 110 },
+    { field: 'outbNo', headerName: '출고번호', width: 168, cellClass: 'font-bold text-slate-700' },
+    { field: 'storeNm', headerName: '점포', flex: 1, minWidth: 150, tooltipField: 'storeNm' },
     {
         field: 'status', headerName: '상태', width: 92,
         headerTooltip: '피킹완료 · 신규(할당 0건)만 확정할 수 있다. 할당·피킹중은 출고작업중이라 막힌다',
